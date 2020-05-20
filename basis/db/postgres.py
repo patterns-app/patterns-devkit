@@ -44,7 +44,9 @@ def bulk_upsert(
         return
     if update and not unique_on_column:
         raise Exception("Must specify unique_on_column when updating")
-    columns = conform_columns_for_insert(records, columns, convert_columns_to_snake_case)
+    columns = conform_columns_for_insert(
+        records, columns, convert_columns_to_snake_case
+    )
     records = conform_records_for_insert(records, columns, adapt_objects_to_json)
     if update:
         tmpl = "templates/bulk_upsert.sql"
@@ -60,7 +62,6 @@ def bulk_upsert(
     sql = compile_jinja_sql_template(tmpl, jinja_ctx)
     printd("SQL", sql)
     pg_execute_values(eng, sql, records, page_size=page_size)
-
 
 
 def pg_execute_values(eng: Engine, sql: str, records: DictList, page_size: int = 5000):

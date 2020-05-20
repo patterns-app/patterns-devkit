@@ -1,20 +1,19 @@
 # Basis
 
----
-  
 ### Functional Typed Data Pipelines  
   
 Basis is a framework for building functional, type-aware data pipelines from modular
 components. Basis pipelines are composed of `DataFunctions` written in python or SQL operating on
-streams of immutable `DataResources` -- sets of data records of uniform `ObjectType`. The power
-of Basis lies in its flexible type system, which provides universal data interfaces, called
-**ObjectTypes** or _**otypes**_, that allow interoperability and modularity of data operations.
-Basis brings the best practices learned over the last 60 years in software to the world of
-data.
+streams of immutable `DataResources` -- sets of data records of uniform `ObjectType`.
 
-Global collaboration, reproducible byte-perfect results, and performance at any scale from laptop
-to AWS cluster -- this is **Basis**.
-  
+The power of Basis lies in its flexible type system, which provides universal data interfaces, 
+called **ObjectTypes** or _**otypes**_, that allow interoperability and modularity of data
+operations. Basis brings the best practices learned over the last 60 years in software to the
+world of data. Global collaboration, reproducible byte-perfect results, and performance at any
+scale from laptop to AWS cluster -- this is **Basis**.
+
+### Key features:
+
  - **Reusable modules**  
    There are hundreds of `DataFunctions`, `Sources`, and `Targets` ready to snap together in the
    Basis Repository [Coming soon]. Connect Stripe data to LTV models, blend finance data and
