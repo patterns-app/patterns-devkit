@@ -19,7 +19,7 @@ from basis.core.data_resource import (
 )
 from basis.core.environment import Environment
 from basis.core.object_type import ObjectTypeLike
-from basis.core.storage_resource import StorageResource
+from basis.core.storage import Storage
 from basis.utils.common import ensure_list
 
 logger = logging.getLogger(__name__)
@@ -36,9 +36,9 @@ class DataResourceStream:
         self,
         upstream: Union[ConfiguredDataFunction, List[ConfiguredDataFunction]] = None,
         otypes: List[ObjectTypeLike] = None,
-        storages: List[StorageResource] = None,
+        storages: List[Storage] = None,
         otype: ObjectTypeLike = None,
-        storage: StorageResource = None,
+        storage: Storage = None,
         unprocessed_by: ConfiguredDataFunction = None,
         data_sets: List[str] = None,
         data_sets_only: bool = False,
@@ -165,19 +165,17 @@ class DataResourceStream:
     def filter_otype(self, otype: ObjectTypeLike) -> DataResourceStream:
         return self.filter_otypes(ensure_list(otype))
 
-    def filter_storages(self, storages: List[StorageResource]) -> DataResourceStream:
+    def filter_storages(self, storages: List[Storage]) -> DataResourceStream:
         return self.clone(storages=storages)
 
     def _filter_storages(self, ctx: ExecutionContext, query: Query) -> Query:
         if not self.storages:
             return query
         return query.join(StoredDataResourceMetadata).filter(
-            StoredDataResourceMetadata.storage_resource_url.in_(
-                [s.url for s in self.storages]
-            )
+            StoredDataResourceMetadata.storage_url.in_([s.url for s in self.storages])
         )
 
-    def filter_storage(self, storage: StorageResource) -> DataResourceStream:
+    def filter_storage(self, storage: Storage) -> DataResourceStream:
         return self.filter_storages(ensure_list(storage))
 
     # TODO: Does this work?

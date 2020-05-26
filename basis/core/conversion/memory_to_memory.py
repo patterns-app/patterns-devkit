@@ -9,7 +9,7 @@ from basis.core.conversion.converter import (
 )
 from basis.core.data_format import DataFormat, DictList
 from basis.core.data_resource import LocalMemoryDataRecords, StoredDataResourceMetadata
-from basis.core.storage_resource import LocalMemoryStorage, StorageType
+from basis.core.storage import LocalMemoryStorageEngine, StorageType
 
 
 class MemoryToMemoryConverter(Converter):
@@ -28,10 +28,8 @@ class MemoryToMemoryConverter(Converter):
         input_sdr: StoredDataResourceMetadata,
         output_sdr: StoredDataResourceMetadata,
     ) -> StoredDataResourceMetadata:
-        input_memory_storage = LocalMemoryStorage(self.env, input_sdr.storage_resource)
-        output_memory_storage = LocalMemoryStorage(
-            self.env, output_sdr.storage_resource
-        )
+        input_memory_storage = LocalMemoryStorageEngine(self.env, input_sdr.storage)
+        output_memory_storage = LocalMemoryStorageEngine(self.env, output_sdr.storage)
         input_ldr = input_memory_storage.get_local_memory_data_records(input_sdr)
         lookup = {
             (DataFormat.DATAFRAME, DataFormat.DICT_LIST): self.dataframe_to_dictlist,

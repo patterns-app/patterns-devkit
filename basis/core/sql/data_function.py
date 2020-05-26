@@ -122,10 +122,10 @@ class SqlDataFunction(DataFunction):
         self, ctx: DataFunctionContext, **inputs: DataResource
     ) -> StoredDataResourceMetadata:
 
-        if ctx.execution_context.current_runtime_resource is None:
+        if ctx.execution_context.current_runtime is None:
             raise Exception("Current runtime not set")
 
-        # if ctx.runtime_resource.runtime_class != RuntimeClass.DATABASE:
+        # if ctx.runtime.runtime_class != RuntimeClass.DATABASE:
         #     raise Exception(
         #         "Incompatible Runtime"
         #     )  # TODO: Everyone SQL and You Can Too!
@@ -134,18 +134,16 @@ class SqlDataFunction(DataFunction):
         if output is None:
             raise Exception("SQL function should always produce output!")
         dr = DataResourceMetadata(otype_uri=output.otype_uri)
-        storage_url = (
-            ctx.execution_context.current_runtime_resource.as_storage_resource().url
-        )
+        storage_url = ctx.execution_context.current_runtime.as_storage().url
         sdr = StoredDataResourceMetadata(
             data_resource=dr,
-            storage_resource_url=storage_url,
+            storage_url=storage_url,
             data_format=DataFormat.DATABASE_TABLE,
         )
         ctx.execution_context.add(sdr)
 
         # TODO: oof this is doozy, will get fixed as part of runtime re-think
-        db_api = ctx.execution_context.current_runtime_resource.get_database_api(
+        db_api = ctx.execution_context.current_runtime.get_database_api(
             ctx.execution_context.env
         )
         db_api.insert_sql(sdr, sql)

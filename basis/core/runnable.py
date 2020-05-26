@@ -37,8 +37,8 @@ from basis.core.data_resource import (
 )
 from basis.core.environment import Environment
 from basis.core.metadata.orm import BaseModel
-from basis.core.runtime_resource import RuntimeClass, RuntimeEngine, RuntimeResource
-from basis.core.storage_resource import LocalMemoryStorage, StorageResource
+from basis.core.runtime import RuntimeClass, RuntimeEngine, Runtime
+from basis.core.storage import LocalMemoryStorageEngine, Storage
 from basis.utils.common import (
     cf,
     error_symbol,
@@ -119,21 +119,21 @@ class RunSession:
 class ExecutionContext:
     env: Environment
     metadata_session: Session
-    storage_resources: List[StorageResource]
-    runtime_resources: List[RuntimeResource]
-    target_storage: StorageResource
-    local_memory_storage: StorageResource
-    current_runtime_resource: Optional[RuntimeResource] = None
+    storages: List[Storage]
+    runtimes: List[Runtime]
+    target_storage: Storage
+    local_memory_storage: Storage
+    current_runtime: Optional[Runtime] = None
 
     def clone(self, **kwargs):
         args = dict(
             env=self.env,
             metadata_session=self.metadata_session,
-            storage_resources=self.storage_resources,
-            runtime_resources=self.runtime_resources,
+            storages=self.storages,
+            runtimes=self.runtimes,
             target_storage=self.target_storage,
             local_memory_storage=self.local_memory_storage,
-            current_runtime_resource=self.current_runtime_resource,
+            current_runtime=self.current_runtime,
         )
         args.update(**kwargs)
         return ExecutionContext(**args)  # type: ignore
@@ -142,10 +142,10 @@ class ExecutionContext:
     def start_data_function_run(
         self, cdf_key: str
     ) -> Generator[RunSession, None, None]:
-        assert self.current_runtime_resource is not None, "Runtime not set"
+        assert self.current_runtime is not None, "Runtime not set"
         dfl = DataFunctionLog(  # type: ignore
             configured_data_function_key=cdf_key,
-            runtime_resource_url=self.current_runtime_resource.url,
+            runtime_url=self.current_runtime.url,
             started_at=utcnow(),
         )
         try:
@@ -167,9 +167,9 @@ class ExecutionContext:
         return self.metadata_session.merge(obj)
 
     @property
-    def all_storage_resources(self) -> List[StorageResource]:
+    def all_storages(self) -> List[Storage]:
         # TODO: should it be in the list of storages already?
-        return [self.local_memory_storage] + self.storage_resources
+        return [self.local_memory_storage] + self.storages
 
 
 @dataclass(frozen=True)
@@ -186,7 +186,7 @@ class ExecutionManager:
         self.ctx = ctx
         self.env = ctx.env
 
-    def select_runtime(self, cdf: ConfiguredDataFunction) -> RuntimeResource:
+    def select_runtime(self, cdf: ConfiguredDataFunction) -> Runtime:
         from basis.core.sql.data_function import SqlDataFunction
 
         # TODO: not happy with runtime <-> DF mapping here. Let's rethink
@@ -200,7 +200,7 @@ class ExecutionManager:
             else:
                 # cls = RuntimeClass.PYTHON
                 raise NotImplementedError(cdf.datafunction)  # TODO
-        for runtime in self.ctx.runtime_resources:
+        for runtime in self.ctx.runtimes:
             if runtime.runtime_class == cls:  # TODO: Just taking the first one...
                 return runtime
         raise Exception(
@@ -227,7 +227,7 @@ class ExecutionManager:
         if cdf.is_graph():  # cdf: ConfiguredDataFunctionGraph
             return self.run_graph(cdf, to_exhaustion=to_exhaustion)
         runtime = self.select_runtime(cdf)
-        run_ctx = self.ctx.clone(current_runtime_resource=runtime)
+        run_ctx = self.ctx.clone(current_runtime=runtime)
         worker = Worker(run_ctx)
         last_output: Optional[DataResourceMetadata] = None
 
@@ -256,11 +256,11 @@ class ExecutionManager:
                     n_outputs += 1
                 if (
                     not to_exhaustion or not dfi.inputs
-                ):  # TODO: We just run no-input DFs (source fetchers) once no matter what
+                ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     break
                 spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataResources output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
             spinner.stop_and_persist(symbol=cf.success(success_symbol))
-        except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that fetchers don't throw)
+        except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
             printd(cf.warning("    Input Exhausted"))
             if e.args:
                 printd(e)
@@ -353,12 +353,12 @@ class Worker:
         )
         sdr = StoredDataResourceMetadata(  # type: ignore
             data_resource=dr,
-            storage_resource_url=self.ctx.local_memory_storage.url,
+            storage_url=self.ctx.local_memory_storage.url,
             data_format=ldr.data_format,
         )
         dr = self.ctx.add(dr)
         sdr = self.ctx.add(sdr)
-        LocalMemoryStorage(
+        LocalMemoryStorageEngine(
             self.env, self.ctx.local_memory_storage
         ).store_local_memory_data_records(sdr, ldr)
         # Place output in target storage
@@ -372,13 +372,11 @@ class Worker:
 
     # TODO: where does this sql stuff really belong?
     def get_connection(self) -> sqlalchemy.engine.Engine:
-        if self.ctx.current_runtime_resource is None:
+        if self.ctx.current_runtime is None:
             raise Exception("Current runtime not set")
-        if self.ctx.current_runtime_resource.runtime_class != RuntimeClass.DATABASE:
-            raise Exception(
-                f"Runtime not supported {self.ctx.current_runtime_resource}"
-            )
-        return sqlalchemy.create_engine(self.ctx.current_runtime_resource.url)
+        if self.ctx.current_runtime.runtime_class != RuntimeClass.DATABASE:
+            raise Exception(f"Runtime not supported {self.ctx.current_runtime}")
+        return sqlalchemy.create_engine(self.ctx.current_runtime.url)
 
     def execute_sql(self, sql: str) -> ResultProxy:
         printd("Executing SQL:")

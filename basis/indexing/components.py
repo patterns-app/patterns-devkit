@@ -6,10 +6,10 @@ from enum import Enum
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Type
 
 from basis.core.data_function import DataFunction, Direction, ensure_datafunction
-from basis.core.object_type import ObjectType, ObjectTypeUri
 from basis.core.environment import Environment
 from basis.core.module import BasisModule
-from basis.core.source_resource import Source, SourceResource
+from basis.core.object_type import ObjectType, ObjectTypeUri
+from basis.core.external import ExternalProvider, ExternalResource
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,8 @@ logger = logging.getLogger(__name__)
 class ComponentType(Enum):
     ObjectType = "ObjectType"
     DataFunction = "DataFunction"
-    Source = "Source"
-    SourceResource = "SourceResource"
-    ParameterizedSourceResource = "ParameterizedSourceResource"
+    ExternalProvider = "Provider"
+    ExternalResource = "ExternalResource"
 
 
 class ComponentTag(Enum):
@@ -116,9 +115,9 @@ class DataFunctionIndexer:
         )
 
 
-class SourceResourceIndexer:
+class ExternalResourceIndexer:
     def get_relations(
-        self, sr: SourceResource, m: BasisModule
+        self, sr: ExternalResource, m: BasisModule
     ) -> List[ObjectTypeRelation]:
         from basis.core.data_function import Direction
 
@@ -132,12 +131,12 @@ class SourceResourceIndexer:
         ]
 
     def get_indexable_components(
-        self, sr: SourceResource, m: BasisModule
+        self, sr: ExternalResource, m: BasisModule
     ) -> Iterable[IndexableComponent]:
         yield IndexableComponent(
             key=sr.key,
             module=m.key,
-            component_type=ComponentType.SourceResource,
+            component_type=ComponentType.ExternalResource,
             verbose_name=sr.verbose_name,
             description=sr.description,
             otype_relations=self.get_relations(sr, m),
@@ -146,27 +145,29 @@ class SourceResourceIndexer:
         )
 
 
-class SourceIndexer:
+class ExternalProviderIndexer:
     def __init__(
         self,
-        source_resource_indexer: Type[SourceResourceIndexer] = SourceResourceIndexer,
+        external_resource_indexer: Type[
+            ExternalResourceIndexer
+        ] = ExternalResourceIndexer,
     ):
-        self.source_resource_indexer = source_resource_indexer()
+        self.external_resource_indexer = external_resource_indexer()
 
     def get_indexable_components(
-        self, s: Source, m: BasisModule
+        self, s: ExternalProvider, m: BasisModule
     ) -> Iterable[IndexableComponent]:
         yield IndexableComponent(
             key=s.key,
             module=m.key,
-            component_type=ComponentType.Source,
+            component_type=ComponentType.ExternalProvider,
             verbose_name=s.verbose_name,
             description=s.description,
             keywords=[],  # TODO?
             component=s,
         )
         for resource in s.resources:
-            for ic in self.source_resource_indexer.get_indexable_components(
+            for ic in self.external_resource_indexer.get_indexable_components(
                 resource, m
             ):
                 yield ic

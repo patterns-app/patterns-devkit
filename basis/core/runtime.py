@@ -5,7 +5,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Dict, Optional
 
 from basis.core.environment import Environment
-from basis.core.storage_resource import StorageClass, StorageEngine, StorageResource
+from basis.core.storage import StorageClass, StorageEngine, Storage
 from basis.utils.common import rand_str
 
 if TYPE_CHECKING:
@@ -50,32 +50,26 @@ runtime_storage_dual_mapping = {
 
 
 @dataclass(frozen=True)
-class RuntimeResource:
+class Runtime:
     url: str
     runtime_class: RuntimeClass
     runtime_engine: RuntimeEngine
     configuration: Optional[Dict] = None
 
     @classmethod
-    def from_storage_resource(
-        cls, storage_resource: StorageResource
-    ) -> RuntimeResource:
-        if storage_resource.storage_class not in runtime_storage_dual_mapping:
-            raise ValueError(
-                f"Storage {storage_resource} cannot be adapted to a Runtime"
-            )
-        return RuntimeResource(
-            url=storage_resource.url,
-            runtime_class=runtime_storage_dual_mapping[storage_resource.storage_class],
-            runtime_engine=runtime_storage_dual_mapping[
-                storage_resource.storage_engine
-            ],
+    def from_storage(cls, storage: Storage) -> Runtime:
+        if storage.storage_class not in runtime_storage_dual_mapping:
+            raise ValueError(f"Storage {storage} cannot be adapted to a Runtime")
+        return Runtime(
+            url=storage.url,
+            runtime_class=runtime_storage_dual_mapping[storage.storage_class],
+            runtime_engine=runtime_storage_dual_mapping[storage.storage_engine],
         )
 
-    def as_storage_resource(self):
+    def as_storage(self):
         if self.runtime_class not in runtime_storage_dual_mapping:
             raise ValueError(f"Runtime {self} cannot be adapted to a Storage")
-        return StorageResource(
+        return Storage(
             url=self.url,
             storage_class=runtime_storage_dual_mapping[self.runtime_class],
             storage_engine=runtime_storage_dual_mapping[self.runtime_engine],
@@ -83,10 +77,10 @@ class RuntimeResource:
 
     def get_default_local_storage(self):
         try:
-            return self.as_storage_resource()
+            return self.as_storage()
         except KeyError:
             # TODO: this is not well thought through, so who knows
-            return StorageResource(  # type: ignore
+            return Storage(  # type: ignore
                 url=f"memory://_runtime_default_{rand_str(6)}",
                 storage_class=StorageClass.MEMORY,
                 storage_engine=StorageEngine.DICT,
@@ -95,5 +89,5 @@ class RuntimeResource:
     def get_database_api(self, env: Environment) -> DatabaseAPI:
         from basis.db.api import get_database_api_class
 
-        db_api_cls = get_database_api_class(self.as_storage_resource().storage_engine)
+        db_api_cls = get_database_api_class(self.as_storage().storage_engine)
         return db_api_cls(env, self)

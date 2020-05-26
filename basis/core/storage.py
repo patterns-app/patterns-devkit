@@ -65,13 +65,13 @@ NATURAL_STORAGE_CLASS = {
 
 
 @dataclass(frozen=True)
-class StorageResource:
+class Storage:
     url: str
     storage_class: StorageClass
     storage_engine: StorageEngine
 
     @classmethod
-    def from_url(cls, url: str) -> StorageResource:
+    def from_url(cls, url: str) -> Storage:
         parsed = urlparse(url)
         scheme_to_type = {
             "file": StorageType.LOCAL_FILE_SYSTEM,
@@ -81,7 +81,7 @@ class StorageResource:
             "sqlite": StorageType.SQLITE_DATABASE,
         }
         class_, engine = scheme_to_type[parsed.scheme].value
-        return StorageResource(url=url, storage_class=class_, storage_engine=engine)
+        return Storage(url=url, storage_class=class_, storage_engine=engine)
 
     @property
     def storage_type(self) -> StorageType:
@@ -105,9 +105,9 @@ class StorageResource:
 
 
 class StorageManager:
-    def __init__(self, env: Environment, storage_resource: StorageResource):
+    def __init__(self, env: Environment, storage: Storage):
         self.env = env
-        self.storage_resource = storage_resource
+        self.storage = storage
 
     def exists(self, stored_data_resource: StoredDataResourceMetadata) -> bool:
         raise NotImplementedError
@@ -120,8 +120,8 @@ class StorageManager:
 
 class MemoryStorageManager(StorageManager):
     @property
-    def storage(self) -> LocalMemoryStorage:
-        return LocalMemoryStorage(self.env, self.storage_resource)
+    def storage(self) -> LocalMemoryStorageEngine:
+        return LocalMemoryStorageEngine(self.env, self.storage)
 
     def exists(self, stored_data_resource: StoredDataResourceMetadata) -> bool:
         return self.storage.exists(stored_data_resource)
@@ -139,7 +139,7 @@ class MemoryStorageManager(StorageManager):
 class DatabaseStorageManager(StorageManager):
     @property
     def database(self) -> DatabaseAPI:
-        return self.storage_resource.get_database_api(self.env)
+        return self.storage.get_database_api(self.env)
 
     def exists(self, stored_data_resource: StoredDataResourceMetadata) -> bool:
         return self.database.exists(stored_data_resource.get_name(self.env))
@@ -158,10 +158,10 @@ manager_lookup: Dict[StorageClass, Type[StorageManager]] = {
 }
 
 
-class Storage:
-    def __init__(self, env: Environment, storage_resource: StorageResource):
+class BaseStorageEngine:
+    def __init__(self, env: Environment, storage: Storage):
         self.env = env
-        self.storage_resource = storage_resource
+        self.storage = storage
 
     def exists(self, stored_data_resource: StoredDataResourceMetadata) -> bool:
         return self._exists(stored_data_resource)
@@ -174,7 +174,7 @@ class Storage:
     ) -> LocalMemoryDataRecords:
         ldr = self._get(stored_data_resource)
         printd(
-            f"← Getting {cf.bold(ldr.record_count_display)} records of SDR#{cf.bold(stored_data_resource.id)} in {self.storage_resource}"
+            f"← Getting {cf.bold(ldr.record_count_display)} records of SDR#{cf.bold(stored_data_resource.id)} in {self.storage}"
         )
         return ldr
 
@@ -186,7 +186,7 @@ class Storage:
         if self.exists(stored_data_resource):
             raise Exception("SDRs are immutable")  # TODO / cleanup
         printd(
-            f"➞ Putting {cf.bold(data_records.record_count)} records of SDR#{cf.bold(stored_data_resource.id)} in {self.storage_resource}"
+            f"➞ Putting {cf.bold(data_records.record_count)} records of SDR#{cf.bold(stored_data_resource.id)} in {self.storage}"
         )
         data_records.validate_and_conform_otype(
             stored_data_resource.get_otype(self.env)
@@ -209,10 +209,10 @@ class Storage:
 global_memory_storage: Dict[str, Any] = {}
 
 
-class LocalMemoryStorage(Storage):
+class LocalMemoryStorageEngine(BaseStorageEngine):
     def get_url(self, stored_data_resource: StoredDataResourceMetadata) -> str:
         name = stored_data_resource.get_name(self.env)
-        return os.path.join(self.storage_resource.url, name)
+        return os.path.join(self.storage.url, name)
 
     def get_key(self, stored_data_resource: StoredDataResourceMetadata) -> str:
         return self.get_url(stored_data_resource)
@@ -242,7 +242,7 @@ class LocalMemoryStorage(Storage):
 
 
 def new_local_memory_storage():
-    local_storage = StorageResource(
+    local_storage = Storage(
         url=f"memory://_runtime_default_{rand_str(6)}",
         storage_class=StorageClass.MEMORY,
         storage_engine=StorageEngine.DICT,

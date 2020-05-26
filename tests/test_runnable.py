@@ -29,8 +29,8 @@ def df_error() -> DictList[TestType1]:
 def test_worker():
     env = make_test_env()
     sess = env.get_new_metadata_session()
-    ec = env.get_execution_context(sess, current_runtime_resource=env.runtimes[0])
-    cdf = env.node("cdf", df_t1_source)
+    ec = env.get_execution_context(sess, current_runtime=env.runtimes[0])
+    cdf = env.add_node("cdf", df_t1_source)
     w = Worker(ec)
     dfi_mgr = DataFunctionInterfaceManager(ec, cdf)
     bdfi = dfi_mgr.get_bound_interface()
@@ -46,9 +46,9 @@ def test_worker_output():
     sess = env.get_new_metadata_session()
     env.add_storage("memory://test")
     ec = env.get_execution_context(
-        sess, current_runtime_resource=env.runtimes[0], target_storage=env.storages[0]
+        sess, current_runtime=env.runtimes[0], target_storage=env.storages[0]
     )
-    cdf = env.node("cdf", df_dl_source)
+    cdf = env.add_node("cdf", df_dl_source)
     w = Worker(ec)
     dfi_mgr = DataFunctionInterfaceManager(ec, cdf)
     bdfi = dfi_mgr.get_bound_interface()

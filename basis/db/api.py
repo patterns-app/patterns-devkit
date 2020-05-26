@@ -9,9 +9,9 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 from basis.core.data_format import DictList
 from basis.core.data_resource import StoredDataResourceMetadata
 from basis.core.environment import Environment
-from basis.core.runtime_resource import RuntimeResource
+from basis.core.runtime import Runtime
 from basis.core.sql.utils import ObjectTypeMapper
-from basis.core.storage_resource import StorageEngine, StorageResource
+from basis.core.storage import StorageEngine, Storage
 from basis.utils.common import JSONEncoder, printd, title_to_snake_case
 
 logger = logging.getLogger(__name__)
@@ -49,9 +49,7 @@ def conform_columns_for_insert(
 
 
 class DatabaseAPI:
-    def __init__(
-        self, env: Environment, resource: Union[RuntimeResource, StorageResource]
-    ):
+    def __init__(self, env: Environment, resource: Union[Runtime, Storage]):
         self.env = env
         self.resource = resource
 
@@ -69,9 +67,7 @@ class DatabaseAPI:
             return name
         otype = sdr.get_otype(self.env)
         ddl = ObjectTypeMapper(self.env).create_table_statement(
-            otype=otype,
-            storage_engine=sdr.storage_resource.storage_engine,
-            table_name=name,
+            otype=otype, storage_engine=sdr.storage.storage_engine, table_name=name,
         )
         self.execute_sql(ddl)
         return name

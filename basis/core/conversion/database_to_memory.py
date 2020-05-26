@@ -9,7 +9,7 @@ from basis.core.conversion.converter import (
 )
 from basis.core.data_format import DatabaseTable, DataFormat
 from basis.core.data_resource import LocalMemoryDataRecords, StoredDataResourceMetadata
-from basis.core.storage_resource import LocalMemoryStorage, StorageType
+from basis.core.storage import LocalMemoryStorageEngine, StorageType
 
 
 class DatabaseToMemoryConverter(Converter):
@@ -30,16 +30,12 @@ class DatabaseToMemoryConverter(Converter):
         input_sdr: StoredDataResourceMetadata,
         output_sdr: StoredDataResourceMetadata,
     ) -> StoredDataResourceMetadata:
-        input_runtime = input_sdr.storage_resource.get_database_api(self.env)
-        output_memory_storage = LocalMemoryStorage(
-            self.env, output_sdr.storage_resource
-        )
+        input_runtime = input_sdr.storage.get_database_api(self.env)
+        output_memory_storage = LocalMemoryStorageEngine(self.env, output_sdr.storage)
         name = input_sdr.get_name(self.env)
         db_conn = input_runtime.get_connection()
         if output_sdr.data_format == DataFormat.DATABASE_TABLE_REF:
-            output_records = DatabaseTable(
-                name, storage_resource_url=input_sdr.storage_resource_url
-            )
+            output_records = DatabaseTable(name, storage_url=input_sdr.storage_url)
         elif output_sdr.data_format == DataFormat.DATABASE_CURSOR:
             output_records = db_conn.execute(f"select * from {name}")
         elif output_sdr.data_format == DataFormat.DATAFRAME:

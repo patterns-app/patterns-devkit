@@ -32,7 +32,7 @@ pytest-cov = "^2.8.1"
 sqlalchemy-stubs = "^0.3"
 
 [tool.poetry.scripts]
-dream = "basis.cli:app"
+basis = "basis.cli:app"
 
 [tool.black]
 exclude = '''

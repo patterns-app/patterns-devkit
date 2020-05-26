@@ -7,9 +7,9 @@ from sqlalchemy import Column, MetaData, Table, dialects
 from sqlalchemy.engine import Dialect
 from sqlalchemy.sql.ddl import CreateTable
 
-from basis.core.object_type import ObjectType, Field
 from basis.core.environment import Environment
-from basis.core.storage_resource import StorageEngine
+from basis.core.object_type import Field, ObjectType
+from basis.core.storage import StorageEngine
 from basis.utils.common import is_datetime_str, rand_str
 
 core_dir = os.path.dirname(__file__)

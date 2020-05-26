@@ -13,11 +13,11 @@ if TYPE_CHECKING:
         DataFunctionLike,
         DataFunction,
     )
-    from basis.core.source_resource import Source
+    from basis.core.external import ExternalProvider
     from basis.indexing.components import (
         IndexableComponent,
         ObjectTypeIndexer,
-        SourceIndexer,
+        ExternalProviderIndexer,
         DataFunctionIndexer,
     )
 
@@ -28,8 +28,8 @@ class BasisModule:
     data_functions: Registry["DataFunction"]
     module_path: Optional[str]
     module_name: Optional[str]
-    sources: Registry["Source"]
-    source_indexer: Type["SourceIndexer"]
+    providers: Registry["ExternalProvider"]
+    provider_indexer: Type["ExternalProviderIndexer"]
     otype_indexer: Type["ObjectTypeIndexer"]
     data_function_indexer: Type["DataFunctionIndexer"]
 
@@ -40,14 +40,14 @@ class BasisModule:
         module_name: Optional[str] = None,
         otypes: Optional[Sequence[ObjectTypeLike]] = None,
         data_functions: Optional[Sequence[Union[DataFunctionLike, str]]] = None,
-        sources: Optional[Sequence[Source]] = None,
-        source_indexer: Optional[Type[SourceIndexer]] = None,
+        providers: Optional[Sequence[ExternalProvider]] = None,
+        provider_indexer: Optional[Type[ExternalProviderIndexer]] = None,
         otype_indexer: Optional[Type[ObjectTypeIndexer]] = None,
         data_function_indexer: Optional[Type[DataFunctionIndexer]] = None,
     ):
         from basis.indexing.components import (
             ObjectTypeIndexer,
-            SourceIndexer,
+            ExternalProviderIndexer,
             DataFunctionIndexer,
         )
 
@@ -58,13 +58,13 @@ class BasisModule:
         self.module_name = module_name
         self.otypes = UriRegistry()
         self.data_functions = Registry()
-        self.sources = Registry()
+        self.providers = Registry()
         self.otypes.register_all(self.process_otypes(otypes or []))
         self.data_functions.register_all(
             self.process_data_functions(data_functions or [])
         )
-        self.sources.register_all(self.process_sources(sources or []))
-        self.source_indexer = source_indexer or SourceIndexer
+        self.providers.register_all(self.process_providers(providers or []))
+        self.provider_indexer = provider_indexer or ExternalProviderIndexer
         self.otype_indexer = otype_indexer or ObjectTypeIndexer
         self.data_function_indexer = data_function_indexer or DataFunctionIndexer
 
@@ -122,29 +122,32 @@ class BasisModule:
                 sql_file_path = os.path.join(self.module_path, df)
                 with open(sql_file_path) as f:
                     sql = f.read()
-                df = sql_datafunction(sql, key=df[:-4])
+                file_name = os.path.basename(df)[:-4]
+                df = sql_datafunction(sql, key=file_name)
                 processed.append(df)
             else:
                 raise Exception("Invalid DataFunction")
         return processed
 
-    def process_sources(self, sources: Sequence[Source]) -> Sequence[Source]:
-        return sources
+    def process_providers(
+        self, providers: Sequence[ExternalProvider]
+    ) -> Sequence[ExternalProvider]:
+        return providers
         # """Ensure otypes"""
         # processed = []
-        # for s in sources:
-        #     for sr in s.resources:
+        # for s in providers:
+        #     for sr in s.reproviders:
         #         sr.otype = self.get_otype(sr.otype)
         # return processed
 
     def get_indexable_components(self) -> Iterable[IndexableComponent]:
         dti = self.otype_indexer()
-        si = self.source_indexer()
+        si = self.provider_indexer()
         dfi = self.data_function_indexer()
         for otype in self.otypes.all():
             for ic in dti.get_indexable_components(otype, self):
                 yield ic
-        for s in self.sources.all():
+        for s in self.providers.all():
             for ic in si.get_indexable_components(s, self):
                 yield ic
         for df in self.data_functions.all():

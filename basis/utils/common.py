@@ -163,6 +163,12 @@ def is_aware(d: Union[datetime, time]) -> bool:
     return d.tzinfo is not None and d.tzinfo.utcoffset(None) is not None
 
 
+def date_to_str(dt: Union[str, date, datetime], date_format: str = "%F %T") -> str:
+    if isinstance(dt, str):
+        return dt
+    return dt.strftime(date_format)
+
+
 def _get_duration_components(duration: timedelta) -> Tuple[int, int, int, int, int]:
     """From Django"""
     days = duration.days

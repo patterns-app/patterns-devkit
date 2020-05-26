@@ -19,7 +19,7 @@ from basis.core.object_type import ObjectType, ObjectTypeLike, ObjectTypeUri, is
 from basis.utils.common import printd
 
 if TYPE_CHECKING:
-    from basis.core.storage_resource import StorageResource
+    from basis.core.storage import Storage
     from basis.core.runnable import DataFunctionContext, ExecutionContext
     from basis.core.streams import (
         InputResources,
@@ -391,7 +391,7 @@ class DataFunctionInterfaceManager:
             printd(f"Getting {annotation} for {stream}")
             stream = ensure_data_stream(stream)
             dr: Optional[DataResourceMetadata] = self.get_input_data_resource(
-                stream, annotation, self.ctx.all_storage_resources
+                stream, annotation, self.ctx.all_storages
             )
             printd("\tFound:", dr)
 
@@ -433,7 +433,7 @@ class DataFunctionInterfaceManager:
         self,
         stream: DataResourceStream,
         annotation: TypedDataAnnotation,
-        storages: List[StorageResource] = None,
+        storages: List[Storage] = None,
     ) -> Optional[DataResourceMetadata]:
         if not annotation.is_generic:
             stream = stream.filter_otype(annotation.otype_like)
@@ -597,12 +597,17 @@ class ConfiguredDataFunction:
         """
         from basis.core.streams import DataResourceStream
 
+        new_kwargs = {}
         for k, v in kwargs.items():
             if not isinstance(v, ConfiguredDataFunction) and not isinstance(
                 v, DataResourceStream
             ):
-                raise Exception(f"Invalid DataFunction input: {v}")
-        return kwargs
+                if isinstance(v, str):
+                    v = self.env.get_node(v)
+                else:
+                    raise Exception(f"Invalid DataFunction input: {v}")
+            new_kwargs[k] = v
+        return new_kwargs
 
     def get_interface(self) -> DataFunctionInterface:
         if hasattr(self.datafunction, "get_interface"):
@@ -698,7 +703,7 @@ class ConfiguredDataFunction:
 class DataFunctionLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     configured_data_function_key = Column(String, nullable=False)
-    runtime_resource_url = Column(String, nullable=False)
+    runtime_url = Column(String, nullable=False)
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
@@ -710,7 +715,7 @@ class DataFunctionLog(BaseModel):
         return self._repr(
             id=self.id,
             configured_data_function_key=self.configured_data_function_key,
-            runtime_resource_url=self.runtime_resource_url,
+            runtime_url=self.runtime_url,
             started_at=self.started_at,
         )
 

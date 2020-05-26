@@ -10,7 +10,7 @@ import networkx as nx
 
 from basis.core.data_format import DataFormat
 from basis.core.data_resource import StoredDataResourceMetadata
-from basis.core.storage_resource import StorageResource, StorageType
+from basis.core.storage import Storage, StorageType
 
 if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext
@@ -90,11 +90,11 @@ class ConverterLookup:
         return self._lookup.get(conversion, [])
 
     def get_lowest_cost_path(
-        self, conversion: Conversion, storage_resources: List[StorageResource] = None
+        self, conversion: Conversion, storages: List[Storage] = None
     ) -> Optional[ConversionPath]:
-        if storage_resources:
+        if storages:
             return self.clone(
-                set(s.storage_type for s in storage_resources)
+                set(s.storage_type for s in storages)
             ).get_lowest_cost_path(conversion)
         # TODO: conversion paths
         try:
@@ -144,12 +144,12 @@ class Converter:
     def convert(
         self,
         input_sdr: StoredDataResourceMetadata,
-        output_storage: StorageResource,
+        output_storage: Storage,
         output_data_format: DataFormat,
     ) -> StoredDataResourceMetadata:
         if (
             input_sdr.data_format == output_data_format
-            and input_sdr.storage_resource.storage_type == output_storage.storage_type
+            and input_sdr.storage.storage_type == output_storage.storage_type
         ):
             # Nothing to do
             return input_sdr
@@ -159,7 +159,7 @@ class Converter:
         output_sdr = StoredDataResourceMetadata(  # type: ignore
             data_resource=input_sdr.data_resource,
             data_format=output_data_format,
-            storage_resource_url=output_storage.url,
+            storage_url=output_storage.url,
         )
         output_sdr = self.ctx.add(output_sdr)
         return self._convert(input_sdr, output_sdr)
@@ -174,13 +174,11 @@ class Converter:
     def to_conversion(
         self,
         input_sdr: StoredDataResourceMetadata,
-        output_storage: StorageResource,
+        output_storage: Storage,
         output_data_format: DataFormat,
     ):
         return (
-            StorageFormat(
-                input_sdr.storage_resource.storage_type, input_sdr.data_format,
-            ),
+            StorageFormat(input_sdr.storage.storage_type, input_sdr.data_format,),
             StorageFormat(output_storage.storage_type, output_data_format),
         )
 

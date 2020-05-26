@@ -20,7 +20,7 @@ from basis.utils.common import StringEnum
 from basis.utils.registry import T
 
 if TYPE_CHECKING:
-    from basis.core.storage_resource import StorageClass
+    from basis.core.storage import StorageClass
 
 
 class DataFormat(StringEnum):
@@ -57,7 +57,7 @@ class DataFormat(StringEnum):
         return self in self.memory_formats()
 
     def get_natural_storage_class(self) -> StorageClass:
-        from basis.core.storage_resource import NATURAL_STORAGE_CLASS
+        from basis.core.storage import NATURAL_STORAGE_CLASS
 
         return NATURAL_STORAGE_CLASS[self]
 
@@ -176,12 +176,12 @@ class DatabaseCursorFormat(DataFormatManager):
 
 
 class DatabaseTable:
-    def __init__(self, table_name: str, storage_resource_url: str):
+    def __init__(self, table_name: str, storage_url: str):
         self.table_name = table_name
-        self.storage_resource_url = storage_resource_url
+        self.storage_url = storage_url
 
     def __repr__(self):
-        return f"{self.storage_resource_url}/{self.table_name}"
+        return f"{self.storage_url}/{self.table_name}"
 
 
 class DatabaseTableRefFormat(DataFormatManager):

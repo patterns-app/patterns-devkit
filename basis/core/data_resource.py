@@ -26,9 +26,9 @@ if TYPE_CHECKING:
         convert_sdr,
     )
     from basis.core.runnable import ExecutionContext
-    from basis.core.storage_resource import (
-        StorageResource,
-        LocalMemoryStorage,
+    from basis.core.storage import (
+        Storage,
+        LocalMemoryStorageEngine,
     )
 
 
@@ -159,7 +159,7 @@ class StoredDataResourceMetadata(BaseModel):
     data_resource_id = Column(
         String, ForeignKey(DataResourceMetadata.id), nullable=False
     )
-    storage_resource_url = Column(String, nullable=False)
+    storage_url = Column(String, nullable=False)
     data_format: DataFormat = Column(sa.Enum(DataFormat), nullable=False)  # type: ignore
     # is_ephemeral = Column(Boolean, default=False) # TODO
     # data_records_object: Optional[Any]  # Union[DataFrame, FilePointer, List[Dict]]
@@ -171,17 +171,17 @@ class StoredDataResourceMetadata(BaseModel):
             id=self.id,
             data_resource=self.data_resource,
             data_format=self.data_format,
-            storage_resource_url=self.storage_resource_url,
+            storage_url=self.storage_url,
         )
 
     def get_otype(self, env: Environment) -> ObjectType:
         return env.get_otype(self.data_resource.otype_uri)
 
     @property
-    def storage_resource(self) -> StorageResource:
-        from basis.core.storage_resource import StorageResource
+    def storage(self) -> Storage:
+        from basis.core.storage import Storage
 
-        return StorageResource.from_url(self.storage_resource_url)
+        return Storage.from_url(self.storage_url)
 
     def get_name(self, env: Environment) -> str:
         if self.data_resource_id is None or self.id is None:
@@ -192,14 +192,14 @@ class StoredDataResourceMetadata(BaseModel):
         return f"_{otype.get_identifier()[:40]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
 
     def get_storage_format(self) -> StorageFormat:
-        return StorageFormat(self.storage_resource.storage_type, self.data_format)
+        return StorageFormat(self.storage.storage_type, self.data_format)
 
     def exists(self, env: Environment) -> bool:
-        return self.storage_resource.get_manager(env).exists(self)
+        return self.storage.get_manager(env).exists(self)
 
     def record_count(self, env: Environment) -> Optional[int]:
         # TODO: this is really a property of a DR, but can only be computed by a SDR?
-        return self.storage_resource.get_manager(env).record_count(self)
+        return self.storage.get_manager(env).record_count(self)
 
 
 event.listen(DataResourceMetadata, "before_update", immutability_update_listener)
@@ -277,7 +277,7 @@ class DataResourceManager:
         self.data_resource = data_resource
 
     def __str__(self):
-        return f"DRM: {self.data_resource}, Local: {self.ctx.local_memory_storage}, rest: {self.ctx.storage_resources}"
+        return f"DRM: {self.data_resource}, Local: {self.ctx.local_memory_storage}, rest: {self.ctx.storages}"
 
     def get_otype(self) -> ObjectType:
         return self.ctx.env.get_otype(self.data_resource.otype_uri)
@@ -295,10 +295,10 @@ class DataResourceManager:
         return True  # TODO
 
     def as_format(self, fmt: DataFormat) -> Any:
-        from basis.core.storage_resource import LocalMemoryStorage
+        from basis.core.storage import LocalMemoryStorageEngine
 
         sdr = self.get_or_create_local_stored_data_resource(fmt)
-        local_memory_storage = LocalMemoryStorage(
+        local_memory_storage = LocalMemoryStorageEngine(
             self.ctx.env, self.ctx.local_memory_storage
         )
         return local_memory_storage.get_local_memory_data_records(sdr).records_object
@@ -316,17 +316,15 @@ class DataResourceManager:
             #   Nice to be able to query all together via orm... hmmmm
             # DO NOT fetch memory SDRs that aren't of current runtime (since we can't get them!
             or_(
-                ~StoredDataResourceMetadata.storage_resource_url.startswith(
+                ~StoredDataResourceMetadata.storage_url.startswith(
                     "memory:"
                 ),  # TODO: drawback of just having url for StorageResource instead of proper metadata object
-                StoredDataResourceMetadata.storage_resource_url
+                StoredDataResourceMetadata.storage_url
                 == self.ctx.local_memory_storage.url,
             ),
         )
         existing_sdrs.filter(
-            StoredDataResourceMetadata.storage_resource_url.in_(
-                self.ctx.all_storage_resources
-            ),
+            StoredDataResourceMetadata.storage_url.in_(self.ctx.all_storages),
         )
         target_storage_format = StorageFormat(
             self.ctx.local_memory_storage.storage_type, target_format
@@ -341,12 +339,12 @@ class DataResourceManager:
         existing_sdrs = list(existing_sdrs)
         for sdr in existing_sdrs:
             source_storage_format = StorageFormat(
-                sdr.storage_resource.storage_type, sdr.data_format
+                sdr.storage.storage_type, sdr.data_format
             )
             if source_storage_format == target_storage_format:
                 return sdr
             conversion_path = get_conversion_path_for_sdr(
-                sdr, target_storage_format, self.ctx.all_storage_resources
+                sdr, target_storage_format, self.ctx.all_storages
             )
             if conversion_path is not None:
                 eligible_conversion_paths.append(

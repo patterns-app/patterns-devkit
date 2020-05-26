@@ -14,8 +14,8 @@ from basis.core.object_type import DEFAULT_MODULE_KEY, ObjectType, ObjectTypeLik
 from basis.utils.registry import Registry, UriRegistry
 
 if TYPE_CHECKING:
-    from basis.core.storage_resource import (
-        StorageResource,
+    from basis.core.storage import (
+        Storage,
         new_local_memory_storage,
     )
     from basis.core.data_function import (
@@ -32,46 +32,42 @@ logger = logging.getLogger(__name__)
 
 class Environment:
     otype_registry: UriRegistry
-    storages: List[StorageResource]
-    metadata_storage_resource: StorageResource
+    storages: List[Storage]
+    metadata_storage: Storage
 
     def __init__(
         self,
         key: str = None,
-        metadata_storage_resource: "StorageResource" = None,
+        metadata_storage: "Storage" = None,
         configured_data_function_registry: Registry = None,
         otype_registry: UriRegistry = None,
-        source_registry: Registry = None,
+        provider_registry: Registry = None,
         # TODO: SourceResource registry too?
         module_registry: Registry = None,
         create_metadata_storage: bool = True,
         add_default_python_runtime: bool = True,
     ):
-        from basis.core.runtime_resource import RuntimeResource
-        from basis.core.runtime_resource import RuntimeClass
-        from basis.core.runtime_resource import RuntimeEngine
-        from basis.core.storage_resource import StorageResource
+        from basis.core.runtime import Runtime
+        from basis.core.runtime import RuntimeClass
+        from basis.core.runtime import RuntimeEngine
+        from basis.core.storage import Storage
 
         self.key = key
 
-        if metadata_storage_resource is None and create_metadata_storage:
+        if metadata_storage is None and create_metadata_storage:
 
             # TODO: kind of hidden. make configurable at least, and log/print to user
-            metadata_storage_resource = StorageResource.from_url(
-                "sqlite:///.basis_metadata.db"
-            )
-        if isinstance(metadata_storage_resource, str):
-            metadata_storage_resource = StorageResource.from_url(
-                metadata_storage_resource
-            )
-        if metadata_storage_resource is None:
-            raise Exception("Must specify metadata_storage_resource or allow default")
-        self.metadata_storage_resource = metadata_storage_resource
+            metadata_storage = Storage.from_url("sqlite:///.basis_metadata.db")
+        if isinstance(metadata_storage, str):
+            metadata_storage = Storage.from_url(metadata_storage)
+        if metadata_storage is None:
+            raise Exception("Must specify metadata_storage or allow default")
+        self.metadata_storage = metadata_storage
         # if create_metadata_storage: # TODO: hmmm
         self.initialize_metadata_database()
         self.module_registry = module_registry or Registry()
         self.otype_registry = otype_registry or UriRegistry()
-        self.source_registry = source_registry or Registry()
+        self.provider_registry = provider_registry or Registry()
         self.configured_data_function_registry = (
             configured_data_function_registry or Registry()
         )
@@ -79,7 +75,7 @@ class Environment:
         self.runtimes = []
         if add_default_python_runtime:
             self.runtimes.append(
-                RuntimeResource(
+                Runtime(
                     url="python://local",
                     runtime_class=RuntimeClass.PYTHON,
                     runtime_engine=RuntimeEngine.LOCAL,
@@ -90,7 +86,7 @@ class Environment:
     def initialize_metadata_database(self):
         from basis.core.metadata.listeners import add_persisting_sdr_listener
 
-        conn = self.metadata_storage_resource.get_database_api(self).get_connection()
+        conn = self.metadata_storage.get_database_api(self).get_connection()
         BaseModel.metadata.create_all(conn)
         self.Session = sessionmaker(bind=conn)
         add_persisting_sdr_listener(self.Session)
@@ -111,7 +107,7 @@ class Environment:
             return otype_like
         return self.otype_registry.get(otype_like, module_order=self.get_module_order())
 
-    def node(
+    def add_node(
         self, _key: str, _data_function: DataFunctionCallable, **kwargs
     ) -> ConfiguredDataFunction:
         from basis.core.data_function import configured_data_function_factory
@@ -119,11 +115,6 @@ class Environment:
         cdf = configured_data_function_factory(self, _key, _data_function, **kwargs)
         self.configured_data_function_registry.register(cdf)
         return cdf
-
-    # def get_source(self, source_like: ObjectTypeLike) -> ObjectType:
-    #     if isinstance(otype_like, ObjectType):
-    #         return otype_like
-    #     return self.otype_registry.get(otype_like)
 
     def register_node(self, cdf: "ConfiguredDataFunction"):
         self.configured_data_function_registry.register(cdf)
@@ -140,7 +131,7 @@ class Environment:
     def add_module(self, module: BasisModule):
         self.module_registry.register(module)
         self.otype_registry.merge(module.otypes)
-        self.source_registry.merge(module.sources)
+        self.provider_registry.merge(module.providers)
         self._module_order.append(module.key)
 
     def get_indexable_components(self) -> Iterable[IndexableComponent]:
@@ -162,14 +153,14 @@ class Environment:
 
     def get_execution_context(self, session: Session, **kwargs) -> ExecutionContext:
         from basis.core.runnable import ExecutionContext
-        from basis.core.storage_resource import new_local_memory_storage
+        from basis.core.storage import new_local_memory_storage
 
         target_storage = self.storages[0] if self.storages else None
         args = dict(
             env=self,
             metadata_session=session,
-            runtime_resources=self.runtimes,
-            storage_resources=self.storages,
+            runtimes=self.runtimes,
+            storages=self.storages,
             target_storage=target_storage,
             local_memory_storage=new_local_memory_storage(),
         )
@@ -177,7 +168,7 @@ class Environment:
         return ExecutionContext(**args)
 
     @contextmanager
-    def execution(self, target_storage: StorageResource = None):
+    def execution(self, target_storage: Storage = None):
         # TODO: target storage??
         from basis.core.runnable import ExecutionManager
 
@@ -215,22 +206,22 @@ class Environment:
         return cdf.get_latest_output(ctx)
 
     def add_storage(
-        self, storage_like: Union[StorageResource, str], add_runtime=True
-    ) -> StorageResource:
-        from basis.core.storage_resource import StorageResource
+        self, storage_like: Union[Storage, str], add_runtime=True
+    ) -> Storage:
+        from basis.core.storage import Storage
 
         if isinstance(storage_like, str):
-            sr = StorageResource.from_url(storage_like)
-        elif isinstance(storage_like, StorageResource):
+            sr = Storage.from_url(storage_like)
+        elif isinstance(storage_like, Storage):
             sr = storage_like
         else:
             raise TypeError
         self.storages.append(sr)
         if add_runtime:
-            from basis.core.runtime_resource import RuntimeResource
+            from basis.core.runtime import Runtime
 
             try:
-                rt = RuntimeResource.from_storage_resource(sr)
+                rt = Runtime.from_storage(sr)
                 self.runtimes.append(rt)
             except ValueError:
                 pass
@@ -249,9 +240,7 @@ class Environment:
                 deleted = (
                     sess.query(StoredDataResourceMetadata)
                     .filter(
-                        StoredDataResourceMetadata.storage_resource_url.startswith(
-                            "memory:"
-                        )
+                        StoredDataResourceMetadata.storage_url.startswith("memory:")
                     )
                     .delete(False)
                 )
@@ -282,10 +271,10 @@ class Environment:
 
 # Not supporting yml project config atm
 # def load_environment_from_yaml(yml) -> Environment:
-#     from basis.core.storage_resource import StorageResource
+#     from basis.core.storage import StorageResource
 #
 #     env = Environment(
-#         metadata_storage_resource=yml.get("metadata_storage", None),
+#         metadata_storage=yml.get("metadata_storage", None),
 #         add_default_python_runtime=yml.get("add_default_python_runtime", True),
 #     )
 #     for url in yml.get("storages"):
@@ -297,14 +286,14 @@ class Environment:
 
 
 def load_environment_from_project(project: Any) -> Environment:
-    from basis.core.storage_resource import StorageResource
+    from basis.core.storage import Storage
 
     env = Environment(
-        metadata_storage_resource=getattr(project, "metadata_storage", None),
+        metadata_storage=getattr(project, "metadata_storage", None),
         add_default_python_runtime=getattr(project, "add_default_python_runtime", True),
     )
     for url in getattr(project, "storages", []):
-        env.add_storage(StorageResource.from_url(url))
+        env.add_storage(Storage.from_url(url))
     for module_name in getattr(project, "modules", []):
         m = import_module(module_name)
         env.add_module(m)  # type: ignore

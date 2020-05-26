@@ -23,10 +23,10 @@ class TestStreams:
         self.dr2t1 = DataResourceMetadata(otype_uri="_test.TestType1",)
         self.dr1t2 = DataResourceMetadata(otype_uri="_test.TestType2",)
         self.dr2t2 = DataResourceMetadata(otype_uri="_test.TestType2",)
-        self.cdf_source = self.env.node("df_source", df_t1_source)
-        self.cdf1 = self.env.node("df1", df_t1_sink)
-        self.cdf2 = self.env.node("df2", df_t1_to_t2)
-        self.cdf3 = self.env.node("df3", df_generic)
+        self.cdf_source = self.env.add_node("df_source", df_t1_source)
+        self.cdf1 = self.env.add_node("df1", df_t1_sink)
+        self.cdf2 = self.env.add_node("df2", df_t1_to_t2)
+        self.cdf3 = self.env.add_node("df3", df_generic)
         self.sess = ctx.metadata_session
         self.sess.add_all([self.dr1t1, self.dr1t2, self.dr2t1, self.dr2t2])
 
@@ -37,8 +37,7 @@ class TestStreams:
 
     def test_stream_unprocessed_eligible(self):
         dfl = DataFunctionLog(
-            configured_data_function_key=self.cdf_source.key,
-            runtime_resource_url="test",
+            configured_data_function_key=self.cdf_source.key, runtime_url="test",
         )
         drl = DataResourceLog(
             data_function_log=dfl, data_resource=self.dr1t1, direction=Direction.OUTPUT,
@@ -51,14 +50,13 @@ class TestStreams:
 
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = DataFunctionLog(
-            configured_data_function_key=self.cdf_source.key,
-            runtime_resource_url="test",
+            configured_data_function_key=self.cdf_source.key, runtime_url="test",
         )
         drl = DataResourceLog(
             data_function_log=dfl, data_resource=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = DataFunctionLog(
-            configured_data_function_key=self.cdf1.key, runtime_resource_url="test",
+            configured_data_function_key=self.cdf1.key, runtime_url="test",
         )
         drl2 = DataResourceLog(
             data_function_log=dfl2, data_resource=self.dr1t1, direction=Direction.INPUT,
@@ -75,14 +73,13 @@ class TestStreams:
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
         dfl = DataFunctionLog(
-            configured_data_function_key=self.cdf_source.key,
-            runtime_resource_url="test",
+            configured_data_function_key=self.cdf_source.key, runtime_url="test",
         )
         drl = DataResourceLog(
             data_function_log=dfl, data_resource=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = DataFunctionLog(
-            configured_data_function_key=self.cdf1.key, runtime_resource_url="test",
+            configured_data_function_key=self.cdf1.key, runtime_url="test",
         )
         drl2 = DataResourceLog(
             data_function_log=dfl2,
@@ -101,8 +98,7 @@ class TestStreams:
 
     def test_stream_unprocessed_eligible_otype(self):
         dfl = DataFunctionLog(
-            configured_data_function_key=self.cdf_source.key,
-            runtime_resource_url="test",
+            configured_data_function_key=self.cdf_source.key, runtime_url="test",
         )
         drl = DataResourceLog(
             data_function_log=dfl, data_resource=self.dr1t1, direction=Direction.OUTPUT,

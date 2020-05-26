@@ -7,7 +7,7 @@ import pytest
 from basis.core.conversion import StorageFormat, get_converter_lookup
 from basis.core.conversion.converter import Conversion, ConversionCostLevel
 from basis.core.data_format import DataFormat
-from basis.core.storage_resource import StorageType
+from basis.core.storage import StorageType
 
 
 @pytest.mark.parametrize(

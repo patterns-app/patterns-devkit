@@ -8,7 +8,7 @@ from basis.core.conversion.converter import (
 )
 from basis.core.data_format import DataFormat
 from basis.core.data_resource import StoredDataResourceMetadata
-from basis.core.storage_resource import LocalMemoryStorage, StorageType
+from basis.core.storage import LocalMemoryStorageEngine, StorageType
 
 
 class MemoryToDatabaseConverter(Converter):
@@ -30,19 +30,16 @@ class MemoryToDatabaseConverter(Converter):
         input_sdr: StoredDataResourceMetadata,
         output_sdr: StoredDataResourceMetadata,
     ) -> StoredDataResourceMetadata:
-        input_memory_storage = LocalMemoryStorage(self.env, input_sdr.storage_resource)
+        input_memory_storage = LocalMemoryStorageEngine(self.env, input_sdr.storage)
         input_ldr = input_memory_storage.get_local_memory_data_records(input_sdr)
         if input_sdr.data_format == DataFormat.DATABASE_TABLE_REF:
-            if (
-                input_ldr.records_object.storage_resource_url
-                == output_sdr.storage_resource_url
-            ):
+            if input_ldr.records_object.storage_url == output_sdr.storage_url:
                 # No-op, already exists (shouldn't really ever get here)
                 logger.warning("Non-conversion to existing table requested")
                 return output_sdr
             else:
                 raise NotImplementedError(
-                    f"No inter-db migration implemented yet ({input_sdr.storage_resource_url} to {output_sdr.storage_resource_url})"
+                    f"No inter-db migration implemented yet ({input_sdr.storage_url} to {output_sdr.storage_url})"
                 )
         assert input_sdr.data_format in (
             DataFormat.DICT_LIST,
@@ -51,7 +48,7 @@ class MemoryToDatabaseConverter(Converter):
         records_objects = input_ldr.records_object
         if input_sdr.data_format == DataFormat.DICT_LIST:
             records_objects = [records_objects]
-        output_runtime = output_sdr.storage_resource.get_database_api(self.env)
+        output_runtime = output_sdr.storage.get_database_api(self.env)
         # TODO: this loop is what is actually calling our Iterable DataFunction in DICT_LIST_ITERATOR case. Is that ok?
         #   a bit of a strange side effect of iterating a loop. what happens if there's an exception here, for instance?
         for records_object in records_objects:

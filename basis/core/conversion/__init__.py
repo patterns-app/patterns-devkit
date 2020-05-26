@@ -10,7 +10,7 @@ from basis.core.conversion.converter import (
 )
 from basis.core.data_format import DataFormat
 from basis.core.data_resource import StoredDataResourceMetadata
-from basis.core.storage_resource import StorageResource, StorageType
+from basis.core.storage import Storage, StorageType
 from basis.utils.common import printd
 
 if TYPE_CHECKING:
@@ -34,14 +34,12 @@ def get_converter_lookup() -> ConverterLookup:
 def convert_lowest_cost(
     ctx: ExecutionContext,
     sdr: StoredDataResourceMetadata,
-    target_storage: StorageResource,
+    target_storage: Storage,
     target_format: DataFormat,
 ):
     # TODO: cleanup target vs output
     target_storage_format = StorageFormat(target_storage.storage_type, target_format)
-    cp = get_conversion_path_for_sdr(
-        sdr, target_storage_format, ctx.all_storage_resources
-    )
+    cp = get_conversion_path_for_sdr(sdr, target_storage_format, ctx.all_storages)
     if cp is None:
         raise  # TODO
     return convert_sdr(ctx, sdr, cp)
@@ -50,15 +48,15 @@ def convert_lowest_cost(
 def get_conversion_path_for_sdr(
     sdr: StoredDataResourceMetadata,
     target_format: StorageFormat,
-    storages: List[StorageResource],
+    storages: List[Storage],
 ) -> Optional[ConversionPath]:
-    source_format = StorageFormat(sdr.storage_resource.storage_type, sdr.data_format)
+    source_format = StorageFormat(sdr.storage.storage_type, sdr.data_format)
     if source_format == target_format:
         # Already exists, do nothing
         return ConversionPath()
     conversion = (source_format, target_format)
     conversion_path = get_converter_lookup().get_lowest_cost_path(
-        conversion, storage_resources=storages,
+        conversion, storages=storages,
     )
     return conversion_path
 
@@ -73,7 +71,7 @@ def convert_sdr(
         conversion = conversion_edge.conversion
         target_storage_format = conversion[1]
         storage = select_storage(
-            ctx.local_memory_storage, ctx.storage_resources, target_storage_format
+            ctx.local_memory_storage, ctx.storages, target_storage_format
         )
         printd(
             "CONVERSION:", conversion[0], "->", conversion[1],
@@ -87,12 +85,10 @@ def convert_sdr(
 
 
 def get_converter(
-    sdr: StoredDataResourceMetadata,
-    output_storage: StorageResource,
-    output_format: DataFormat,
+    sdr: StoredDataResourceMetadata, output_storage: Storage, output_format: DataFormat,
 ) -> Type[Converter]:
     target_format = StorageFormat(output_storage.storage_type, output_format)
-    source_format = StorageFormat(sdr.storage_resource.storage_type, sdr.data_format)
+    source_format = StorageFormat(sdr.storage.storage_type, sdr.data_format)
     conversion = (source_format, target_format)
     converter_class = get_converter_lookup().get_lowest_cost(conversion)
     if not converter_class:
@@ -103,10 +99,10 @@ def get_converter(
 
 
 def select_storage(
-    local_memory_storage: StorageResource,
-    storages: List[StorageResource],
+    local_memory_storage: Storage,
+    storages: List[Storage],
     storage_format: StorageFormat,
-) -> StorageResource:
+) -> Storage:
     stype = storage_format.storage_type
     if stype == StorageType.DICT_MEMORY:
         return local_memory_storage
