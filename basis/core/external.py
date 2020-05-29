@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type, Union
+from datetime import datetime
+from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type
 
-import requests
-from ratelimit import limits, sleep_and_retry
 from sqlalchemy import Column, DateTime, String
 
 from basis.core.data_function import (
@@ -16,8 +14,8 @@ from basis.core.data_function import (
     TypedDataAnnotation,
 )
 from basis.core.metadata.orm import BaseModel
-from basis.core.object_type import ObjectTypeLike
 from basis.core.runnable import DataFunctionContext, ExecutionContext
+from basis.core.typing.object_type import ObjectTypeLike
 from basis.utils.registry import T
 
 logger = logging.getLogger(__name__)
@@ -46,7 +44,11 @@ class ExternalResource:
         self.provider.add_resource(self)
 
     def __call__(
-        self, key, configured_source=None, **kwargs
+        self,
+        key,
+        configured_provider: ConfiguredExternalProvider = None,
+        initial_high_water_mark: datetime = None,
+        **kwargs,
     ) -> ConfiguredExternalResource:
         # TODO: would be AWEsome to have a proper signature on this method (read dynamically from configuration class?
         # TODO: also want to auto configure Source as well here, and maybe pluck out relevant kwargs, as a shortcut?
@@ -55,11 +57,14 @@ class ExternalResource:
         args.update(**kwargs)
         if self.configuration_class:
             cfg = self.configuration_class(**args)
+        if not initial_high_water_mark:
+            initial_high_water_mark = self.initial_high_water_mark
         return ConfiguredExternalResource(
             key=key,
             external_resource=self,
             configuration=cfg,
-            configured_provider=configured_source,
+            configured_provider=configured_provider,
+            initial_high_water_mark=initial_high_water_mark,
         )
 
 
@@ -69,6 +74,7 @@ class ConfiguredExternalResource(Generic[T]):
     external_resource: ExternalResource
     configured_provider: ConfiguredExternalProvider
     configuration: Optional[T] = None
+    initial_high_water_mark: Optional[datetime] = None
     # Data set expected size ? 1e2, country = 1e2, EcommOrder = 1e6 (Optional for sure, and overridable as "compiler hint")
 
     def __getattr__(self, item):
@@ -88,7 +94,7 @@ class ConfiguredExternalResource(Generic[T]):
         )
         if state is None:
             state = ConfiguredExternalResourceState(
-                configured_source_resource_key=self.key
+                configured_external_resource_key=self.key
             )
             state = ctx.add(state)
         return state
@@ -110,7 +116,7 @@ class ConfiguredExternalResourceState(BaseModel):
 
     def __repr__(self):
         return self._repr(
-            configured_source_resource_key=self.configured_external_resource_key,
+            configured_external_resource_key=self.configured_external_resource_key,
             high_water_mark=self.high_water_mark,
         )
 
@@ -211,21 +217,21 @@ class ExtractorDataFunction(PythonDataFunction):
     def __init__(
         self,
         extractor_function: ExtractorLike,
-        configured_source: ConfiguredExternalProvider,
-        configured_source_resource: ConfiguredExternalResource,
+        configured_provider: ConfiguredExternalProvider,
+        configured_external_resource: ConfiguredExternalResource,
         key: str = None,
     ):
         super().__init__(extractor_function, key)
         self.extract_function = extractor_function
-        self.configured_source = configured_source
-        self.configured_source_resource = configured_source_resource
+        self.configured_provider = configured_provider
+        self.configured_external_resource = configured_external_resource
 
     def prepare_state(
         self, state: ConfiguredExternalResourceState,
     ):
         if state.high_water_mark is None:
             state.high_water_mark = (
-                self.configured_source_resource.initial_high_water_mark
+                self.configured_external_resource.initial_high_water_mark
             )
             # if state.high_water_mark is None and hasattr(
             #     self.extract_function, "initial_high_water_mark"
@@ -244,10 +250,10 @@ class ExtractorDataFunction(PythonDataFunction):
         # TODO: handle arbitrary state blob
 
     def __call__(self, ctx: DataFunctionContext) -> DataInterfaceType:
-        state = self.configured_source_resource.get_state(ctx.execution_context)
+        state = self.configured_external_resource.get_state(ctx.execution_context)
         self.prepare_state(state)
         for extract_result in self.extract_function(
-            self.configured_source, self.configured_source_resource, state,
+            self.configured_provider, self.configured_external_resource, state,
         ):
             if extract_result.records is not None:
                 yield extract_result.records
@@ -257,7 +263,7 @@ class ExtractorDataFunction(PythonDataFunction):
         # TODO: more than dictlistiterator
         out_annotation = TypedDataAnnotation.create(
             data_resource_class="DictListIterator",
-            otype_like=self.configured_source_resource.otype,
+            otype_like=self.configured_external_resource.otype,
         )
         return DataFunctionInterface(
             inputs=[], output=out_annotation, requires_data_function_context=True
@@ -268,12 +274,12 @@ class ExtractorDataFunction(PythonDataFunction):
 #     raise
 #
 #     def extractor_factory(
-#         configured_source: ConfiguredSource,
-#         configured_source_resource: ConfiguredSourceResource,
+#         configured_provider: ConfiguredSource,
+#         configured_external_resource: ConfiguredSourceResource,
 #         key: str = None,
 #     ):
 #         return ExtractDataFunction(
-#             extract_function, configured_source, configured_source_resource, key=key
+#             extract_function, configured_provider, configured_external_resource, key=key
 #         )
 #
 #     return extractor_factory
@@ -298,7 +304,7 @@ class ExtractorDataFunction(PythonDataFunction):
 #         key = csr_key_from_cdf(ctx.cdf)
 #         state = (
 #             ctx._metadata_session.query(ConfiguredSourceResourceState)
-#             .filter(ConfiguredSourceResourceState.configured_source_resource_key == key)
+#             .filter(ConfiguredSourceResourceState.configured_external_resource_key == key)
 #             .first()
 #         )
 #         if state is not None:
@@ -306,7 +312,7 @@ class ExtractorDataFunction(PythonDataFunction):
 #             raise InputExhaustedException()
 #         ret = df(*args, **kwargs)
 #         state = ConfiguredSourceResourceState(
-#             configured_source_resource_key=key, high_water_mark=utcnow(),
+#             configured_external_resource_key=key, high_water_mark=utcnow(),
 #         )
 #         ctx._metadata_session.add(state)
 #         return ret
@@ -339,34 +345,34 @@ class ExtractorDataFunction(PythonDataFunction):
 #
 #     def get_url_from_configuration(
 #         self,
-#         configured_source: ConfiguredSource,
-#         configured_source_resource: ConfiguredSourceResource,
+#         configured_provider: ConfiguredSource,
+#         configured_external_resource: ConfiguredSourceResource,
 #         state: ConfiguredSourceResourceState,
 #     ) -> str:
 #         raise NotImplementedError
 #
 #     def get_params_from_configuration(
 #         self,
-#         configured_source: ConfiguredSource,
-#         configured_source_resource: ConfiguredSourceResource,
+#         configured_provider: ConfiguredSource,
+#         configured_external_resource: ConfiguredSourceResource,
 #         state: ConfiguredSourceResourceState,
 #     ) -> Dict:
 #         raise NotImplementedError
 #
 #     def __call__(
 #         self,
-#         configured_source: ConfiguredSource,
-#         configured_source_resource: ConfiguredSourceResource,
+#         configured_provider: ConfiguredSource,
+#         configured_external_resource: ConfiguredSourceResource,
 #         state: ConfiguredSourceResourceState,
 #     ) -> Iterator[ExtractResult]:
 #         params = self.get_params_from_configuration(
-#             configured_source, configured_source_resource, state
+#             configured_provider, configured_external_resource, state
 #         )
 #         url = self.get_url_from_configuration(
-#             configured_source, configured_source_resource, state
+#             configured_provider, configured_external_resource, state
 #         )
 #         for extract_result in self.iterate_extract_results(
-#             url, params, configured_source, configured_source_resource, state
+#             url, params, configured_provider, configured_external_resource, state
 #         ):
 #             yield extract_result
 #
@@ -374,8 +380,8 @@ class ExtractorDataFunction(PythonDataFunction):
 #         self,
 #         url: str,
 #         params: Dict,
-#         configured_source: ConfiguredSource,
-#         configured_source_resource: ConfiguredSourceResource,
+#         configured_provider: ConfiguredSource,
+#         configured_external_resource: ConfiguredSourceResource,
 #         state: ConfiguredSourceResourceState,
 #     ) -> Iterator[ExtractResult]:
 #         raise NotImplementedError
@@ -425,34 +431,34 @@ class ExtractorDataFunction(PythonDataFunction):
 #
 #     def get_path_from_configuration(
 #         self,
-#         configured_source: ConfiguredSource,
-#         configured_source_resource: ConfiguredSourceResource,
+#         configured_provider: ConfiguredSource,
+#         configured_external_resource: ConfiguredSourceResource,
 #         state: ConfiguredSourceResourceState,
 #     ) -> str:
 #         return self.default_path
 #
 #     def get_params_from_configuration(
 #         self,
-#         configured_source: ConfiguredSource,
-#         configured_source_resource: ConfiguredSourceResource,
+#         configured_provider: ConfiguredSource,
+#         configured_external_resource: ConfiguredSourceResource,
 #         state: ConfiguredSourceResourceState,
 #     ) -> Dict:
 #         return {}
 #
 #     def __call__(
 #         self,
-#         configured_source: ConfiguredSource,
-#         configured_source_resource: ConfiguredSourceResource,
+#         configured_provider: ConfiguredSource,
+#         configured_external_resource: ConfiguredSourceResource,
 #         state: ConfiguredSourceResourceState,
 #     ) -> Iterator[ExtractResult]:
 #         params = self.get_params_from_configuration(
-#             configured_source, configured_source_resource, state
+#             configured_provider, configured_external_resource, state
 #         )
 #         path = self.get_path_from_configuration(
-#             configured_source, configured_source_resource, state
+#             configured_provider, configured_external_resource, state
 #         )
 #         for extract_result in self.get_extract_results(
-#             path, params, configured_source, configured_source_resource, state
+#             path, params, configured_provider, configured_external_resource, state
 #         ):
 #             yield extract_result
 #
@@ -460,8 +466,8 @@ class ExtractorDataFunction(PythonDataFunction):
 #         self,
 #         path: str,
 #         params: Dict,
-#         configured_source: ConfiguredSource,
-#         configured_source_resource: ConfiguredSourceResource,
+#         configured_provider: ConfiguredSource,
+#         configured_external_resource: ConfiguredSourceResource,
 #         state: ConfiguredSourceResourceState,
 #     ) -> Iterator[ExtractResult]:
 #         raise NotImplementedError

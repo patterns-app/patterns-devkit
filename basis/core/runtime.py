@@ -5,7 +5,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Dict, Optional
 
 from basis.core.environment import Environment
-from basis.core.storage import StorageClass, StorageEngine, Storage
+from basis.core.storage import Storage, StorageClass, StorageEngine
 from basis.utils.common import rand_str
 
 if TYPE_CHECKING:

@@ -1,5 +1,5 @@
 import os
-from typing import Any, Dict, List, Sequence
+from typing import Dict, List, Sequence
 
 import jinja2
 import sqlalchemy as sa
@@ -8,9 +8,9 @@ from sqlalchemy.engine import Dialect
 from sqlalchemy.sql.ddl import CreateTable
 
 from basis.core.environment import Environment
-from basis.core.object_type import Field, ObjectType
 from basis.core.storage import StorageEngine
-from basis.utils.common import is_datetime_str, rand_str
+from basis.core.typing.object_type import Field, ObjectType
+from basis.utils.common import rand_str
 
 core_dir = os.path.dirname(__file__)
 
@@ -42,34 +42,6 @@ def compile_jinja_sql_template(template, template_ctx=None):
     tmpl = env.get_template(template)
     sql = tmpl.render(**template_ctx)
     return sql
-
-
-def get_sqlalchemy_type_for_python_object(o: Any) -> str:
-    # This is a: Dirty filthy good for nothing hack
-    # Only used in helper util for making ObjectType yaml, atm
-    # Defaults to json
-    if isinstance(o, str):
-        # Try some things with str and see what sticks
-        if is_datetime_str(o):
-            return "DateTime"
-        try:
-            o = int(o)
-        except ValueError:
-            try:
-                o = float(o)
-            except ValueError:
-                pass
-    return dict(
-        str="Unicode",
-        int="BigInteger",
-        float="Float",
-        Decimal="Numeric",
-        dict="JSON",
-        list="JSON",
-        bool="Boolean",
-        datetime="DateTime",
-        NoneType="Unicode",
-    ).get(type(o).__name__, "JSON")
 
 
 class ObjectTypeFieldMapper:

@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from basis.core.metadata.orm import BaseModel
 from basis.core.module import BasisModule
-from basis.core.object_type import DEFAULT_MODULE_KEY, ObjectType, ObjectTypeLike
+from basis.core.typing.object_type import DEFAULT_MODULE_KEY, ObjectType, ObjectTypeLike
 from basis.utils.registry import Registry, UriRegistry
 
 if TYPE_CHECKING:
@@ -38,7 +38,7 @@ class Environment:
     def __init__(
         self,
         key: str = None,
-        metadata_storage: "Storage" = None,
+        metadata_storage: Union["Storage", str] = None,
         configured_data_function_registry: Registry = None,
         otype_registry: UriRegistry = None,
         provider_registry: Registry = None,
@@ -187,7 +187,7 @@ class Environment:
             session.close()
 
     def produce(
-        self, node_like: Union[ConfiguredDataFunction, str]
+        self, node_like: Union[ConfiguredDataFunction, str], **execution_kwargs: Any
     ) -> Optional[DataResource]:
         from basis.core.data_function import ConfiguredDataFunction
         from basis.core.graph import get_all_upstream_dependencies_in_execution_order
@@ -197,7 +197,7 @@ class Environment:
         assert isinstance(node_like, ConfiguredDataFunction)
         dependencies = get_all_upstream_dependencies_in_execution_order(self, node_like)
         for dep in dependencies:
-            with self.execution() as em:
+            with self.execution(**execution_kwargs) as em:
                 em.run(dep, to_exhaustion=True)
 
     def get_latest_output(self, cdf: ConfiguredDataFunction) -> Optional[DataResource]:

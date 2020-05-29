@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Optional
 import sqlalchemy as sa
 from pandas import DataFrame
 from sqlalchemy import Boolean, Column, ForeignKey, String, event, or_
-from sqlalchemy.orm import RelationshipProperty, Session, object_session, relationship
+from sqlalchemy.orm import RelationshipProperty, Session, relationship
 
 from basis.core.data_format import (
     DatabaseTable,
@@ -17,7 +17,7 @@ from basis.core.data_format import (
 from basis.core.environment import Environment
 from basis.core.metadata.listeners import immutability_update_listener
 from basis.core.metadata.orm import BaseModel, timestamp_rand_key
-from basis.core.object_type import ObjectType, ObjectTypeUri
+from basis.core.typing.object_type import ObjectType, ObjectTypeUri
 
 if TYPE_CHECKING:
     from basis.core.conversion import (
@@ -306,7 +306,11 @@ class DataResourceManager:
     def get_or_create_local_stored_data_resource(
         self, target_format: DataFormat
     ) -> StoredDataResourceMetadata:
-        from basis.core.conversion import StorageFormat
+        from basis.core.conversion import (
+            StorageFormat,
+            get_conversion_path_for_sdr,
+            convert_sdr,
+        )
 
         existing_sdrs = self.ctx.metadata_session.query(
             StoredDataResourceMetadata

@@ -11,7 +11,7 @@ from basis.core.data_resource import StoredDataResourceMetadata
 from basis.core.environment import Environment
 from basis.core.runtime import Runtime
 from basis.core.sql.utils import ObjectTypeMapper
-from basis.core.storage import StorageEngine, Storage
+from basis.core.storage import Storage, StorageEngine
 from basis.utils.common import JSONEncoder, printd, title_to_snake_case
 
 logger = logging.getLogger(__name__)

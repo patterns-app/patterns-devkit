@@ -1,12 +1,9 @@
-from typing import Iterable, List, Optional, Sequence, Set, Tuple
-
-import networkx as nx
+from typing import Iterable, List, Set
 
 from basis.core.data_function import ConfiguredDataFunction
 from basis.core.environment import Environment
-from basis.core.object_type import ObjectType, ObjectTypeLike
+from basis.core.typing.object_type import ObjectTypeLike
 
-# Unused atm, will eventually want for compiled function graphs
 # def get_edges(
 #     env: Environment, cdf: ConfiguredDataFunction, recursive: bool = True
 # ) -> List[Tuple[str, str]]:
@@ -49,6 +46,14 @@ from basis.core.object_type import ObjectType, ObjectTypeLike
 #         sub = nx.subgraph(self.graph, nx.ancestors(self.graph, cdf.key))
 #         # TODO: cycles?
 #         return nx.topological_sort(sub)
+
+
+def get_all_nodes_in_execution_order(
+    env: Environment, as_equivalence_sets: bool = False
+) -> List[ConfiguredDataFunction]:
+    if as_equivalence_sets:
+        raise NotImplementedError
+    pass
 
 
 def get_all_upstream_dependencies_in_execution_order(

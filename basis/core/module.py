@@ -4,7 +4,7 @@ import os
 import sys
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 
-from basis.core.object_type import ObjectType, ObjectTypeLike
+from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 from basis.utils.registry import Registry, UriRegistry
 
 if TYPE_CHECKING:
@@ -84,8 +84,8 @@ class BasisModule:
 
     def process_otypes(self, otypes: Sequence[ObjectTypeLike]) -> Sequence[ObjectType]:
         # TODO: why is this here? Move into ObjectType.from_yaml(...)?
-        from basis.core.object_type import ObjectType
-        from basis.core.object_type import otype_from_yaml
+        from basis.core.typing.object_type import ObjectType
+        from basis.core.typing.object_type import otype_from_yaml
 
         processed = []
         for otype in otypes:

@@ -9,7 +9,8 @@ from sqlalchemy import func
 from basis.core.data_function import DataFunctionLog
 from basis.core.data_resource import DataResourceMetadata, DataSetMetadata
 from basis.core.environment import current_env
-from basis.core.object_type import dict_to_rough_otype, otype_to_yaml
+from basis.core.typing.inference import dict_to_rough_otype
+from basis.core.typing.object_type import otype_to_yaml
 from basis.utils.common import cf, cycle_colors_unique
 
 REPO_SERVER_API = "http://localhost:8000/components/"  # TODO: configurable

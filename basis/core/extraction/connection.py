@@ -20,13 +20,15 @@ class JsonHttpApiConnection:
 
     def __init__(
         self,
-        default_params: Dict = {},
+        default_params: Dict = None,
+        default_headers: Dict = None,
         date_format: str = "%F %T",
         raise_for_status: bool = True,
         ratelimit_calls_per_min: int = 1000,
         strip_none_params: bool = True,
     ):
-        self.default_params = default_params
+        self.default_params = default_params or {}
+        self.default_headers = default_headers or {}
         self.date_format = date_format
         self.raise_for_status = raise_for_status
         self.ratelimit_calls_per_min = ratelimit_calls_per_min
@@ -41,6 +43,9 @@ class JsonHttpApiConnection:
     def get_default_params(self) -> Dict:
         return self.default_params.copy()
 
+    def get_default_headers(self) -> Dict:
+        return self.default_headers.copy()
+
     # def validate_params(self, params: Dict) -> Dict:
     #     formatted = {}
     #     for k, v in params.items():
@@ -51,14 +56,20 @@ class JsonHttpApiConnection:
     #         formatted[k] = v
     #     return formatted
 
-    def get(self, url: str, params: Dict) -> Union[Dict, List]:
+    def get(
+        self, url: str, params: Dict = None, headers: Dict = None, **kwargs
+    ) -> Union[Dict, List]:
         default_params = self.get_default_params()
-        default_params.update(params)
+        if params:
+            default_params.update(params)
+        default_headers = self.get_default_headers()
+        if headers:
+            default_headers.update(headers)
         # final_params = self.validate_params(default_params)
-        resp = requests.get(url, params=default_params)
+        resp = requests.get(url, params=default_params, headers=headers, **kwargs)
         if self.raise_for_status:
             resp.raise_for_status()
-        return resp.json()
+        return resp
 
 
 class SimpleTestJsonHttpApiConnection:

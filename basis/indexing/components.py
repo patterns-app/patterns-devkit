@@ -7,9 +7,9 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Type
 
 from basis.core.data_function import DataFunction, Direction, ensure_datafunction
 from basis.core.environment import Environment
-from basis.core.module import BasisModule
-from basis.core.object_type import ObjectType, ObjectTypeUri
 from basis.core.external import ExternalProvider, ExternalResource
+from basis.core.module import BasisModule
+from basis.core.typing.object_type import ObjectType, ObjectTypeUri
 
 logger = logging.getLogger(__name__)
 

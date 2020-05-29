@@ -254,6 +254,12 @@ def field_to_yaml(f: Field) -> str:
     # description
 
 
+def create_quick_field(name: str, field_type: str, **kwargs) -> Field:
+    args = dict(name=name, field_type=field_type, validators=[])
+    args.update(kwargs)
+    return Field(**args)  # type: ignore
+
+
 # Helper
 def create_quick_otype(key: str, fields: List[Tuple[str, str]], **kwargs):
     defaults = dict(
@@ -266,20 +272,6 @@ def create_quick_otype(key: str, fields: List[Tuple[str, str]], **kwargs):
         on_conflict="ReplaceWithNewer",
     )
     defaults.update(kwargs)
-    defaults["fields"] = [
-        Field(name=f[0], field_type=f[1], validators=[]) for f in fields
-    ]
+    defaults["fields"] = [create_quick_field(f[0], f[1]) for f in fields]
     otype = ObjectType(**defaults)  # type: ignore
     return otype
-
-
-def dict_to_rough_otype(key: str, d: Dict, convert_to_snake_case=True, **kwargs):
-    from basis.core.sql.utils import get_sqlalchemy_type_for_python_object
-
-    fields = []
-    for k, v in d.items():
-        if convert_to_snake_case:
-            k = title_to_snake_case(k)
-        fields.append((k, get_sqlalchemy_type_for_python_object(v)))
-    fields = sorted(fields)
-    return create_quick_otype(key, fields, **kwargs)

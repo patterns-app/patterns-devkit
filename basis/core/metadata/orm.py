@@ -1,9 +1,8 @@
-import json
 from collections import OrderedDict
-from typing import Any, Type, TypeVar
+from typing import Any
 
-from sqlalchemy import Column, DateTime, TypeDecorator, func, types
-from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base, declared_attr
+from sqlalchemy import Column, DateTime, func
+from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm.exc import DetachedInstanceError
 
 from basis.utils.common import cf, rand_str, title_to_snake_case, utcnow
@@ -32,7 +31,7 @@ class _BaseModel:
         for key, field in fields.items():
             try:
                 # TODO: debug hack
-                from basis.core.object_type import ObjectType
+                from basis.core.typing.object_type import ObjectType
 
                 if isinstance(field, ObjectType):
                     field_strings.append(f"{key}={field.key}")

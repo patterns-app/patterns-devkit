@@ -5,7 +5,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Generator, List, Optional
+from typing import Generator, List, Optional, Union
 
 import sqlalchemy
 from sqlalchemy.engine import ResultProxy
@@ -36,8 +36,9 @@ from basis.core.data_resource import (
     StoredDataResourceMetadata,
 )
 from basis.core.environment import Environment
+from basis.core.graph import get_all_upstream_dependencies_in_execution_order
 from basis.core.metadata.orm import BaseModel
-from basis.core.runtime import RuntimeClass, RuntimeEngine, Runtime
+from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from basis.core.storage import LocalMemoryStorageEngine, Storage
 from basis.utils.common import (
     cf,
@@ -283,6 +284,21 @@ class ExecutionManager:
         new_session = self.env.get_new_metadata_session()
         last_output = new_session.merge(last_output)
         return last_output.as_managed_data_resource(self.ctx,)  # type: ignore  # Doesn't understand merge
+
+    def update_all(self, to_exhaustion: bool = False):
+        raise NotImplementedError
+
+    #
+    # def produce(
+    #         self, node_like: Union[ConfiguredDataFunction, str]
+    # ) -> Optional[DataResource]:
+    #     if isinstance(node_like, str):
+    #         node_like = self.env.get_node(node_like)
+    #     assert isinstance(node_like, ConfiguredDataFunction)
+    #     dependencies = get_all_upstream_dependencies_in_execution_order(self.env, node_like)
+    #     for dep in dependencies:
+    #         with self.env.execution() as em:
+    #             em.run(dep, to_exhaustion=True)
 
 
 class Worker:

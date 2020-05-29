@@ -18,8 +18,8 @@ from basis.core.data_resource import (
     StoredDataResourceMetadata,
 )
 from basis.core.environment import Environment
-from basis.core.object_type import ObjectTypeLike
 from basis.core.storage import Storage
+from basis.core.typing.object_type import ObjectTypeLike
 from basis.utils.common import ensure_list
 
 logger = logging.getLogger(__name__)

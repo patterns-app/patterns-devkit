@@ -15,7 +15,12 @@ from basis.core.data_format import DatabaseTable, DictList
 from basis.core.data_resource import DataResource, DataResourceMetadata, DataSetMetadata
 from basis.core.environment import Environment
 from basis.core.metadata.orm import BaseModel
-from basis.core.object_type import ObjectType, ObjectTypeLike, ObjectTypeUri, is_generic
+from basis.core.typing.object_type import (
+    ObjectType,
+    ObjectTypeLike,
+    ObjectTypeUri,
+    is_generic,
+)
 from basis.utils.common import printd
 
 if TYPE_CHECKING:
@@ -566,7 +571,7 @@ class ConfiguredDataFunction:
         _env: Environment,
         _key: str,
         _datafunction: DataFunctionLike,
-        **kwargs: DataResourceStreamable,
+        **kwargs: DataResourceStreamable,  # TODO: DataResourceStreamable can also be a str key that references a node
     ):
         self.env = _env
         self.key = _key
