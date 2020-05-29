@@ -119,6 +119,9 @@ class Environment:
     def register_node(self, cdf: "ConfiguredDataFunction"):
         self.configured_data_function_registry.register(cdf)
 
+    def all_nodes(self) -> List[ConfiguredDataFunction]:
+        return list(self.configured_data_function_registry.all())
+
     def get_node(
         self, cdf_like: Union["ConfiguredDataFunction", str]
     ) -> "ConfiguredDataFunction":

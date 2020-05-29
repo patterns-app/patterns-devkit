@@ -18,8 +18,9 @@ from basis.core.data_function import (
     configured_data_function_factory,
 )
 from basis.core.data_resource import DataResource, DataResourceMetadata
+from basis.core.graph import FunctionGraph
 from basis.core.sql.data_function import SqlDataFunction
-from basis.core.streams import InputResources
+from basis.core.streams import DataResourceStream, InputResources
 from basis.utils.common import md5_hash
 from basis.utils.registry import T, U
 from tests.utils import (
@@ -251,7 +252,9 @@ def test_data_function_interface(
     assert cdf.get_interface() == expected
 
 
-env = make_test_env()
+env = (
+    make_test_env()
+)  # TODO: what is this doing in globals?? Make anew for each test pls thx
 
 
 @pytest.mark.parametrize(
@@ -409,3 +412,17 @@ def test_configured_data_function_chain():
     children = cdf1.build_cdfs()
     assert len(children) == 2
     assert len(cdf1.get_cdfs()) == 2
+
+
+def test_function_graph():
+    df = PythonDataFunction(df_t1_source)
+    cdf = env.add_node("cdf", df_t1_source)
+    cdf_chain = env.add_node("cdf_chain", df_chain, input=cdf)
+    cdf2 = env.add_node(
+        "cdf2", df_t1_to_t2, input=DataResourceStream(otype="TestType1")
+    )
+    # cdfg = env.add_node("cdfg", df_generic, input=cdf2)
+
+    g = FunctionGraph(env, env.all_nodes())
+    print("G", list(g._explicit_graph.adjacency()))
+    assert False
