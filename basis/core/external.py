@@ -262,7 +262,7 @@ class ExtractorDataFunction(PythonDataFunction):
     def get_interface(self) -> DataFunctionInterface:
         # TODO: more than dictlistiterator
         out_annotation = TypedDataAnnotation.create(
-            data_resource_class="DictListIterator",
+            data_block_class="DictListIterator",
             otype_like=self.configured_external_resource.otype,
         )
         return DataFunctionInterface(
@@ -295,13 +295,13 @@ class ExtractorDataFunction(PythonDataFunction):
 #     Only run function once, since source data is static and only one output
 #     """
 #
-#     def csr_key_from_cdf(cdf: ConfiguredDataFunction) -> str:
-#         return f"_mock_source_resource_from_cdf_{cdf.key}"
+#     def csr_key_from_node(node: ConfiguredDataFunction) -> str:
+#         return f"_mock_source_resource_from_node_{node.key}"
 #
 #     @wraps(df)
 #     def static_source(*args, **kwargs):
 #         ctx: Any = args[0]  # DataFunctionContext = args[0]
-#         key = csr_key_from_cdf(ctx.cdf)
+#         key = csr_key_from_node(ctx.node)
 #         state = (
 #             ctx._metadata_session.query(ConfiguredSourceResourceState)
 #             .filter(ConfiguredSourceResourceState.configured_external_resource_key == key)

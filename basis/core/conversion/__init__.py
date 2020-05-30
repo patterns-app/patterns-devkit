@@ -9,7 +9,7 @@ from basis.core.conversion.converter import (
     StorageFormat,
 )
 from basis.core.data_format import DataFormat
-from basis.core.data_resource import StoredDataResourceMetadata
+from basis.core.data_block import StoredDataBlockMetadata
 from basis.core.storage import Storage, StorageType
 from basis.utils.common import printd
 
@@ -33,24 +33,22 @@ def get_converter_lookup() -> ConverterLookup:
 
 def convert_lowest_cost(
     ctx: ExecutionContext,
-    sdr: StoredDataResourceMetadata,
+    sdb: StoredDataBlockMetadata,
     target_storage: Storage,
     target_format: DataFormat,
 ):
     # TODO: cleanup target vs output
     target_storage_format = StorageFormat(target_storage.storage_type, target_format)
-    cp = get_conversion_path_for_sdr(sdr, target_storage_format, ctx.all_storages)
+    cp = get_conversion_path_for_sdb(sdb, target_storage_format, ctx.all_storages)
     if cp is None:
         raise  # TODO
-    return convert_sdr(ctx, sdr, cp)
+    return convert_sdb(ctx, sdb, cp)
 
 
-def get_conversion_path_for_sdr(
-    sdr: StoredDataResourceMetadata,
-    target_format: StorageFormat,
-    storages: List[Storage],
+def get_conversion_path_for_sdb(
+    sdb: StoredDataBlockMetadata, target_format: StorageFormat, storages: List[Storage],
 ) -> Optional[ConversionPath]:
-    source_format = StorageFormat(sdr.storage.storage_type, sdr.data_format)
+    source_format = StorageFormat(sdb.storage.storage_type, sdb.data_format)
     if source_format == target_format:
         # Already exists, do nothing
         return ConversionPath()
@@ -61,12 +59,12 @@ def get_conversion_path_for_sdr(
     return conversion_path
 
 
-def convert_sdr(
+def convert_sdb(
     ctx: ExecutionContext,
-    sdr: StoredDataResourceMetadata,
+    sdb: StoredDataBlockMetadata,
     conversion_path: ConversionPath,
 ):
-    next_sdr = sdr
+    next_sdb = sdb
     for conversion_edge in conversion_path.conversions:
         conversion = conversion_edge.conversion
         target_storage_format = conversion[1]
@@ -77,23 +75,23 @@ def convert_sdr(
             "CONVERSION:", conversion[0], "->", conversion[1],
         )
         printd("\t", storage)
-        printd("\t", next_sdr)
-        next_sdr = conversion_edge.converter_class(ctx).convert(
-            next_sdr, storage, target_storage_format.data_format
+        printd("\t", next_sdb)
+        next_sdb = conversion_edge.converter_class(ctx).convert(
+            next_sdb, storage, target_storage_format.data_format
         )
-    return next_sdr
+    return next_sdb
 
 
 def get_converter(
-    sdr: StoredDataResourceMetadata, output_storage: Storage, output_format: DataFormat,
+    sdb: StoredDataBlockMetadata, output_storage: Storage, output_format: DataFormat,
 ) -> Type[Converter]:
     target_format = StorageFormat(output_storage.storage_type, output_format)
-    source_format = StorageFormat(sdr.storage.storage_type, sdr.data_format)
+    source_format = StorageFormat(sdb.storage.storage_type, sdb.data_format)
     conversion = (source_format, target_format)
     converter_class = get_converter_lookup().get_lowest_cost(conversion)
     if not converter_class:
         raise NotImplementedError(
-            f"No converter to {target_format} from {source_format} for {sdr}"
+            f"No converter to {target_format} from {source_format} for {sdb}"
         )
     return converter_class
 

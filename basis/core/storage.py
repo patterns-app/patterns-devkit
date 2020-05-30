@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Type
 from urllib.parse import urlparse
 
 from basis.core.data_format import DataFormat
-from basis.core.data_resource import LocalMemoryDataRecords, StoredDataResourceMetadata
+from basis.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadata
 from basis.core.environment import Environment
 from basis.utils.common import cf, printd, rand_str
 
@@ -109,12 +109,10 @@ class StorageManager:
         self.env = env
         self.storage = storage
 
-    def exists(self, stored_data_resource: StoredDataResourceMetadata) -> bool:
+    def exists(self, stored_data_block: StoredDataBlockMetadata) -> bool:
         raise NotImplementedError
 
-    def record_count(
-        self, stored_data_resource: StoredDataResourceMetadata
-    ) -> Optional[int]:
+    def record_count(self, stored_data_block: StoredDataBlockMetadata) -> Optional[int]:
         raise NotImplementedError
 
 
@@ -123,16 +121,14 @@ class MemoryStorageManager(StorageManager):
     def storage(self) -> LocalMemoryStorageEngine:
         return LocalMemoryStorageEngine(self.env, self.storage)
 
-    def exists(self, stored_data_resource: StoredDataResourceMetadata) -> bool:
-        return self.storage.exists(stored_data_resource)
+    def exists(self, stored_data_block: StoredDataBlockMetadata) -> bool:
+        return self.storage.exists(stored_data_block)
 
-    def record_count(
-        self, stored_data_resource: StoredDataResourceMetadata
-    ) -> Optional[int]:
-        if not self.exists(stored_data_resource):
+    def record_count(self, stored_data_block: StoredDataBlockMetadata) -> Optional[int]:
+        if not self.exists(stored_data_block):
             return None
         return self.storage.get_local_memory_data_records(
-            stored_data_resource
+            stored_data_block
         ).record_count
 
 
@@ -141,15 +137,13 @@ class DatabaseStorageManager(StorageManager):
     def database(self) -> DatabaseAPI:
         return self.storage.get_database_api(self.env)
 
-    def exists(self, stored_data_resource: StoredDataResourceMetadata) -> bool:
-        return self.database.exists(stored_data_resource.get_name(self.env))
+    def exists(self, stored_data_block: StoredDataBlockMetadata) -> bool:
+        return self.database.exists(stored_data_block.get_name(self.env))
 
-    def record_count(
-        self, stored_data_resource: StoredDataResourceMetadata
-    ) -> Optional[int]:
-        if not self.exists(stored_data_resource):
+    def record_count(self, stored_data_block: StoredDataBlockMetadata) -> Optional[int]:
+        if not self.exists(stored_data_block):
             return None
-        return self.database.count(stored_data_resource.get_name(self.env))
+        return self.database.count(stored_data_block.get_name(self.env))
 
 
 manager_lookup: Dict[StorageClass, Type[StorageManager]] = {
@@ -163,44 +157,42 @@ class BaseStorageEngine:
         self.env = env
         self.storage = storage
 
-    def exists(self, stored_data_resource: StoredDataResourceMetadata) -> bool:
-        return self._exists(stored_data_resource)
+    def exists(self, stored_data_block: StoredDataBlockMetadata) -> bool:
+        return self._exists(stored_data_block)
 
-    def _exists(self, stored_data_resource: StoredDataResourceMetadata) -> bool:
+    def _exists(self, stored_data_block: StoredDataBlockMetadata) -> bool:
         raise NotImplementedError
 
     def get_local_memory_data_records(
-        self, stored_data_resource: StoredDataResourceMetadata
+        self, stored_data_block: StoredDataBlockMetadata
     ) -> LocalMemoryDataRecords:
-        ldr = self._get(stored_data_resource)
+        ldr = self._get(stored_data_block)
         printd(
-            f"← Getting {cf.bold(ldr.record_count_display)} records of SDR#{cf.bold(stored_data_resource.id)} in {self.storage}"
+            f"← Getting {cf.bold(ldr.record_count_display)} records of SDR#{cf.bold(stored_data_block.id)} in {self.storage}"
         )
         return ldr
 
     def store_local_memory_data_records(
         self,
-        stored_data_resource: StoredDataResourceMetadata,
+        stored_data_block: StoredDataBlockMetadata,
         data_records: LocalMemoryDataRecords,
     ):
-        if self.exists(stored_data_resource):
+        if self.exists(stored_data_block):
             raise Exception("SDRs are immutable")  # TODO / cleanup
         printd(
-            f"➞ Putting {cf.bold(data_records.record_count)} records of SDR#{cf.bold(stored_data_resource.id)} in {self.storage}"
+            f"➞ Putting {cf.bold(data_records.record_count)} records of SDR#{cf.bold(stored_data_block.id)} in {self.storage}"
         )
-        data_records.validate_and_conform_otype(
-            stored_data_resource.get_otype(self.env)
-        )
-        self._put(stored_data_resource, data_records)
+        data_records.validate_and_conform_otype(stored_data_block.get_otype(self.env))
+        self._put(stored_data_block, data_records)
 
     def _get(
-        self, stored_data_resource: StoredDataResourceMetadata
+        self, stored_data_block: StoredDataBlockMetadata
     ) -> LocalMemoryDataRecords:
         raise NotImplementedError
 
     def _put(
         self,
-        stored_data_resource: StoredDataResourceMetadata,
+        stored_data_block: StoredDataBlockMetadata,
         data_records: LocalMemoryDataRecords,
     ):
         raise NotImplementedError
@@ -210,35 +202,35 @@ global_memory_storage: Dict[str, Any] = {}
 
 
 class LocalMemoryStorageEngine(BaseStorageEngine):
-    def get_url(self, stored_data_resource: StoredDataResourceMetadata) -> str:
-        name = stored_data_resource.get_name(self.env)
+    def get_url(self, stored_data_block: StoredDataBlockMetadata) -> str:
+        name = stored_data_block.get_name(self.env)
         return os.path.join(self.storage.url, name)
 
-    def get_key(self, stored_data_resource: StoredDataResourceMetadata) -> str:
-        return self.get_url(stored_data_resource)
+    def get_key(self, stored_data_block: StoredDataBlockMetadata) -> str:
+        return self.get_url(stored_data_block)
 
     def _put(
         self,
-        stored_data_resource: StoredDataResourceMetadata,
+        stored_data_block: StoredDataBlockMetadata,
         data_records: LocalMemoryDataRecords,
     ):
         if data_records.records_object is None:
             raise
-        key = self.get_key(stored_data_resource)
+        key = self.get_key(stored_data_block)
         global_memory_storage[key] = data_records
 
     def _get(
-        self, stored_data_resource: StoredDataResourceMetadata
+        self, stored_data_block: StoredDataBlockMetadata
     ) -> LocalMemoryDataRecords:
-        key = self.get_key(stored_data_resource)
+        key = self.get_key(stored_data_block)
         ldr = global_memory_storage[key]
         return (
             ldr.copy()
         )  # IMPORTANT: It's critical that we *copy* here, otherwise user may mutate an SDR/DR -- absolute no no
         # TODO: should also copy on put? Just to be safe. Copying is not zero cost of course...
 
-    def _exists(self, stored_data_resource: StoredDataResourceMetadata) -> bool:
-        return self.get_key(stored_data_resource) in global_memory_storage
+    def _exists(self, stored_data_block: StoredDataBlockMetadata) -> bool:
+        return self.get_key(stored_data_block) in global_memory_storage
 
 
 def new_local_memory_storage():

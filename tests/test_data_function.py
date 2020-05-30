@@ -5,22 +5,22 @@ from typing import Callable
 import pytest
 from pandas import DataFrame
 
+from basis.core.data_block import DataBlock, DataBlockMetadata
 from basis.core.data_function import (
-    ConcreteDataFunctionInterface,
-    ConcreteTypedDataAnnotation,
-    ConfiguredDataFunction,
     ConfiguredDataFunctionChain,
     DataFunctionChain,
     DataFunctionInterface,
     DataFunctionLike,
+    FunctionNode,
     PythonDataFunction,
+    ResolvedDataFunctionInterface,
+    ResolvedTypedDataAnnotation,
     TypedDataAnnotation,
     configured_data_function_factory,
 )
-from basis.core.data_resource import DataResource, DataResourceMetadata
 from basis.core.graph import FunctionGraph
 from basis.core.sql.data_function import SqlDataFunction
-from basis.core.streams import DataResourceStream, InputResources
+from basis.core.streams import DataBlockStream, InputResources
 from basis.utils.common import md5_hash
 from basis.utils.registry import T, U
 from tests.utils import (
@@ -38,21 +38,21 @@ from tests.utils import (
     "annotation,expected",
     [
         (
-            "DataResource[Type]",
+            "DataBlock[Type]",
             TypedDataAnnotation(
-                data_resource_class="DataResource",
+                data_block_class="DataBlock",
                 otype_like="Type",
                 is_iterable=False,
                 is_generic=False,
                 is_optional=False,
                 is_variadic=False,
-                original_annotation="DataResource[Type]",
+                original_annotation="DataBlock[Type]",
             ),
         ),
         (
             "DataSet[Type]",
             TypedDataAnnotation(
-                data_resource_class="DataSet",
+                data_block_class="DataSet",
                 otype_like="Type",
                 is_iterable=False,
                 is_generic=False,
@@ -62,15 +62,15 @@ from tests.utils import (
             ),
         ),
         (
-            "DataResource[T]",
+            "DataBlock[T]",
             TypedDataAnnotation(
-                data_resource_class="DataResource",
+                data_block_class="DataBlock",
                 otype_like="T",
                 is_iterable=False,
                 is_generic=True,
                 is_optional=False,
                 is_variadic=False,
-                original_annotation="DataResource[T]",
+                original_annotation="DataBlock[T]",
             ),
         ),
     ],
@@ -80,18 +80,16 @@ def test_typed_annotation(annotation: str, expected: TypedDataAnnotation):
     assert tda == expected
 
 
-def df_notworking(_1: int, _2: str, dr: DataResource[TestType1]):
+def df_notworking(_1: int, _2: str, block: DataBlock[TestType1]):
     # TODO: how should DFI handle non-DR args?
     pass
 
 
-def df4(
-    dr: DataResource[T], dr2: DataResource[U], dr3: DataResource[U],
-) -> DataFrame[T]:
+def df4(block: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
     pass
 
 
-def df_self(dr: DataResource[T], this: DataResource[T] = None) -> DataFrame[T]:
+def df_self(block: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
     pass
 
 
@@ -106,14 +104,14 @@ df_chain = DataFunctionChain("df_chain", [df_t1_to_t2, df_generic])
             DataFunctionInterface(
                 inputs=[
                     TypedDataAnnotation(
-                        data_resource_class="DataResource",
+                        data_block_class="DataBlock",
                         otype_like="TestType1",
-                        name="dr",
+                        name="block",
                         is_iterable=False,
                         is_generic=False,
                         is_optional=False,
                         is_variadic=False,
-                        original_annotation="DataResource[TestType1]",
+                        original_annotation="DataBlock[TestType1]",
                     )
                 ],
                 output=None,
@@ -125,18 +123,18 @@ df_chain = DataFunctionChain("df_chain", [df_t1_to_t2, df_generic])
             DataFunctionInterface(
                 inputs=[
                     TypedDataAnnotation(
-                        data_resource_class="DataResource",
+                        data_block_class="DataBlock",
                         otype_like="TestType1",
-                        name="dr",
+                        name="block",
                         is_iterable=False,
                         is_generic=False,
                         is_optional=False,
                         is_variadic=False,
-                        original_annotation="DataResource[TestType1]",
+                        original_annotation="DataBlock[TestType1]",
                     )
                 ],
                 output=TypedDataAnnotation(
-                    data_resource_class="DataFrame",
+                    data_block_class="DataFrame",
                     otype_like="TestType2",
                     is_iterable=False,
                     is_generic=False,
@@ -152,18 +150,18 @@ df_chain = DataFunctionChain("df_chain", [df_t1_to_t2, df_generic])
             DataFunctionInterface(
                 inputs=[
                     TypedDataAnnotation(
-                        data_resource_class="DataResource",
+                        data_block_class="DataBlock",
                         otype_like="T",
-                        name="dr",
+                        name="block",
                         is_iterable=False,
                         is_generic=True,
                         is_optional=False,
                         is_variadic=False,
-                        original_annotation="DataResource[T]",
+                        original_annotation="DataBlock[T]",
                     )
                 ],
                 output=TypedDataAnnotation(
-                    data_resource_class="DataFrame",
+                    data_block_class="DataFrame",
                     otype_like="T",
                     is_iterable=False,
                     is_generic=True,
@@ -179,18 +177,18 @@ df_chain = DataFunctionChain("df_chain", [df_t1_to_t2, df_generic])
             DataFunctionInterface(
                 inputs=[
                     TypedDataAnnotation(
-                        data_resource_class="DataResource",
+                        data_block_class="DataBlock",
                         otype_like="T",
-                        name="dr",
+                        name="block",
                         is_iterable=False,
                         is_generic=True,
                         is_optional=False,
                         is_variadic=False,
                         is_self_ref=False,
-                        original_annotation="DataResource[T]",
+                        original_annotation="DataBlock[T]",
                     ),
                     TypedDataAnnotation(
-                        data_resource_class="DataResource",
+                        data_block_class="DataBlock",
                         otype_like="T",
                         name="this",
                         is_iterable=False,
@@ -198,11 +196,11 @@ df_chain = DataFunctionChain("df_chain", [df_t1_to_t2, df_generic])
                         is_optional=True,
                         is_variadic=False,
                         is_self_ref=True,
-                        original_annotation="DataResource[T]",
+                        original_annotation="DataBlock[T]",
                     ),
                 ],
                 output=TypedDataAnnotation(
-                    data_resource_class="DataFrame",
+                    data_block_class="DataFrame",
                     otype_like="T",
                     is_iterable=False,
                     is_generic=True,
@@ -218,18 +216,18 @@ df_chain = DataFunctionChain("df_chain", [df_t1_to_t2, df_generic])
             DataFunctionInterface(
                 inputs=[
                     TypedDataAnnotation(
-                        data_resource_class="DataResource",
+                        data_block_class="DataBlock",
                         otype_like="TestType1",
-                        name="dr",
+                        name="block",
                         is_iterable=False,
                         is_generic=False,
                         is_optional=False,
                         is_variadic=False,
-                        original_annotation="DataResource[TestType1]",
+                        original_annotation="DataBlock[TestType1]",
                     )
                 ],
                 output=TypedDataAnnotation(
-                    data_resource_class="DataFrame",
+                    data_block_class="DataFrame",
                     otype_like="T",
                     is_iterable=False,
                     is_generic=True,
@@ -248,8 +246,8 @@ def test_data_function_interface(
     if isinstance(function, Callable):
         val = DataFunctionInterface.from_datafunction_definition(function)
         assert val == expected
-    cdf = configured_data_function_factory(env, "_test", function)
-    assert cdf.get_interface() == expected
+    node = configured_data_function_factory(env, "_test", function)
+    assert node.get_interface() == expected
 
 
 env = (
@@ -262,15 +260,15 @@ env = (
     [
         (
             df_t1_sink,
-            ConcreteDataFunctionInterface(
+            ResolvedDataFunctionInterface(
                 inputs=[
-                    ConcreteTypedDataAnnotation(
-                        data_resource_class="DataResource",
+                    ResolvedTypedDataAnnotation(
+                        data_block_class="DataBlock",
                         otype=TestType1,
-                        name="dr",
+                        name="block",
                         is_iterable=False,
                         is_optional=False,
-                        original_annotation="DataResource[TestType1]",
+                        original_annotation="DataBlock[TestType1]",
                     )
                 ],
                 output=None,
@@ -279,19 +277,19 @@ env = (
         ),
         (
             df_generic,
-            ConcreteDataFunctionInterface(
+            ResolvedDataFunctionInterface(
                 inputs=[
-                    ConcreteTypedDataAnnotation(
-                        data_resource_class="DataResource",
+                    ResolvedTypedDataAnnotation(
+                        data_block_class="DataBlock",
                         otype=TestType1,
-                        name="dr",
+                        name="block",
                         is_iterable=False,
                         is_optional=False,
-                        original_annotation="DataResource[T]",
+                        original_annotation="DataBlock[T]",
                     )
                 ],
-                output=ConcreteTypedDataAnnotation(
-                    data_resource_class="DataFrame",
+                output=ResolvedTypedDataAnnotation(
+                    data_block_class="DataFrame",
                     otype=TestType1,
                     is_iterable=False,
                     is_optional=False,
@@ -303,16 +301,16 @@ env = (
     ],
 )
 def test_concrete_data_function_interface(
-    function: Callable, expected: ConcreteDataFunctionInterface
+    function: Callable, expected: ResolvedDataFunctionInterface
 ):
-    input_data_resources: InputResources = {
-        "dr": DataResourceMetadata(otype_uri="_test.TestType1"),
+    input_data_blocks: InputResources = {
+        "block": DataBlockMetadata(otype_uri="_test.TestType1"),
     }
     dfi = DataFunctionInterface.from_datafunction_definition(function)
-    cdfi = ConcreteDataFunctionInterface.from_data_function_interface(
-        env, input_data_resources, dfi
+    nodei = ResolvedDataFunctionInterface.from_data_function_interface(
+        env, input_data_blocks, dfi
     )
-    assert cdfi == expected
+    assert nodei == expected
 
 
 def test_python_data_function():
@@ -365,64 +363,50 @@ def test_sql_data_function2():
 
 def test_configured_data_function_no_inputs():
     df = PythonDataFunction(df_t1_source)
-    cdf1 = ConfiguredDataFunction(env, "cdf1", df)
-    assert {cdf1: cdf1}[cdf1] is cdf1  # Test hash
-    dfi = cdf1.get_interface()
+    node1 = FunctionNode(env, "node1", df)
+    assert {node1: node1}[node1] is node1  # Test hash
+    dfi = node1.get_interface()
     assert dfi.inputs == []
     assert dfi.output is not None
-    assert cdf1.get_inputs() == {}
-    assert cdf1.get_output_cdf() is cdf1
-    assert not cdf1.is_graph()
+    assert node1.get_inputs() == {}
+    assert node1.get_output_node() is node1
+    assert not node1.is_graph()
 
 
 def test_configured_data_function_inputs():
     df = PythonDataFunction(df_t1_source)
-    cdf = ConfiguredDataFunction(env, "cdf", df)
+    node = FunctionNode(env, "node", df)
     df = PythonDataFunction(df_t1_sink)
     with pytest.raises(Exception):
         # Bad input
-        ConfiguredDataFunction(env, "cdf_fail", df, input="Turkey")  # type: ignore
-    cdf1 = ConfiguredDataFunction(env, "cdf1", df, input=cdf)
-    dfi = cdf1.get_interface()
+        FunctionNode(env, "node_fail", df, input="Turkey")  # type: ignore
+    node1 = FunctionNode(env, "node1", df, input=node)
+    dfi = node1.get_interface()
     assert len(dfi.inputs) == 1
     assert dfi.output is None
-    assert cdf1.get_inputs() == {"input": cdf}
-    assert cdf1.get_input("input") is cdf
-    assert cdf1.get_data_stream_input("input") is cdf
+    assert node1.get_inputs() == {"input": node}
+    assert node1.get_input("input") is node
+    assert node1.get_data_stream_input("input") is node
 
 
 def test_configured_data_function_chain():
     df = PythonDataFunction(df_t1_source)
-    cdf = ConfiguredDataFunction(env, "cdf", df)
-    cdf1 = ConfiguredDataFunctionChain(env, "cdf1", df_chain, input=cdf)
-    dfi = cdf1.get_interface()
+    node = FunctionNode(env, "node", df)
+    node1 = ConfiguredDataFunctionChain(env, "node1", df_chain, input=node)
+    dfi = node1.get_interface()
     assert len(dfi.inputs) == 1
     assert dfi.output is not None
-    assert cdf1.get_inputs() == {"input": cdf}
-    assert cdf1.get_input("input") is cdf
-    assert cdf1.get_data_stream_input("input") is cdf
-    # Output CDF
-    output_cdf = cdf1.get_output_cdf()
-    assert output_cdf is not cdf1
-    assert cdf1.key in output_cdf.key
-    out_dfi = output_cdf.get_interface()
+    assert node1.get_inputs() == {"input": node}
+    assert node1.get_input("input") is node
+    assert node1.get_data_stream_input("input") is node
+    # Output NODE
+    output_node = node1.get_output_node()
+    assert output_node is not node1
+    assert node1.key in output_node.key
+    out_dfi = output_node.get_interface()
     assert len(out_dfi.inputs) == 1
     assert out_dfi.output is not None
     # Children
-    children = cdf1.build_cdfs()
+    children = node1.build_nodes()
     assert len(children) == 2
-    assert len(cdf1.get_cdfs()) == 2
-
-
-def test_function_graph():
-    df = PythonDataFunction(df_t1_source)
-    cdf = env.add_node("cdf", df_t1_source)
-    cdf_chain = env.add_node("cdf_chain", df_chain, input=cdf)
-    cdf2 = env.add_node(
-        "cdf2", df_t1_to_t2, input=DataResourceStream(otype="TestType1")
-    )
-    # cdfg = env.add_node("cdfg", df_generic, input=cdf2)
-
-    g = FunctionGraph(env, env.all_nodes())
-    print("G", list(g._explicit_graph.adjacency()))
-    assert False
+    assert len(node1.get_nodes()) == 2

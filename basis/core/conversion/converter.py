@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple, Ty
 import networkx as nx
 
 from basis.core.data_format import DataFormat
-from basis.core.data_resource import StoredDataResourceMetadata
+from basis.core.data_block import StoredDataBlockMetadata
 from basis.core.storage import Storage, StorageType
 
 if TYPE_CHECKING:
@@ -143,42 +143,40 @@ class Converter:
 
     def convert(
         self,
-        input_sdr: StoredDataResourceMetadata,
+        input_sdb: StoredDataBlockMetadata,
         output_storage: Storage,
         output_data_format: DataFormat,
-    ) -> StoredDataResourceMetadata:
+    ) -> StoredDataBlockMetadata:
         if (
-            input_sdr.data_format == output_data_format
-            and input_sdr.storage.storage_type == output_storage.storage_type
+            input_sdb.data_format == output_data_format
+            and input_sdb.storage.storage_type == output_storage.storage_type
         ):
             # Nothing to do
-            return input_sdr
-        conversion = self.to_conversion(input_sdr, output_storage, output_data_format)
+            return input_sdb
+        conversion = self.to_conversion(input_sdb, output_storage, output_data_format)
         if not self.is_supported(conversion):
             raise Exception(f"Not supported {conversion}")
-        output_sdr = StoredDataResourceMetadata(  # type: ignore
-            data_resource=input_sdr.data_resource,
+        output_sdb = StoredDataBlockMetadata(  # type: ignore
+            data_block=input_sdb.data_block,
             data_format=output_data_format,
             storage_url=output_storage.url,
         )
-        output_sdr = self.ctx.add(output_sdr)
-        return self._convert(input_sdr, output_sdr)
+        output_sdb = self.ctx.add(output_sdb)
+        return self._convert(input_sdb, output_sdb)
 
     def _convert(
-        self,
-        input_sdr: StoredDataResourceMetadata,
-        output_sdr: StoredDataResourceMetadata,
-    ) -> StoredDataResourceMetadata:
+        self, input_sdb: StoredDataBlockMetadata, output_sdb: StoredDataBlockMetadata,
+    ) -> StoredDataBlockMetadata:
         raise NotImplementedError
 
     def to_conversion(
         self,
-        input_sdr: StoredDataResourceMetadata,
+        input_sdb: StoredDataBlockMetadata,
         output_storage: Storage,
         output_data_format: DataFormat,
     ):
         return (
-            StorageFormat(input_sdr.storage.storage_type, input_sdr.data_format,),
+            StorageFormat(input_sdb.storage.storage_type, input_sdb.data_format,),
             StorageFormat(output_storage.storage_type, output_data_format),
         )
 

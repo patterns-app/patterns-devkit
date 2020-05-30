@@ -22,8 +22,8 @@ from basis.core.typing.object_type import ObjectType, ObjectTypeUri
 if TYPE_CHECKING:
     from basis.core.conversion import (
         StorageFormat,
-        get_conversion_path_for_sdr,
-        convert_sdr,
+        get_conversion_path_for_sdb,
+        convert_sdb,
     )
     from basis.core.runnable import ExecutionContext
     from basis.core.storage import (
@@ -79,7 +79,7 @@ class LocalMemoryDataRecords:
         return self.record_count if self.record_count is not None else "Unknown"
 
 
-class DataResourceMetadata(BaseModel):  # , Generic[DT]):
+class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     # name = Column(String) ????
     otype_uri: ObjectTypeUri = Column(String, nullable=False)  # type: ignore
@@ -87,38 +87,38 @@ class DataResourceMetadata(BaseModel):  # , Generic[DT]):
     # otype_is_validated = Column(Boolean, default=False) # TODO
     # references_are_resolved = Column(Boolean, default=False)
     # is_dataset = Column(Boolean, default=False)
-    # record_count = Column(Integer, nullable=True) # TODO: nahhh, this belongs on some DataResourceMetadata table (optional, computed lazily)
+    # record_count = Column(Integer, nullable=True) # TODO: nahhh, this belongs on some DataBlockMetadata table (optional, computed lazily)
     # Other metadata? created_by_job? last_processed_at?
     deleted = Column(Boolean, default=False)
     data_sets: RelationshipProperty = relationship(
-        "DataSetMetadata", backref="data_resource"
+        "DataSetMetadata", backref="data_block"
     )
-    stored_data_resources: RelationshipProperty = relationship(
-        "StoredDataResourceMetadata", backref="data_resource", lazy="dynamic"
+    stored_data_blocks: RelationshipProperty = relationship(
+        "StoredDataBlockMetadata", backref="data_block", lazy="dynamic"
     )
-    data_resource_logs: RelationshipProperty = relationship(
-        "DataResourceLog", backref="data_resource"
+    data_block_logs: RelationshipProperty = relationship(
+        "DataBlockLog", backref="data_block"
     )
 
     def __repr__(self):
         return self._repr(id=self.id, otype_uri=self.otype_uri)
 
-    def as_managed_data_resource(self, ctx: ExecutionContext):
-        mgr = DataResourceManager(ctx, self,)
-        return ManagedDataResource(
-            data_resource_id=self.id, otype_uri=self.otype_uri, manager=mgr
+    def as_managed_data_block(self, ctx: ExecutionContext):
+        mgr = DataBlockManager(ctx, self,)
+        return ManagedDataBlock(
+            data_block_id=self.id, otype_uri=self.otype_uri, manager=mgr
         )
 
     def created_by(self, sess: Session) -> Optional[str]:
-        from basis.core.data_function import DataFunctionLog, DataResourceLog
+        from basis.core.data_function import DataFunctionLog, DataBlockLog
         from basis.core.data_function import Direction
 
         result = (
             sess.query(DataFunctionLog.configured_data_function_key)
-            .join(DataResourceLog)
+            .join(DataBlockLog)
             .filter(
-                DataResourceLog.direction == Direction.OUTPUT,
-                DataResourceLog.data_resource_id == self.id,
+                DataBlockLog.direction == Direction.OUTPUT,
+                DataBlockLog.data_block_id == self.id,
             )
             .first()
         )
@@ -128,11 +128,11 @@ class DataResourceMetadata(BaseModel):  # , Generic[DT]):
 
 
 @dataclass(frozen=True)
-class ManagedDataResource:
-    data_resource_id: str
+class ManagedDataBlock:
+    data_block_id: str
     otype_uri: ObjectTypeUri
     # otype_is_validated: bool
-    manager: DataResourceManager
+    manager: DataBlockManager
 
     def as_dataframe(self) -> DataFrame:
         return self.manager.as_dataframe()
@@ -151,31 +151,29 @@ class ManagedDataResource:
         return self.manager.get_otype()
 
 
-DataResource = ManagedDataResource
+DataBlock = ManagedDataBlock
 
 
-class StoredDataResourceMetadata(BaseModel):
+class StoredDataBlockMetadata(BaseModel):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
-    data_resource_id = Column(
-        String, ForeignKey(DataResourceMetadata.id), nullable=False
-    )
+    data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
     storage_url = Column(String, nullable=False)
     data_format: DataFormat = Column(sa.Enum(DataFormat), nullable=False)  # type: ignore
     # is_ephemeral = Column(Boolean, default=False) # TODO
     # data_records_object: Optional[Any]  # Union[DataFrame, FilePointer, List[Dict]]
     # Hints
-    data_resource: "DataResourceMetadata"
+    data_block: "DataBlockMetadata"
 
     def __repr__(self):
         return self._repr(
             id=self.id,
-            data_resource=self.data_resource,
+            data_block=self.data_block,
             data_format=self.data_format,
             storage_url=self.storage_url,
         )
 
     def get_otype(self, env: Environment) -> ObjectType:
-        return env.get_otype(self.data_resource.otype_uri)
+        return env.get_otype(self.data_block.otype_uri)
 
     @property
     def storage(self) -> Storage:
@@ -184,11 +182,11 @@ class StoredDataResourceMetadata(BaseModel):
         return Storage.from_url(self.storage_url)
 
     def get_name(self, env: Environment) -> str:
-        if self.data_resource_id is None or self.id is None:
+        if self.data_block_id is None or self.id is None:
             raise Exception(
                 "Trying to get SDR name, but IDs not set yet"
             )  # TODO, better exceptions
-        otype = env.get_otype(self.data_resource.otype_uri)
+        otype = env.get_otype(self.data_block.otype_uri)
         return f"_{otype.get_identifier()[:40]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
 
     def get_storage_format(self) -> StorageFormat:
@@ -202,19 +200,17 @@ class StoredDataResourceMetadata(BaseModel):
         return self.storage.get_manager(env).record_count(self)
 
 
-event.listen(DataResourceMetadata, "before_update", immutability_update_listener)
-event.listen(StoredDataResourceMetadata, "before_update", immutability_update_listener)
+event.listen(DataBlockMetadata, "before_update", immutability_update_listener)
+event.listen(StoredDataBlockMetadata, "before_update", immutability_update_listener)
 
 
 class DataSetMetadata(BaseModel):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     key = Column(String, nullable=False)
     otype_uri: ObjectTypeUri = Column(String, nullable=False)  # type: ignore
-    data_resource_id = Column(
-        String, ForeignKey(DataResourceMetadata.id), nullable=False
-    )
+    data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
     # Hints
-    data_resource: "DataResourceMetadata"
+    data_block: "DataBlockMetadata"
 
     # __mapper_args__ = {
     #     "polymorphic_identity": True,
@@ -225,15 +221,15 @@ class DataSetMetadata(BaseModel):
             id=self.id,
             name=self.key,
             otype_uri=self.otype_uri,
-            data_resource=self.data_resource,
+            data_block=self.data_block,
         )
 
-    def as_managed_data_resource(self, ctx: ExecutionContext):
-        mgr = DataResourceManager(ctx, self.data_resource)
+    def as_managed_data_block(self, ctx: ExecutionContext):
+        mgr = DataBlockManager(ctx, self.data_block)
         return ManagedDataSet(
             data_set_id=self.id,
             data_set_key=self.key,
-            data_resource_id=self.data_resource_id,
+            data_block_id=self.data_block_id,
             otype_uri=self.otype_uri,
             manager=mgr,
         )
@@ -243,10 +239,10 @@ class DataSetMetadata(BaseModel):
 class ManagedDataSet:
     data_set_id: str
     data_set_key: str
-    data_resource_id: str
+    data_block_id: str
     otype_uri: ObjectTypeUri
     # otype_is_validated: bool
-    manager: DataResourceManager
+    manager: DataBlockManager
 
     def as_dataframe(self) -> DataFrame:
         return self.manager.as_dataframe()
@@ -268,19 +264,19 @@ class ManagedDataSet:
 DataSet = ManagedDataSet
 
 
-class DataResourceManager:
+class DataBlockManager:
     def __init__(
-        self, ctx: ExecutionContext, data_resource: DataResourceMetadata,
+        self, ctx: ExecutionContext, data_block: DataBlockMetadata,
     ):
 
         self.ctx = ctx
-        self.data_resource = data_resource
+        self.data_block = data_block
 
     def __str__(self):
-        return f"DRM: {self.data_resource}, Local: {self.ctx.local_memory_storage}, rest: {self.ctx.storages}"
+        return f"DRM: {self.data_block}, Local: {self.ctx.local_memory_storage}, rest: {self.ctx.storages}"
 
     def get_otype(self) -> ObjectType:
-        return self.ctx.env.get_otype(self.data_resource.otype_uri)
+        return self.ctx.env.get_otype(self.data_block.otype_uri)
 
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFormat.DATAFRAME)
@@ -297,38 +293,36 @@ class DataResourceManager:
     def as_format(self, fmt: DataFormat) -> Any:
         from basis.core.storage import LocalMemoryStorageEngine
 
-        sdr = self.get_or_create_local_stored_data_resource(fmt)
+        sdb = self.get_or_create_local_stored_data_block(fmt)
         local_memory_storage = LocalMemoryStorageEngine(
             self.ctx.env, self.ctx.local_memory_storage
         )
-        return local_memory_storage.get_local_memory_data_records(sdr).records_object
+        return local_memory_storage.get_local_memory_data_records(sdb).records_object
 
-    def get_or_create_local_stored_data_resource(
+    def get_or_create_local_stored_data_block(
         self, target_format: DataFormat
-    ) -> StoredDataResourceMetadata:
+    ) -> StoredDataBlockMetadata:
         from basis.core.conversion import (
             StorageFormat,
-            get_conversion_path_for_sdr,
-            convert_sdr,
+            get_conversion_path_for_sdb,
+            convert_sdb,
         )
 
-        existing_sdrs = self.ctx.metadata_session.query(
-            StoredDataResourceMetadata
-        ).filter(
-            StoredDataResourceMetadata.data_resource == self.data_resource,
+        existing_sdbs = self.ctx.metadata_session.query(StoredDataBlockMetadata).filter(
+            StoredDataBlockMetadata.data_block == self.data_block,
             # TODO: why do we persist memory SDRs at all? Need more robust solution to this. Either separate class or some flag?
             #   Nice to be able to query all together via orm... hmmmm
             # DO NOT fetch memory SDRs that aren't of current runtime (since we can't get them!
             or_(
-                ~StoredDataResourceMetadata.storage_url.startswith(
+                ~StoredDataBlockMetadata.storage_url.startswith(
                     "memory:"
                 ),  # TODO: drawback of just having url for StorageResource instead of proper metadata object
-                StoredDataResourceMetadata.storage_url
+                StoredDataBlockMetadata.storage_url
                 == self.ctx.local_memory_storage.url,
             ),
         )
-        existing_sdrs.filter(
-            StoredDataResourceMetadata.storage_url.in_(self.ctx.all_storages),
+        existing_sdbs.filter(
+            StoredDataBlockMetadata.storage_url.in_(self.ctx.all_storages),
         )
         target_storage_format = StorageFormat(
             self.ctx.local_memory_storage.storage_type, target_format
@@ -340,25 +334,25 @@ class DataResourceManager:
         eligible_conversion_paths = (
             []
         )  #: List[List[Tuple[ConversionCostLevel, Type[Converter]]]] = []
-        existing_sdrs = list(existing_sdrs)
-        for sdr in existing_sdrs:
+        existing_sdbs = list(existing_sdbs)
+        for sdb in existing_sdbs:
             source_storage_format = StorageFormat(
-                sdr.storage.storage_type, sdr.data_format
+                sdb.storage.storage_type, sdb.data_format
             )
             if source_storage_format == target_storage_format:
-                return sdr
-            conversion_path = get_conversion_path_for_sdr(
-                sdr, target_storage_format, self.ctx.all_storages
+                return sdb
+            conversion_path = get_conversion_path_for_sdb(
+                sdb, target_storage_format, self.ctx.all_storages
             )
             if conversion_path is not None:
                 eligible_conversion_paths.append(
-                    (conversion_path.total_cost, conversion_path, sdr)
+                    (conversion_path.total_cost, conversion_path, sdb)
                 )
         if not eligible_conversion_paths:
             raise NotImplementedError(
-                f"No converter to {target_format} for existing StoredDataResources {existing_sdrs}. {self}"
+                f"No converter to {target_format} for existing StoredDataBlocks {existing_sdbs}. {self}"
             )
-        cost, conversion_path, in_sdr = min(
+        cost, conversion_path, in_sdb = min(
             eligible_conversion_paths, key=lambda x: x[0]
         )
-        return convert_sdr(self.ctx, in_sdr, conversion_path)
+        return convert_sdb(self.ctx, in_sdb, conversion_path)

@@ -11,8 +11,8 @@ from pandas import DataFrame
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import RelationshipProperty, relationship
 
+from basis.core.data_block import DataBlock, DataBlockMetadata, DataSetMetadata
 from basis.core.data_format import DatabaseTable, DictList
-from basis.core.data_resource import DataResource, DataResourceMetadata, DataSetMetadata
 from basis.core.environment import Environment
 from basis.core.metadata.orm import BaseModel
 from basis.core.typing.object_type import (
@@ -28,8 +28,8 @@ if TYPE_CHECKING:
     from basis.core.runnable import DataFunctionContext, ExecutionContext
     from basis.core.streams import (
         InputResources,
-        DataResourceStream,
-        DataResourceStreamable,
+        DataBlockStream,
+        DataBlockStreamable,
         ensure_data_stream,
     )
 
@@ -43,14 +43,14 @@ re_type_hint = re.compile(
 
 
 VALID_DATA_INTERFACE_TYPES = [
-    "DataResource",
+    "DataBlock",
     "DataSet",
     "DataFrame",
     "DictList",
     "DictListIterator",
     "DatabaseTable",
     # TODO: is this list just a list of formats? which ones are valid i/o to DFs?
-    # TODO: also, are DataResources the only valid *input* type?
+    # TODO: also, are DataBlocks the only valid *input* type?
     # "DatabaseCursor",
 ]
 
@@ -59,7 +59,7 @@ SELF_REF_PARAM_NAME = "this"
 
 @dataclass(frozen=True)
 class TypedDataAnnotation:
-    data_resource_class: str
+    data_block_class: str
     otype_like: ObjectTypeLike
     name: Optional[str] = None
     is_iterable: bool = False
@@ -77,9 +77,9 @@ class TypedDataAnnotation:
         otype_key = kwargs.get("otype_like")
         if isinstance(otype_key, str):
             kwargs["is_generic"] = is_generic(otype_key)
-        if kwargs["data_resource_class"] not in VALID_DATA_INTERFACE_TYPES:
+        if kwargs["data_block_class"] not in VALID_DATA_INTERFACE_TYPES:
             raise TypeError(
-                f"`{kwargs['data_resource_class']}` is not a valid data input type"
+                f"`{kwargs['data_block_class']}` is not a valid data input type"
             )
         return TypedDataAnnotation(**kwargs)
 
@@ -99,16 +99,16 @@ class TypedDataAnnotation:
     @classmethod
     def from_type_annotation(cls, annotation: str, **kwargs) -> TypedDataAnnotation:
         """
-        Annotation of form `DataResource[T]` for example
+        Annotation of form `DataBlock[T]` for example
         """
         m = re_type_hint.match(annotation)
         if m is None:
             raise Exception(f"Invalid DataFunction annotation '{annotation}'")
         is_optional = bool(m.groupdict()["optional"])
-        data_resource_class = m.groupdict()["origin"]
+        data_block_class = m.groupdict()["origin"]
         otype_key = m.groupdict()["arg"]
         args = dict(
-            data_resource_class=data_resource_class,
+            data_block_class=data_block_class,
             otype_like=otype_key,
             is_optional=is_optional,
             original_annotation=annotation,
@@ -121,8 +121,8 @@ class TypedDataAnnotation:
 
 
 @dataclass(frozen=True)
-class ConcreteTypedDataAnnotation:
-    data_resource_class: str
+class ResolvedTypedDataAnnotation:
+    data_block_class: str
     otype: ObjectType
     name: Optional[str] = None
     is_iterable: bool = False
@@ -134,7 +134,7 @@ class ConcreteTypedDataAnnotation:
     @classmethod
     def from_typed_data_annotation(
         cls, annotation: TypedDataAnnotation, **kwargs: Any
-    ) -> ConcreteTypedDataAnnotation:
+    ) -> ResolvedTypedDataAnnotation:
         args = asdict(annotation)
         if isinstance(annotation.otype_like, ObjectType):
             args["otype"] = annotation.otype_like
@@ -150,7 +150,7 @@ class ConcreteTypedDataAnnotation:
 
 @dataclass(frozen=True)
 class BoundTypedDataAnnotation:
-    data_resource: DataResourceMetadata
+    data_block: DataBlockMetadata
     otype: ObjectType
     name: Optional[str] = None
     original_annotation: Optional[str] = None
@@ -166,11 +166,11 @@ class BoundTypedDataAnnotation:
 
     # @classmethod
     # def from_typed_data_annotation(
-    #     cls, annotation: TypedDataAnnotation, dr: DataResource, **kwargs: Any
+    #     cls, annotation: TypedDataAnnotation, block: DataBlock, **kwargs: Any
     # ) -> BoundTypedDataAnnotation:
     #     return BoundTypedDataAnnotation(
-    #         data_resource=dr,
-    #         otype=dr.otype,
+    #         data_block=block,
+    #         otype=block.otype,
     #         name=annotation.name,
     #         original_annotation=annotation.original_annotation,
     #     )
@@ -183,16 +183,16 @@ class DataFunctionInterface:
     requires_data_function_context: bool = True  # TODO: implement
 
     def resolve_generics(
-        self, input_data_resources: InputResources
+        self, input_data_blocks: InputResources
     ) -> Dict[str, ObjectTypeUri]:
         resolved_generics: Dict[str, ObjectTypeUri] = {}
         for input in self.inputs:
             if input.is_generic:
                 generic = input.otype_like
                 assert isinstance(generic, str)
-                if input.name in input_data_resources:
-                    dr = input_data_resources[input.name]
-                    otype = dr.otype_uri
+                if input.name in input_data_blocks:
+                    block = input_data_blocks[input.name]
+                    otype = block.otype_uri
                     if (
                         generic in resolved_generics
                         and resolved_generics[generic] != otype
@@ -204,18 +204,18 @@ class DataFunctionInterface:
         return resolved_generics
 
     def validate_inputs(self):
-        data_resource_seen = False
+        data_block_seen = False
         for annotation in self.inputs:
             if (
-                annotation.data_resource_class == "DataResource"
+                annotation.data_block_class == "DataBlock"
                 and not annotation.is_optional
             ):
-                if data_resource_seen:
+                if data_block_seen:
                     raise Exception(
-                        "Only one uncorrelated DataResource input allowed to a DataFunction."
+                        "Only one uncorrelated DataBlock input allowed to a DataFunction."
                         "Correlate the inputs or use a DataSet"
                     )
-                data_resource_seen = True
+                data_block_seen = True
 
     @classmethod
     def from_datafunction_definition(
@@ -239,7 +239,7 @@ class DataFunctionInterface:
                 a = TypedDataAnnotation.from_parameter(param)
                 inputs.append(a)
             except TypeError:
-                # Not a DataResource/Set
+                # Not a DataBlock/Set
                 if param.annotation == "DataFunctionContext":
                     requires_context = True
                 else:
@@ -254,22 +254,67 @@ class DataFunctionInterface:
 
 
 @dataclass(frozen=True)
-class BoundDataFunctionInterface:
-    inputs: List[BoundTypedDataAnnotation]
-    output: Optional[ConcreteTypedDataAnnotation]
+class ResolvedDataFunctionInterface:
+    inputs: List[ResolvedTypedDataAnnotation]
+    output: Optional[ResolvedTypedDataAnnotation]
     requires_data_function_context: bool = True
-
-    def as_kwargs(self):
-        return {i.name: i.data_resource for i in self.inputs}
 
     @classmethod
     def from_data_function_interface(
         self,
         env: Environment,
-        input_data_resources: InputResources,
+        input_data_blocks: InputResources,
+        dfi: DataFunctionInterface,
+    ) -> ResolvedDataFunctionInterface:
+        # TODO: DRY!!!!
+        resolved_generics = dfi.resolve_generics(input_data_blocks)
+
+        inputs: List[ResolvedTypedDataAnnotation] = []
+        output = None
+        for input in dfi.inputs:
+            dtl = input.otype_like
+            if input.is_generic:
+                assert isinstance(dtl, str)
+                dtl = resolved_generics[dtl]
+            otype = env.get_otype(dtl)
+            a = ResolvedTypedDataAnnotation.from_typed_data_annotation(
+                input, otype=otype,
+            )
+            inputs.append(a)
+        if dfi.output:
+            dtl = dfi.output.otype_like
+            if dfi.output.is_generic:
+                assert isinstance(dfi.output.otype_like, str)
+                dtl = resolved_generics[dfi.output.otype_like]
+            otype = env.get_otype(dtl)
+            output = ResolvedTypedDataAnnotation.from_typed_data_annotation(
+                dfi.output, otype=otype,
+            )
+        nodei = ResolvedDataFunctionInterface(
+            inputs=inputs,
+            output=output,
+            requires_data_function_context=dfi.requires_data_function_context,
+        )
+        return nodei
+
+
+@dataclass(frozen=True)
+class BoundDataFunctionInterface:
+    inputs: List[BoundTypedDataAnnotation]
+    output: Optional[ResolvedTypedDataAnnotation]
+    requires_data_function_context: bool = True
+
+    def as_kwargs(self):
+        return {i.name: i.data_block for i in self.inputs}
+
+    @classmethod
+    def from_data_function_interface(
+        self,
+        env: Environment,
+        input_data_blocks: InputResources,
         dfi: DataFunctionInterface,
     ) -> BoundDataFunctionInterface:
-        resolved_generics = dfi.resolve_generics(input_data_resources)
+        resolved_generics = dfi.resolve_generics(input_data_blocks)
 
         inputs: List[BoundTypedDataAnnotation] = []
         output = None
@@ -281,14 +326,14 @@ class BoundDataFunctionInterface:
                 assert isinstance(dtl, str)
                 dtl = resolved_generics[dtl]
             otype = env.get_otype(dtl)
-            input_dr = input_data_resources.get(input.name)
-            if input_dr is None:
+            inputblock = input_data_blocks.get(input.name)
+            if inputblock is None:
                 if input.is_optional:
                     continue
                 else:
                     raise Exception("Required input is missing")
             btda = BoundTypedDataAnnotation(
-                data_resource=input_dr,
+                data_block=inputblock,
                 otype=otype,
                 name=input.name,
                 original_annotation=input.original_annotation,
@@ -300,7 +345,7 @@ class BoundDataFunctionInterface:
                 assert isinstance(dfi.output.otype_like, str)
                 dtl = resolved_generics[dfi.output.otype_like]
             otype = env.get_otype(dtl)
-            output = ConcreteTypedDataAnnotation.from_typed_data_annotation(
+            output = ResolvedTypedDataAnnotation.from_typed_data_annotation(
                 dfi.output, otype=otype,
             )
         bdfi = BoundDataFunctionInterface(
@@ -311,51 +356,6 @@ class BoundDataFunctionInterface:
         return bdfi
 
 
-@dataclass(frozen=True)
-class ConcreteDataFunctionInterface:
-    inputs: List[ConcreteTypedDataAnnotation]
-    output: Optional[ConcreteTypedDataAnnotation]
-    requires_data_function_context: bool = True
-
-    @classmethod
-    def from_data_function_interface(
-        self,
-        env: Environment,
-        input_data_resources: InputResources,
-        dfi: DataFunctionInterface,
-    ) -> ConcreteDataFunctionInterface:
-        # TODO: DRY!!!!
-        resolved_generics = dfi.resolve_generics(input_data_resources)
-
-        inputs: List[ConcreteTypedDataAnnotation] = []
-        output = None
-        for input in dfi.inputs:
-            dtl = input.otype_like
-            if input.is_generic:
-                assert isinstance(dtl, str)
-                dtl = resolved_generics[dtl]
-            otype = env.get_otype(dtl)
-            a = ConcreteTypedDataAnnotation.from_typed_data_annotation(
-                input, otype=otype,
-            )
-            inputs.append(a)
-        if dfi.output:
-            dtl = dfi.output.otype_like
-            if dfi.output.is_generic:
-                assert isinstance(dfi.output.otype_like, str)
-                dtl = resolved_generics[dfi.output.otype_like]
-            otype = env.get_otype(dtl)
-            output = ConcreteTypedDataAnnotation.from_typed_data_annotation(
-                dfi.output, otype=otype,
-            )
-        cdfi = ConcreteDataFunctionInterface(
-            inputs=inputs,
-            output=output,
-            requires_data_function_context=dfi.requires_data_function_context,
-        )
-        return cdfi
-
-
 class DataFunctionInterfaceManager:
     """
     Responsible for finding and preparing input streams for a
@@ -363,20 +363,20 @@ class DataFunctionInterfaceManager:
     """
 
     def __init__(
-        self, ctx: ExecutionContext, cdf: ConfiguredDataFunction,
+        self, ctx: ExecutionContext, node: FunctionNode,
     ):
         self.env = ctx.env
         self.ctx = ctx
-        self.cdf = cdf
-        self.unresolved_dfi = self.cdf.get_interface()
+        self.node = node
+        self.unresolved_dfi = self.node.get_interface()
 
     def get_bound_interface(
-        self, input_data_resources: InputResources = None
+        self, input_data_blocks: InputResources = None
     ) -> BoundDataFunctionInterface:
-        if input_data_resources is None:
-            input_data_resources = self.get_input_data_resources()
+        if input_data_blocks is None:
+            input_data_blocks = self.get_input_data_blocks()
         return BoundDataFunctionInterface.from_data_function_interface(
-            self.ctx.env, input_data_resources, self.unresolved_dfi
+            self.ctx.env, input_data_blocks, self.unresolved_dfi
         )
 
     def is_input_required(self, annotation: TypedDataAnnotation) -> bool:
@@ -385,20 +385,20 @@ class DataFunctionInterfaceManager:
         # TODO: more complex logic? hmmmm
         return True
 
-    def get_input_data_resources(self) -> InputResources:
+    def get_input_data_blocks(self) -> InputResources:
         from basis.core.streams import ensure_data_stream
 
-        input_data_resources: InputResources = {}
+        input_data_blocks: InputResources = {}
         any_unprocessed = False
         for annotation in self.unresolved_dfi.inputs:
             assert annotation.name is not None
-            stream = self.cdf.get_data_stream_input(annotation.name)
+            stream = self.node.get_data_stream_input(annotation.name)
             printd(f"Getting {annotation} for {stream}")
             stream = ensure_data_stream(stream)
-            dr: Optional[DataResourceMetadata] = self.get_input_data_resource(
+            block: Optional[DataBlockMetadata] = self.get_input_data_block(
                 stream, annotation, self.ctx.all_storages
             )
-            printd("\tFound:", dr)
+            printd("\tFound:", block)
 
             """
             Inputs are considered "Exhausted" if:
@@ -408,58 +408,58 @@ class DataFunctionInterfaceManager:
 
             In other words, if ANY DR stream is empty, bail out. If ALL DS streams are empty, bail
             """
-            if dr is None:
+            if block is None:
                 printd(
-                    f"Couldnt find eligible DataResources for input `{annotation.name}` from {stream}"
+                    f"Couldnt find eligible DataBlocks for input `{annotation.name}` from {stream}"
                 )
                 if not annotation.is_optional:
-                    # print(actual_input_cdf, annotation, storages)
+                    # print(actual_input_node, annotation, storages)
                     raise InputExhaustedException(
-                        f"    Required input '{annotation.name}'={stream} to DataFunction '{self.cdf.key}' is empty"
+                        f"    Required input '{annotation.name}'={stream} to DataFunction '{self.node.key}' is empty"
                     )
             else:
-                input_data_resources[annotation.name] = dr
-            if annotation.data_resource_class == "DataResource":
+                input_data_blocks[annotation.name] = block
+            if annotation.data_block_class == "DataBlock":
                 any_unprocessed = True
-            elif annotation.data_resource_class == "DataSet":
-                if dr is not None:
+            elif annotation.data_block_class == "DataSet":
+                if block is not None:
                     any_unprocessed = any_unprocessed or stream.is_unprocessed(
-                        self.ctx, dr, self.cdf
+                        self.ctx, block, self.node
                     )
             else:
                 raise NotImplementedError
 
-        if input_data_resources and not any_unprocessed:
+        if input_data_blocks and not any_unprocessed:
             raise InputExhaustedException("All inputs exhausted")
 
-        return input_data_resources
+        return input_data_blocks
 
-    def get_input_data_resource(
+    def get_input_data_block(
         self,
-        stream: DataResourceStream,
+        stream: DataBlockStream,
         annotation: TypedDataAnnotation,
         storages: List[Storage] = None,
-    ) -> Optional[DataResourceMetadata]:
+    ) -> Optional[DataBlockMetadata]:
         if not annotation.is_generic:
             stream = stream.filter_otype(annotation.otype_like)
         if storages:
             stream = stream.filter_storages(storages)
-        dr: Optional[DataResourceMetadata]
-        if annotation.data_resource_class in ("DataResource",):
+        block: Optional[DataBlockMetadata]
+        if annotation.data_block_class in ("DataBlock",):
             stream = stream.filter_unprocessed(
-                self.cdf, allow_cycle=annotation.is_self_ref
+                self.node, allow_cycle=annotation.is_self_ref
             )
-            dr = stream.get_next(self.ctx)
-        elif annotation.data_resource_class == "DataSet":
+            block = stream.get_next(self.ctx)
+        elif annotation.data_block_class == "DataSet":
             stream = stream.filter_dataset()
-            dr = stream.get_most_recent(self.ctx)
+            block = stream.get_most_recent(self.ctx)
             # TODO: someday probably pass in actual DataSet (not underlying DR) to function that asks
             #   for it (might want to use `name`, for instance). and then just proxy
             #   through to underlying DR
         else:
             raise NotImplementedError
 
-        return dr
+        return block
 
 
 class DataFunctionException(Exception):
@@ -473,7 +473,7 @@ class InputExhaustedException(DataFunctionException):
 DataFunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame, DictList, DatabaseTable, DataResourceMetadata, DataSetMetadata
+    DataFrame, DictList, DatabaseTable, DataBlockMetadata, DataSetMetadata
 ]  # TODO: also input...?
 
 
@@ -561,7 +561,7 @@ def ensure_datafunction(dfl: DataFunctionLike) -> DataFunction:
     return PythonDataFunction(dfl)
 
 
-class ConfiguredDataFunction:
+class FunctionNode:
     env: Environment
     key: str
     datafunction: DataFunction
@@ -571,13 +571,13 @@ class ConfiguredDataFunction:
         _env: Environment,
         _key: str,
         _datafunction: DataFunctionLike,
-        **kwargs: DataResourceStreamable,  # TODO: DataResourceStreamable can also be a str key that references a node
+        **kwargs: DataBlockStreamable,  # TODO: DataBlockStreamable can also be a str key that references a node
     ):
         self.env = _env
         self.key = _key
         self.datafunction = ensure_datafunction(_datafunction)
         self._kwargs = self.validate_datafunction_inputs(**kwargs)
-        self._children: Set[ConfiguredDataFunction] = set([])
+        self._children: Set[FunctionNode] = set([])
 
     def __repr__(self):
         name = self.datafunction.key
@@ -586,10 +586,10 @@ class ConfiguredDataFunction:
     def __hash__(self):
         return hash(self.key)
 
-    # def register_child_cdf(self, child: ConfiguredDataFunction):
+    # def register_child_node(self, child: ConfiguredDataFunction):
     #     self._children.add(child)
     #
-    # def get_children_cdfs(self) -> Set[ConfiguredDataFunction]:
+    # def get_children_nodes(self) -> Set[ConfiguredDataFunction]:
     #     return self._children
 
     # @property
@@ -600,13 +600,11 @@ class ConfiguredDataFunction:
         """
         validate resource v set, and validate types
         """
-        from basis.core.streams import DataResourceStream
+        from basis.core.streams import DataBlockStream
 
         new_kwargs = {}
         for k, v in kwargs.items():
-            if not isinstance(v, ConfiguredDataFunction) and not isinstance(
-                v, DataResourceStream
-            ):
+            if not isinstance(v, FunctionNode) and not isinstance(v, DataBlockStream):
                 if isinstance(v, str):
                     v = self.env.get_node(v)
                 else:
@@ -632,7 +630,7 @@ class ConfiguredDataFunction:
     def get_inputs(self) -> Dict:
         return self._kwargs
 
-    def get_data_stream_input(self, name: str) -> DataResourceStreamable:
+    def get_data_stream_input(self, name: str) -> DataBlockStreamable:
         if name == SELF_REF_PARAM_NAME:
             return self
         v = self.get_input(name)
@@ -641,12 +639,12 @@ class ConfiguredDataFunction:
         return v
 
     def is_data_stream_input(self, v: Any) -> bool:
-        from basis.core.streams import DataResourceStream
+        from basis.core.streams import DataBlockStream
 
         # TODO: ignores "this" special arg (a bug/feature that build_fn_graph DEPENDS on currently [don't want recursion there])
-        if isinstance(v, ConfiguredDataFunction):
+        if isinstance(v, FunctionNode):
             return True
-        elif isinstance(v, DataResourceStream):
+        elif isinstance(v, DataBlockStream):
             return True
         # elif isinstance(v, Sequence):
         #     raise TypeError("Sequences are deprecated")
@@ -658,9 +656,9 @@ class ConfiguredDataFunction:
 
     def get_data_stream_inputs(
         self, env: Environment, as_streams=False
-    ) -> List[DataResourceStreamable]:
+    ) -> List[DataBlockStreamable]:
 
-        streams: List[DataResourceStreamable] = []
+        streams: List[DataBlockStreamable] = []
         for k, v in self.get_inputs().items():
             if self.is_data_stream_input(v):
                 # TODO: sequence deprecated
@@ -672,37 +670,37 @@ class ConfiguredDataFunction:
             streams = [ensure_data_stream(v) for v in streams]
         return streams
 
-    def get_output_cdf(self) -> ConfiguredDataFunction:
-        # Handle nested CDFs
+    def get_output_node(self) -> FunctionNode:
+        # Handle nested NODEs
         # TODO: why would it be a function of the (un-configured) self.datafunction? I don't think it is
-        # if hasattr(self.datafunction, "get_output_cdf"):
-        #     return self.datafunction.get_output_cdf()
-        return self  # Base case is self, not a nested CDF
+        # if hasattr(self.datafunction, "get_output_node"):
+        #     return self.datafunction.get_output_node()
+        return self  # Base case is self, not a nested NODE
 
-    def as_stream(self) -> DataResourceStream:
-        from basis.core.streams import DataResourceStream
+    def as_stream(self) -> DataBlockStream:
+        from basis.core.streams import DataBlockStream
 
-        cdf = self.get_output_cdf()
-        return DataResourceStream(upstream=cdf)
+        node = self.get_output_node()
+        return DataBlockStream(upstream=node)
 
     def is_graph(self) -> bool:
         return isinstance(self.datafunction, DataFunctionGraph)
 
-    def get_latest_output(self, ctx: ExecutionContext) -> Optional[DataResource]:
-        dr = (
-            ctx.metadata_session.query(DataResourceMetadata)
-            .join(DataResourceLog)
+    def get_latest_output(self, ctx: ExecutionContext) -> Optional[DataBlock]:
+        block = (
+            ctx.metadata_session.query(DataBlockMetadata)
+            .join(DataBlockLog)
             .join(DataFunctionLog)
             .filter(
-                DataResourceLog.direction == Direction.OUTPUT,
+                DataBlockLog.direction == Direction.OUTPUT,
                 DataFunctionLog.configured_data_function_key == self.key,
             )
-            .order_by(DataResourceLog.created_at.desc())
+            .order_by(DataBlockLog.created_at.desc())
             .first()
         )
-        if dr is None:
+        if block is None:
             return None
-        return dr.as_managed_data_resource(ctx)
+        return block.as_managed_data_block(ctx)
 
 
 class DataFunctionLog(BaseModel):
@@ -712,8 +710,8 @@ class DataFunctionLog(BaseModel):
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
-    data_resource_logs: RelationshipProperty = relationship(
-        "DataResourceLog", backref="data_function_log"
+    data_block_logs: RelationshipProperty = relationship(
+        "DataBlockLog", backref="data_function_log"
     )
 
     def __repr__(self):
@@ -743,109 +741,105 @@ class Direction(enum.Enum):
         return self.symbol + " " + s
 
 
-class DataResourceLog(BaseModel):
+class DataBlockLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     data_function_log_id = Column(
         Integer, ForeignKey(DataFunctionLog.id), nullable=False
     )
-    data_resource_id = Column(
-        String, ForeignKey("basis_data_resource_metadata.id"), nullable=False
-    )  # TODO table name ref ugly here. We can parameterize with orm constant at least, or tablename("DataResource.id")
+    data_block_id = Column(
+        String, ForeignKey("basis_data_block_metadata.id"), nullable=False
+    )  # TODO table name ref ugly here. We can parameterize with orm constant at least, or tablename("DataBlock.id")
     direction = Column(Enum(Direction), nullable=False)
     processed_at = Column(DateTime, default=func.now(), nullable=False)
     # Hints
-    data_resource: "DataResourceMetadata"
+    data_block: "DataBlockMetadata"
     data_function_log: DataFunctionLog
 
     def __repr__(self):
         return self._repr(
             id=self.id,
             data_function_log=self.data_function_log,
-            data_resource=self.data_resource,
+            data_block=self.data_block,
             direction=self.direction,
             processed_at=self.processed_at,
         )
 
 
-class ConfiguredDataFunctionGraph(ConfiguredDataFunction):
-    def build_cdfs(
-        self, input: DataResourceStreamable = None
-    ) -> List[ConfiguredDataFunction]:
+class FunctionNodeGraph(FunctionNode):
+    def build_nodes(self, input: DataBlockStreamable = None) -> List[FunctionNode]:
         raise NotImplementedError
 
     # TODO: Idea here is to ensure inheriting classes are making keys correctly. maybe not necessary
-    # def validate_cdfs(self):
-    #     for cdf in self._internal_cdfs:
-    #         if cdf is self.input_cdf:
+    # def validate_nodes(self):
+    #     for node in self._internal_nodes:
+    #         if node is self.input_node:
     #             continue
-    #         if not cdf.name.startswith(self.get_cdf_key_prefix()):
-    #             raise Exception("Child-cdf does not have parent name prefix")
+    #         if not node.name.startswith(self.get_node_key_prefix()):
+    #             raise Exception("Child-node does not have parent name prefix")
 
     def make_child_key(self, parent_key: str, child_name: str) -> str:
         return f"{parent_key}__{child_name}"
 
-    def get_cdfs(self) -> List[ConfiguredDataFunction]:
+    def get_nodes(self) -> List[FunctionNode]:
         raise NotImplementedError
 
-    def get_input_cdf(self) -> ConfiguredDataFunction:
-        return self.get_cdfs()[0]
+    def get_input_node(self) -> FunctionNode:
+        return self.get_nodes()[0]
 
-    def get_output_cdf(self) -> ConfiguredDataFunction:
-        return self.get_cdfs()[-1]
+    def get_output_node(self) -> FunctionNode:
+        return self.get_nodes()[-1]
 
     def get_interface(self) -> DataFunctionInterface:
-        input_interface = self.get_input_cdf().get_interface()
+        input_interface = self.get_input_node().get_interface()
         return DataFunctionInterface(
             inputs=input_interface.inputs,
-            output=self.get_output_cdf().get_interface().output,
+            output=self.get_output_node().get_interface().output,
             requires_data_function_context=input_interface.requires_data_function_context,
         )
 
 
-class ConfiguredDataFunctionChain(ConfiguredDataFunctionGraph):
+class ConfiguredDataFunctionChain(FunctionNodeGraph):
     def __init__(
         self,
         _env: Environment,
         _key: str,
         _datafunction: DataFunctionChain,
-        input: DataResourceStreamable = None,
+        input: DataBlockStreamable = None,
     ):
         if input is not None:
             super().__init__(_env, _key, _datafunction, input=input)
         else:
             super().__init__(_env, _key, _datafunction)
         self.data_function_chain = _datafunction
-        self._cdf_chain = self.build_cdfs(input)
+        self._node_chain = self.build_nodes(input)
 
-    def build_cdfs(
-        self, input: DataResourceStreamable = None
-    ) -> List[ConfiguredDataFunction]:
-        cdfs = []
+    def build_nodes(self, input: DataBlockStreamable = None) -> List[FunctionNode]:
+        nodes = []
         for fn in self.data_function_chain.function_chain:
             child_name = make_datafunction_key(fn)
             child_key = self.make_child_key(self.key, child_name)
             if input is not None:
-                cdf = ConfiguredDataFunction(self.env, child_key, fn, input=input)
+                node = FunctionNode(self.env, child_key, fn, input=input)
             else:
-                cdf = ConfiguredDataFunction(self.env, child_key, fn)
-            cdfs.append(cdf)
-            input = cdf
-        return cdfs
+                node = FunctionNode(self.env, child_key, fn)
+            nodes.append(node)
+            input = node
+        return nodes
 
-    def get_cdfs(self) -> List[ConfiguredDataFunction]:
-        return self._cdf_chain
+    def get_nodes(self) -> List[FunctionNode]:
+        return self._node_chain
 
 
 def configured_data_function_factory(
     env: Environment, key: str, df_like: Any, **inputs
-) -> ConfiguredDataFunction:
+) -> FunctionNode:
     if isinstance(df_like, DataFunctionGraph):
         if isinstance(df_like, DataFunctionChain):
-            cdf = ConfiguredDataFunctionChain(
+            node = ConfiguredDataFunctionChain(
                 env, key, df_like, **inputs
             )  # TODO: WRONG
         else:
             raise NotImplementedError
     else:
-        cdf = ConfiguredDataFunction(env, key, df_like, **inputs)
-    return cdf
+        node = FunctionNode(env, key, df_like, **inputs)
+    return node

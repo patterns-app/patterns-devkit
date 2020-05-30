@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pandas import DataFrame
 
-from basis.core.data_resource import DataResource
+from basis.core.data_block import DataBlock
 from basis.core.environment import Environment
 from basis.core.module import BasisModule
 from basis.core.runnable import DataFunctionContext, ExecutionContext, ExecutionManager
@@ -68,15 +68,15 @@ def make_test_execution_manager(**kwargs):
     return ExecutionManager(make_test_execution_context(**kwargs))
 
 
-def df_t1_sink(ctx: DataFunctionContext, dr: DataResource[TestType1]):
+def df_t1_sink(ctx: DataFunctionContext, block: DataBlock[TestType1]):
     pass
 
 
-def df_t1_to_t2(dr: DataResource[TestType1]) -> DataFrame[TestType2]:
+def df_t1_to_t2(block: DataBlock[TestType1]) -> DataFrame[TestType2]:
     pass
 
 
-def df_generic(dr: DataResource[T]) -> DataFrame[T]:
+def df_generic(block: DataBlock[T]) -> DataFrame[T]:
     pass
 
 

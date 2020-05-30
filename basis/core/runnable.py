@@ -13,27 +13,27 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import Session
 
 from basis.core.conversion import convert_lowest_cost
+from basis.core.data_block import (
+    DataBlockMetadata,
+    DataSetMetadata,
+    LocalMemoryDataRecords,
+    ManagedDataBlock,
+    StoredDataBlockMetadata,
+)
 from basis.core.data_function import (
     BoundDataFunctionInterface,
     BoundTypedDataAnnotation,
-    ConcreteTypedDataAnnotation,
-    ConfiguredDataFunction,
-    ConfiguredDataFunctionGraph,
+    DataBlockLog,
     DataFunction,
     DataFunctionInterfaceManager,
     DataFunctionLog,
     DataInterfaceType,
-    DataResourceLog,
     Direction,
+    FunctionNode,
+    FunctionNodeGraph,
     InputExhaustedException,
     PythonDataFunction,
-)
-from basis.core.data_resource import (
-    DataResourceMetadata,
-    DataSetMetadata,
-    LocalMemoryDataRecords,
-    ManagedDataResource,
-    StoredDataResourceMetadata,
+    ResolvedTypedDataAnnotation,
 )
 from basis.core.environment import Environment
 from basis.core.graph import get_all_upstream_dependencies_in_execution_order
@@ -98,22 +98,22 @@ class RunSession:
     datafunction_log: DataFunctionLog
     metadata_session: Session  # Make this a URL or other jsonable and then runtime can connect
 
-    def log(self, dr: DataResourceMetadata, direction: Direction):
-        drl = DataResourceLog(  # type: ignore
+    def log(self, block: DataBlockMetadata, direction: Direction):
+        drl = DataBlockLog(  # type: ignore
             data_function_log=self.datafunction_log,
-            data_resource=dr,
+            data_block=block,
             direction=direction,
             processed_at=utcnow(),
         )
         self.metadata_session.add(drl)
 
-    def log_input(self, dr: DataResourceMetadata):
-        printd(f"\t\tLogging Input {dr}")
-        self.log(dr, Direction.INPUT)
+    def log_input(self, block: DataBlockMetadata):
+        printd(f"\t\tLogging Input {block}")
+        self.log(block, Direction.INPUT)
 
-    def log_output(self, dr: DataResourceMetadata):
-        printd(f"\t\tLogging Output {dr}")
-        self.log(dr, Direction.OUTPUT)
+    def log_output(self, block: DataBlockMetadata):
+        printd(f"\t\tLogging Output {block}")
+        self.log(block, Direction.OUTPUT)
 
 
 @dataclass  # (frozen=True)
@@ -141,11 +141,11 @@ class ExecutionContext:
 
     @contextmanager
     def start_data_function_run(
-        self, cdf_key: str
+        self, node_key: str
     ) -> Generator[RunSession, None, None]:
         assert self.current_runtime is not None, "Runtime not set"
         dfl = DataFunctionLog(  # type: ignore
-            configured_data_function_key=cdf_key,
+            configured_data_function_key=node_key,
             runtime_url=self.current_runtime.url,
             started_at=utcnow(),
         )
@@ -179,7 +179,7 @@ class DataFunctionContext:
     worker: Worker
     runnable: Runnable
     inputs: List[BoundTypedDataAnnotation]
-    output: Optional[ConcreteTypedDataAnnotation]
+    output: Optional[ResolvedTypedDataAnnotation]
 
 
 class ExecutionManager:
@@ -187,54 +187,54 @@ class ExecutionManager:
         self.ctx = ctx
         self.env = ctx.env
 
-    def select_runtime(self, cdf: ConfiguredDataFunction) -> Runtime:
+    def select_runtime(self, node: FunctionNode) -> Runtime:
         from basis.core.sql.data_function import SqlDataFunction
 
         # TODO: not happy with runtime <-> DF mapping here. Let's rethink
         try:
-            cls = cdf.datafunction.runtime_class
+            cls = node.datafunction.runtime_class
         except AttributeError:
-            if isinstance(cdf.datafunction, SqlDataFunction):
+            if isinstance(node.datafunction, SqlDataFunction):
                 cls = RuntimeClass.DATABASE
-            elif isinstance(cdf.datafunction, PythonDataFunction):
+            elif isinstance(node.datafunction, PythonDataFunction):
                 cls = RuntimeClass.PYTHON
             else:
                 # cls = RuntimeClass.PYTHON
-                raise NotImplementedError(cdf.datafunction)  # TODO
+                raise NotImplementedError(node.datafunction)  # TODO
         for runtime in self.ctx.runtimes:
             if runtime.runtime_class == cls:  # TODO: Just taking the first one...
                 return runtime
         raise Exception(
-            f"No compatible runtime available for {cdf} (runtime class {cls} required)"
+            f"No compatible runtime available for {node} (runtime class {cls} required)"
         )
 
     def get_bound_data_function_interface(
-        self, cdf: ConfiguredDataFunction
+        self, node: FunctionNode
     ) -> BoundDataFunctionInterface:
-        dfi_mgr = DataFunctionInterfaceManager(self.ctx, cdf)
+        dfi_mgr = DataFunctionInterfaceManager(self.ctx, node)
         return dfi_mgr.get_bound_interface()
 
     def run_graph(
-        self, cdf: ConfiguredDataFunctionGraph, to_exhaustion: bool = False
-    ) -> Optional[ManagedDataResource]:
-        output: Optional[ManagedDataResource] = None
-        for child in cdf.get_cdfs():
+        self, node: FunctionNodeGraph, to_exhaustion: bool = False
+    ) -> Optional[ManagedDataBlock]:
+        output: Optional[ManagedDataBlock] = None
+        for child in node.get_nodes():
             output = self.run(child, to_exhaustion=to_exhaustion)
         return output
 
     def run(
-        self, cdf: ConfiguredDataFunction, to_exhaustion: bool = False
-    ) -> Optional[ManagedDataResource]:
-        if cdf.is_graph():  # cdf: ConfiguredDataFunctionGraph
-            return self.run_graph(cdf, to_exhaustion=to_exhaustion)
-        runtime = self.select_runtime(cdf)
+        self, node: FunctionNode, to_exhaustion: bool = False
+    ) -> Optional[ManagedDataBlock]:
+        if node.is_graph():  # node: ConfiguredDataFunctionGraph
+            return self.run_graph(node, to_exhaustion=to_exhaustion)
+        runtime = self.select_runtime(node)
         run_ctx = self.ctx.clone(current_runtime=runtime)
         worker = Worker(run_ctx)
-        last_output: Optional[DataResourceMetadata] = None
+        last_output: Optional[DataBlockMetadata] = None
 
         # Setup for run
         base_msg = (
-            f"Running node: {cf.green(cdf.key)} {cf.dimmed(cdf.datafunction.key)}"
+            f"Running node: {cf.green(node.key)} {cf.dimmed(node.datafunction.key)}"
         )
         spinner = get_spinner()
         spinner.start(base_msg)
@@ -243,11 +243,11 @@ class ExecutionManager:
         n_runs = 0
         try:
             while True:
-                dfi = self.get_bound_data_function_interface(cdf)
+                dfi = self.get_bound_data_function_interface(node)
                 runnable = Runnable(
-                    configured_data_function_key=cdf.key,
+                    configured_data_function_key=node.key,
                     compiled_datafunction=CompiledDataFunction(
-                        key=cdf.key, function=cdf.datafunction
+                        key=node.key, function=node.datafunction
                     ),
                     datafunction_interface=dfi,
                 )
@@ -259,7 +259,7 @@ class ExecutionManager:
                     not to_exhaustion or not dfi.inputs
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     break
-                spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataResources output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
+                spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataBlocks output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
             spinner.stop_and_persist(symbol=cf.success(success_symbol))
         except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
             printd(cf.warning("    Input Exhausted"))
@@ -283,7 +283,7 @@ class ExecutionManager:
             return None
         new_session = self.env.get_new_metadata_session()
         last_output = new_session.merge(last_output)
-        return last_output.as_managed_data_resource(self.ctx,)  # type: ignore  # Doesn't understand merge
+        return last_output.as_managed_data_block(self.ctx,)  # type: ignore  # Doesn't understand merge
 
     def update_all(self, to_exhaustion: bool = False):
         raise NotImplementedError
@@ -291,7 +291,7 @@ class ExecutionManager:
     #
     # def produce(
     #         self, node_like: Union[ConfiguredDataFunction, str]
-    # ) -> Optional[DataResource]:
+    # ) -> Optional[DataBlock]:
     #     if isinstance(node_like, str):
     #         node_like = self.env.get_node(node_like)
     #     assert isinstance(node_like, ConfiguredDataFunction)
@@ -306,8 +306,8 @@ class Worker:
         self.env = ctx.env
         self.ctx = ctx
 
-    def run(self, runnable: Runnable) -> Optional[DataResourceMetadata]:
-        output_dr: Optional[DataResourceMetadata] = None
+    def run(self, runnable: Runnable) -> Optional[DataBlockMetadata]:
+        outputblock: Optional[DataBlockMetadata] = None
         with self.ctx.start_data_function_run(
             runnable.configured_data_function_key
         ) as run_session:
@@ -317,14 +317,14 @@ class Worker:
                 assert (
                     self.ctx.target_storage is not None
                 ), "Must specify target storage for output"
-                output_dr = self.conform_output(run_session, output, runnable)
-                assert output_dr is not None, output
-                run_session.log_output(output_dr)
+                outputblock = self.conform_output(run_session, output, runnable)
+                assert outputblock is not None, output
+                run_session.log_output(outputblock)
 
             for input in runnable.datafunction_interface.inputs:
-                assert input.data_resource is not None, input
-                run_session.log_input(input.data_resource)
-        return output_dr
+                assert input.data_block is not None, input
+                run_session.log_input(input.data_block)
+        return outputblock
 
     def execute_datafunction(self, runnable: Runnable) -> DataInterfaceType:
         args = []
@@ -338,53 +338,53 @@ class Worker:
             )
             args.append(dfc)
         inputs = runnable.datafunction_interface.as_kwargs()
-        mgd_inputs = {n: self.get_managed_data_resource(dr) for n, dr in inputs.items()}
+        mgd_inputs = {
+            n: self.get_managed_data_block(block) for n, block in inputs.items()
+        }
         return runnable.compiled_datafunction.function(*args, **mgd_inputs)
 
-    def get_managed_data_resource(
-        self, dr: DataResourceMetadata
-    ) -> ManagedDataResource:
-        return dr.as_managed_data_resource(self.ctx)
+    def get_managed_data_block(self, block: DataBlockMetadata) -> ManagedDataBlock:
+        return block.as_managed_data_block(self.ctx)
 
     def conform_output(
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
-    ) -> DataResourceMetadata:
+    ) -> DataBlockMetadata:
         assert runnable.datafunction_interface.output is not None
         assert self.ctx.target_storage is not None
         # TODO: check if these Metadata objects have been added to session!
         #   also figure out what merge actually does
-        if isinstance(output, StoredDataResourceMetadata):
+        if isinstance(output, StoredDataBlockMetadata):
             output = self.ctx.merge(output)
-            return output.data_resource
-        if isinstance(output, DataResourceMetadata):
+            return output.data_block
+        if isinstance(output, DataBlockMetadata):
             output = self.ctx.merge(output)
             return output
         if isinstance(output, DataSetMetadata):
             output = self.ctx.merge(output)
-            return output.data_resource
+            return output.data_block
 
         ldr = LocalMemoryDataRecords.from_records_object(output)
-        dr = DataResourceMetadata(
+        block = DataBlockMetadata(
             otype_uri=runnable.datafunction_interface.output.otype.uri
         )
-        sdr = StoredDataResourceMetadata(  # type: ignore
-            data_resource=dr,
+        sdb = StoredDataBlockMetadata(  # type: ignore
+            data_block=block,
             storage_url=self.ctx.local_memory_storage.url,
             data_format=ldr.data_format,
         )
-        dr = self.ctx.add(dr)
-        sdr = self.ctx.add(sdr)
+        block = self.ctx.add(block)
+        sdb = self.ctx.add(sdb)
         LocalMemoryStorageEngine(
             self.env, self.ctx.local_memory_storage
-        ).store_local_memory_data_records(sdr, ldr)
+        ).store_local_memory_data_records(sdb, ldr)
         # Place output in target storage
         convert_lowest_cost(
             self.ctx,
-            sdr,
+            sdb,
             self.ctx.target_storage,
             self.ctx.target_storage.natural_storage_format,
         )
-        return dr
+        return block
 
     # TODO: where does this sql stuff really belong?
     def get_connection(self) -> sqlalchemy.engine.Engine:

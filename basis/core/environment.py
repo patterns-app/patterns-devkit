@@ -19,13 +19,13 @@ if TYPE_CHECKING:
         new_local_memory_storage,
     )
     from basis.core.data_function import (
-        ConfiguredDataFunction,
+        FunctionNode,
         DataFunctionCallable,
         configured_data_function_factory,
     )
     from basis.indexing.components import IndexableComponent
     from basis.core.runnable import ExecutionContext
-    from basis.core.data_resource import DataResource
+    from basis.core.data_block import DataBlock
 
 logger = logging.getLogger(__name__)
 
@@ -84,12 +84,12 @@ class Environment:
         self._module_order: List[str] = []
 
     def initialize_metadata_database(self):
-        from basis.core.metadata.listeners import add_persisting_sdr_listener
+        from basis.core.metadata.listeners import add_persisting_sdb_listener
 
         conn = self.metadata_storage.get_database_api(self).get_connection()
         BaseModel.metadata.create_all(conn)
         self.Session = sessionmaker(bind=conn)
-        add_persisting_sdr_listener(self.Session)
+        add_persisting_sdb_listener(self.Session)
         self._env_session = self.Session()
 
     def get_env_metadata_session(self) -> Session:
@@ -109,27 +109,25 @@ class Environment:
 
     def add_node(
         self, _key: str, _data_function: DataFunctionCallable, **kwargs
-    ) -> ConfiguredDataFunction:
+    ) -> FunctionNode:
         from basis.core.data_function import configured_data_function_factory
 
-        cdf = configured_data_function_factory(self, _key, _data_function, **kwargs)
-        self.configured_data_function_registry.register(cdf)
-        return cdf
+        node = configured_data_function_factory(self, _key, _data_function, **kwargs)
+        self.configured_data_function_registry.register(node)
+        return node
 
-    def register_node(self, cdf: "ConfiguredDataFunction"):
-        self.configured_data_function_registry.register(cdf)
+    def register_node(self, node: "FunctionNode"):
+        self.configured_data_function_registry.register(node)
 
-    def all_nodes(self) -> List[ConfiguredDataFunction]:
+    def all_nodes(self) -> List[FunctionNode]:
         return list(self.configured_data_function_registry.all())
 
-    def get_node(
-        self, cdf_like: Union["ConfiguredDataFunction", str]
-    ) -> "ConfiguredDataFunction":
-        from basis.core.data_function import ConfiguredDataFunction
+    def get_node(self, node_like: Union["FunctionNode", str]) -> "FunctionNode":
+        from basis.core.data_function import FunctionNode
 
-        if isinstance(cdf_like, ConfiguredDataFunction):
-            return cdf_like
-        return self.configured_data_function_registry.get(cdf_like)
+        if isinstance(node_like, FunctionNode):
+            return node_like
+        return self.configured_data_function_registry.get(node_like)
 
     def add_module(self, module: BasisModule):
         self.module_registry.register(module)
@@ -186,27 +184,27 @@ class Environment:
             raise e
         finally:
             # TODO:
-            # self.validate_and_clean_data_resources(delete_intermediate=True)
+            # self.validate_and_clean_data_blocks(delete_intermediate=True)
             session.close()
 
     def produce(
-        self, node_like: Union[ConfiguredDataFunction, str], **execution_kwargs: Any
-    ) -> Optional[DataResource]:
-        from basis.core.data_function import ConfiguredDataFunction
+        self, node_like: Union[FunctionNode, str], **execution_kwargs: Any
+    ) -> Optional[DataBlock]:
+        from basis.core.data_function import FunctionNode
         from basis.core.graph import get_all_upstream_dependencies_in_execution_order
 
         if isinstance(node_like, str):
             node_like = self.get_node(node_like)
-        assert isinstance(node_like, ConfiguredDataFunction)
+        assert isinstance(node_like, FunctionNode)
         dependencies = get_all_upstream_dependencies_in_execution_order(self, node_like)
         for dep in dependencies:
             with self.execution(**execution_kwargs) as em:
                 em.run(dep, to_exhaustion=True)
 
-    def get_latest_output(self, cdf: ConfiguredDataFunction) -> Optional[DataResource]:
+    def get_latest_output(self, node: FunctionNode) -> Optional[DataBlock]:
         session = self.get_new_metadata_session()  # TODO: hanging session
         ctx = self.get_execution_context(session)
-        return cdf.get_latest_output(ctx)
+        return node.get_latest_output(ctx)
 
     def add_storage(
         self, storage_like: Union[Storage, str], add_runtime=True
@@ -230,43 +228,41 @@ class Environment:
                 pass
         return sr
 
-    def validate_and_clean_data_resources(
+    def validate_and_clean_data_blocks(
         self, delete_memory=True, delete_intermediate=False, force: bool = False
     ):
         with self.session_scope() as sess:
-            from basis.core.data_resource import (
-                DataResourceMetadata,
-                StoredDataResourceMetadata,
+            from basis.core.data_block import (
+                DataBlockMetadata,
+                StoredDataBlockMetadata,
             )
 
             if delete_memory:
                 deleted = (
-                    sess.query(StoredDataResourceMetadata)
-                    .filter(
-                        StoredDataResourceMetadata.storage_url.startswith("memory:")
-                    )
+                    sess.query(StoredDataBlockMetadata)
+                    .filter(StoredDataBlockMetadata.storage_url.startswith("memory:"))
                     .delete(False)
                 )
                 print(f"{deleted} Memory SDRs deleted")
 
-            for dr in sess.query(DataResourceMetadata).filter(
-                ~DataResourceMetadata.stored_data_resources.any()
+            for block in sess.query(DataBlockMetadata).filter(
+                ~DataBlockMetadata.stored_data_blocks.any()
             ):
-                print(f"#{dr.id} {dr.otype_uri} is orphaned! SAD")
+                print(f"#{block.id} {block.otype_uri} is orphaned! SAD")
             if delete_intermediate:
                 # TODO: does no checking if they are unprocessed or not...
                 if not force:
                     d = input(
-                        "Are you sure you want to delete ALL intermediate DataResources? There is no undoing this operation. y/N?"
+                        "Are you sure you want to delete ALL intermediate DataBlocks? There is no undoing this operation. y/N?"
                     )
                     if not d or d.lower()[0] != "y":
                         return
                 # Delete DRs with no DataSet
                 cnt = (
-                    sess.query(DataResourceMetadata)
-                    .filter(~DataResourceMetadata.data_sets.any(),)
+                    sess.query(DataBlockMetadata)
+                    .filter(~DataBlockMetadata.data_sets.any(),)
                     .update(
-                        {DataResourceMetadata.deleted: True}, synchronize_session=False
+                        {DataBlockMetadata.deleted: True}, synchronize_session=False
                     )
                 )
                 print(f"{cnt} intermediate DRs deleted")

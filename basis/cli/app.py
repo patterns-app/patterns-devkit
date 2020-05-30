@@ -6,8 +6,8 @@ import click
 import requests
 from sqlalchemy import func
 
+from basis.core.data_block import DataBlockMetadata, DataSetMetadata
 from basis.core.data_function import DataFunctionLog
-from basis.core.data_resource import DataResourceMetadata, DataSetMetadata
 from basis.core.environment import current_env
 from basis.core.typing.inference import dict_to_rough_otype
 from basis.core.typing.object_type import otype_to_yaml
@@ -105,7 +105,7 @@ def generate(component_type: str):
 @click.argument("component_type")
 def list_component(component_type):
     if component_type == "dataresources":
-        list_data_resources()
+        list_data_blocks()
     elif component_type == "datasets":
         list_data_sets()
     elif component_type == "datafunctions":
@@ -114,17 +114,17 @@ def list_component(component_type):
         click.echo(f"Unknown component type {component_type}")
 
 
-def list_data_resources():
+def list_data_blocks():
     env = current_env()  # TODO inject this via optional arg too -e --env
     with env.session_scope() as sess:
         query = (
-            sess.query(DataResourceMetadata)
-            .filter(~DataResourceMetadata.deleted)
-            .order_by(DataResourceMetadata.created_at)
+            sess.query(DataBlockMetadata)
+            .filter(~DataBlockMetadata.deleted)
+            .order_by(DataBlockMetadata.created_at)
         )
         headers = ["ID", "BaseType", "Create by node", "Stored"]
         rows = [
-            [r.id, r.otype_uri, r.created_by(sess), r.stored_data_resources.count()]
+            [r.id, r.otype_uri, r.created_by(sess), r.stored_data_blocks.count()]
             for r in query
         ]
         echo_table(headers, rows)
@@ -136,11 +136,7 @@ def list_data_sets():
         query = sess.query(DataSetMetadata).order_by(DataSetMetadata.created_at)
         headers = ["Key", "BaseType", "Stored"]
         rows = [
-            [
-                r.key,
-                r.data_resource.otype_uri,
-                r.data_resource.stored_data_resources.count(),
-            ]
+            [r.key, r.data_block.otype_uri, r.data_block.stored_data_blocks.count(),]
             for r in query
         ]
     echo_table(headers, rows)
@@ -174,13 +170,13 @@ def show_log():
         query = sess.query(DataFunctionLog).order_by(DataFunctionLog.updated_at.desc())
         drls = []
         for dfl in query:
-            if dfl.data_resource_logs:
-                for drl in dfl.data_resource_logs:
+            if dfl.data_block_logs:
+                for drl in dfl.data_block_logs:
                     r = [
                         dfl.started_at.strftime("%F %T"),
                         dfl.configured_data_function_key,
                         drl.direction.display,
-                        cycle_colors_unique(drl.data_resource_id),
+                        cycle_colors_unique(drl.data_block_id),
                     ]
                     drls.append(r)
             else:
@@ -196,7 +192,7 @@ def show_log():
             "Started",
             "Function",
             "Direction",
-            "DataResource",
+            "DataBlock",
         ]
         echo_table(headers, drls)
 

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from basis.core.data_function import DataFunctionLog, DataResourceLog, Direction
-from basis.core.data_resource import DataResourceMetadata
-from basis.core.streams import DataResourceStream
+from basis.core.data_block import DataBlockMetadata
+from basis.core.data_function import DataBlockLog, DataFunctionLog, Direction
+from basis.core.streams import DataBlockStream
 from tests.utils import (
     df_generic,
     df_t1_sink,
@@ -19,52 +19,52 @@ class TestStreams:
         ctx = make_test_execution_context()
         self.ctx = ctx
         self.env = ctx.env
-        self.dr1t1 = DataResourceMetadata(otype_uri="_test.TestType1",)
-        self.dr2t1 = DataResourceMetadata(otype_uri="_test.TestType1",)
-        self.dr1t2 = DataResourceMetadata(otype_uri="_test.TestType2",)
-        self.dr2t2 = DataResourceMetadata(otype_uri="_test.TestType2",)
-        self.cdf_source = self.env.add_node("df_source", df_t1_source)
-        self.cdf1 = self.env.add_node("df1", df_t1_sink)
-        self.cdf2 = self.env.add_node("df2", df_t1_to_t2)
-        self.cdf3 = self.env.add_node("df3", df_generic)
+        self.dr1t1 = DataBlockMetadata(otype_uri="_test.TestType1",)
+        self.dr2t1 = DataBlockMetadata(otype_uri="_test.TestType1",)
+        self.dr1t2 = DataBlockMetadata(otype_uri="_test.TestType2",)
+        self.dr2t2 = DataBlockMetadata(otype_uri="_test.TestType2",)
+        self.node_source = self.env.add_node("df_source", df_t1_source)
+        self.node1 = self.env.add_node("df1", df_t1_sink)
+        self.node2 = self.env.add_node("df2", df_t1_to_t2)
+        self.node3 = self.env.add_node("df3", df_generic)
         self.sess = ctx.metadata_session
         self.sess.add_all([self.dr1t1, self.dr1t2, self.dr2t1, self.dr2t2])
 
     def test_stream_unprocessed_pristine(self):
-        s = DataResourceStream(upstream=self.cdf_source)
-        s = s.filter_unprocessed(self.cdf1)
+        s = DataBlockStream(upstream=self.node_source)
+        s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) is None
 
     def test_stream_unprocessed_eligible(self):
         dfl = DataFunctionLog(
-            configured_data_function_key=self.cdf_source.key, runtime_url="test",
+            configured_data_function_key=self.node_source.key, runtime_url="test",
         )
-        drl = DataResourceLog(
-            data_function_log=dfl, data_resource=self.dr1t1, direction=Direction.OUTPUT,
+        drl = DataBlockLog(
+            data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl])
 
-        s = DataResourceStream(upstream=self.cdf_source)
-        s = s.filter_unprocessed(self.cdf1)
+        s = DataBlockStream(upstream=self.node_source)
+        s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) == self.dr1t1
 
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = DataFunctionLog(
-            configured_data_function_key=self.cdf_source.key, runtime_url="test",
+            configured_data_function_key=self.node_source.key, runtime_url="test",
         )
-        drl = DataResourceLog(
-            data_function_log=dfl, data_resource=self.dr1t1, direction=Direction.OUTPUT,
+        drl = DataBlockLog(
+            data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = DataFunctionLog(
-            configured_data_function_key=self.cdf1.key, runtime_url="test",
+            configured_data_function_key=self.node1.key, runtime_url="test",
         )
-        drl2 = DataResourceLog(
-            data_function_log=dfl2, data_resource=self.dr1t1, direction=Direction.INPUT,
+        drl2 = DataBlockLog(
+            data_function_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
-        s = DataResourceStream(upstream=self.cdf_source)
-        s = s.filter_unprocessed(self.cdf1)
+        s = DataBlockStream(upstream=self.node_source)
+        s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) is None
 
     def test_stream_unprocessed_ineligible_already_output(self):
@@ -73,42 +73,40 @@ class TestStreams:
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
         dfl = DataFunctionLog(
-            configured_data_function_key=self.cdf_source.key, runtime_url="test",
+            configured_data_function_key=self.node_source.key, runtime_url="test",
         )
-        drl = DataResourceLog(
-            data_function_log=dfl, data_resource=self.dr1t1, direction=Direction.OUTPUT,
+        drl = DataBlockLog(
+            data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = DataFunctionLog(
-            configured_data_function_key=self.cdf1.key, runtime_url="test",
+            configured_data_function_key=self.node1.key, runtime_url="test",
         )
-        drl2 = DataResourceLog(
-            data_function_log=dfl2,
-            data_resource=self.dr1t1,
-            direction=Direction.OUTPUT,
+        drl2 = DataBlockLog(
+            data_function_log=dfl2, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
-        s = DataResourceStream(upstream=self.cdf_source)
-        s1 = s.filter_unprocessed(self.cdf1)
+        s = DataBlockStream(upstream=self.node_source)
+        s1 = s.filter_unprocessed(self.node1)
         assert s1.get_next(self.ctx) is None
 
         # But ok with self reference
-        s2 = s.filter_unprocessed(self.cdf1, allow_cycle=True)
+        s2 = s.filter_unprocessed(self.node1, allow_cycle=True)
         assert s2.get_next(self.ctx) == self.dr1t1
 
     def test_stream_unprocessed_eligible_otype(self):
         dfl = DataFunctionLog(
-            configured_data_function_key=self.cdf_source.key, runtime_url="test",
+            configured_data_function_key=self.node_source.key, runtime_url="test",
         )
-        drl = DataResourceLog(
-            data_function_log=dfl, data_resource=self.dr1t1, direction=Direction.OUTPUT,
+        drl = DataBlockLog(
+            data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl])
 
-        s = DataResourceStream(upstream=self.cdf_source, otype="TestType1")
-        s = s.filter_unprocessed(self.cdf1)
+        s = DataBlockStream(upstream=self.node_source, otype="TestType1")
+        s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) == self.dr1t1
 
-        s = DataResourceStream(upstream=self.cdf_source, otype="TestType2")
-        s = s.filter_unprocessed(self.cdf1)
+        s = DataBlockStream(upstream=self.node_source, otype="TestType2")
+        s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) is None

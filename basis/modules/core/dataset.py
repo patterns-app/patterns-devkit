@@ -9,7 +9,7 @@ from basis.core.data_function import (
     DataFunctionChain,
     DataFunctionLike,
 )
-from basis.core.data_resource import DataResource, DataSet, DataSetMetadata
+from basis.core.data_block import DataBlock, DataSet, DataSetMetadata
 from basis.core.runnable import DataFunctionContext
 from basis.core.runtime import RuntimeClass
 from basis.core.sql.data_function import sql_datafunction
@@ -17,7 +17,7 @@ from basis.utils.registry import T
 
 
 def dataframe_accumulator(
-    input: DataResource[T], this: DataResource[T] = None,
+    input: DataBlock[T], this: DataBlock[T] = None,
 ) -> DataFrame[T]:
     records = input.as_dataframe()
     if this is not None:
@@ -87,7 +87,7 @@ from input:T
 
 
 def as_dataset(key: str) -> DataFunctionCallable:
-    def as_dataset(ctx: DataFunctionContext, input: DataResource[T]) -> DataSet[T]:
+    def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
         ds = (
             ctx.execution_context.metadata_session.query(DataSetMetadata)
             .filter(DataSetMetadata.key == key)
@@ -95,14 +95,18 @@ def as_dataset(key: str) -> DataFunctionCallable:
         )
         if ds is None:
             ds = DataSetMetadata(key=key, otype_uri=input.otype_uri)
-        ds.data_resource_id = input.data_resource_id
+        ds.data_block_id = input.data_block_id
         ctx.execution_context.add(ds)
         table = input.as_table()
-        ctx.worker.execute_sql(f"drop view if exists {key}")  # TODO: downtime here while table swaps, how to handle?
+        ctx.worker.execute_sql(
+            f"drop view if exists {key}"
+        )  # TODO: downtime here while table swaps, how to handle?
         ctx.worker.execute_sql(f"create view {key} as select * from {table.table_name}")
         return ds
 
-    as_dataset.runtime_class = RuntimeClass.DATABASE  # TODO: principled way to handle supported runtimes
+    as_dataset.runtime_class = (
+        RuntimeClass.DATABASE
+    )  # TODO: principled way to handle supported runtimes
     return as_dataset
 
 

@@ -6,8 +6,8 @@ import sqlalchemy
 from sqlalchemy.engine import ResultProxy
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
+from basis.core.data_block import StoredDataBlockMetadata
 from basis.core.data_format import DictList
-from basis.core.data_resource import StoredDataResourceMetadata
 from basis.core.environment import Environment
 from basis.core.runtime import Runtime
 from basis.core.sql.utils import ObjectTypeMapper
@@ -36,7 +36,7 @@ def conform_records_for_insert(
 def conform_columns_for_insert(
     records: DictList,
     columns: List[str] = None,
-    convert_columns_to_snake_case: bool = True,
+    convert_columns_to_snake_case: bool = False,
 ) -> List[str]:
     if columns is None:
         # Use first object's keys as columns. Assumes uniform dicts
@@ -44,7 +44,7 @@ def conform_columns_for_insert(
     if convert_columns_to_snake_case:
         columns = [
             title_to_snake_case(c) for c in columns
-        ]  # TODO: also a bit hacky having this down here....
+        ]  # TODO: DO NOT DO THIS HERE! Just quote things properly in the SQL. smh...
     return columns
 
 
@@ -61,20 +61,20 @@ class DatabaseAPI:
         printd(sql)
         return self.get_connection().execute(sql)
 
-    def ensure_table(self, sdr: StoredDataResourceMetadata) -> str:
-        name = sdr.get_name(self.env)
+    def ensure_table(self, sdb: StoredDataBlockMetadata) -> str:
+        name = sdb.get_name(self.env)
         if self.exists(name):
             return name
-        otype = sdr.get_otype(self.env)
+        otype = sdb.get_otype(self.env)
         ddl = ObjectTypeMapper(self.env).create_table_statement(
-            otype=otype, storage_engine=sdr.storage.storage_engine, table_name=name,
+            otype=otype, storage_engine=sdb.storage.storage_engine, table_name=name,
         )
         self.execute_sql(ddl)
         return name
 
-    def insert_sql(self, destination_sdr: StoredDataResourceMetadata, sql: str):
-        name = self.ensure_table(destination_sdr)
-        otype = destination_sdr.get_otype(self.env)
+    def insert_sql(self, destination_sdb: StoredDataBlockMetadata, sql: str):
+        name = self.ensure_table(destination_sdb)
+        otype = destination_sdb.get_otype(self.env)
         columns = "\n,".join(f.name for f in otype.fields)
         insert_sql = f"""
         insert into {name} (
@@ -89,10 +89,10 @@ class DatabaseAPI:
         self.execute_sql(insert_sql)
 
     def bulk_insert_dict_list(
-        self, destination_sdr: StoredDataResourceMetadata, records: DictList
+        self, destination_sdb: StoredDataBlockMetadata, records: DictList
     ):
         # Create table whether or not there is anything to insert (side-effect consistency)
-        name = self.ensure_table(destination_sdr)
+        name = self.ensure_table(destination_sdb)
         if not records:
             return
         self._bulk_insert(name, records)

@@ -7,8 +7,8 @@ from basis.core.conversion.converter import (
     Converter,
     StorageFormat,
 )
+from basis.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadata
 from basis.core.data_format import DatabaseTable, DataFormat
-from basis.core.data_resource import LocalMemoryDataRecords, StoredDataResourceMetadata
 from basis.core.storage import LocalMemoryStorageEngine, StorageType
 
 
@@ -27,25 +27,25 @@ class DatabaseToMemoryConverter(Converter):
 
     def _convert(
         self,
-        input_sdr: StoredDataResourceMetadata,
-        output_sdr: StoredDataResourceMetadata,
-    ) -> StoredDataResourceMetadata:
-        input_runtime = input_sdr.storage.get_database_api(self.env)
-        output_memory_storage = LocalMemoryStorageEngine(self.env, output_sdr.storage)
-        name = input_sdr.get_name(self.env)
+        input_sdb: StoredDataBlockMetadata,
+        output_sdb: StoredDataBlockMetadata,
+    ) -> StoredDataBlockMetadata:
+        input_runtime = input_sdb.storage.get_database_api(self.env)
+        output_memory_storage = LocalMemoryStorageEngine(self.env, output_sdb.storage)
+        name = input_sdb.get_name(self.env)
         db_conn = input_runtime.get_connection()
-        if output_sdr.data_format == DataFormat.DATABASE_TABLE_REF:
-            output_records = DatabaseTable(name, storage_url=input_sdr.storage_url)
-        elif output_sdr.data_format == DataFormat.DATABASE_CURSOR:
+        if output_sdb.data_format == DataFormat.DATABASE_TABLE_REF:
+            output_records = DatabaseTable(name, storage_url=input_sdb.storage_url)
+        elif output_sdb.data_format == DataFormat.DATABASE_CURSOR:
             output_records = db_conn.execute(f"select * from {name}")
-        elif output_sdr.data_format == DataFormat.DATAFRAME:
+        elif output_sdb.data_format == DataFormat.DATAFRAME:
             output_records = pd.read_sql_table(name, con=db_conn)
-        elif output_sdr.data_format == DataFormat.DICT_LIST:
+        elif output_sdb.data_format == DataFormat.DICT_LIST:
             output_records = pd.read_sql_table(name, con=db_conn).to_dict(
                 orient="records"
             )  # TODO: don't go thru pd
         else:
-            raise NotImplementedError(output_sdr.data_format)
+            raise NotImplementedError(output_sdb.data_format)
         ldr = LocalMemoryDataRecords.from_records_object(output_records)
-        output_memory_storage.store_local_memory_data_records(output_sdr, ldr)
-        return output_sdr
+        output_memory_storage.store_local_memory_data_records(output_sdb, ldr)
+        return output_sdb

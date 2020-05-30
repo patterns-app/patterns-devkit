@@ -30,12 +30,12 @@ def test_worker():
     env = make_test_env()
     sess = env.get_new_metadata_session()
     ec = env.get_execution_context(sess, current_runtime=env.runtimes[0])
-    cdf = env.add_node("cdf", df_t1_source)
+    node = env.add_node("node", df_t1_source)
     w = Worker(ec)
-    dfi_mgr = DataFunctionInterfaceManager(ec, cdf)
+    dfi_mgr = DataFunctionInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
-        cdf.key, CompiledDataFunction(cdf.datafunction.key, cdf.datafunction), bdfi,
+        node.key, CompiledDataFunction(node.datafunction.key, node.datafunction), bdfi,
     )
     output = w.run(r)
     assert output is None
@@ -48,17 +48,17 @@ def test_worker_output():
     ec = env.get_execution_context(
         sess, current_runtime=env.runtimes[0], target_storage=env.storages[0]
     )
-    cdf = env.add_node("cdf", df_dl_source)
+    node = env.add_node("node", df_dl_source)
     w = Worker(ec)
-    dfi_mgr = DataFunctionInterfaceManager(ec, cdf)
+    dfi_mgr = DataFunctionInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
-        cdf.key, CompiledDataFunction(cdf.datafunction.key, cdf.datafunction), bdfi,
+        node.key, CompiledDataFunction(node.datafunction.key, node.datafunction), bdfi,
     )
     output = w.execute_datafunction(r)
     assert output == mock_dl_output
     ws = RunSession(None, sess)
-    output_dr = w.conform_output(ws, output, r)
-    assert output_dr is not None
-    dr = output_dr.as_managed_data_resource(ec)
-    assert dr.as_dictlist() == mock_dl_output
+    outputblock = w.conform_output(ws, output, r)
+    assert outputblock is not None
+    block = outputblock.as_managed_data_block(ec)
+    assert block.as_dictlist() == mock_dl_output

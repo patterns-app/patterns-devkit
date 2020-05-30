@@ -5,17 +5,13 @@ from dataclasses import dataclass
 from re import Match
 from typing import Any, Dict, Tuple
 
+from basis.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMetadata
 from basis.core.data_format import DataFormat
 from basis.core.data_function import (
     DataFunction,
     DataFunctionInterface,
     TypedDataAnnotation,
     re_type_hint,
-)
-from basis.core.data_resource import (
-    DataResource,
-    DataResourceMetadata,
-    StoredDataResourceMetadata,
 )
 from basis.core.runnable import DataFunctionContext
 
@@ -63,7 +59,7 @@ def extract_and_replace_sql_input(
     name = groups["table_name"]
     is_optional = groups.get("optional")
     otype = groups["type"]
-    annotation = f"DataResource[{otype}]"
+    annotation = f"DataBlock[{otype}]"
     if is_optional:
         annotation = f"Optional[{annotation}]"
     tda = TypedDataAnnotation.from_type_annotation(
@@ -90,10 +86,10 @@ def extract_types(
         output_type = m.groupdict()["type"]
         sql = select_type_stmt.sub(r"\g<select>", sql, 1)
         # output = TypedDataAnnotation(
-        #     data_resource_class="DataSet", otype_like=output_type
+        #     data_block_class="DataSet", otype_like=output_type
         # )
         output = TypedDataAnnotation.from_type_annotation(
-            f"DataResource[{output_type}]"
+            f"DataBlock[{output_type}]"
         )  # TODO: DataSet
     input_types = []
     for _ in range(
@@ -119,8 +115,8 @@ class SqlDataFunction(DataFunction):
         self._kwargs = kwargs
 
     def __call__(
-        self, ctx: DataFunctionContext, **inputs: DataResource
-    ) -> StoredDataResourceMetadata:
+        self, ctx: DataFunctionContext, **inputs: DataBlock
+    ) -> StoredDataBlockMetadata:
 
         if ctx.execution_context.current_runtime is None:
             raise Exception("Current runtime not set")
@@ -133,36 +129,36 @@ class SqlDataFunction(DataFunction):
         output = ctx.runnable.datafunction_interface.output
         if output is None:
             raise Exception("SQL function should always produce output!")
-        dr = DataResourceMetadata(otype_uri=output.otype_uri)
+        block = DataBlockMetadata(otype_uri=output.otype_uri)
         storage_url = ctx.execution_context.current_runtime.as_storage().url
-        sdr = StoredDataResourceMetadata(
-            data_resource=dr,
+        sdb = StoredDataBlockMetadata(
+            data_block=block,
             storage_url=storage_url,
             data_format=DataFormat.DATABASE_TABLE,
         )
-        ctx.execution_context.add(sdr)
+        ctx.execution_context.add(sdb)
 
         # TODO: oof this is doozy, will get fixed as part of runtime re-think
         db_api = ctx.execution_context.current_runtime.get_database_api(
             ctx.execution_context.env
         )
-        db_api.insert_sql(sdr, sql)
+        db_api.insert_sql(sdb, sql)
         # TODO: handle anonymous ObjectTypes in SQL
-        return sdr
+        return sdb
 
     def get_input_table_names(
-        self, inputs: Dict[str, DataResource] = None,
+        self, inputs: Dict[str, DataBlock] = None,
     ) -> Dict[str, str]:
         if inputs is None:
             return {}
         table_names = {}
-        for input_name, dr in inputs.items():
-            otype = dr.as_table()
+        for input_name, block in inputs.items():
+            otype = block.as_table()
             table_names[input_name] = otype.table_name
         return table_names
 
     def get_compiled_sql(
-        self, ctx: DataFunctionContext, inputs: Dict[str, DataResource] = None,
+        self, ctx: DataFunctionContext, inputs: Dict[str, DataBlock] = None,
     ):
         from basis.core.sql.utils import compile_jinja_sql
 
@@ -178,7 +174,7 @@ class SqlDataFunction(DataFunction):
         return compile_jinja_sql(sql, sql_ctx)
 
     def get_typed_statement(
-        self, inputs: Dict[str, DataResource] = None,
+        self, inputs: Dict[str, DataBlock] = None,
     ) -> TypedSqlStatement:
         return extract_types(self.sql, self.get_input_table_names(inputs))
 

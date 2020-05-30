@@ -4,14 +4,14 @@ from sqlalchemy.orm import object_session, sessionmaker
 from basis.utils.common import cf, printd
 
 
-def add_persisting_sdr_listener(session_maker: sessionmaker):
+def add_persisting_sdb_listener(session_maker: sessionmaker):
     @event.listens_for(session_maker, "pending_to_persistent", propagate=True)
     def intercept_t2p(session, instance):
-        from basis.core.data_resource import StoredDataResourceMetadata
+        from basis.core.data_block import StoredDataBlockMetadata
 
-        if isinstance(instance, StoredDataResourceMetadata):
+        if isinstance(instance, StoredDataBlockMetadata):
             printd(
-                f"Persisted StoredDataResource SDR#{cf.bold(instance.id)} DR#{cf.bold(instance.data_resource.id)} {cf.magenta(instance.data_resource.otype_uri)} {cf.dimmed_magenta(instance.data_format)}"
+                f"Persisted StoredDataBlock SDR#{cf.bold(instance.id)} DR#{cf.bold(instance.data_block.id)} {cf.magenta(instance.data_block.otype_uri)} {cf.dimmed_magenta(instance.data_format)}"
             )
 
 
@@ -22,13 +22,13 @@ def immutability_update_listener(mapper, connection, target):
 
 # @event.listens_for(BaseModel, "init", propagate=True)
 # def intercept_init(instance, args, kwargs):
-#     from basis.core.data_resource import StoredDataResource
+#     from basis.core.data_block import StoredDataBlock
 #
-#     if isinstance(instance, StoredDataResource):
+#     if isinstance(instance, StoredDataBlock):
 #         print(instance)
 #         print(type(instance))
-#         otype = getattr(instance.data_resource, "otype", None)
+#         otype = getattr(instance.data_block, "otype", None)
 #         print(
-#             f"New transient StoredDataResource {cf.magenta(otype)} {cf.dimmed_magenta(instance.data_format)}"
+#             f"New transient StoredDataBlock {cf.magenta(otype)} {cf.dimmed_magenta(instance.data_format)}"
 #         )
 # print(f"{cf.orange}New transient:{cf.reset} {instance!r}")

@@ -1,45 +1,48 @@
 # Basis
 
-### Functional Typed Data Pipelines  
-  
-Basis is a framework for building functional, type-aware data pipelines from modular
-components. Basis pipelines are composed of `DataFunctions` written in python or SQL operating on
-streams of immutable `DataResources` -- sets of data records of uniform `ObjectType`.
+### The Open-source Operating System for Data
+ 
+Basis is a framework for building end-to-end data pipelines from modular components. Basis
+abstracts over underlying database, runtime, and storage resources with **functional, type
+-aware data graphs**. These graphs are composed of `DataFunctions` written in python or SQL
+operating on streams of immutable `DataBlocks` -- sets of data records of uniform `ObjectType`.
 
-The power of Basis lies in its flexible type system, which provides universal data interfaces, 
+The power of Basis lies in its flexible type system, which provides universal data type interfaces, 
 called **ObjectTypes** or _**otypes**_, that allow interoperability and modularity of data
 operations. Basis brings the best practices learned over the last 60 years in software to the
-world of data. Global collaboration, reproducible byte-perfect results, and performance at any
+world of data.
+
+Global collaboration, reproducible byte-perfect results, and performance at any
 scale from laptop to AWS cluster -- this is **Basis**.
 
-### Key features:
+### Features:
 
- - **Reusable modules**  
-   There are hundreds of `DataFunctions`, `Sources`, and `Targets` ready to snap together in the
-   Basis Repository [Coming soon]. Connect Stripe data to LTV models, blend finance data and
+ - **Reusable modules and components**  
+   There are hundreds of `DataFunctions`, `Sources`, and `Targets` ready to snap together in
+   the Basis Repository [Coming soon]. Connect Stripe data to LTV models, blend finance data and
    macroeconomics, export SaaS metrics to Google Sheets or Looker, and much more, instantly and
-   out of the box. Basis supports the entire ETL pipeline: extraction from external sources,
-   transformation 
+   out of the box. Basis supports the entire POP data flow ("POPline" as we call it): **P**ull
+   from external sources, **O**perate on the data, and **P**ush to end user applications.
   
  - **Stateless data pipelines**  
-   `DataFunctions` operate statelessly on immutable `DataResources` for guaranteed reproducibility
+   `DataFunctions` operate statelessly on immutable `DataBlocks` for guaranteed reproducibility
    and correctness in ETLs. Developing powerful new `DataFunctions` is simple with isolated code
    and well-defined interfaces.  
      
  - **Testable components**  
-   Modular `DataFunctions` allow data pipelines to be independently tested and QA'd with
-   the same rigor as software. All components available in the Basis Repository are automatically
-   tested against sample data sets of the required `ObjectType`.
+   Modular `DataFunctions` allow individual steps in a data process to be independently tested and
+   QA'd with the same rigor as software. All components available in the Basis Repository are
+   automatically tested against sample data sets of the appropriate `ObjectType`.
      
  - **Global interoperability**  
    The Basis `otype` system allows reuse of best-in-class ETLs, models, and analysis built by
-   developers and analysts from around the world. No more reinventing the wheel.
+   developers and analysts from around the world. No need to reinvent the wheel.
      
  - **Zero cost abstractions and high performance**  
    Basis makes its type and immutability guarantees at the abstraction level, so those
    guarantees can be compiled away at execution time for high performance. This lets developers and
-   analysts work with clean mental models without incurring performance costs at runtime. Further,
-   the Basis compiler allows for modeling relative runtime and storage operation costs -- e.g. a
+   analysts work with clean mental models without incurring performance costs at runtime. The
+   Basis compiler also allows for modeling relative runtime and storage operation costs -- e.g. a
    query on BigQuery vs Redshift, data copy on S3 vs in-memory -- and can optimize entire pipelines
    for the resources at hand, leading to overall performance gains when adopting Basis.
   

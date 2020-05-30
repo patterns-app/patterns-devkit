@@ -7,8 +7,8 @@ from basis.core.conversion.converter import (
     Converter,
     StorageFormat,
 )
+from basis.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadata
 from basis.core.data_format import DataFormat, DictList
-from basis.core.data_resource import LocalMemoryDataRecords, StoredDataResourceMetadata
 from basis.core.storage import LocalMemoryStorageEngine, StorageType
 
 
@@ -25,25 +25,25 @@ class MemoryToMemoryConverter(Converter):
 
     def _convert(
         self,
-        input_sdr: StoredDataResourceMetadata,
-        output_sdr: StoredDataResourceMetadata,
-    ) -> StoredDataResourceMetadata:
-        input_memory_storage = LocalMemoryStorageEngine(self.env, input_sdr.storage)
-        output_memory_storage = LocalMemoryStorageEngine(self.env, output_sdr.storage)
-        input_ldr = input_memory_storage.get_local_memory_data_records(input_sdr)
+        input_sdb: StoredDataBlockMetadata,
+        output_sdb: StoredDataBlockMetadata,
+    ) -> StoredDataBlockMetadata:
+        input_memory_storage = LocalMemoryStorageEngine(self.env, input_sdb.storage)
+        output_memory_storage = LocalMemoryStorageEngine(self.env, output_sdb.storage)
+        input_ldr = input_memory_storage.get_local_memory_data_records(input_sdb)
         lookup = {
             (DataFormat.DATAFRAME, DataFormat.DICT_LIST): self.dataframe_to_dictlist,
             (DataFormat.DICT_LIST, DataFormat.DATAFRAME): self.dictlist_to_dataframe,
         }
         try:
             output_records_object = lookup[
-                (input_sdr.data_format, output_sdr.data_format)
+                (input_sdb.data_format, output_sdb.data_format)
             ](input_ldr.records_object)
         except KeyError:
             raise NotImplementedError
         output_ldr = LocalMemoryDataRecords.from_records_object(output_records_object)
-        output_memory_storage.store_local_memory_data_records(output_sdr, output_ldr)
-        return output_sdr
+        output_memory_storage.store_local_memory_data_records(output_sdb, output_ldr)
+        return output_sdb
 
     def dataframe_to_dictlist(self, input_object: DataFrame) -> DictList:
         return input_object.to_dict(orient="records")
