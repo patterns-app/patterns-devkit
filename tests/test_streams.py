@@ -37,7 +37,7 @@ class TestStreams:
 
     def test_stream_unprocessed_eligible(self):
         dfl = DataFunctionLog(
-            configured_data_function_key=self.node_source.key, runtime_url="test",
+            function_node_key=self.node_source.key, runtime_url="test",
         )
         drl = DataBlockLog(
             data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
@@ -50,14 +50,12 @@ class TestStreams:
 
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = DataFunctionLog(
-            configured_data_function_key=self.node_source.key, runtime_url="test",
+            function_node_key=self.node_source.key, runtime_url="test",
         )
         drl = DataBlockLog(
             data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        dfl2 = DataFunctionLog(
-            configured_data_function_key=self.node1.key, runtime_url="test",
-        )
+        dfl2 = DataFunctionLog(function_node_key=self.node1.key, runtime_url="test",)
         drl2 = DataBlockLog(
             data_function_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
         )
@@ -73,14 +71,12 @@ class TestStreams:
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
         dfl = DataFunctionLog(
-            configured_data_function_key=self.node_source.key, runtime_url="test",
+            function_node_key=self.node_source.key, runtime_url="test",
         )
         drl = DataBlockLog(
             data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        dfl2 = DataFunctionLog(
-            configured_data_function_key=self.node1.key, runtime_url="test",
-        )
+        dfl2 = DataFunctionLog(function_node_key=self.node1.key, runtime_url="test",)
         drl2 = DataBlockLog(
             data_function_log=dfl2, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
@@ -96,7 +92,7 @@ class TestStreams:
 
     def test_stream_unprocessed_eligible_otype(self):
         dfl = DataFunctionLog(
-            configured_data_function_key=self.node_source.key, runtime_url="test",
+            function_node_key=self.node_source.key, runtime_url="test",
         )
         drl = DataBlockLog(
             data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,

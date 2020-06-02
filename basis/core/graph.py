@@ -145,7 +145,7 @@
 #     env: Environment, otype_like: ObjectTypeLike
 # ) -> Iterable[FunctionNode]:
 #     otype = env.get_otype(otype_like)
-#     for node in env.configured_data_function_registry.all():
+#     for node in env.function_node_registry.all():
 #         output = node.get_interface().output
 #         if not output or output.is_generic:
 #             continue

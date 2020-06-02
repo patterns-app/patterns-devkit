@@ -499,7 +499,7 @@ def datafunction(df=None, *, key=None):
     return PythonDataFunction(df, key)
 
 
-class DataFunctionGraph:
+class CompositeDataFunction:
     def __init__(self, key):
         self._key = key
 
@@ -508,7 +508,7 @@ class DataFunctionGraph:
         return self._key
 
 
-class DataFunctionChain(DataFunctionGraph):
+class DataFunctionChain(CompositeDataFunction):
     def __init__(self, key: str, function_chain: List[DataFunctionCallable]):
         self.function_chain = function_chain
         # if key is None:
@@ -519,11 +519,11 @@ class DataFunctionChain(DataFunctionGraph):
     #     return "_".join(f.key for f in self.function_chain)
 
 
-DataFunctionLike = Union[DataFunctionCallable, DataFunction, DataFunctionGraph]
+DataFunctionLike = Union[DataFunctionCallable, DataFunction, CompositeDataFunction]
 
 
 def ensure_datafunction(dfl: DataFunctionLike) -> DataFunction:
-    if isinstance(dfl, DataFunctionGraph):
+    if isinstance(dfl, CompositeDataFunction):
         return dfl
     if isinstance(dfl, DataFunction):
         return dfl
@@ -535,6 +535,7 @@ class FunctionNode:
     key: str
     datafunction: DataFunction
     _upstream: Optional[InputStreams]
+    parent_node: Optional[FunctionNode]
     # resolved_output_type: Optional[ObjectType] = None
     # resolved_inputs: Optional[List[ResolvedFunctionNodeInput]] = None
 
@@ -555,6 +556,7 @@ class FunctionNode:
         self.datafunction = ensure_datafunction(_datafunction)
         self._upstream = self.check_datafunction_inputs(upstream)
         self._children: Set[FunctionNode] = set([])
+        self.parent_node = None
         # self.resolved_output_type = None
         # self.resolved_inputs = None
 
@@ -692,8 +694,11 @@ class FunctionNode:
         node = self.get_output_node()
         return DataBlockStream(upstream=node)
 
-    def is_graph(self) -> bool:
-        return isinstance(self.datafunction, DataFunctionGraph)
+    def is_composite(self) -> bool:
+        return isinstance(self.datafunction, CompositeDataFunction)
+
+    def get_nodes(self) -> List[FunctionNode]:
+        return [self]
 
     def get_latest_output(self, ctx: ExecutionContext) -> Optional[DataBlock]:
         block = (
@@ -702,7 +707,7 @@ class FunctionNode:
             .join(DataFunctionLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                DataFunctionLog.configured_data_function_key == self.key,
+                DataFunctionLog.function_node_key == self.key,
             )
             .order_by(DataBlockLog.created_at.desc())
             .first()
@@ -714,7 +719,7 @@ class FunctionNode:
 
 class DataFunctionLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    configured_data_function_key = Column(String, nullable=False)
+    function_node_key = Column(String, nullable=False)
     runtime_url = Column(String, nullable=False)
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
@@ -726,7 +731,7 @@ class DataFunctionLog(BaseModel):
     def __repr__(self):
         return self._repr(
             id=self.id,
-            configured_data_function_key=self.configured_data_function_key,
+            function_node_key=self.function_node_key,
             runtime_url=self.runtime_url,
             started_at=self.started_at,
         )
@@ -774,7 +779,7 @@ class DataBlockLog(BaseModel):
         )
 
 
-class FunctionNodeGraph(FunctionNode):
+class CompositeFunctionNode(FunctionNode):
     def build_nodes(self, input: DataBlockStreamable = None) -> List[FunctionNode]:
         raise NotImplementedError
 
@@ -793,6 +798,7 @@ class FunctionNodeGraph(FunctionNode):
         raise NotImplementedError
 
     def get_input_node(self) -> FunctionNode:
+        # TODO: shouldn't this be input_nodeS ...?
         return self.get_nodes()[0]
 
     def get_output_node(self) -> FunctionNode:
@@ -806,34 +812,35 @@ class FunctionNodeGraph(FunctionNode):
             requires_data_function_context=input_interface.requires_data_function_context,
         )
 
-    def get_resolved_interface(self) -> DataFunctionInterface:
-        resolved_dfis = []
-        for node in self.get_nodes():
-            dfi = node.get_resolved_interface()
-            resolved_dfis.append(dfi)
-        return DataFunctionInterface(
-            inputs=resolved_dfis[0].inputs,
-            output=resolved_dfis[-1].output,
-            requires_data_function_context=resolved_dfis[
-                0
-            ].requires_data_function_context,
-            is_connected=True,
-            is_resolved=True,
-        )
+    # def get_resolved_interface(self) -> DataFunctionInterface:
+    #     resolved_dfis = []
+    #     for node in self.get_nodes():
+    #         dfi = node.get_resolved_interface()
+    #         resolved_dfis.append(dfi)
+    #     return DataFunctionInterface(
+    #         inputs=resolved_dfis[0].inputs,
+    #         output=resolved_dfis[-1].output,
+    #         requires_data_function_context=resolved_dfis[
+    #             0
+    #         ].requires_data_function_context,
+    #         is_connected=True,
+    #         is_resolved=True,
+    #     )
 
 
-class DataFunctionNodeChain(FunctionNodeGraph):
+class FunctionNodeChain(CompositeFunctionNode):
     def __init__(
         self,
         _env: Environment,
         _key: str,
         _datafunction: DataFunctionChain,
         upstream: DataBlockStreamable = None,
+        **inputs: DataBlockStreamable,
     ):
         if upstream is not None:
-            super().__init__(_env, _key, _datafunction, upstream=upstream)
+            super().__init__(_env, _key, _datafunction, upstream=upstream, **inputs)
         else:
-            super().__init__(_env, _key, _datafunction)
+            super().__init__(_env, _key, _datafunction, **inputs)
         self.data_function_chain = _datafunction
         self._node_chain = self.build_nodes(upstream)
 
@@ -846,6 +853,7 @@ class DataFunctionNodeChain(FunctionNodeGraph):
                 node = FunctionNode(self.env, child_key, fn, upstream=upstream)
             else:
                 node = FunctionNode(self.env, child_key, fn)
+            node.parent_node = self
             nodes.append(node)
             upstream = node
         return nodes
@@ -854,20 +862,21 @@ class DataFunctionNodeChain(FunctionNodeGraph):
         return self._node_chain
 
 
-def is_graph_data_function(df_like: Any) -> bool:
-    return isinstance(df_like, DataFunctionGraph)
+def is_composite_data_function(df_like: Any) -> bool:
+    return isinstance(df_like, CompositeFunctionNode)
 
 
-def configured_data_function_factory(
+def function_node_factory(
     env: Environment,
     key: str,
     df_like: Any,
     upstream: Optional[FunctionNodeRawInput] = None,
+    **inputs: DataBlockStreamable,
 ) -> FunctionNode:
     from basis.core.streams import DataBlockStream
 
     node: FunctionNode
-    if isinstance(df_like, DataFunctionGraph):
+    if isinstance(df_like, CompositeDataFunction):
         if isinstance(df_like, DataFunctionChain):
             # if upstream:
             #     if isinstance(upstream, list):
@@ -876,11 +885,9 @@ def configured_data_function_factory(
             #     assert isinstance(upstream, FunctionNode) or isinstance(
             #         upstream, DataBlockStream
             #     ), f"Upstream must be a single Streamable in a Chain: {upstream}"
-            node = DataFunctionNodeChain(
-                env, key, df_like, upstream
-            )  # TODO: WRONG (why is it wrong tho...?)
+            node = FunctionNodeChain(env, key, df_like, upstream=upstream, **inputs)
         else:
             raise NotImplementedError
     else:
-        node = FunctionNode(env, key, df_like, upstream)
+        node = FunctionNode(env, key, df_like, upstream=upstream, **inputs)
     return node

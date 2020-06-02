@@ -10,10 +10,10 @@ from basis.core.data_function import (
     DataFunctionChain,
     DataFunctionInterface,
     DataFunctionLike,
-    DataFunctionNodeChain,
     FunctionNode,
+    FunctionNodeChain,
     PythonDataFunction,
-    configured_data_function_factory,
+    function_node_factory,
 )
 from basis.core.data_function_interface import (
     DataFunctionAnnotation,
@@ -249,7 +249,7 @@ def test_data_function_interface(
     if isinstance(function, Callable):
         val = DataFunctionInterface.from_datafunction_definition(function)
         assert val == expected
-    node = configured_data_function_factory(env, "_test", function)
+    node = function_node_factory(env, "_test", function)
     assert node._get_interface() == expected
 
 
@@ -393,7 +393,7 @@ def test_sql_data_function2():
     assert dfi.inputs[1].is_optional
 
 
-def test_configured_data_function_no_inputs():
+def test_function_node_no_inputs():
     env = make_test_env()
     df = PythonDataFunction(df_t1_source)
     node1 = FunctionNode(env, "node1", df)
@@ -403,10 +403,10 @@ def test_configured_data_function_no_inputs():
     assert dfi.output is not None
     assert node1.get_inputs() == {}
     assert node1.get_output_node() is node1
-    assert not node1.is_graph()
+    assert not node1.is_composite()
 
 
-def test_configured_data_function_inputs():
+def test_function_node_inputs():
     env = make_test_env()
     df = PythonDataFunction(df_t1_source)
     node = FunctionNode(env, "node", df)
@@ -423,11 +423,11 @@ def test_configured_data_function_inputs():
     assert node1.get_input("input").get_upstream(env)[0] is node
 
 
-def test_configured_data_function_chain():
+def test_function_node_chain():
     env = make_test_env()
     df = PythonDataFunction(df_t1_source)
     node = FunctionNode(env, "node", df)
-    node1 = DataFunctionNodeChain(env, "node1", df_chain, upstream=node)
+    node1 = FunctionNodeChain(env, "node1", df_chain, upstream=node)
     dfi = node1.get_interface()
     assert len(dfi.inputs) == 1
     assert dfi.output is not None
@@ -461,6 +461,6 @@ def test_graph_resolution():
     last = n3.get_nodes()[-1]
     assert fgr._resolved_output_types[last] is TestType2
     # Resolve deps
-    assert fgr.resolve_node_dependencies(n4)[0].parent_nodes == [n2]
-    assert fgr.resolve_node_dependencies(n5)[0].parent_nodes == [n4]
+    assert fgr._resolve_node_dependencies(n4)[0].parent_nodes == [n2]
+    assert fgr._resolve_node_dependencies(n5)[0].parent_nodes == [n4]
     fgr.resolve_dependencies()

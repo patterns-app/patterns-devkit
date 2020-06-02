@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from basis.core.data_function import (
         FunctionNode,
         DataFunctionCallable,
-        configured_data_function_factory,
+        function_node_factory,
     )
     from basis.core.data_function_interface import FunctionGraphResolver
     from basis.indexing.components import IndexableComponent
@@ -41,7 +41,6 @@ class Environment:
         self,
         key: str = None,
         metadata_storage: Union["Storage", str] = None,
-        configured_data_function_registry: Registry = None,
         otype_registry: UriRegistry = None,
         provider_registry: Registry = None,
         # TODO: SourceResource registry too?
@@ -70,10 +69,8 @@ class Environment:
         self.module_registry = module_registry or Registry()
         self.otype_registry = otype_registry or UriRegistry()
         self.provider_registry = provider_registry or Registry()
-        self.configured_data_function_registry = (
-            configured_data_function_registry or Registry()
-        )
-        self.function_node_graph_registry: Registry = Registry()
+        self.added_nodes: Registry = Registry()
+        self._flattened_nodes: Registry = Registry()
         self.storages = []
         self.runtimes = []
         if add_default_python_runtime:
@@ -114,29 +111,35 @@ class Environment:
     def add_node(
         self, _key: str, _data_function: DataFunctionCallable, **kwargs
     ) -> FunctionNode:
-        from basis.core.data_function import configured_data_function_factory
+        from basis.core.data_function import function_node_factory
 
-        node = configured_data_function_factory(self, _key, _data_function, **kwargs)
+        node = function_node_factory(self, _key, _data_function, **kwargs)
+        self.added_nodes.register(node)
         self.register_node(node)
         return node
 
     def register_node(self, node: "FunctionNode"):
-        if node.is_graph():
-            self.function_node_graph_registry.register(node)
+        if node.is_composite():
             for sub_node in node.get_nodes():
-                self.configured_data_function_registry.register(sub_node)
+                self.register_node(sub_node)
         else:
-            self.configured_data_function_registry.register(node)
+            self._flattened_nodes.register(node)
 
-    def all_nodes(self) -> List[FunctionNode]:
-        return list(self.configured_data_function_registry.all())
+    def all_added_nodes(self) -> List[FunctionNode]:
+        return list(self.added_nodes.all())
+
+    def flattened_nodes(self) -> List[FunctionNode]:
+        return list(self._flattened_nodes.all())
 
     def get_node(self, node_like: Union["FunctionNode", str]) -> "FunctionNode":
         from basis.core.data_function import FunctionNode
 
         if isinstance(node_like, FunctionNode):
             return node_like
-        return self.configured_data_function_registry.get(node_like)
+        try:
+            return self.added_nodes.get(node_like)
+        except KeyError:  # TODO: do we want to get flattened (sub) nodes too? Probably
+            return self._flattened_nodes.get(node_like)
 
     def get_function_graph_resolver(self) -> FunctionGraphResolver:
         from basis.core.data_function_interface import FunctionGraphResolver
@@ -211,7 +214,8 @@ class Environment:
         if isinstance(node_like, str):
             node_like = self.get_node(node_like)
         assert isinstance(node_like, FunctionNode)
-        dependencies = fgr.get_all_upstream_dependencies_in_execution_order(node_like)
+        output_node = node_like.get_output_node()  # Handle composite functions
+        dependencies = fgr.get_all_upstream_dependencies_in_execution_order(output_node)
         output = None
         for dep in dependencies:
             with self.execution(**execution_kwargs) as em:

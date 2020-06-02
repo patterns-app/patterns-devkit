@@ -21,6 +21,7 @@ from basis.core.data_block import (
     StoredDataBlockMetadata,
 )
 from basis.core.data_function import (
+    CompositeFunctionNode,
     DataBlockLog,
     DataFunction,
     DataFunctionInterface,
@@ -28,15 +29,14 @@ from basis.core.data_function import (
     DataInterfaceType,
     Direction,
     FunctionNode,
-    FunctionNodeGraph,
     InputExhaustedException,
     PythonDataFunction,
 )
 from basis.core.data_function_interface import (
     DataFunctionAnnotation,
     FunctionNodeInterfaceManager,
-    ResolvedFunctionNodeInput,
     ResolvedFunctionInterface,
+    ResolvedFunctionNodeInput,
 )
 from basis.core.environment import Environment
 from basis.core.metadata.orm import BaseModel
@@ -90,7 +90,7 @@ class RuntimeSpecification:
 
 @dataclass(frozen=True)
 class Runnable:
-    configured_data_function_key: str
+    function_node_key: str
     compiled_datafunction: CompiledDataFunction
     # runtime_specification: RuntimeSpecification # TODO: support this
     datafunction_interface: ResolvedFunctionInterface
@@ -148,7 +148,7 @@ class ExecutionContext:
     ) -> Generator[RunSession, None, None]:
         assert self.current_runtime is not None, "Runtime not set"
         dfl = DataFunctionLog(  # type: ignore
-            configured_data_function_key=node_key,
+            function_node_key=node_key,
             runtime_url=self.current_runtime.url,
             started_at=utcnow(),
         )
@@ -217,8 +217,8 @@ class ExecutionManager:
         dfi_mgr = FunctionNodeInterfaceManager(self.ctx, node)
         return dfi_mgr.get_bound_interface()
 
-    def run_graph(
-        self, node: FunctionNodeGraph, to_exhaustion: bool = False
+    def run_composite(
+        self, node: CompositeFunctionNode, to_exhaustion: bool = False
     ) -> Optional[ManagedDataBlock]:
         output: Optional[ManagedDataBlock] = None
         for child in node.get_nodes():
@@ -228,9 +228,9 @@ class ExecutionManager:
     def run(
         self, node: FunctionNode, to_exhaustion: bool = False
     ) -> Optional[ManagedDataBlock]:
-        if node.is_graph():
+        if node.is_composite():
             # node: FunctionNodeGraph
-            return self.run_graph(node, to_exhaustion=to_exhaustion)
+            return self.run_composite(node, to_exhaustion=to_exhaustion)
         runtime = self.select_runtime(node)
         run_ctx = self.ctx.clone(current_runtime=runtime)
         worker = Worker(run_ctx)
@@ -249,7 +249,7 @@ class ExecutionManager:
             while True:
                 dfi = self.get_bound_data_function_interface(node)
                 runnable = Runnable(
-                    configured_data_function_key=node.key,
+                    function_node_key=node.key,
                     compiled_datafunction=CompiledDataFunction(
                         key=node.key, function=node.datafunction
                     ),
@@ -313,7 +313,7 @@ class Worker:
     def run(self, runnable: Runnable) -> Optional[DataBlockMetadata]:
         output_block: Optional[DataBlockMetadata] = None
         with self.ctx.start_data_function_run(
-            runnable.configured_data_function_key
+            runnable.function_node_key
         ) as run_session:
             output = self.execute_datafunction(runnable)
             if output is not None:

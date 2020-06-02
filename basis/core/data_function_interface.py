@@ -5,8 +5,10 @@ import inspect
 import re
 from dataclasses import asdict, dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union
+from pprint import pprint
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
+import networkx as nx
 from pandas import DataFrame
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import RelationshipProperty, relationship
@@ -136,6 +138,7 @@ class ResolvedFunctionNodeInput:
     is_self_ref: bool
     connected_stream: DataBlockStream
     parent_nodes: List[FunctionNode]
+    potential_parent_nodes: List[FunctionNode]
     resolved_otype: ObjectType
     bound_data_block: Optional[DataBlockMetadata] = None
 
@@ -258,7 +261,7 @@ class FunctionGraphCycleError(Exception):
 class FunctionGraphResolver:
     def __init__(self, env: Environment, nodes: Optional[List[FunctionNode]] = None):
         self.env = env
-        self._nodes = nodes or env.all_nodes()
+        self._nodes = nodes or env.flattened_nodes()
         self._resolved_output_types: Dict[FunctionNode, ObjectTypeLike] = {}
         self._resolved_inputs: Dict[FunctionNode, List[ResolvedFunctionNodeInput]] = {}
         self._resolved = False
@@ -272,9 +275,45 @@ class FunctionGraphResolver:
 
     def resolve_dependencies(self):
         for node in self._nodes:
-            self.resolve_node_dependencies(node)
+            self._resolve_node_dependencies(node)
+        g = self.as_networkx_graph()
+        cycles = list(nx.simple_cycles(g))
+        if cycles:
+            raise FunctionGraphCycleError(cycles)
+        self._resolve_potential_parents()
 
-    def resolve_node_dependencies(
+    def _resolve_potential_parents(self):
+        for node, inputs in self._resolved_inputs.items():
+            for input in inputs:
+                if input.potential_parent_nodes:
+                    for p in input.potential_parent_nodes:
+                        # Add potential edge
+                        input.parent_nodes.append(p)
+                        # Check for new cycle in graph
+                        g = self.as_networkx_graph()
+                        cycles = list(nx.simple_cycles(g))
+                        if cycles:
+                            # printd(f"{node.key} - {p.key} - {cycles}")
+                            # Keep it in parents only if no cycle
+                            input.parent_nodes.remove(p)
+                input.potential_parent_nodes = []
+
+    def as_networkx_graph(
+        self,
+        resolved_inputs: Dict[FunctionNode, List[ResolvedFunctionNodeInput]] = None,
+    ):
+        if not resolved_inputs:
+            resolved_inputs = self._resolved_inputs
+        g = nx.DiGraph()
+        for node in self._nodes:
+            g.add_node(node)
+            for input in resolved_inputs.get(node, []):
+                for p in input.parent_nodes:
+                    g.add_node(p)
+                    g.add_edge(p, node)
+        return g
+
+    def _resolve_node_dependencies(
         self, node: FunctionNode, visited: Set[FunctionNode] = None
     ) -> List[ResolvedFunctionNodeInput]:
         if node in self._resolved_inputs:
@@ -289,15 +328,16 @@ class FunctionGraphResolver:
         for input in dfi.get_non_recursive_inputs():
             if not input.connected_stream:
                 raise Exception(f"no input connected {input}")
-            parents = self.resolve_stream_dependencies(
+            parents, potential_parents = self.resolve_stream_dependencies(
                 node, input.connected_stream, visited
             )
             if input.is_generic:
-                if not parents:
-                    raise
+                if not parents and not potential_parents:
+                    raise Exception(f"No parents {node} {input}")
+                sample_node = parents[0] if parents else potential_parents[0]
                 resolved_otype = self._resolved_output_types[
-                    parents[0]
-                ]  # TODO: check that all parents are the same
+                    sample_node
+                ]  # TODO: check that all parents are the same otype
             else:
                 resolved_otype = self.env.get_otype(input.otype_like)
             i = ResolvedFunctionNodeInput(
@@ -308,36 +348,57 @@ class FunctionGraphResolver:
                 resolved_otype=self.env.get_otype(resolved_otype),
                 connected_stream=input.connected_stream,
                 parent_nodes=parents,
+                potential_parent_nodes=potential_parents,
             )
             resolved_inputs.append(i)
         self._resolved_inputs[node] = resolved_inputs
         return resolved_inputs
 
+    # def get_ancestors(
+    #     self, node: FunctionNode, visited: Set[FunctionNode] = None
+    # ) -> List[FunctionNode]:
+    #     if visited is None:
+    #         visited = set()
+    #     if node in visited:
+    #         raise FunctionGraphCycleError
+    #     visited.add(node)
+    #     ancestors = []
+    #     for input in self._resolve_node_dependencies(node):
+    #         for dep in input.parent_nodes:
+    #             ancestors.append(dep)
+    #             ancestors.extend(self.get_ancestors(dep, visited))
+    #     return ancestors
+
     def resolve_stream_dependencies(
         self, node: FunctionNode, stream: DataBlockStream, visited: Set[FunctionNode]
-    ) -> List[FunctionNode]:
+    ) -> Tuple[List[FunctionNode], List[FunctionNode]]:
         upstream_nodes = stream.get_upstream(self.env)
         if upstream_nodes:
-            return upstream_nodes
-        if stream.otypes:
-            if len(stream.otypes) > 1:
+            return upstream_nodes, []
+        otypes = stream.get_otypes(self.env)
+        if otypes:
+            if len(otypes) > 1:
                 raise NotImplementedError("Mixed otype streams not supported atm")
-            otype = stream.otypes[0]
+            otype = otypes[0]
             potential_parents = []
             for other_node, output_type in self._resolved_output_types.items():
+                if other_node == node:
+                    continue
                 if output_type == otype:
-                    # if not self.is_child_of(node, other_node):
                     potential_parents.append(other_node)
             # Now check if they are descendants
-            parents = []
-            for p in potential_parents:
-                try:
-                    # TODO: what if we have a cycle between inferred deps (eg two DataSetAccumulators in an otype cycle)
-                    self.resolve_node_dependencies(p, visited)
-                except FunctionGraphCycleError:
-                    continue
-                parents.append(p)
-            return parents
+            # parents = []
+            # print("POTENTIAL", [n.key for n in potential_parents])
+            # for p in potential_parents:
+            #     try:
+            #         # TODO: what if we have a cycle between inferred deps (eg two DataSetAccumulators in an otype cycle)
+            #         if node in self.get_ancestors(p):
+            #             continue
+            #     except FunctionGraphCycleError:
+            #         print(f"Cycle in {p.key} ancestors")
+            #         continue
+            #     parents.append(p)
+            return [], potential_parents
         raise NotImplementedError
 
     def resolve_output_types(self):
@@ -406,6 +467,8 @@ class FunctionGraphResolver:
     def get_all_upstream_dependencies_in_execution_order(
         self, node: FunctionNode
     ) -> List[FunctionNode]:
+        self.resolve()
+        # self.print_resolution()
         all_ = []
         for dep in self._resolved_inputs[node]:
             for parent in dep.parent_nodes:
@@ -413,6 +476,15 @@ class FunctionGraphResolver:
                 all_.extend(deps)
         all_.append(node)
         return all_
+
+    def print_resolution(self):
+        pprint({k.key: v.key for k, v in self._resolved_output_types.items()})
+        for node in self._nodes:
+            print(node.key)
+            print("  output:", self._resolved_output_types.get(node).key)
+            print("  inputs")
+            for i in self._resolved_inputs.get(node, []):
+                print("    ", i.name, [n.key for n in i.parent_nodes])
 
 
 class FunctionNodeInterfaceManager:

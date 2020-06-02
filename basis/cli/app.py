@@ -147,11 +147,11 @@ def list_data_functions():
     with env.session_scope() as sess:
         query = (
             sess.query(
-                DataFunctionLog.configured_data_function_key,
+                DataFunctionLog.function_node_key,
                 func.count(DataFunctionLog.id),
                 func.max(DataFunctionLog.started_at),
             )
-            .group_by(DataFunctionLog.configured_data_function_key)
+            .group_by(DataFunctionLog.function_node_key)
             .all()
         )
         headers = [
@@ -174,7 +174,7 @@ def show_log():
                 for drl in dfl.data_block_logs:
                     r = [
                         dfl.started_at.strftime("%F %T"),
-                        dfl.configured_data_function_key,
+                        dfl.function_node_key,
                         drl.direction.display,
                         cycle_colors_unique(drl.data_block_id),
                     ]
@@ -183,7 +183,7 @@ def show_log():
                 drls.append(
                     [
                         dfl.started_at.strftime("%F %t"),
-                        f"{dfl.configured_data_function_key} nothing to do",
+                        f"{dfl.function_node_key} nothing to do",
                         "-",
                         "-",
                     ]

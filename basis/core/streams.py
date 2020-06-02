@@ -52,6 +52,7 @@ class DataBlockStream:
         if storage is not None:
             assert storages is None
             storages = [storage]
+        # TODO: make all these private?
         self.upstream = upstream
         self.otypes = otypes
         self.storages = storages
@@ -104,14 +105,12 @@ class DataBlockStream:
             # Only exclude DRs processed as INPUT
             filter_clause = and_(
                 DataBlockLog.direction == Direction.INPUT,
-                DataFunctionLog.configured_data_function_key == self.unprocessed_by.key,
+                DataFunctionLog.function_node_key == self.unprocessed_by.key,
             )
         else:
             # No DR cycles allowed
             # Exclude DRs processed as INPUT and DRs outputted
-            filter_clause = (
-                DataFunctionLog.configured_data_function_key == self.unprocessed_by.key
-            )
+            filter_clause = DataFunctionLog.function_node_key == self.unprocessed_by.key
         already_processed_drs = (
             Query(DataBlockLog.data_block_id)
             .join(DataFunctionLog)
@@ -122,6 +121,8 @@ class DataBlockStream:
 
     def get_upstream(self, env: Environment) -> List[FunctionNode]:
         nodes = ensure_list(self.upstream)
+        if not nodes:
+            return []
         return [env.get_node(c) for c in nodes]
 
     def filter_upstream(
@@ -137,7 +138,7 @@ class DataBlockStream:
             .join(DataFunctionLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                DataFunctionLog.configured_data_function_key.in_(
+                DataFunctionLog.function_node_key.in_(
                     [c.key for c in self.get_upstream(ctx.env)]
                 ),
             )
