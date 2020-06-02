@@ -26,9 +26,7 @@ class DatabaseToMemoryConverter(Converter):
     cost_level = ConversionCostLevel.OVER_WIRE
 
     def _convert(
-        self,
-        input_sdb: StoredDataBlockMetadata,
-        output_sdb: StoredDataBlockMetadata,
+        self, input_sdb: StoredDataBlockMetadata, output_sdb: StoredDataBlockMetadata,
     ) -> StoredDataBlockMetadata:
         input_runtime = input_sdb.storage.get_database_api(self.env)
         output_memory_storage = LocalMemoryStorageEngine(self.env, output_sdb.storage)

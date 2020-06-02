@@ -194,16 +194,16 @@ class ExecutionManager:
         from basis.core.sql.data_function import SqlDataFunction
 
         # TODO: not happy with runtime <-> DF mapping here. Let's rethink
-        # try:
-        #     cls = node.datafunction.runtime_class
-        # except AttributeError:
-        if isinstance(node.datafunction, SqlDataFunction):
-            cls = RuntimeClass.DATABASE
-        elif isinstance(node.datafunction, PythonDataFunction):
-            cls = RuntimeClass.PYTHON
-        else:
-            # cls = RuntimeClass.PYTHON
-            raise NotImplementedError(node.datafunction)  # TODO
+        try:
+            cls = node.datafunction.runtime_class  # type: ignore  # Hack to allow functions to override for now
+        except AttributeError:
+            if isinstance(node.datafunction, SqlDataFunction):
+                cls = RuntimeClass.DATABASE
+            elif isinstance(node.datafunction, PythonDataFunction):
+                cls = RuntimeClass.PYTHON
+            else:
+                # cls = RuntimeClass.PYTHON
+                raise NotImplementedError(node.datafunction)  # TODO
         for runtime in self.ctx.runtimes:
             if runtime.runtime_class == cls:  # TODO: Just taking the first one...
                 return runtime
@@ -260,7 +260,7 @@ class ExecutionManager:
                 if last_output is not None:
                     n_outputs += 1
                 if (
-                    not to_exhaustion or not dfi.resolved_inputs
+                    not to_exhaustion or not dfi.inputs
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     break
                 spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataBlocks output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
@@ -317,7 +317,7 @@ class Worker:
         ) as run_session:
             output = self.execute_datafunction(runnable)
             if output is not None:
-                assert runnable.datafunction_interface.resolved_output_otype is not None
+                assert runnable.datafunction_interface.output_otype is not None
                 assert (
                     self.ctx.target_storage is not None
                 ), "Must specify target storage for output"
@@ -325,7 +325,7 @@ class Worker:
                 assert output_block is not None, output
                 run_session.log_output(output_block)
 
-            for input in runnable.datafunction_interface.resolved_inputs:
+            for input in runnable.datafunction_interface.inputs:
                 assert input.bound_data_block is not None, input
                 run_session.log_input(input.bound_data_block)
         return output_block
@@ -337,8 +337,8 @@ class Worker:
                 self.ctx,
                 worker=self,
                 runnable=runnable,
-                inputs=runnable.datafunction_interface.resolved_inputs,
-                output_otype=runnable.datafunction_interface.resolved_output_otype,
+                inputs=runnable.datafunction_interface.inputs,
+                output_otype=runnable.datafunction_interface.output_otype,
             )
             args.append(dfc)
         inputs = runnable.datafunction_interface.as_kwargs()
@@ -353,7 +353,7 @@ class Worker:
     def conform_output(
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
     ) -> DataBlockMetadata:
-        assert runnable.datafunction_interface.resolved_output_otype is not None
+        assert runnable.datafunction_interface.output_otype is not None
         assert self.ctx.target_storage is not None
         # TODO: check if these Metadata objects have been added to session!
         #   also figure out what merge actually does
@@ -369,7 +369,7 @@ class Worker:
 
         ldr = LocalMemoryDataRecords.from_records_object(output)
         block = DataBlockMetadata(
-            otype_uri=runnable.datafunction_interface.resolved_output_otype.uri
+            otype_uri=runnable.datafunction_interface.output_otype.uri
         )
         sdb = StoredDataBlockMetadata(  # type: ignore
             data_block=block,

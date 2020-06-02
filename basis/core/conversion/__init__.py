@@ -8,8 +8,8 @@ from basis.core.conversion.converter import (
     ConverterLookup,
     StorageFormat,
 )
-from basis.core.data_format import DataFormat
 from basis.core.data_block import StoredDataBlockMetadata
+from basis.core.data_format import DataFormat
 from basis.core.storage import Storage, StorageType
 from basis.utils.common import printd
 

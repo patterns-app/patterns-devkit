@@ -14,6 +14,7 @@ from basis.core.data_function import (
 )
 from basis.core.data_function_interface import DataFunctionAnnotation, re_type_hint
 from basis.core.runnable import DataFunctionContext
+
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from basis.utils.common import md5_hash
 
@@ -125,10 +126,9 @@ class SqlDataFunction(DataFunction):
         #         "Incompatible Runtime"
         #     )  # TODO: Everyone SQL and You Can Too!
         sql = self.get_compiled_sql(ctx, inputs)
-        output = ctx.runnable.datafunction_interface.output
-        if output is None:
+        if ctx.output_otype is None:
             raise Exception("SQL function should always produce output!")
-        block = DataBlockMetadata(otype_uri=output.otype_uri)
+        block = DataBlockMetadata(otype_uri=ctx.output_otype.uri)
         storage_url = ctx.execution_context.current_runtime.as_storage().url
         sdb = StoredDataBlockMetadata(
             data_block=block,
@@ -167,7 +167,7 @@ class SqlDataFunction(DataFunction):
             worker=ctx.worker,
             runnable=ctx.runnable,
             inputs={i.name: i for i in ctx.inputs},
-            output=ctx.output,
+            output_otype=ctx.output_otype,
         )
         # sql_ctx.update(inputs) # TODO: decide what is in the sql jinja ctx. usability is key
         return compile_jinja_sql(sql, sql_ctx)

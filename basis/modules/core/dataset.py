@@ -4,12 +4,12 @@ from typing import List, Union
 
 from pandas import DataFrame
 
+from basis.core.data_block import DataBlock, DataSet, DataSetMetadata
 from basis.core.data_function import (
     DataFunctionCallable,
     DataFunctionChain,
     DataFunctionLike,
 )
-from basis.core.data_block import DataBlock, DataSet, DataSetMetadata
 from basis.core.runnable import DataFunctionContext
 from basis.core.runtime import RuntimeClass
 from basis.core.sql.data_function import sql_datafunction

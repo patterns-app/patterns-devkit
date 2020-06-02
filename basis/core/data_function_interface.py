@@ -139,19 +139,19 @@ class ResolvedFunctionNodeInput:
     connected_stream: DataBlockStream
     parent_nodes: List[FunctionNode]
     potential_parent_nodes: List[FunctionNode]
-    resolved_otype: ObjectType
+    otype: ObjectType
     bound_data_block: Optional[DataBlockMetadata] = None
 
 
 @dataclass
 class ResolvedFunctionInterface:
-    resolved_inputs: List[ResolvedFunctionNodeInput]
-    resolved_output_otype: Optional[ObjectType]
+    inputs: List[ResolvedFunctionNodeInput]
+    output_otype: Optional[ObjectType]
     requires_data_function_context: bool = True
     is_bound: bool = False
 
     def get_input(self, name: str) -> ResolvedFunctionNodeInput:
-        for input in self.resolved_inputs:
+        for input in self.inputs:
             if input.name == name:
                 return input
         raise KeyError(name)
@@ -166,7 +166,7 @@ class ResolvedFunctionInterface:
     def as_kwargs(self):
         if not self.is_bound:
             raise Exception("Interface not bound")
-        return {i.name: i.bound_data_block for i in self.resolved_inputs}
+        return {i.name: i.bound_data_block for i in self.inputs}
 
 
 @dataclass
@@ -345,7 +345,7 @@ class FunctionGraphResolver:
                 data_format_class=input.data_format_class,
                 is_optional=input.is_optional,
                 is_self_ref=input.is_self_ref,
-                resolved_otype=self.env.get_otype(resolved_otype),
+                otype=self.env.get_otype(resolved_otype),
                 connected_stream=input.connected_stream,
                 parent_nodes=parents,
                 potential_parent_nodes=potential_parents,
@@ -459,8 +459,8 @@ class FunctionGraphResolver:
         if resolved_otype:
             resolved_otype = self.env.get_otype(resolved_otype)
         return ResolvedFunctionInterface(
-            resolved_inputs=self._resolved_inputs.get(node, []),
-            resolved_output_otype=resolved_otype,
+            inputs=self._resolved_inputs.get(node, []),
+            output_otype=resolved_otype,
             requires_data_function_context=node.get_interface().requires_data_function_context,
         )
 
@@ -522,10 +522,11 @@ class FunctionNodeInterfaceManager:
 
     def get_input_data_blocks(self) -> InputBlocks:
         from basis.core.streams import ensure_data_stream
+        from basis.core.data_function import InputExhaustedException
 
         input_data_blocks: InputBlocks = {}
         any_unprocessed = False
-        for input in self.get_resolved_interface().resolved_inputs:
+        for input in self.get_resolved_interface().inputs:
             stream = input.connected_stream
             printd(f"Getting {input} for {stream}")
             stream = ensure_data_stream(stream)
