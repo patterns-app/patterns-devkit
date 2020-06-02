@@ -10,11 +10,10 @@ from basis.core.data_format import DataFormat
 from basis.core.data_function import (
     DataFunction,
     DataFunctionInterface,
-    TypedDataAnnotation,
-    re_type_hint,
+    DataInterfaceType,
 )
+from basis.core.data_function_interface import DataFunctionAnnotation, re_type_hint
 from basis.core.runnable import DataFunctionContext
-
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from basis.utils.common import md5_hash
 
@@ -53,7 +52,7 @@ class TypedSqlStatement:
 
 def extract_and_replace_sql_input(
     sql: str, m: Match, input_table_names: Dict[str, str]
-) -> Tuple[str, TypedDataAnnotation]:
+) -> Tuple[str, DataFunctionAnnotation]:
     # TODO: strip sql comments
     groups: Dict[str, str] = m.groupdict()
     name = groups["table_name"]
@@ -62,7 +61,7 @@ def extract_and_replace_sql_input(
     annotation = f"DataBlock[{otype}]"
     if is_optional:
         annotation = f"Optional[{annotation}]"
-    tda = TypedDataAnnotation.from_type_annotation(
+    tda = DataFunctionAnnotation.from_type_annotation(
         annotation, name=name  # TODO: DataSet
     )
     # By default, just replace with existing table statement and alias
@@ -85,10 +84,10 @@ def extract_types(
     if m is not None:
         output_type = m.groupdict()["type"]
         sql = select_type_stmt.sub(r"\g<select>", sql, 1)
-        # output = TypedDataAnnotation(
-        #     data_block_class="DataSet", otype_like=output_type
+        # output = DataFunctionAnnotation(
+        #     data_format_class="DataSet", otype_like=output_type
         # )
-        output = TypedDataAnnotation.from_type_annotation(
+        output = DataFunctionAnnotation.from_type_annotation(
             f"DataBlock[{output_type}]"
         )  # TODO: DataSet
     input_types = []
@@ -115,9 +114,9 @@ class SqlDataFunction(DataFunction):
         self._kwargs = kwargs
 
     def __call__(
-        self, ctx: DataFunctionContext, **inputs: DataBlock
+        self, *args: DataFunctionContext, **inputs: DataInterfaceType
     ) -> StoredDataBlockMetadata:
-
+        ctx = args[0]
         if ctx.execution_context.current_runtime is None:
             raise Exception("Current runtime not set")
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Generic, Optional
 
 import sqlalchemy as sa
 from pandas import DataFrame
@@ -18,6 +18,7 @@ from basis.core.environment import Environment
 from basis.core.metadata.listeners import immutability_update_listener
 from basis.core.metadata.orm import BaseModel, timestamp_rand_key
 from basis.core.typing.object_type import ObjectType, ObjectTypeUri
+from basis.utils.registry import T
 
 if TYPE_CHECKING:
     from basis.core.conversion import (
@@ -128,7 +129,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 
 
 @dataclass(frozen=True)
-class ManagedDataBlock:
+class ManagedDataBlock(Generic[T]):
     data_block_id: str
     otype_uri: ObjectTypeUri
     # otype_is_validated: bool
@@ -236,7 +237,7 @@ class DataSetMetadata(BaseModel):
 
 
 @dataclass(frozen=True)
-class ManagedDataSet:
+class ManagedDataSet(Generic[T]):
     data_set_id: str
     data_set_key: str
     data_block_id: str

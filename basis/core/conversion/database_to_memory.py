@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Any, Sequence
 
 import pandas as pd
 
@@ -34,6 +34,7 @@ class DatabaseToMemoryConverter(Converter):
         output_memory_storage = LocalMemoryStorageEngine(self.env, output_sdb.storage)
         name = input_sdb.get_name(self.env)
         db_conn = input_runtime.get_connection()
+        output_records: Any
         if output_sdb.data_format == DataFormat.DATABASE_TABLE_REF:
             output_records = DatabaseTable(name, storage_url=input_sdb.storage_url)
         elif output_sdb.data_format == DataFormat.DATABASE_CURSOR:

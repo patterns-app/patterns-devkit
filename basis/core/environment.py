@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         DataFunctionCallable,
         configured_data_function_factory,
     )
+    from basis.core.data_function_interface import FunctionGraphResolver
     from basis.indexing.components import IndexableComponent
     from basis.core.runnable import ExecutionContext
     from basis.core.data_block import DataBlock
@@ -34,6 +35,7 @@ class Environment:
     otype_registry: UriRegistry
     storages: List[Storage]
     metadata_storage: Storage
+    # _graph_resolver: Optional[FunctionGraphResolver]
 
     def __init__(
         self,
@@ -71,6 +73,7 @@ class Environment:
         self.configured_data_function_registry = (
             configured_data_function_registry or Registry()
         )
+        self.function_node_graph_registry: Registry = Registry()
         self.storages = []
         self.runtimes = []
         if add_default_python_runtime:
@@ -82,6 +85,7 @@ class Environment:
                 )
             )
         self._module_order: List[str] = []
+        # self._graph_resolver = None
 
     def initialize_metadata_database(self):
         from basis.core.metadata.listeners import add_persisting_sdb_listener
@@ -113,11 +117,16 @@ class Environment:
         from basis.core.data_function import configured_data_function_factory
 
         node = configured_data_function_factory(self, _key, _data_function, **kwargs)
-        self.configured_data_function_registry.register(node)
+        self.register_node(node)
         return node
 
     def register_node(self, node: "FunctionNode"):
-        self.configured_data_function_registry.register(node)
+        if node.is_graph():
+            self.function_node_graph_registry.register(node)
+            for sub_node in node.get_nodes():
+                self.configured_data_function_registry.register(sub_node)
+        else:
+            self.configured_data_function_registry.register(node)
 
     def all_nodes(self) -> List[FunctionNode]:
         return list(self.configured_data_function_registry.all())
@@ -129,6 +138,11 @@ class Environment:
             return node_like
         return self.configured_data_function_registry.get(node_like)
 
+    def get_function_graph_resolver(self) -> FunctionGraphResolver:
+        from basis.core.data_function_interface import FunctionGraphResolver
+
+        return FunctionGraphResolver(self)  # TODO: maybe cache this?
+
     def add_module(self, module: BasisModule):
         self.module_registry.register(module)
         self.otype_registry.merge(module.otypes)
@@ -136,7 +150,7 @@ class Environment:
         self._module_order.append(module.key)
 
     def get_indexable_components(self) -> Iterable[IndexableComponent]:
-        for module in self.module_registry:
+        for module in self.module_registry.all():
             for c in module.get_indexable_components():
                 yield c
 
@@ -191,15 +205,18 @@ class Environment:
         self, node_like: Union[FunctionNode, str], **execution_kwargs: Any
     ) -> Optional[DataBlock]:
         from basis.core.data_function import FunctionNode
-        from basis.core.graph import get_all_upstream_dependencies_in_execution_order
+
+        fgr = self.get_function_graph_resolver()
 
         if isinstance(node_like, str):
             node_like = self.get_node(node_like)
         assert isinstance(node_like, FunctionNode)
-        dependencies = get_all_upstream_dependencies_in_execution_order(self, node_like)
+        dependencies = fgr.get_all_upstream_dependencies_in_execution_order(node_like)
+        output = None
         for dep in dependencies:
             with self.execution(**execution_kwargs) as em:
-                em.run(dep, to_exhaustion=True)
+                output = em.run(dep, to_exhaustion=True)
+        return output
 
     def get_latest_output(self, node: FunctionNode) -> Optional[DataBlock]:
         session = self.get_new_metadata_session()  # TODO: hanging session

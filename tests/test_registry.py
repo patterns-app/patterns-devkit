@@ -45,7 +45,6 @@ def test_registry_merge():
     r.merge(r2)
     assert r.get(a3.key) is a3
     assert len(r) == 3
-    assert len(list(r)) == 3
     assert len(list(r.all())) == 3
 
 

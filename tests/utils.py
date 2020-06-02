@@ -68,15 +68,15 @@ def make_test_execution_manager(**kwargs):
     return ExecutionManager(make_test_execution_context(**kwargs))
 
 
-def df_t1_sink(ctx: DataFunctionContext, block: DataBlock[TestType1]):
+def df_t1_sink(ctx: DataFunctionContext, input: DataBlock[TestType1]):
     pass
 
 
-def df_t1_to_t2(block: DataBlock[TestType1]) -> DataFrame[TestType2]:
+def df_t1_to_t2(input: DataBlock[TestType1]) -> DataFrame[TestType2]:
     pass
 
 
-def df_generic(block: DataBlock[T]) -> DataFrame[T]:
+def df_generic(input: DataBlock[T]) -> DataFrame[T]:
     pass
 
 

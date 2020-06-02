@@ -26,10 +26,6 @@ class Registry(Generic[T]):
     def __repr__(self):
         return repr(self._registry)
 
-    def __iter__(self) -> Iterable[T]:
-        for v in self._registry.values():
-            yield v
-
     def __len__(self):
         return len(self._registry)
 
@@ -122,7 +118,7 @@ class UriRegistry(Registry, Generic[T]):
     def is_qualified(self, key: str) -> bool:
         return "." in key
 
-    def merge(self, other: UriRegistry):
+    def merge(self, other: UriRegistry):  # type: ignore
         self._registry.update(other._registry)
         for k, v in other._module_key_registry.items():
             self._module_key_registry[k].extend(v)

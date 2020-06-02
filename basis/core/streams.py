@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
 
 from sqlalchemy import and_, not_
 from sqlalchemy.orm import Query
@@ -19,7 +19,7 @@ from basis.core.data_function import (
 )
 from basis.core.environment import Environment
 from basis.core.storage import Storage
-from basis.core.typing.object_type import ObjectTypeLike
+from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 from basis.utils.common import ensure_list
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,7 @@ class DataBlockStream:
         )
         return query.filter(not_(DataBlockMetadata.id.in_(already_processed_drs)))
 
-    def get_upstream(self, env: Environment):
+    def get_upstream(self, env: Environment) -> List[FunctionNode]:
         nodes = ensure_list(self.upstream)
         return [env.get_node(c) for c in nodes]
 
@@ -157,7 +157,7 @@ class DataBlockStream:
             return query
         # otype_keys = []  # TODO: Fully qualified otype keys?
         return query.filter(
-            DataBlockMetadata.otype_uri.in_([d.uri for d in self.get_otypes(ctx.env)])
+            DataBlockMetadata.otype_uri.in_([d.uri for d in self.get_otypes(ctx.env)])  # type: ignore
         )
 
     def filter_otype(self, otype: ObjectTypeLike) -> DataBlockStream:
@@ -170,7 +170,7 @@ class DataBlockStream:
         if not self.storages:
             return query
         return query.join(StoredDataBlockMetadata).filter(
-            StoredDataBlockMetadata.storage_url.in_([s.url for s in self.storages])
+            StoredDataBlockMetadata.storage_url.in_([s.url for s in self.storages])  # type: ignore
         )
 
     def filter_storage(self, storage: Storage) -> DataBlockStream:
@@ -189,7 +189,7 @@ class DataBlockStream:
             query = query.join(DataSetMetadata)
         if not self.data_sets:
             return query
-        return query.filter(DataSetMetadata.key.in_(self.data_sets))
+        return query.filter(DataSetMetadata.key.in_(self.data_sets))  # type: ignore
 
     def is_unprocessed(
         self, ctx: ExecutionContext, block: DataBlockMetadata, node: FunctionNode,
@@ -198,28 +198,49 @@ class DataBlockStream:
         q = drs.get_query(ctx)
         return q.filter(DataBlockMetadata.id == block.id).exists()
 
-    def get_data_stream_inputs(
-        self, env: Environment, as_streams=False
-    ) -> List[DataBlockStreamable]:
-        # TODO: ONLY handles explicit upstream and otype filters, and only with respect to NON-GENERIC data functions
-        #   support for generic data functions would require compiling the otype graph statically.
-        #   this may be tricky, eg do we need to handle
-        #   heterogenuously typed inputs to a function?. Regardless, not how we do things currently --
-        #   atm we bind inputs to concrete DataBlocks and resolve generics that way. Would require
-        #   a rethink of that. Static compilation of type graph is probably desirable for other reasons, so likely
-        #   the right long-term solution.
-        from basis.core.graph import get_all_nodes_outputting_otype
+    # def resolve_dependencies(self, env: Environment) -> List[FunctionNode]:
+    #     from basis.core.graph import get_all_nodes_outputting_otype
+    #
+    #     deps: List[FunctionNode] = []
+    #     if self.upstream:
+    #         return self.get_upstream(env)
+    #     elif self.otypes:
+    #         if len(self.otypes) > 1:
+    #             raise NotImplementedError("Mixed otype streams not supported atm")
+    #         otype = self.get_otypes(env)[0]
+    #
+    #         for otype in self.get_otypes(env):
+    #             streams.extend(get_all_nodes_outputting_otype(env, otype))
+    #
+    #     # if as_streams:
+    #     #     streams = [ensure_data_stream(v) for v in streams]
+    #     return deps
+    #
+    # def resolve_output_otype(self, env: Environment) -> ObjectType:
+    #     pass
 
-        streams: List[DataBlockStreamable] = []
-        if self.upstream:
-            streams = self.get_upstream(env)
-        elif self.otypes:
-            for otype in self.get_otypes(env):
-                streams.extend(get_all_nodes_outputting_otype(env, otype))
-
-        if as_streams:
-            streams = [ensure_data_stream(v) for v in streams]
-        return streams
+    # def get_data_stream_inputs(
+    #     self, env: Environment, as_streams=False
+    # ) -> List[DataBlockStreamable]:
+    #     # TODO: ONLY handles explicit upstream and otype filters, and only with respect to NON-GENERIC data functions
+    #     #   support for generic data functions would require compiling the otype graph statically.
+    #     #   this may be tricky, eg do we need to handle
+    #     #   heterogenuously typed inputs to a function?. Regardless, not how we do things currently --
+    #     #   atm we bind inputs to concrete DataBlocks and resolve generics that way. Would require
+    #     #   a rethink of that. Static compilation of type graph is probably desirable for other reasons, so likely
+    #     #   the right long-term solution.
+    #     from basis.core.graph import get_all_nodes_outputting_otype
+    #
+    #     streams: List[DataBlockStreamable] = []
+    #     if self.upstream:
+    #         streams = self.get_upstream(env)
+    #     elif self.otypes:
+    #         for otype in self.get_otypes(env):
+    #             streams.extend(get_all_nodes_outputting_otype(env, otype))
+    #
+    #     if as_streams:
+    #         streams = [ensure_data_stream(v) for v in streams]
+    #     return streams
 
     def get_next(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:
         order_by = DataBlockMetadata.updated_at
@@ -242,7 +263,11 @@ class DataBlockStream:
 
 
 DataBlockStreamable = Union[DataBlockStream, FunctionNode]
-InputResources = Dict[str, DataBlockMetadata]
+DataBlockStreamLike = Union[DataBlockStreamable, str]
+FunctionNodeRawInput = Union[DataBlockStreamLike, Dict[str, DataBlockStreamLike]]
+FunctionNodeInput = Union[DataBlockStreamable, Dict[str, DataBlockStreamable]]
+InputStreams = Union[DataBlockStream, Dict[str, DataBlockStream]]
+InputBlocks = Dict[str, DataBlockMetadata]
 
 
 def ensure_data_stream(s: DataBlockStreamable) -> DataBlockStream:

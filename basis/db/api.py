@@ -113,7 +113,10 @@ class DatabaseAPI:
 
     def count(self, table_name: str) -> int:
         res = self.execute_sql(f"select count(*) from {table_name}")
-        return res.fetchone()[0]
+        row = res.fetchone()
+        if not row:
+            raise
+        return row[0]
 
 
 def get_database_api_class(engine: StorageEngine) -> Type[DatabaseAPI]:

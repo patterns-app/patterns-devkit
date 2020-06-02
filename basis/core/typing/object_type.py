@@ -127,6 +127,9 @@ class ObjectType:
     # late arriving?
     # statefulness?
 
+    def __hash__(self):
+        return hash(self.uri)
+
     @property
     def uri(self):
         k = self.key

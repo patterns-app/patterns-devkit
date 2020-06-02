@@ -8,6 +8,7 @@ from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type,
 
 import requests
 from ratelimit import limits, sleep_and_retry
+from requests import Response
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +33,13 @@ class JsonHttpApiConnection:
         self.date_format = date_format
         self.raise_for_status = raise_for_status
         self.ratelimit_calls_per_min = ratelimit_calls_per_min
-        self.add_rate_limiting()
+        self.g = self.add_rate_limiting(self.get)
         self.strip_none_params = strip_none_params
 
-    def add_rate_limiting(self):
-        g = sleep_and_retry(self.get)
+    def add_rate_limiting(self, f: Callable):
+        g = sleep_and_retry(f)
         g = limits(calls=self.ratelimit_calls_per_min, period=60)(g)
-        self.get = g
+        return g
 
     def get_default_params(self) -> Dict:
         return self.default_params.copy()
@@ -58,7 +59,7 @@ class JsonHttpApiConnection:
 
     def get(
         self, url: str, params: Dict = None, headers: Dict = None, **kwargs
-    ) -> Union[Dict, List]:
+    ) -> Response:
         default_params = self.get_default_params()
         if params:
             default_params.update(params)
@@ -86,7 +87,8 @@ class SimpleTestJsonHttpApiConnection:
                 json_resp = response
             elif isinstance(response, str):
                 file_path = os.path.join(os.path.dirname(__file__), response)
-                json_resp = json.load(file_path)
+                with open(file_path) as f:
+                    json_resp = json.load(f)
             else:
                 raise Exception(f"Response unsupported {response}")
             self.json_responses.append(json_resp)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from basis.core.data_format import DictList
-from basis.core.data_function import DataFunctionInterfaceManager
+from basis.core.data_function_interface import FunctionNodeInterfaceManager
 from basis.core.runnable import CompiledDataFunction, Runnable, RunSession, Worker
 from tests.utils import (
     TestType1,
@@ -32,7 +32,7 @@ def test_worker():
     ec = env.get_execution_context(sess, current_runtime=env.runtimes[0])
     node = env.add_node("node", df_t1_source)
     w = Worker(ec)
-    dfi_mgr = DataFunctionInterfaceManager(ec, node)
+    dfi_mgr = FunctionNodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
         node.key, CompiledDataFunction(node.datafunction.key, node.datafunction), bdfi,
@@ -50,7 +50,7 @@ def test_worker_output():
     )
     node = env.add_node("node", df_dl_source)
     w = Worker(ec)
-    dfi_mgr = DataFunctionInterfaceManager(ec, node)
+    dfi_mgr = FunctionNodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
         node.key, CompiledDataFunction(node.datafunction.key, node.datafunction), bdfi,

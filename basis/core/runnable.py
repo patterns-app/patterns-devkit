@@ -21,11 +21,9 @@ from basis.core.data_block import (
     StoredDataBlockMetadata,
 )
 from basis.core.data_function import (
-    BoundDataFunctionInterface,
-    BoundTypedDataAnnotation,
     DataBlockLog,
     DataFunction,
-    DataFunctionInterfaceManager,
+    DataFunctionInterface,
     DataFunctionLog,
     DataInterfaceType,
     Direction,
@@ -33,13 +31,18 @@ from basis.core.data_function import (
     FunctionNodeGraph,
     InputExhaustedException,
     PythonDataFunction,
-    ResolvedTypedDataAnnotation,
+)
+from basis.core.data_function_interface import (
+    DataFunctionAnnotation,
+    FunctionNodeInterfaceManager,
+    ResolvedFunctionNodeInput,
+    ResolvedFunctionInterface,
 )
 from basis.core.environment import Environment
-from basis.core.graph import get_all_upstream_dependencies_in_execution_order
 from basis.core.metadata.orm import BaseModel
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from basis.core.storage import LocalMemoryStorageEngine, Storage
+from basis.core.typing.object_type import ObjectType
 from basis.utils.common import (
     cf,
     error_symbol,
@@ -90,7 +93,7 @@ class Runnable:
     configured_data_function_key: str
     compiled_datafunction: CompiledDataFunction
     # runtime_specification: RuntimeSpecification # TODO: support this
-    datafunction_interface: BoundDataFunctionInterface
+    datafunction_interface: ResolvedFunctionInterface
 
 
 @dataclass(frozen=True)
@@ -178,8 +181,8 @@ class DataFunctionContext:
     execution_context: ExecutionContext
     worker: Worker
     runnable: Runnable
-    inputs: List[BoundTypedDataAnnotation]
-    output: Optional[ResolvedTypedDataAnnotation]
+    inputs: List[ResolvedFunctionNodeInput]
+    output_otype: Optional[ObjectType]
 
 
 class ExecutionManager:
@@ -191,16 +194,16 @@ class ExecutionManager:
         from basis.core.sql.data_function import SqlDataFunction
 
         # TODO: not happy with runtime <-> DF mapping here. Let's rethink
-        try:
-            cls = node.datafunction.runtime_class
-        except AttributeError:
-            if isinstance(node.datafunction, SqlDataFunction):
-                cls = RuntimeClass.DATABASE
-            elif isinstance(node.datafunction, PythonDataFunction):
-                cls = RuntimeClass.PYTHON
-            else:
-                # cls = RuntimeClass.PYTHON
-                raise NotImplementedError(node.datafunction)  # TODO
+        # try:
+        #     cls = node.datafunction.runtime_class
+        # except AttributeError:
+        if isinstance(node.datafunction, SqlDataFunction):
+            cls = RuntimeClass.DATABASE
+        elif isinstance(node.datafunction, PythonDataFunction):
+            cls = RuntimeClass.PYTHON
+        else:
+            # cls = RuntimeClass.PYTHON
+            raise NotImplementedError(node.datafunction)  # TODO
         for runtime in self.ctx.runtimes:
             if runtime.runtime_class == cls:  # TODO: Just taking the first one...
                 return runtime
@@ -210,8 +213,8 @@ class ExecutionManager:
 
     def get_bound_data_function_interface(
         self, node: FunctionNode
-    ) -> BoundDataFunctionInterface:
-        dfi_mgr = DataFunctionInterfaceManager(self.ctx, node)
+    ) -> ResolvedFunctionInterface:
+        dfi_mgr = FunctionNodeInterfaceManager(self.ctx, node)
         return dfi_mgr.get_bound_interface()
 
     def run_graph(
@@ -225,7 +228,8 @@ class ExecutionManager:
     def run(
         self, node: FunctionNode, to_exhaustion: bool = False
     ) -> Optional[ManagedDataBlock]:
-        if node.is_graph():  # node: ConfiguredDataFunctionGraph
+        if node.is_graph():
+            # node: FunctionNodeGraph
             return self.run_graph(node, to_exhaustion=to_exhaustion)
         runtime = self.select_runtime(node)
         run_ctx = self.ctx.clone(current_runtime=runtime)
@@ -256,7 +260,7 @@ class ExecutionManager:
                 if last_output is not None:
                     n_outputs += 1
                 if (
-                    not to_exhaustion or not dfi.inputs
+                    not to_exhaustion or not dfi.resolved_inputs
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     break
                 spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataBlocks output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
@@ -307,24 +311,24 @@ class Worker:
         self.ctx = ctx
 
     def run(self, runnable: Runnable) -> Optional[DataBlockMetadata]:
-        outputblock: Optional[DataBlockMetadata] = None
+        output_block: Optional[DataBlockMetadata] = None
         with self.ctx.start_data_function_run(
             runnable.configured_data_function_key
         ) as run_session:
             output = self.execute_datafunction(runnable)
             if output is not None:
-                assert runnable.datafunction_interface.output is not None
+                assert runnable.datafunction_interface.resolved_output_otype is not None
                 assert (
                     self.ctx.target_storage is not None
                 ), "Must specify target storage for output"
-                outputblock = self.conform_output(run_session, output, runnable)
-                assert outputblock is not None, output
-                run_session.log_output(outputblock)
+                output_block = self.conform_output(run_session, output, runnable)
+                assert output_block is not None, output
+                run_session.log_output(output_block)
 
-            for input in runnable.datafunction_interface.inputs:
-                assert input.data_block is not None, input
-                run_session.log_input(input.data_block)
-        return outputblock
+            for input in runnable.datafunction_interface.resolved_inputs:
+                assert input.bound_data_block is not None, input
+                run_session.log_input(input.bound_data_block)
+        return output_block
 
     def execute_datafunction(self, runnable: Runnable) -> DataInterfaceType:
         args = []
@@ -333,8 +337,8 @@ class Worker:
                 self.ctx,
                 worker=self,
                 runnable=runnable,
-                inputs=runnable.datafunction_interface.inputs,
-                output=runnable.datafunction_interface.output,
+                inputs=runnable.datafunction_interface.resolved_inputs,
+                output_otype=runnable.datafunction_interface.resolved_output_otype,
             )
             args.append(dfc)
         inputs = runnable.datafunction_interface.as_kwargs()
@@ -349,7 +353,7 @@ class Worker:
     def conform_output(
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
     ) -> DataBlockMetadata:
-        assert runnable.datafunction_interface.output is not None
+        assert runnable.datafunction_interface.resolved_output_otype is not None
         assert self.ctx.target_storage is not None
         # TODO: check if these Metadata objects have been added to session!
         #   also figure out what merge actually does
@@ -365,7 +369,7 @@ class Worker:
 
         ldr = LocalMemoryDataRecords.from_records_object(output)
         block = DataBlockMetadata(
-            otype_uri=runnable.datafunction_interface.output.otype.uri
+            otype_uri=runnable.datafunction_interface.resolved_output_otype.uri
         )
         sdb = StoredDataBlockMetadata(  # type: ignore
             data_block=block,

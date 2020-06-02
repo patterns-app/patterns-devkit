@@ -11,8 +11,8 @@ from basis.core.data_function import (
     DataFunctionInterface,
     DataInterfaceType,
     PythonDataFunction,
-    TypedDataAnnotation,
 )
+from basis.core.data_function_interface import DataFunctionAnnotation
 from basis.core.metadata.orm import BaseModel
 from basis.core.runnable import DataFunctionContext, ExecutionContext
 from basis.core.typing.object_type import ObjectTypeLike
@@ -59,6 +59,8 @@ class ExternalResource:
             cfg = self.configuration_class(**args)
         if not initial_high_water_mark:
             initial_high_water_mark = self.initial_high_water_mark
+        if not configured_provider:
+            configured_provider = self.provider(key + "_provider")
         return ConfiguredExternalResource(
             key=key,
             external_resource=self,
@@ -104,7 +106,7 @@ class ConfiguredExternalResource(Generic[T]):
         state.high_water_mark = None  # type: ignore
 
     @property
-    def extractor(self):
+    def extractor(self) -> ExtractorDataFunction:
         return ExtractorDataFunction(
             self.external_resource.default_extractor, self.configured_provider, self
         )
@@ -249,7 +251,10 @@ class ExtractorDataFunction(PythonDataFunction):
         print("Setting state", state.high_water_mark)
         # TODO: handle arbitrary state blob
 
-    def __call__(self, ctx: DataFunctionContext) -> DataInterfaceType:
+    def __call__(
+        self, *args: DataFunctionContext, **kwargs: DataInterfaceType
+    ) -> DataInterfaceType:
+        ctx = args[0]
         state = self.configured_external_resource.get_state(ctx.execution_context)
         self.prepare_state(state)
         for extract_result in self.extract_function(
@@ -261,8 +266,9 @@ class ExtractorDataFunction(PythonDataFunction):
 
     def get_interface(self) -> DataFunctionInterface:
         # TODO: more than dictlistiterator
-        out_annotation = TypedDataAnnotation.create(
-            data_block_class="DictListIterator",
+        #   get it from actual extractor!
+        out_annotation = DataFunctionAnnotation.create(
+            data_format_class="DictListIterator",
             otype_like=self.configured_external_resource.otype,
         )
         return DataFunctionInterface(

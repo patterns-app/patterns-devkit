@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Optional, Type
 from urllib.parse import urlparse
 
-from basis.core.data_format import DataFormat
 from basis.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadata
+from basis.core.data_format import DataFormat
 from basis.core.environment import Environment
 from basis.utils.common import cf, printd, rand_str
 
@@ -118,16 +118,16 @@ class StorageManager:
 
 class MemoryStorageManager(StorageManager):
     @property
-    def storage(self) -> LocalMemoryStorageEngine:
+    def storage_engine(self) -> LocalMemoryStorageEngine:
         return LocalMemoryStorageEngine(self.env, self.storage)
 
     def exists(self, stored_data_block: StoredDataBlockMetadata) -> bool:
-        return self.storage.exists(stored_data_block)
+        return self.storage_engine.exists(stored_data_block)
 
     def record_count(self, stored_data_block: StoredDataBlockMetadata) -> Optional[int]:
         if not self.exists(stored_data_block):
             return None
-        return self.storage.get_local_memory_data_records(
+        return self.storage_engine.get_local_memory_data_records(
             stored_data_block
         ).record_count
 
