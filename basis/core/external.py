@@ -103,7 +103,7 @@ class ConfiguredExternalResource(Generic[T]):
 
     def reset(self, ctx: ExecutionContext):
         state = self.get_state(ctx)
-        state.high_water_mark = None  # type: ignore
+        state.high_water_mark = None  # type: ignore  # sqlalchemy
 
     @property
     def extractor(self) -> ExtractorDataFunction:

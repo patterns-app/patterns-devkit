@@ -14,7 +14,6 @@ from basis.core.data_function import (
 )
 from basis.core.data_function_interface import DataFunctionAnnotation, re_type_hint
 from basis.core.runnable import DataFunctionContext
-
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from basis.utils.common import md5_hash
 
@@ -125,6 +124,9 @@ class SqlDataFunction(DataFunction):
         #     raise Exception(
         #         "Incompatible Runtime"
         #     )  # TODO: Everyone SQL and You Can Too!
+        for i in inputs.values():
+            if not isinstance(i, DataBlock):
+                raise NotImplementedError(f"Unsupported input type {i}")
         sql = self.get_compiled_sql(ctx, inputs)
         if ctx.output_otype is None:
             raise Exception("SQL function should always produce output!")

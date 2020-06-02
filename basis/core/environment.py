@@ -316,7 +316,7 @@ def load_environment_from_project(project: Any) -> Environment:
         env.add_storage(Storage.from_url(url))
     for module_name in getattr(project, "modules", []):
         m = import_module(module_name)
-        env.add_module(m)  # type: ignore
+        env.add_module(m)  # type: ignore  # We hijack the module
     return env
 
 

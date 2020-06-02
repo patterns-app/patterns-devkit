@@ -64,19 +64,9 @@ def md5_hash(s: str) -> str:
     return h.hexdigest()
 
 
-@overload
-def ensure_list(x: None) -> None:
-    ...
-
-
-@overload
-def ensure_list(x: Any) -> List:  # TODO: What is the Any-ex-None type?
-    ...
-
-
-def ensure_list(x):
+def ensure_list(x: Any) -> List:
     if x is None:
-        return None
+        return []
     if isinstance(x, List):
         return x
     return [x]

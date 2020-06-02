@@ -5,7 +5,17 @@ import inspect
 import re
 from dataclasses import asdict, dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Set,
+    TypeVar,
+    Union,
+)
 
 from pandas import DataFrame
 from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
@@ -39,6 +49,7 @@ if TYPE_CHECKING:
         FunctionNodeRawInput,
         FunctionNodeInput,
         InputStreams,
+        DataBlockStreamLike,
     )
 
 
@@ -520,6 +531,7 @@ class DataFunctionChain(CompositeDataFunction):
 
 
 DataFunctionLike = Union[DataFunctionCallable, DataFunction, CompositeDataFunction]
+# DataFunctionBase = TypeVar("DataFunctionBase", bound=DataFunction)
 
 
 def ensure_datafunction(dfl: DataFunctionLike) -> DataFunction:
@@ -545,12 +557,12 @@ class FunctionNode:
         _key: str,
         _datafunction: DataFunctionLike,
         upstream: Optional[FunctionNodeRawInput] = None,
-        **inputs: DataBlockStreamable,
+        **inputs: DataBlockStreamLike,
     ):
         if inputs:
             if upstream:
                 raise Exception("Specify `upstream` OR kwarg inputs, not both")
-            upstream = inputs  # type: ignore  # mypy misses this compatible subtype
+            upstream = inputs
         self.env = _env
         self.key = _key
         self.datafunction = ensure_datafunction(_datafunction)
@@ -580,7 +592,7 @@ class FunctionNode:
     def set_upstream(self, upstream: FunctionNodeRawInput):
         self._upstream = self.check_datafunction_inputs(upstream)
 
-    def get_upstream(self) -> FunctionNodeInput:
+    def get_upstream(self) -> Optional[InputStreams]:
         return self._upstream
 
     # def set_resolved_output_type(self, upstream: FunctionNodeRawInput):
@@ -780,7 +792,7 @@ class DataBlockLog(BaseModel):
 
 
 class CompositeFunctionNode(FunctionNode):
-    def build_nodes(self, input: DataBlockStreamable = None) -> List[FunctionNode]:
+    def build_nodes(self, upstream: InputStreams = None) -> List[FunctionNode]:
         raise NotImplementedError
 
     # TODO: Idea here is to ensure inheriting classes are making keys correctly. maybe not necessary
@@ -834,28 +846,28 @@ class FunctionNodeChain(CompositeFunctionNode):
         _env: Environment,
         _key: str,
         _datafunction: DataFunctionChain,
-        upstream: DataBlockStreamable = None,
+        upstream: Optional[FunctionNodeRawInput] = None,
         **inputs: DataBlockStreamable,
     ):
-        if upstream is not None:
-            super().__init__(_env, _key, _datafunction, upstream=upstream, **inputs)
-        else:
-            super().__init__(_env, _key, _datafunction, **inputs)
+        super().__init__(_env, _key, _datafunction, upstream=upstream, **inputs)
         self.data_function_chain = _datafunction
-        self._node_chain = self.build_nodes(upstream)
+        input_streams = self.get_upstream()
+        self._node_chain = self.build_nodes(input_streams)
 
-    def build_nodes(self, upstream: DataBlockStreamable = None) -> List[FunctionNode]:
+    def build_nodes(self, upstream: InputStreams = None) -> List[FunctionNode]:
+        from basis.core.streams import ensure_data_stream
+
         nodes = []
         for fn in self.data_function_chain.function_chain:
             child_name = make_datafunction_key(fn)
             child_key = self.make_child_key(self.key, child_name)
             if upstream is not None:
-                node = FunctionNode(self.env, child_key, fn, upstream=upstream)
+                node = FunctionNode(self.env, child_key, fn, upstream=upstream)  # type: ignore  # mypy misses compatible subtype?
             else:
                 node = FunctionNode(self.env, child_key, fn)
             node.parent_node = self
             nodes.append(node)
-            upstream = node
+            upstream = ensure_data_stream(node)
         return nodes
 
     def get_nodes(self) -> List[FunctionNode]:

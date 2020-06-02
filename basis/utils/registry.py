@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections import defaultdict
-from typing import DefaultDict, Dict, Generic, Iterable, List, TypeVar
+from typing import DefaultDict, Dict, Generic, Iterable, List, TypeVar, cast
 
 logger = logging.getLogger(__name__)
 
@@ -118,7 +118,8 @@ class UriRegistry(Registry, Generic[T]):
     def is_qualified(self, key: str) -> bool:
         return "." in key
 
-    def merge(self, other: UriRegistry):  # type: ignore
+    def merge(self, other: Registry):
+        other = cast(UriRegistry, other)
         self._registry.update(other._registry)
         for k, v in other._module_key_registry.items():
             self._module_key_registry[k].extend(v)
