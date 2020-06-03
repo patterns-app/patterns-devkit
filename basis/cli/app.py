@@ -7,8 +7,8 @@ import requests
 from sqlalchemy import func
 
 from basis.core.data_block import DataBlockMetadata, DataSetMetadata
-from basis.core.data_function import DataFunctionLog
 from basis.core.environment import current_env
+from basis.core.function_node import DataFunctionLog
 from basis.core.typing.inference import dict_to_rough_otype
 from basis.core.typing.object_type import otype_to_yaml
 from basis.utils.common import cf, cycle_colors_unique

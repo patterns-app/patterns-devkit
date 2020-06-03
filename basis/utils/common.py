@@ -247,3 +247,36 @@ class JSONEncoder(json.JSONEncoder):
             return str(o)
         else:
             return super().default(o)
+
+
+class BasisJSONEncoder(json.JSONEncoder):
+    def __init__(self, *args, **kwargs):
+        # kwargs["ignore_nan"] = True
+        super().__init__(*args, **kwargs)
+
+    def default(self, o: Any) -> str:
+        # See "Date Time String Format" in the ECMA-262 specification.
+        if isinstance(o, datetime):
+            r = o.isoformat()
+            if o.microsecond:
+                r = r[:23] + r[26:]
+            if r.endswith("+00:00"):
+                r = r[:-6] + "Z"
+            return r
+        elif isinstance(o, date):
+            return o.isoformat()
+        elif isinstance(o, time):
+            if is_aware(o):
+                raise ValueError("JSON can't represent timezone-aware times.")
+            r = o.isoformat()
+            if o.microsecond:
+                r = r[:12]
+            return r
+        elif isinstance(o, timedelta):
+            return duration_iso_string(o)
+        elif isinstance(o, (decimal.Decimal, uuid.UUID)):
+            return str(o)
+        elif hasattr(o, "to_json"):
+            return o.to_json()
+        else:
+            return super().default(o)

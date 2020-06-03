@@ -10,19 +10,17 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from basis.core.metadata.orm import BaseModel
 from basis.core.module import BasisModule
-from basis.core.typing.object_type import DEFAULT_MODULE_KEY, ObjectType, ObjectTypeLike
+from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 from basis.utils.registry import Registry, UriRegistry
+from basis.utils.uri import DEFAULT_MODULE_KEY
 
 if TYPE_CHECKING:
     from basis.core.storage import (
         Storage,
         new_local_memory_storage,
     )
-    from basis.core.data_function import (
-        FunctionNode,
-        DataFunctionCallable,
-        function_node_factory,
-    )
+    from basis.core.data_function import DataFunctionCallable
+    from basis.core.function_node import FunctionNode, function_node_factory
     from basis.core.data_function_interface import FunctionGraphResolver
     from basis.indexing.components import IndexableComponent
     from basis.core.runnable import ExecutionContext
@@ -35,7 +33,6 @@ class Environment:
     otype_registry: UriRegistry
     storages: List[Storage]
     metadata_storage: Storage
-    # _graph_resolver: Optional[FunctionGraphResolver]
 
     def __init__(
         self,
@@ -82,7 +79,6 @@ class Environment:
                 )
             )
         self._module_order: List[str] = []
-        # self._graph_resolver = None
 
     def initialize_metadata_database(self):
         from basis.core.metadata.listeners import add_persisting_sdb_listener
@@ -111,7 +107,7 @@ class Environment:
     def add_node(
         self, _key: str, _data_function: DataFunctionCallable, **kwargs
     ) -> FunctionNode:
-        from basis.core.data_function import function_node_factory
+        from basis.core.function_node import function_node_factory
 
         node = function_node_factory(self, _key, _data_function, **kwargs)
         self.added_nodes.register(node)
@@ -132,7 +128,7 @@ class Environment:
         return list(self._flattened_nodes.all())
 
     def get_node(self, node_like: Union["FunctionNode", str]) -> "FunctionNode":
-        from basis.core.data_function import FunctionNode
+        from basis.core.function_node import FunctionNode
 
         if isinstance(node_like, FunctionNode):
             return node_like
@@ -207,7 +203,7 @@ class Environment:
     def produce(
         self, node_like: Union[FunctionNode, str], **execution_kwargs: Any
     ) -> Optional[DataBlock]:
-        from basis.core.data_function import FunctionNode
+        from basis.core.function_node import FunctionNode
 
         fgr = self.get_function_graph_resolver()
 
@@ -221,6 +217,13 @@ class Environment:
             with self.execution(**execution_kwargs) as em:
                 output = em.run(dep, to_exhaustion=True)
         return output
+
+    def update_all(self, to_exhaustion: bool = True, **execution_kwargs: Any):
+        fgr = self.get_function_graph_resolver()
+        nodes = fgr.get_all_nodes_in_execution_order()
+        for node in nodes:
+            with self.execution(**execution_kwargs) as em:
+                em.run(node, to_exhaustion=to_exhaustion)
 
     def get_latest_output(self, node: FunctionNode) -> Optional[DataBlock]:
         session = self.get_new_metadata_session()  # TODO: hanging session
@@ -264,7 +267,7 @@ class Environment:
                     .filter(StoredDataBlockMetadata.storage_url.startswith("memory:"))
                     .delete(False)
                 )
-                print(f"{deleted} Memory SDRs deleted")
+                print(f"{deleted} Memory StoredDataBlocks deleted")
 
             for block in sess.query(DataBlockMetadata).filter(
                 ~DataBlockMetadata.stored_data_blocks.any()
@@ -286,7 +289,7 @@ class Environment:
                         {DataBlockMetadata.deleted: True}, synchronize_session=False
                     )
                 )
-                print(f"{cnt} intermediate DRs deleted")
+                print(f"{cnt} intermediate DataBlocks deleted")
 
 
 # Not supporting yml project config atm

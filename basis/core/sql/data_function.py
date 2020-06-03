@@ -15,6 +15,7 @@ from basis.core.data_function import (
 from basis.core.data_function_interface import DataFunctionAnnotation, re_type_hint
 from basis.core.runnable import DataFunctionContext
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
+from basis.core.runtime import RuntimeClass
 from basis.utils.common import md5_hash
 
 word_start = r"(?:(?<=\s)|(?<=^))"
@@ -105,13 +106,9 @@ def extract_types(
     )
 
 
-class SqlDataFunction(DataFunction):
-    def __init__(self, sql: str, key: str = None, **kwargs: Any):
-        super().__init__(
-            key or md5_hash(sql)
-        )  # TODO: is hashing the right thing to do?
+class SqlDataFunctionWrapper:
+    def __init__(self, sql: str):
         self.sql = sql
-        self._kwargs = kwargs
 
     def __call__(
         self, *args: DataFunctionContext, **inputs: DataInterfaceType
@@ -184,4 +181,22 @@ class SqlDataFunction(DataFunction):
         return stmt.interface
 
 
-sql_datafunction = SqlDataFunction
+def sql_data_function_factory(
+    key: str,
+    sql: str = None,
+    version: str = None,
+    runtime: str = None,
+    module_key: str = None,
+) -> DataFunction:
+    runtime_class = RuntimeClass.DATABASE
+    return DataFunction(
+        key=key,
+        module_key=module_key,
+        version=version,
+        function_callable=SqlDataFunctionWrapper(sql),
+        runtime_class=runtime_class,
+        is_composite=False,
+    )
+
+
+sql_datafunction = sql_data_function_factory

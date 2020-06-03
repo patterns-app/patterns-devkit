@@ -11,11 +11,11 @@ from basis.core.data_block import (
     DataSetMetadata,
     StoredDataBlockMetadata,
 )
-from basis.core.data_function import (
-    DataBlockLog,
+from basis.core.function_node import (
+    FunctionNode,
     DataFunctionLog,
     Direction,
-    FunctionNode,
+    DataBlockLog,
 )
 from basis.core.environment import Environment
 from basis.core.storage import Storage

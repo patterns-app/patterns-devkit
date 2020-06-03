@@ -38,10 +38,10 @@ from basis.utils.common import printd
 
 if TYPE_CHECKING:
     from basis.core.data_function import (
-        FunctionNode,
         InputExhaustedException,
         DataFunctionCallable,
     )
+    from basis.core.function_node import FunctionNode
     from basis.core.storage import Storage
     from basis.core.runnable import ExecutionContext
     from basis.core.streams import (
@@ -249,8 +249,8 @@ class DataFunctionInterface:
                     )
                 data_block_seen = True
 
-    def connect_upstream(self, upstream: InputStreams):
-        from basis.core.streams import DataBlockStream
+    def connect_upstream(self, this: FunctionNode, upstream: InputStreams):
+        from basis.core.streams import DataBlockStream, ensure_data_stream
 
         if self.is_connected:
             raise Exception("Already connected")
@@ -262,6 +262,9 @@ class DataFunctionInterface:
         if isinstance(upstream, dict):
             for name, node in upstream.items():
                 self.get_input(name).connected_stream = node
+        for input in self.inputs:
+            if input.is_self_ref:
+                input.connected_stream = ensure_data_stream(this)
         self.is_connected = True
 
 
@@ -340,9 +343,13 @@ class FunctionGraphResolver:
         for input in dfi.get_non_recursive_inputs():
             if not input.connected_stream:
                 raise Exception(f"no input connected {input}")
-            parents, potential_parents = self.resolve_stream_dependencies(
-                node, input.connected_stream, visited
-            )
+            if input.is_self_ref:
+                parents = [node]
+                potential_parents = []
+            else:
+                parents, potential_parents = self.resolve_stream_dependencies(
+                    node, input.connected_stream, visited
+                )
             if input.is_generic:
                 if not parents and not potential_parents:
                     raise Exception(f"No parents {node} {input}")
@@ -462,6 +469,15 @@ class FunctionGraphResolver:
                 all_.extend(deps)
         all_.append(node)
         return all_
+
+    def get_all_nodes_in_execution_order(
+        self, as_equivalence_sets: bool = False
+    ) -> List[FunctionNode]:
+        self.resolve()
+        if as_equivalence_sets:
+            raise NotImplementedError
+        g = self.as_networkx_graph()
+        return list(nx.topological_sort(g))
 
     # def print_resolution(self):
     #     pprint({k.key: v.key for k, v in self._resolved_output_types.items()})

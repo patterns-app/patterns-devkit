@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import strictyaml
 
 from basis.utils.common import title_to_snake_case
+from basis.utils.uri import DEFAULT_MODULE_KEY, UriMixin, is_uri
 
 logger = logging.getLogger(__name__)
 
@@ -101,13 +102,11 @@ def otype_uri_to_identifier(uri: str) -> str:
     return title_to_snake_case(uri)
 
 
-DEFAULT_MODULE_KEY = "_local_"  # TODO: not ecstatic about how this works
-
-
-@dataclass(frozen=True)
-class ObjectType:
-    key: ObjectTypeKey
-    version: int
+@dataclass(frozen=True, eq=False)
+class ObjectType(UriMixin):
+    # key: ObjectTypeKey
+    # module_key: Optional[str] = None
+    # version: str
     type_class: ObjectTypeClass
     description: str
     unique_on: List[str]
@@ -117,7 +116,6 @@ class ObjectType:
     implementations: List[ObjectTypeUri] = field(default_factory=list)
     extends: Optional[ObjectTypeUri] = None  # TODO
     raw_definition: Optional[str] = None
-    module_key: Optional[str] = None
     # parameterized_by: Sequence[str] = field(default_factory=list) # This is like GPV use case in CountryIndicator
     # parametererized_from: Optional[ObjectTypeKey] = None
     # unregistered: bool = False
@@ -126,18 +124,6 @@ class ObjectType:
     # curing window? data records are supposed to be stateless (are they?? what about Product name), but often not possible. Curing window sets the duration of statefulness for a record
     # late arriving?
     # statefulness?
-
-    def __hash__(self):
-        return hash(self.uri)
-
-    @property
-    def uri(self):
-        k = self.key
-        module = self.module_key
-        if not module:
-            module = DEFAULT_MODULE_KEY
-        k = module + "." + self.key
-        return k
 
     def get_identifier(self) -> str:  # TODO: better name for this fn
         return otype_uri_to_identifier(self.uri)
@@ -148,10 +134,6 @@ class ObjectType:
                 return f
         # TODO: relationships
         raise NameError
-
-
-def is_uri(s: str) -> bool:
-    return len(s.split(".")) == 2
 
 
 ObjectTypeLike = Union[ObjectType, ObjectTypeUri, ObjectTypeKey]
@@ -267,8 +249,9 @@ def create_quick_field(name: str, field_type: str, **kwargs) -> Field:
 def create_quick_otype(key: str, fields: List[Tuple[str, str]], **kwargs):
     defaults = dict(
         key=key,
+        module_key=None,
         type_class="Observation",
-        version=1,
+        version="1.0",
         description="...",
         unique_on=[],
         implementations=[],

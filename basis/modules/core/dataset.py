@@ -7,8 +7,8 @@ from pandas import DataFrame
 from basis.core.data_block import DataBlock, DataSet, DataSetMetadata
 from basis.core.data_function import (
     DataFunctionCallable,
-    DataFunctionChain,
     DataFunctionLike,
+    datafunction_chain,
 )
 from basis.core.runnable import DataFunctionContext
 from basis.core.runtime import RuntimeClass
@@ -27,19 +27,20 @@ def dataframe_accumulator(
 
 
 sql_accumulator = sql_datafunction(
-    """
+    key="sql_accumulator",
+    sql="""
     select:T * from input:T
     {% if inputs.this %}
     union all
     select * from this:Optional[T]
     {% endif %}
     """,
-    "sql_accumulator",
 )
 
 
 dedupe_unique_keep_max_value = sql_datafunction(
-    """
+    key="dedupe_unique_keep_max_value",
+    sql="""
 select:T
 distinct on (
     {% for col in inputs.input.otype.fields %}
@@ -61,13 +62,13 @@ group by
         {%- if not loop.last %},{% endif %}
     {% endfor %}
 """,
-    "dedupe_unique_keep_max_value",
 )
 
 
 # TODO: only supported by postgres
 dedupe_unique_keep_first_value = sql_datafunction(
-    """
+    key="dedupe_unique_keep_first_value",
+    sql="""
 select:T
 distinct on (
     {% for col in inputs.input.otype.unique_on %}
@@ -82,7 +83,6 @@ distinct on (
     
 from input:T
 """,
-    "dedupe_unique_keep_first_value",
 )
 
 
@@ -112,9 +112,9 @@ def as_dataset(key: str) -> DataFunctionCallable:
 
 # TODO: this is not "DataFunctionLike", so can't be indexed / treated as such until given a key
 def accumulate_as_dataset(key: str) -> DataFunctionLike:
-    return DataFunctionChain(
-        f"accumulate_as_dataset_{key}",
-        [sql_accumulator, dedupe_unique_keep_first_value, as_dataset(key)],
+    return datafunction_chain(
+        key=f"accumulate_as_dataset_{key}",
+        function_chain=[sql_accumulator, dedupe_unique_keep_first_value, as_dataset(key)],
     )
 
 

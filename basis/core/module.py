@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 from basis.utils.registry import Registry, UriRegistry
+from basis.utils.uri import UriMixin
 
 if TYPE_CHECKING:
     from basis.core.data_function import (
@@ -82,6 +83,9 @@ class BasisModule:
             raise Exception("Cannot export module, no module_name set")
         sys.modules[self.module_name] = self  # type: ignore  # sys.modules wants a modulefinder.Module type and it's not gonna get it
 
+    def validate_component(self, component: UriMixin):
+        assert component.module_key == self.key
+
     def process_otypes(self, otypes: Sequence[ObjectTypeLike]) -> Sequence[ObjectType]:
         # TODO: why is this here? Move into ObjectType.from_yaml(...)?
         from basis.core.typing.object_type import ObjectType
@@ -100,7 +104,7 @@ class BasisModule:
                 otype = otype_from_yaml(yml, module_key=self.key)
                 processed.append(otype)
         for otype in processed:
-            assert otype.module_key == self.key
+            self.validate_component(otype)
         return processed
 
     def process_data_functions(
@@ -114,7 +118,7 @@ class BasisModule:
             if isinstance(df, DataFunction):
                 processed.append(df)
             elif callable(df):
-                df = ensure_datafunction(df)
+                df = ensure_datafunction(df, module_key=self.key)
                 processed.append(df)
             elif isinstance(df, str) and df.endswith(".sql"):
                 if not self.module_path:
@@ -123,10 +127,14 @@ class BasisModule:
                 with open(sql_file_path) as f:
                     sql = f.read()
                 file_name = os.path.basename(df)[:-4]
-                df = sql_datafunction(sql, key=file_name)
+                df = sql_datafunction(
+                    key=file_name, sql=sql, module_key=self.key
+                )  # TODO: versions, runtimes, etc for sql (someway to specify in a .sql file)
                 processed.append(df)
             else:
                 raise Exception("Invalid DataFunction")
+        for df in processed:
+            self.validate_component(df)
         return processed
 
     def process_providers(

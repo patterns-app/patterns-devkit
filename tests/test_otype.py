@@ -4,12 +4,11 @@ import pytest
 
 from basis.core.typing.inference import infer_otype_fields_from_records
 from basis.core.typing.object_type import (
-    DEFAULT_MODULE_KEY,
     create_quick_otype,
     is_generic,
-    is_uri,
     otype_from_yaml,
 )
+from basis.utils.uri import DEFAULT_MODULE_KEY, is_uri
 
 
 def test_otype_identifiers():

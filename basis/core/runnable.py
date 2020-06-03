@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 import logging
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum
-from typing import Generator, List, Optional, Union
+from typing import Dict, Generator, List, Optional, Union
 
 import sqlalchemy
 from sqlalchemy.engine import ResultProxy
@@ -21,16 +22,10 @@ from basis.core.data_block import (
     StoredDataBlockMetadata,
 )
 from basis.core.data_function import (
-    CompositeFunctionNode,
-    DataBlockLog,
     DataFunction,
     DataFunctionInterface,
-    DataFunctionLog,
     DataInterfaceType,
-    Direction,
-    FunctionNode,
     InputExhaustedException,
-    PythonDataFunction,
 )
 from basis.core.data_function_interface import (
     DataFunctionAnnotation,
@@ -39,11 +34,19 @@ from basis.core.data_function_interface import (
     ResolvedFunctionNodeInput,
 )
 from basis.core.environment import Environment
+from basis.core.function_node import (
+    CompositeFunctionNode,
+    DataBlockLog,
+    DataFunctionLog,
+    Direction,
+    FunctionNode,
+)
 from basis.core.metadata.orm import BaseModel
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from basis.core.storage import LocalMemoryStorageEngine, Storage
 from basis.core.typing.object_type import ObjectType
 from basis.utils.common import (
+    BasisJSONEncoder,
     cf,
     error_symbol,
     get_spinner,
@@ -175,6 +178,26 @@ class ExecutionContext:
         # TODO: should it be in the list of storages already?
         return [self.local_memory_storage] + self.storages
 
+    # def to_json(self) -> str:
+    #     return json.dumps(
+    #         dict(
+    #             env=self.env,
+    #             storages=self.storages,
+    #             runtimes=self.runtimes,
+    #             target_storage=self.target_storage,
+    #         ),
+    #         cls=BasisJSONEncoder,
+    #     )
+    #
+    # @classmethod
+    # def from_json(cls, dct: Dict) -> ExecutionContext:
+    #     return ExecutionContext(
+    #         env=Environment.from_json(dct["env"]),
+    #         storages=dct["storages"],
+    #         runtimes=dct["runtimes"],
+    #         target_storage=dct["target_storage"],
+    #     )
+
 
 @dataclass(frozen=True)
 class DataFunctionContext:
@@ -191,19 +214,7 @@ class ExecutionManager:
         self.env = ctx.env
 
     def select_runtime(self, node: FunctionNode) -> Runtime:
-        from basis.core.sql.data_function import SqlDataFunction
-
-        # TODO: not happy with runtime <-> DF mapping here. Let's rethink
-        try:
-            cls = node.datafunction.runtime_class  # type: ignore  # Hack to allow functions to override for now
-        except AttributeError:
-            if isinstance(node.datafunction, SqlDataFunction):
-                cls = RuntimeClass.DATABASE
-            elif isinstance(node.datafunction, PythonDataFunction):
-                cls = RuntimeClass.PYTHON
-            else:
-                # cls = RuntimeClass.PYTHON
-                raise NotImplementedError(node.datafunction)  # TODO
+        cls = node.datafunction.runtime_class
         for runtime in self.ctx.runtimes:
             if runtime.runtime_class == cls:  # TODO: Just taking the first one...
                 return runtime
@@ -251,7 +262,7 @@ class ExecutionManager:
                 runnable = Runnable(
                     function_node_key=node.key,
                     compiled_datafunction=CompiledDataFunction(
-                        key=node.key, function=node.datafunction
+                        key=node.key, function=node.datafunction.function_callable
                     ),
                     datafunction_interface=dfi,
                 )
@@ -288,9 +299,6 @@ class ExecutionManager:
         new_session = self.env.get_new_metadata_session()
         last_output = new_session.merge(last_output)
         return last_output.as_managed_data_block(self.ctx,)  # type: ignore  # Doesn't understand merge
-
-    def update_all(self, to_exhaustion: bool = False):
-        raise NotImplementedError
 
     #
     # def produce(

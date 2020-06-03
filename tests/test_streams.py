@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from basis.core.data_block import DataBlockMetadata
-from basis.core.data_function import DataBlockLog, DataFunctionLog, Direction
+from basis.core.function_node import DataBlockLog, DataFunctionLog, Direction
 from basis.core.streams import DataBlockStream
 from tests.utils import (
     df_generic,

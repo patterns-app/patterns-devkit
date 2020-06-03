@@ -7,19 +7,22 @@ from pandas import DataFrame
 
 from basis.core.data_block import DataBlock, DataBlockMetadata
 from basis.core.data_function import (
-    DataFunctionChain,
     DataFunctionInterface,
     DataFunctionLike,
-    FunctionNode,
-    FunctionNodeChain,
-    PythonDataFunction,
-    function_node_factory,
+    datafunction,
+    ensure_datafunction,
+    datafunction_chain,
 )
 from basis.core.data_function_interface import (
     DataFunctionAnnotation,
     FunctionGraphResolver,
 )
-from basis.core.sql.data_function import SqlDataFunction
+from basis.core.function_node import (
+    FunctionNode,
+    FunctionNodeChain,
+    function_node_factory,
+)
+from basis.core.sql.data_function import sql_datafunction
 from basis.core.streams import DataBlockStream, InputBlocks
 from basis.modules.core.dataset import DataSetAccumulator
 from basis.utils.common import md5_hash
@@ -95,7 +98,7 @@ def df_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
     pass
 
 
-df_chain = DataFunctionChain("df_chain", [df_t1_to_t2, df_generic])
+df_chain = datafunction_chain("df_chain", [df_t1_to_t2, df_generic])
 
 
 @pytest.mark.parametrize(
@@ -345,13 +348,13 @@ def test_stream_input():
 
 
 def test_python_data_function():
-    df = PythonDataFunction(df_t1_sink)
+    df = datafunction(df_t1_sink)
     assert (
         df.key == df_t1_sink.__name__
     )  # TODO: do we really want this implicit name? As long as we error on duplicate should be ok
 
     k = "key1"
-    df = PythonDataFunction(df_t1_sink, key=k)
+    df = datafunction(df_t1_sink, key=k)
     assert df.key == k
 
     dfi = df.get_interface()
@@ -361,11 +364,8 @@ def test_python_data_function():
 def test_sql_data_function():
     env = make_test_env()
     sql = "select:T 1 from t:T"
-    df = SqlDataFunction(sql)
-    assert df.key == md5_hash(sql)
-
-    k = "key1"
-    df = SqlDataFunction(sql, key=k)
+    k = "k1"
+    df = sql_datafunction(k, sql)
     assert df.key == k
 
     dfi = df.get_interface()
@@ -380,7 +380,7 @@ def test_sql_data_function():
 
 def test_sql_data_function2():
     sql = "select:T 1 from from t1:U join t2:Optional[T]"
-    df = SqlDataFunction(sql)
+    df = sql_datafunction("s1", sql)
     dfi = df.get_interface()
     assert dfi is not None
 
@@ -395,7 +395,7 @@ def test_sql_data_function2():
 
 def test_function_node_no_inputs():
     env = make_test_env()
-    df = PythonDataFunction(df_t1_source)
+    df = datafunction(df_t1_source)
     node1 = FunctionNode(env, "node1", df)
     assert {node1: node1}[node1] is node1  # Test hash
     dfi = node1.get_interface()
@@ -408,9 +408,9 @@ def test_function_node_no_inputs():
 
 def test_function_node_inputs():
     env = make_test_env()
-    df = PythonDataFunction(df_t1_source)
+    df = datafunction(df_t1_source)
     node = FunctionNode(env, "node", df)
-    df = PythonDataFunction(df_t1_sink)
+    df = datafunction(df_t1_sink)
     with pytest.raises(Exception):
         # Bad input
         FunctionNode(env, "node_fail", df, input="Turkey")  # type: ignore
@@ -425,7 +425,7 @@ def test_function_node_inputs():
 
 def test_function_node_chain():
     env = make_test_env()
-    df = PythonDataFunction(df_t1_source)
+    df = datafunction(df_t1_source)
     node = FunctionNode(env, "node", df)
     node1 = FunctionNodeChain(env, "node1", df_chain, upstream=node)
     dfi = node1.get_interface()
@@ -453,10 +453,12 @@ def test_graph_resolution():
     n3 = env.add_node("node3", df_chain, upstream="node1")
     n4 = env.add_node("node4", df_t1_to_t2, upstream="node2")
     n5 = env.add_node("node5", df_generic, upstream="node4")
+    n6 = env.add_node("node6", df_self, upstream="node4")
     fgr = FunctionGraphResolver(env)
     # Resolve types
     assert fgr.resolve_output_type(n4) is TestType2
     assert fgr.resolve_output_type(n5) is TestType2
+    assert fgr.resolve_output_type(n6) is TestType2
     fgr.resolve_output_types()
     last = n3.get_nodes()[-1]
     assert fgr._resolved_output_types[last] is TestType2

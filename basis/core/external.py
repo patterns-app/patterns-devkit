@@ -7,11 +7,7 @@ from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type
 
 from sqlalchemy import Column, DateTime, String
 
-from basis.core.data_function import (
-    DataFunctionInterface,
-    DataInterfaceType,
-    PythonDataFunction,
-)
+from basis.core.data_function import DataFunctionInterface, DataInterfaceType
 from basis.core.data_function_interface import DataFunctionAnnotation
 from basis.core.metadata.orm import BaseModel
 from basis.core.runnable import DataFunctionContext, ExecutionContext
@@ -215,7 +211,7 @@ ExtractorLike = Callable[
 ]
 
 
-class ExtractorDataFunction(PythonDataFunction):
+class ExtractorDataFunction:
     def __init__(
         self,
         extractor_function: ExtractorLike,
