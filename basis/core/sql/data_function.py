@@ -14,6 +14,7 @@ from basis.core.data_function import (
 )
 from basis.core.data_function_interface import DataFunctionAnnotation, re_type_hint
 from basis.core.runnable import DataFunctionContext
+
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from basis.core.runtime import RuntimeClass
 from basis.utils.common import md5_hash
@@ -194,7 +195,7 @@ def sql_data_function_factory(
         module_key=module_key,
         version=version,
         function_callable=SqlDataFunctionWrapper(sql),
-        runtime_class=runtime_class,
+        supported_runtime_classes=[runtime_class],
         is_composite=False,
     )
 

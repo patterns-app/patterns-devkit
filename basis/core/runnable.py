@@ -147,11 +147,13 @@ class ExecutionContext:
 
     @contextmanager
     def start_data_function_run(
-        self, node_key: str
+        self, node: FunctionNode
     ) -> Generator[RunSession, None, None]:
         assert self.current_runtime is not None, "Runtime not set"
         dfl = DataFunctionLog(  # type: ignore
-            function_node_key=node_key,
+            function_node_key=node.key,
+            data_function_uri=node.datafunction.uri,
+            # data_function_config=node.datafunction.configuration,  # TODO
             runtime_url=self.current_runtime.url,
             started_at=utcnow(),
         )
@@ -214,9 +216,11 @@ class ExecutionManager:
         self.env = ctx.env
 
     def select_runtime(self, node: FunctionNode) -> Runtime:
-        cls = node.datafunction.runtime_class
+        supported_runtimes = node.datafunction.supported_runtime_classes
         for runtime in self.ctx.runtimes:
-            if runtime.runtime_class == cls:  # TODO: Just taking the first one...
+            if (
+                runtime.runtime_class in supported_runtimes
+            ):  # TODO: Just taking the first one...
                 return runtime
         raise Exception(
             f"No compatible runtime available for {node} (runtime class {cls} required)"
@@ -320,9 +324,8 @@ class Worker:
 
     def run(self, runnable: Runnable) -> Optional[DataBlockMetadata]:
         output_block: Optional[DataBlockMetadata] = None
-        with self.ctx.start_data_function_run(
-            runnable.function_node_key
-        ) as run_session:
+        node = self.env.get_node(runnable.function_node_key)
+        with self.ctx.start_data_function_run(node) as run_session:
             output = self.execute_datafunction(runnable)
             if output is not None:
                 assert runnable.datafunction_interface.output_otype is not None

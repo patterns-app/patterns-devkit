@@ -7,7 +7,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.schema import Column, ForeignKey
-from sqlalchemy.sql.sqltypes import DateTime, Enum, Integer, String
+from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
 from basis.core.data_block import DataBlock, DataBlockMetadata
 from basis.core.data_function import (
@@ -187,6 +187,8 @@ class FunctionNode:
 class DataFunctionLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     function_node_key = Column(String, nullable=False)
+    data_function_uri = Column(String, nullable=False)
+    data_function_config = Column(JSON, nullable=True)
     runtime_url = Column(String, nullable=False)
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
@@ -199,6 +201,7 @@ class DataFunctionLog(BaseModel):
         return self._repr(
             id=self.id,
             function_node_key=self.function_node_key,
+            data_function_uri=self.data_function_uri,
             runtime_url=self.runtime_url,
             started_at=self.started_at,
         )

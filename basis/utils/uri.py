@@ -2,19 +2,31 @@ from dataclasses import dataclass
 from typing import Optional
 
 DEFAULT_MODULE_KEY = "_local_"  # TODO: not ecstatic about how this works
+VERSIONED_URIS = (
+    False  # TODO: think about when we would want to use versioned URIs (never?)
+)
 
 
 @dataclass(frozen=True)
 class UriMixin:
+    """
+    URIs in Basis are of the form  [<component_type>:]<module_key>.<component_key>[@<version>]
+    Examples:
+        function:core.accumulate_as_dataset@1.0.3
+        otype:common.Date
+        payments.Transaction
+        _local_.MyCustomType@0.1
+    """
+
     key: str
     module_key: Optional[str]
     version: Optional[str]
 
     def __hash__(self):
-        return hash(self.versioned_uri)
+        return hash(self.uri)
 
     @property
-    def uri(self):
+    def unversioned_uri(self):
         k = self.key
         module = self.module_key
         if not module:
@@ -24,20 +36,17 @@ class UriMixin:
 
     @property
     def versioned_uri(self):
-        uri = self.uri
+        uri = self.unversioned_uri
         if self.version:
             uri += "@" + str(self.version)
         return uri
 
+    @property
+    def uri(self):
+        if VERSIONED_URIS:
+            return self.versioned_uri
+        return self.unversioned_uri
+
 
 def is_uri(s: str) -> bool:
     return len(s.split(".")) == 2
-
-
-"function:shopify.transform_order_items@1.0.3"
-"otype:shopify.ShopifyOrderJson@0.9.4"
-
-
-# def uridataclass(fn):
-#     fn = dataclass(frozen=True)(fn)
-#     fn.__hash__ =

@@ -104,17 +104,19 @@ def as_dataset(key: str) -> DataFunctionCallable:
         ctx.worker.execute_sql(f"create view {key} as select * from {table.table_name}")
         return ds
 
-    as_dataset.runtime_class = (
-        RuntimeClass.DATABASE
-    )  # TODO: principled way to handle supported runtimes
     return as_dataset
 
 
 # TODO: this is not "DataFunctionLike", so can't be indexed / treated as such until given a key
+# @datafunction("accumulate_as_dataset", configurable=True)
 def accumulate_as_dataset(key: str) -> DataFunctionLike:
     return datafunction_chain(
         key=f"accumulate_as_dataset_{key}",
-        function_chain=[sql_accumulator, dedupe_unique_keep_first_value, as_dataset(key)],
+        function_chain=[
+            sql_accumulator,
+            dedupe_unique_keep_first_value,
+            as_dataset(key),
+        ],
     )
 
 

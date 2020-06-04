@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from basis.core.registries import ObjectTypeRegistry
 from basis.core.typing.inference import infer_otype_fields_from_records
 from basis.core.typing.object_type import (
     create_quick_otype,
@@ -9,6 +10,30 @@ from basis.core.typing.object_type import (
     otype_from_yaml,
 )
 from basis.utils.uri import DEFAULT_MODULE_KEY, is_uri
+
+test_type_yml = """
+key: TestType
+version: 3
+class: Entity
+description: Description
+unique on: uniq
+on conflict: MergeUpdateNullValues
+fields:
+  uniq:
+    type: Unicode(3)
+    validators:
+      - NotNull
+  other_field:
+    type: Integer
+relationships:
+  other:
+    type: OtherType
+    fields:
+      other_field: other_field
+implementations:
+  SubType:
+    sub_uniq: uniq
+"""
 
 
 def test_otype_identifiers():
@@ -40,30 +65,6 @@ def test_otype_helpers():
 
 
 def test_otype_yaml():
-    test_type_yml = """
-    key: TestType
-    version: 3
-    class: Entity
-    description: Description
-    unique on: uniq
-    on conflict: MergeUpdateNullValues
-    fields:
-      uniq:
-        type: Unicode(3)
-        validators:
-          - NotNull
-      other_field:
-        type: Integer
-    relationships:
-      other:
-        type: OtherType
-        fields:
-          other_field: other_field
-    implementations:
-      SubType:
-        sub_uniq: uniq
-    """
-
     tt = otype_from_yaml(test_type_yml)
     assert tt.key == "TestType"
     assert tt.version == 3
@@ -116,3 +117,14 @@ def test_otype_inference():
     assert field_types["e"] == "JSON"
     assert field_types["f"] == "UnicodeText"
     # assert field_types["g"] == "BigInteger"  # TODO: Fix this. See notes on type inference and why pandas not sufficient
+
+
+def test_otype_registry():
+    r = ObjectTypeRegistry()
+    t1 = create_quick_otype("T1", fields=[("f1", "Unicode"), ("f2", "Integer")])
+    t2 = create_quick_otype(
+        "TestType", fields=[("f1", "Unicode"), ("f2", "Integer")], module_key="m1"
+    )
+    r.process_and_register_all([t1, t2])
+    assert r.get("T1") is t1
+    assert r.get("m1.TestType") is t2

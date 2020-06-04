@@ -104,9 +104,6 @@ def otype_uri_to_identifier(uri: str) -> str:
 
 @dataclass(frozen=True, eq=False)
 class ObjectType(UriMixin):
-    # key: ObjectTypeKey
-    # module_key: Optional[str] = None
-    # version: str
     type_class: ObjectTypeClass
     description: str
     unique_on: List[str]

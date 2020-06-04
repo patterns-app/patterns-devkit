@@ -73,9 +73,9 @@ def test_uri_registry_operations():
     # Ambiguous key
     with pytest.raises(RegistryError):
         r.get("k2")
-    assert r.get("k2", module_order=["m1", "m2"]) is b2
-    assert r.get("k2", module_order=["m2"]) is b3
-    assert r.get("k2", module_order=["m2", "m1"]) is b3
+    assert r.get("k2", module_precedence=["m1", "m2"]) is b2
+    assert r.get("k2", module_precedence=["m2"]) is b3
+    assert r.get("k2", module_precedence=["m2", "m1"]) is b3
 
 
 def test_uri_registry_merge():
@@ -93,4 +93,4 @@ def test_uri_registry_merge():
     # Ambiguous key
     with pytest.raises(RegistryError):
         r.get("k2")
-    assert r.get("k2", module_order=["m1", "m2"]) is b2
+    assert r.get("k2", module_precedence=["m1", "m2"]) is b2

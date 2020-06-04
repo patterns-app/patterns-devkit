@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from basis.core.metadata.orm import BaseModel
 from basis.core.module import BasisModule
+from basis.core.registries import DataFunctionRegistry, ObjectTypeRegistry
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 from basis.utils.registry import Registry, UriRegistry
 from basis.utils.uri import DEFAULT_MODULE_KEY
@@ -38,7 +39,8 @@ class Environment:
         self,
         key: str = None,
         metadata_storage: Union["Storage", str] = None,
-        otype_registry: UriRegistry = None,
+        otype_registry: ObjectTypeRegistry = None,
+        data_function_registry: DataFunctionRegistry = None,
         provider_registry: Registry = None,
         # TODO: SourceResource registry too?
         module_registry: Registry = None,
@@ -64,7 +66,8 @@ class Environment:
         # if create_metadata_storage: # TODO: hmmm
         self.initialize_metadata_database()
         self.module_registry = module_registry or Registry()
-        self.otype_registry = otype_registry or UriRegistry()
+        self.otype_registry = otype_registry or ObjectTypeRegistry()
+        self.data_function_registry = data_function_registry or DataFunctionRegistry()
         self.provider_registry = provider_registry or Registry()
         self.added_nodes: Registry = Registry()
         self._flattened_nodes: Registry = Registry()
@@ -102,7 +105,9 @@ class Environment:
     def get_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
         if isinstance(otype_like, ObjectType):
             return otype_like
-        return self.otype_registry.get(otype_like, module_order=self.get_module_order())
+        return self.otype_registry.get(
+            otype_like, module_precedence=self.get_module_order()
+        )
 
     def add_node(
         self, _key: str, _data_function: DataFunctionCallable, **kwargs

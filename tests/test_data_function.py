@@ -9,9 +9,10 @@ from basis.core.data_block import DataBlock, DataBlockMetadata
 from basis.core.data_function import (
     DataFunctionInterface,
     DataFunctionLike,
+    DataFunctionSet,
     datafunction,
-    ensure_datafunction,
     datafunction_chain,
+    ensure_datafunction,
 )
 from basis.core.data_function_interface import (
     DataFunctionAnnotation,
@@ -22,11 +23,14 @@ from basis.core.function_node import (
     FunctionNodeChain,
     function_node_factory,
 )
+from basis.core.registries import DataFunctionRegistry
+from basis.core.runtime import RuntimeClass
 from basis.core.sql.data_function import sql_datafunction
 from basis.core.streams import DataBlockStream, InputBlocks
 from basis.modules.core.dataset import DataSetAccumulator
 from basis.utils.common import md5_hash
 from basis.utils.registry import T, U
+from basis.utils.uri import DEFAULT_MODULE_KEY
 from tests.utils import (
     TestType1,
     TestType2,
@@ -391,6 +395,41 @@ def test_sql_data_function2():
     assert dfi.inputs[1].otype_like == "T"
     assert dfi.inputs[1].name == "t2"
     assert dfi.inputs[1].is_optional
+
+
+@datafunction("k1", supported_runtimes="python")
+def df1():
+    pass
+
+
+@datafunction("k1", supported_runtimes="mysql")
+def df2():
+    pass
+
+
+def test_data_function_set():
+    dfs = DataFunctionSet(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
+    dfs.add(df1)
+    assert dfs.runtime_data_functions[RuntimeClass.PYTHON] is df1
+    dfs.add(df2)
+    assert dfs.runtime_data_functions[RuntimeClass.DATABASE] is df2
+    dfs1 = DataFunctionSet(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
+    dfs1.add(df1)
+    dfs2 = DataFunctionSet(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
+    dfs2.add(df2)
+    dfs1.merge(dfs2)
+    assert dfs1.runtime_data_functions[RuntimeClass.PYTHON] is df1
+    assert dfs1.runtime_data_functions[RuntimeClass.DATABASE] is df2
+
+
+def test_data_function_registry():
+    r = DataFunctionRegistry()
+    dfs = DataFunctionSet(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
+    dfs.add(df1)
+    r.process_and_register_all([df_t1_sink, df_chain, dfs, df2])
+    assert r.get("k1") is dfs
+    assert r.get("k1").runtime_data_functions[RuntimeClass.PYTHON] is df1
+    assert r.get("k1").runtime_data_functions[RuntimeClass.DATABASE] is df2
 
 
 def test_function_node_no_inputs():

@@ -36,8 +36,13 @@ class Registry(Generic[T]):
         d = super().__dir__()
         return list(set(d) | set(self._registry))
 
-    def merge(self, other: Registry):
-        self._registry.update(other._registry)
+    def merge(self, other: Registry, overwrite: bool = False):
+        if overwrite:
+            self._registry.update(other._registry)
+        else:
+            for k, v in other._registry.items():
+                if k not in self._registry:
+                    self._registry[k] = v
 
     def get_key(self, obj):
         key = getattr(obj, self.object_key_attr, None)
@@ -63,6 +68,9 @@ class Registry(Generic[T]):
     def get(self, key: str) -> T:
         return self._registry[key]
 
+    def delete(self, key: str):
+        del self._registry[key]
+
     def all(self) -> Iterable[T]:
         return self._registry.values()
 
@@ -74,16 +82,8 @@ class UriRegistry(Registry, Generic[T]):
         super().__init__(object_key_attr, error_on_duplicate)
         self._module_key_registry: DefaultDict[str, List[str]] = defaultdict(list)
 
-    def get_uri(self, obj):
-        uri = getattr(obj, self.object_key_attr, None)
-        if not uri:
-            raise RegistryError(
-                f"`{self.object_key_attr}` attribute required to register {obj}"
-            )
-        return uri
-
     def register(self, obj: T):
-        uri = self.get_uri(obj)
+        uri = self.get_key(obj)
         if uri in self._registry:
             if self.error_on_duplicate:
                 raise RegistryError(f"{uri} already registered")
@@ -94,32 +94,54 @@ class UriRegistry(Registry, Generic[T]):
             module, key = uri.split(".")
         except ValueError:
             raise RegistryError(f"Invalid URI '{uri}'")
-        self._module_key_registry[key].append(module)
+        self.register_module_key(key, module)
 
-    def get(self, uri_or_key: str, module_order: List[str] = None) -> T:
+    def register_module_key(self, key: str, module: str):
+        if module not in self._module_key_registry[key]:
+            self._module_key_registry[key].append(module)
+
+    def normalize_uri(
+        self, uri_or_key: str, module_precedence: List[str] = None
+    ) -> str:
         if self.is_qualified(uri_or_key):
-            return self._registry[uri_or_key]
-        module_keys = self._module_key_registry[uri_or_key]
+            return uri_or_key
+        key = uri_or_key
+        module_keys = self._module_key_registry[key]
         if len(module_keys) == 1:
             module_key = module_keys[0]
         else:
-            if not module_order:
+            if not module_precedence:
                 raise RegistryError(
-                    f"Ambiguous URI {uri_or_key} and no module order specified"
+                    f"Ambiguous key {key} and no module precedence specified ({module_keys})"
                 )
             try:
-                module_key = [m for m in module_order if m in module_keys][0]
+                module_key = [m for m in module_precedence if m in module_keys][0]
             except (IndexError, TypeError):
                 raise RegistryError(
-                    f"Ambiguous {self.object_key_attr} in registry lookup: {uri_or_key} in {module_keys} (ordered {module_order})"
+                    f"Ambiguous key in registry lookup: {key} in {module_keys} (ordered {module_precedence})"
                 )
-        return self.get(module_key + "." + uri_or_key)
+        return module_key + "." + uri_or_key
+
+    def get(self, uri_or_key: str, module_precedence: List[str] = None) -> T:
+        key = self.normalize_uri(uri_or_key, module_precedence)
+        return self._registry[key]
+
+    def delete(self, uri_or_key: str, module_precedence: List[str] = None):
+        key = self.normalize_uri(uri_or_key, module_precedence)
+        del self._registry[key]
 
     def is_qualified(self, key: str) -> bool:
         return "." in key
 
-    def merge(self, other: Registry):
+    def merge(self, other: Registry, overwrite: bool = False):
         other = cast(UriRegistry, other)
-        self._registry.update(other._registry)
+        for other_obj in other.all():
+            try:
+                self.register(other_obj)
+            except RegistryError:
+                if overwrite:
+                    self.delete(other_obj.uri)
+                    self.register(other_obj)
         for k, v in other._module_key_registry.items():
-            self._module_key_registry[k].extend(v)
+            for m in v:
+                self.register_module_key(k, m)
