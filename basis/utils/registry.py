@@ -118,7 +118,7 @@ class UriRegistry(Registry, Generic[T]):
                 module_key = [m for m in module_precedence if m in module_keys][0]
             except (IndexError, TypeError):
                 raise RegistryError(
-                    f"Ambiguous key in registry lookup: {key} in {module_keys} (ordered {module_precedence})"
+                    f"Ambiguous/missing key in registry lookup: {key} in modules {module_keys} (modules checked: {module_precedence})"
                 )
         return module_key + "." + uri_or_key
 

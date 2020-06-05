@@ -7,12 +7,12 @@ from pandas import DataFrame
 
 from basis.core.data_block import DataBlock, DataBlockMetadata
 from basis.core.data_function import (
+    DataFunction,
     DataFunctionInterface,
     DataFunctionLike,
-    DataFunctionSet,
     datafunction,
     datafunction_chain,
-    ensure_datafunction,
+    ensure_datafunction_definition,
 )
 from basis.core.data_function_interface import (
     DataFunctionAnnotation,
@@ -27,6 +27,7 @@ from basis.core.registries import DataFunctionRegistry
 from basis.core.runtime import RuntimeClass
 from basis.core.sql.data_function import sql_datafunction
 from basis.core.streams import DataBlockStream, InputBlocks
+from basis.modules import core
 from basis.modules.core.dataset import DataSetAccumulator
 from basis.utils.common import md5_hash
 from basis.utils.registry import T, U
@@ -342,11 +343,15 @@ def test_upstream():
 
 def test_stream_input():
     env = make_test_env()
+    env.add_module(core)
     n1 = env.add_node("node1", df_t1_source)
     n2 = env.add_node("node2", df_t1_source)
     n3 = env.add_node("node3", df_chain, upstream="node1")
     ds1 = env.add_node(
-        "ds1", DataSetAccumulator("type1"), upstream=DataBlockStream(otype="TestType1")
+        "ds1",
+        DataSetAccumulator,
+        config=dict(dataset_key="type1"),
+        upstream=DataBlockStream(otype="TestType1"),
     )
     dfi = ds1.get_interface()
 
@@ -408,15 +413,15 @@ def df2():
 
 
 def test_data_function_set():
-    dfs = DataFunctionSet(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
-    dfs.add(df1)
+    dfs = DataFunction(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
+    dfs.add_definition(df1)
     assert dfs.runtime_data_functions[RuntimeClass.PYTHON] is df1
-    dfs.add(df2)
+    dfs.add_definition(df2)
     assert dfs.runtime_data_functions[RuntimeClass.DATABASE] is df2
-    dfs1 = DataFunctionSet(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
-    dfs1.add(df1)
-    dfs2 = DataFunctionSet(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
-    dfs2.add(df2)
+    dfs1 = DataFunction(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
+    dfs1.add_definition(df1)
+    dfs2 = DataFunction(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
+    dfs2.add_definition(df2)
     dfs1.merge(dfs2)
     assert dfs1.runtime_data_functions[RuntimeClass.PYTHON] is df1
     assert dfs1.runtime_data_functions[RuntimeClass.DATABASE] is df2
@@ -424,8 +429,8 @@ def test_data_function_set():
 
 def test_data_function_registry():
     r = DataFunctionRegistry()
-    dfs = DataFunctionSet(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
-    dfs.add(df1)
+    dfs = DataFunction(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
+    dfs.add_definition(df1)
     r.process_and_register_all([df_t1_sink, df_chain, dfs, df2])
     assert r.get("k1") is dfs
     assert r.get("k1").runtime_data_functions[RuntimeClass.PYTHON] is df1
@@ -453,7 +458,7 @@ def test_function_node_inputs():
     with pytest.raises(Exception):
         # Bad input
         FunctionNode(env, "node_fail", df, input="Turkey")  # type: ignore
-    node1 = FunctionNode(env, "node1", df, input=node)
+    node1 = FunctionNode(env, "node1", df, upstream=node)
     dfi = node1.get_interface()
     dfi = node1.get_interface()
     assert len(dfi.inputs) == 1

@@ -345,7 +345,7 @@ class FunctionGraphResolver:
                 raise Exception(f"no input connected {input}")
             if input.is_self_ref:
                 parents = [node]
-                potential_parents = []
+                potential_parents: List[FunctionNode] = []
             else:
                 parents, potential_parents = self.resolve_stream_dependencies(
                     node, input.connected_stream, visited

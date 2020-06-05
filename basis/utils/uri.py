@@ -7,7 +7,7 @@ VERSIONED_URIS = (
 )
 
 
-@dataclass(frozen=True)
+@dataclass
 class UriMixin:
     """
     URIs in Basis are of the form  [<component_type>:]<module_key>.<component_key>[@<version>]

@@ -4,9 +4,9 @@ import json
 import logging
 import time
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Generator, List, Optional, Union
+from typing import Dict, Generator, List, Optional, Union, Any
 
 import sqlalchemy
 from sqlalchemy.engine import ResultProxy
@@ -22,7 +22,7 @@ from basis.core.data_block import (
     StoredDataBlockMetadata,
 )
 from basis.core.data_function import (
-    DataFunction,
+    DataFunctionDefinition,
     DataFunctionInterface,
     DataInterfaceType,
     InputExhaustedException,
@@ -79,7 +79,7 @@ class LanguageDialectSupport:
 class CompiledDataFunction:  # TODO: this is unused currently, just a dumb wrapper on the df
     key: str
     # code: str
-    function: DataFunction  # TODO: compile this to actual string code we can run aaannnnnnyyywhere
+    function: DataFunctionDefinition  # TODO: compile this to actual string code we can run aaannnnnnyyywhere
     # language_support: Iterable[LanguageDialect] = None  # TODO
 
 
@@ -97,6 +97,7 @@ class Runnable:
     compiled_datafunction: CompiledDataFunction
     # runtime_specification: RuntimeSpecification # TODO: support this
     datafunction_interface: ResolvedFunctionInterface
+    configuration: Dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -209,6 +210,9 @@ class DataFunctionContext:
     inputs: List[ResolvedFunctionNodeInput]
     output_otype: Optional[ObjectType]
 
+    def config(self, key: str) -> Any:
+        return self.runnable.configuration.get(key)
+
 
 class ExecutionManager:
     def __init__(self, ctx: ExecutionContext):
@@ -223,7 +227,7 @@ class ExecutionManager:
             ):  # TODO: Just taking the first one...
                 return runtime
         raise Exception(
-            f"No compatible runtime available for {node} (runtime class {cls} required)"
+            f"No compatible runtime available for {node} (runtime class {supported_runtimes} required)"
         )
 
     def get_bound_data_function_interface(
@@ -269,6 +273,7 @@ class ExecutionManager:
                         key=node.key, function=node.datafunction.function_callable
                     ),
                     datafunction_interface=dfi,
+                    configuration=node.config,
                 )
                 last_output = worker.run(runnable)
                 n_runs += 1

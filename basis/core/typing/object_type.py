@@ -102,7 +102,7 @@ def otype_uri_to_identifier(uri: str) -> str:
     return title_to_snake_case(uri)
 
 
-@dataclass(frozen=True, eq=False)
+@dataclass
 class ObjectType(UriMixin):
     type_class: ObjectTypeClass
     description: str
@@ -121,6 +121,8 @@ class ObjectType(UriMixin):
     # curing window? data records are supposed to be stateless (are they?? what about Product name), but often not possible. Curing window sets the duration of statefulness for a record
     # late arriving?
     # statefulness?
+
+    __hash__ = UriMixin.__hash__
 
     def get_identifier(self) -> str:  # TODO: better name for this fn
         return otype_uri_to_identifier(self.uri)

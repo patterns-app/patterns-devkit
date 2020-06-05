@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
@@ -12,8 +12,10 @@ from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 from basis.core.data_block import DataBlock, DataBlockMetadata
 from basis.core.data_function import (
     DataFunction,
+    DataFunctionCallable,
+    DataFunctionDefinition,
     DataFunctionLike,
-    ensure_datafunction,
+    ensure_datafunction_definition,
     make_datafunction_key,
 )
 from basis.core.data_function_interface import (
@@ -27,18 +29,16 @@ if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext
     from basis.core.streams import (
         DataBlockStream,
-        DataBlockStreamable,
         ensure_data_stream,
         FunctionNodeRawInput,
         InputStreams,
-        DataBlockStreamLike,
     )
 
 
 class FunctionNode:
     env: Environment
     key: str
-    datafunction: DataFunction
+    datafunction: DataFunctionDefinition
     _upstream: Optional[InputStreams]
     parent_node: Optional[FunctionNode]
 
@@ -48,15 +48,16 @@ class FunctionNode:
         _key: str,
         _datafunction: DataFunctionLike,
         upstream: Optional[FunctionNodeRawInput] = None,
-        **inputs: DataBlockStreamLike,
+        config: Dict[str, Any] = None,
     ):
-        if inputs:
-            if upstream:
-                raise Exception("Specify `upstream` OR kwarg inputs, not both")
-            upstream = inputs
+        # if inputs:
+        #     if upstream:
+        #         raise Exception("Specify `upstream` OR kwarg inputs, not both")
+        #     upstream = inputs
+        self.config = config or {}
         self.env = _env
         self.key = _key
-        self.datafunction = ensure_datafunction(_datafunction)
+        self.datafunction = ensure_datafunction_definition(_datafunction)
         self._upstream = self.check_datafunction_inputs(upstream)
         self._children: Set[FunctionNode] = set([])
         self.parent_node = None
@@ -123,30 +124,6 @@ class FunctionNode:
     def get_inputs(self) -> Dict:
         dfi = self.get_interface()
         return {i.name: i.connected_stream for i in dfi.inputs}
-
-    # def get_data_stream_input(self, name: str) -> DataBlockStreamable:
-    #     if name == SELF_REF_PARAM_NAME:
-    #         return self
-    #     v = self.get_input(name)
-    #     if not self.is_data_stream_input(v):
-    #         raise TypeError("Not a DRS")  # TODO: Exception cleanup
-    #     return v
-    #
-    # def is_data_stream_input(self, v: Any) -> bool:
-    #     from basis.core.streams import DataBlockStream
-    #
-    #     # TODO: ignores "this" special arg (a bug/feature that build_fn_graph DEPENDS on currently [don't want recursion there])
-    #     if isinstance(v, FunctionNode):
-    #         return True
-    #     elif isinstance(v, DataBlockStream):
-    #         return True
-    #     # elif isinstance(v, Sequence):
-    #     #     raise TypeError("Sequences are deprecated")
-    #     #     if v and isinstance(v[0], ConfiguredDataFunction):
-    #     #         return True
-    #     # if v and isinstance(v[0], ConfiguredDataFunction):
-    #     #     return True
-    #     return False
 
     def get_output_node(self) -> FunctionNode:
         # Handle nested NODEs
@@ -282,20 +259,10 @@ class CompositeFunctionNode(FunctionNode):
             requires_data_function_context=input_interface.requires_data_function_context,
         )
 
-    # def get_resolved_interface(self) -> DataFunctionInterface:
-    #     resolved_dfis = []
-    #     for node in self.get_nodes():
-    #         dfi = node.get_resolved_interface()
-    #         resolved_dfis.append(dfi)
-    #     return DataFunctionInterface(
-    #         inputs=resolved_dfis[0].inputs,
-    #         output=resolved_dfis[-1].output,
-    #         requires_data_function_context=resolved_dfis[
-    #             0
-    #         ].requires_data_function_context,
-    #         is_connected=True,
-    #         is_resolved=True,
-    #     )
+    def ensure_data_function(
+        self, df_like: Union[DataFunctionLike, str]
+    ) -> DataFunction:
+        return self.env.get_data_function(df_like)
 
 
 class FunctionNodeChain(CompositeFunctionNode):
@@ -303,11 +270,11 @@ class FunctionNodeChain(CompositeFunctionNode):
         self,
         _env: Environment,
         _key: str,
-        _datafunction: DataFunction,
+        _datafunction: DataFunctionDefinition,
         upstream: Optional[FunctionNodeRawInput] = None,
-        **inputs: DataBlockStreamable,
+        config: Dict[str, Any] = None,
     ):
-        super().__init__(_env, _key, _datafunction, upstream=upstream, **inputs)
+        super().__init__(_env, _key, _datafunction, upstream=upstream, config=config)
         self.data_function_chain = _datafunction
         input_streams = self.get_upstream()
         self._node_chain = self.build_nodes(input_streams)
@@ -317,12 +284,12 @@ class FunctionNodeChain(CompositeFunctionNode):
 
         nodes = []
         for fn in self.data_function_chain.sub_functions:
+            self.ensure_data_function(fn)
             child_name = make_datafunction_key(fn)
             child_key = self.make_child_key(self.key, child_name)
-            if upstream is not None:
-                node = FunctionNode(self.env, child_key, fn, upstream=upstream)  # type: ignore  # mypy misses compatible subtype?
-            else:
-                node = FunctionNode(self.env, child_key, fn)
+            node = FunctionNode(
+                self.env, child_key, fn, upstream=upstream, config=self.config
+            )
             node.parent_node = self
             nodes.append(node)
             upstream = ensure_data_stream(node)
@@ -341,10 +308,10 @@ def function_node_factory(
     key: str,
     df_like: Any,
     upstream: Optional[FunctionNodeRawInput] = None,
-    **inputs: DataBlockStreamable,
+    config: Dict[str, Any] = None,
 ) -> FunctionNode:
     node: FunctionNode
-    df = ensure_datafunction(df_like)
+    df = ensure_datafunction_definition(df_like)
     if df.is_composite:
         # if upstream:
         #     if isinstance(upstream, list):
@@ -353,8 +320,9 @@ def function_node_factory(
         #     assert isinstance(upstream, FunctionNode) or isinstance(
         #         upstream, DataBlockStream
         #     ), f"Upstream must be a single Streamable in a Chain: {upstream}"
-        # TODO: other composites besides chains
-        node = FunctionNodeChain(env, key, df, upstream=upstream, **inputs)
+        # TODO: other composites besides chains, and is there now a principled way to do this without the factory?
+        #      like a DFD class has a FN factory method? Yes
+        node = FunctionNodeChain(env, key, df, upstream=upstream, config=config)
     else:
-        node = FunctionNode(env, key, df, upstream=upstream, **inputs)
+        node = FunctionNode(env, key, df, upstream=upstream, config=config)
     return node

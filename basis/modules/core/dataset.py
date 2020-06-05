@@ -8,6 +8,7 @@ from basis.core.data_block import DataBlock, DataSet, DataSetMetadata
 from basis.core.data_function import (
     DataFunctionCallable,
     DataFunctionLike,
+    datafunction,
     datafunction_chain,
 )
 from basis.core.runnable import DataFunctionContext
@@ -16,6 +17,7 @@ from basis.core.sql.data_function import sql_datafunction
 from basis.utils.registry import T
 
 
+@datafunction(key="accumulator")
 def dataframe_accumulator(
     input: DataBlock[T], this: DataBlock[T] = None,
 ) -> DataFrame[T]:
@@ -27,7 +29,7 @@ def dataframe_accumulator(
 
 
 sql_accumulator = sql_datafunction(
-    key="sql_accumulator",
+    key="accumulator",
     sql="""
     select:T * from input:T
     {% if inputs.this %}
@@ -86,38 +88,29 @@ from input:T
 )
 
 
-def as_dataset(key: str) -> DataFunctionCallable:
-    def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
-        ds = (
-            ctx.execution_context.metadata_session.query(DataSetMetadata)
-            .filter(DataSetMetadata.key == key)
-            .first()
-        )
-        if ds is None:
-            ds = DataSetMetadata(key=key, otype_uri=input.otype_uri)
-        ds.data_block_id = input.data_block_id
-        ctx.execution_context.add(ds)
-        table = input.as_table()
-        ctx.worker.execute_sql(
-            f"drop view if exists {key}"
-        )  # TODO: downtime here while table swaps, how to handle?
-        ctx.worker.execute_sql(f"create view {key} as select * from {table.table_name}")
-        return ds
-
-    return as_dataset
-
-
-# TODO: this is not "DataFunctionLike", so can't be indexed / treated as such until given a key
-# @datafunction("accumulate_as_dataset", configurable=True)
-def accumulate_as_dataset(key: str) -> DataFunctionLike:
-    return datafunction_chain(
-        key=f"accumulate_as_dataset_{key}",
-        function_chain=[
-            sql_accumulator,
-            dedupe_unique_keep_first_value,
-            as_dataset(key),
-        ],
+def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
+    key = ctx.config("dataset_key")
+    ds = (
+        ctx.execution_context.metadata_session.query(DataSetMetadata)
+        .filter(DataSetMetadata.key == key)
+        .first()
     )
+    if ds is None:
+        ds = DataSetMetadata(key=key, otype_uri=input.otype_uri)
+    ds.data_block_id = input.data_block_id
+    ctx.execution_context.add(ds)
+    table = input.as_table()
+    ctx.worker.execute_sql(
+        f"drop view if exists {key}"
+    )  # TODO: downtime here while table swaps, how to handle?
+    ctx.worker.execute_sql(f"create view {key} as select * from {table.table_name}")
+    return ds
+
+
+accumulate_as_dataset = datafunction_chain(
+    key=f"accumulate_as_dataset",
+    function_chain=["core.accumulator", dedupe_unique_keep_first_value, as_dataset],
+)
 
 
 DataSetAccumulator = accumulate_as_dataset

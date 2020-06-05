@@ -8,13 +8,12 @@ from typing import Any, Dict, Tuple
 from basis.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMetadata
 from basis.core.data_format import DataFormat
 from basis.core.data_function import (
-    DataFunction,
+    DataFunctionDefinition,
     DataFunctionInterface,
     DataInterfaceType,
 )
 from basis.core.data_function_interface import DataFunctionAnnotation, re_type_hint
 from basis.core.runnable import DataFunctionContext
-
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from basis.core.runtime import RuntimeClass
 from basis.utils.common import md5_hash
@@ -186,11 +185,11 @@ def sql_data_function_factory(
     key: str,
     sql: str = None,
     version: str = None,
-    runtime: str = None,
+    supported_runtimes: str = None,  # TODO: engine support
     module_key: str = None,
-) -> DataFunction:
+) -> DataFunctionDefinition:
     runtime_class = RuntimeClass.DATABASE
-    return DataFunction(
+    return DataFunctionDefinition(
         key=key,
         module_key=module_key,
         version=version,

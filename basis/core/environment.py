@@ -20,7 +20,12 @@ if TYPE_CHECKING:
         Storage,
         new_local_memory_storage,
     )
-    from basis.core.data_function import DataFunctionCallable
+    from basis.core.data_function import (
+        DataFunctionCallable,
+        DataFunctionLike,
+        DataFunction,
+        ensure_datafunction,
+    )
     from basis.core.function_node import FunctionNode, function_node_factory
     from basis.core.data_function_interface import FunctionGraphResolver
     from basis.indexing.components import IndexableComponent
@@ -109,6 +114,15 @@ class Environment:
             otype_like, module_precedence=self.get_module_order()
         )
 
+    def get_data_function(self, df_like: Union[DataFunctionLike, str]) -> DataFunction:
+        from basis.core.data_function import ensure_datafunction
+
+        if isinstance(df_like, str):
+            return self.data_function_registry.get(
+                df_like, module_precedence=self.get_module_order()
+            )
+        return ensure_datafunction(df_like)
+
     def add_node(
         self, _key: str, _data_function: DataFunctionCallable, **kwargs
     ) -> FunctionNode:
@@ -150,6 +164,7 @@ class Environment:
     def add_module(self, module: BasisModule):
         self.module_registry.register(module)
         self.otype_registry.merge(module.otypes)
+        self.data_function_registry.merge(module.data_functions)
         self.provider_registry.merge(module.providers)
         self._module_order.append(module.key)
 

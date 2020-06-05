@@ -5,7 +5,10 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Type
 
-from basis.core.data_function import DataFunction, ensure_datafunction
+from basis.core.data_function import (
+    DataFunctionDefinition,
+    ensure_datafunction_definition,
+)
 from basis.core.environment import Environment
 from basis.core.external import ExternalProvider, ExternalResource
 from basis.core.function_node import Direction
@@ -74,13 +77,13 @@ class ObjectTypeIndexer:
 
 class DataFunctionIndexer:
     def get_relations(
-        self, df: DataFunction, m: BasisModule
+        self, df: DataFunctionDefinition, m: BasisModule
     ) -> List[ObjectTypeRelation]:
         env = Environment(create_metadata_storage=False)
         env.add_module(m)
 
         relations = []
-        df = ensure_datafunction(df)
+        df = ensure_datafunction_definition(df)
         dfi = df.get_interface()
         for input in dfi.inputs:
             dtr = ObjectTypeRelation(
@@ -95,7 +98,7 @@ class DataFunctionIndexer:
         return relations
 
     def get_indexable_components(
-        self, df: DataFunction, m: BasisModule
+        self, df: DataFunctionDefinition, m: BasisModule
     ) -> Iterable[IndexableComponent]:
         relations = []
         try:

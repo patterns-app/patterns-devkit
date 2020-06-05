@@ -6,12 +6,11 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 
 from basis.core.registries import DataFunctionRegistry, ObjectTypeRegistry
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
-from basis.utils.registry import Registry, UriRegistry
+from basis.utils.registry import Registry
 from basis.utils.uri import UriMixin
 
 if TYPE_CHECKING:
     from basis.core.data_function import (
-        ensure_datafunction,
         DataFunctionLike,
         DataFunction,
     )
@@ -27,7 +26,7 @@ if TYPE_CHECKING:
 class BasisModule:
     key: str
     otypes: ObjectTypeRegistry["ObjectType"]
-    data_functions: DataFunctionRegistry["DataFunctionSet"]
+    data_functions: DataFunctionRegistry["DataFunction"]
     module_path: Optional[str]
     module_name: Optional[str]
     providers: Registry["ExternalProvider"]
@@ -58,8 +57,8 @@ class BasisModule:
             module_path = os.path.dirname(module_path)
         self.module_path = module_path
         self.module_name = module_name
-        self.otypes = ObjectTypeRegistry()
-        self.data_functions = DataFunctionRegistry()
+        self.otypes = ObjectTypeRegistry(module=self)
+        self.data_functions = DataFunctionRegistry(module=self)
         self.providers = Registry()
         self.otypes.process_and_register_all(otypes or [])
         self.data_functions.process_and_register_all(data_functions or [])
