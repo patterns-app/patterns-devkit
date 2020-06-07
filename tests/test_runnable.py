@@ -35,7 +35,9 @@ def test_worker():
     dfi_mgr = FunctionNodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
-        node.key, CompiledDataFunction(node.datafunction.key, node.datafunction), bdfi,
+        node.name,
+        CompiledDataFunction(node.datafunction.name, node.datafunction),
+        bdfi,
     )
     output = w.run(r)
     assert output is None
@@ -53,7 +55,9 @@ def test_worker_output():
     dfi_mgr = FunctionNodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
-        node.key, CompiledDataFunction(node.datafunction.key, node.datafunction), bdfi,
+        node.name,
+        CompiledDataFunction(node.datafunction.name, node.datafunction),
+        bdfi,
     )
     output = w.execute_datafunction(r)
     assert output == mock_dl_output

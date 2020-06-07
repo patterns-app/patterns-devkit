@@ -11,13 +11,13 @@ from basis.core.data_block import (
     DataSetMetadata,
     StoredDataBlockMetadata,
 )
+from basis.core.environment import Environment
 from basis.core.function_node import (
-    FunctionNode,
+    DataBlockLog,
     DataFunctionLog,
     Direction,
-    DataBlockLog,
+    FunctionNode,
 )
-from basis.core.environment import Environment
 from basis.core.storage import Storage
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 from basis.utils.common import ensure_list
@@ -105,12 +105,14 @@ class DataBlockStream:
             # Only exclude DRs processed as INPUT
             filter_clause = and_(
                 DataBlockLog.direction == Direction.INPUT,
-                DataFunctionLog.function_node_key == self.unprocessed_by.key,
+                DataFunctionLog.function_node_name == self.unprocessed_by.name,
             )
         else:
             # No DR cycles allowed
             # Exclude DRs processed as INPUT and DRs outputted
-            filter_clause = DataFunctionLog.function_node_key == self.unprocessed_by.key
+            filter_clause = (
+                DataFunctionLog.function_node_name == self.unprocessed_by.name
+            )
         already_processed_drs = (
             Query(DataBlockLog.data_block_id)
             .join(DataFunctionLog)
@@ -138,8 +140,8 @@ class DataBlockStream:
             .join(DataFunctionLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                DataFunctionLog.function_node_key.in_(
-                    [c.key for c in self.get_upstream(ctx.env)]
+                DataFunctionLog.function_node_name.in_(
+                    [c.name for c in self.get_upstream(ctx.env)]
                 ),
             )
             .distinct()
@@ -156,7 +158,7 @@ class DataBlockStream:
     def _filter_otypes(self, ctx: ExecutionContext, query: Query) -> Query:
         if not self.otypes:
             return query
-        # otype_keys = []  # TODO: Fully qualified otype keys?
+        # otype_names = []  # TODO: Fully qualified otype keys?
         return query.filter(
             DataBlockMetadata.otype_uri.in_([d.uri for d in self.get_otypes(ctx.env)])  # type: ignore
         )
@@ -178,19 +180,19 @@ class DataBlockStream:
         return self.filter_storages(ensure_list(storage))
 
     # TODO: Does this work?
-    def filter_dataset(self, dataset_key: Optional[str] = None) -> DataBlockStream:
+    def filter_dataset(self, dataset_name: Optional[str] = None) -> DataBlockStream:
         # TODO: support more than one
-        keys = None
-        if dataset_key:
-            keys = [dataset_key]
-        return self.clone(data_sets=keys, data_sets_only=True)
+        names = None
+        if dataset_name:
+            names = [dataset_name]
+        return self.clone(data_sets=names, data_sets_only=True)
 
     def _filter_datasets(self, ctx: ExecutionContext, query: Query) -> Query:
         if self.data_sets_only:
             query = query.join(DataSetMetadata)
         if not self.data_sets:
             return query
-        return query.filter(DataSetMetadata.key.in_(self.data_sets))  # type: ignore
+        return query.filter(DataSetMetadata.name.in_(self.data_sets))  # type: ignore
 
     def is_unprocessed(
         self, ctx: ExecutionContext, block: DataBlockMetadata, node: FunctionNode,

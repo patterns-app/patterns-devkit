@@ -16,7 +16,8 @@ from basis.core.data_function import (
     DataFunctionDefinition,
     DataFunctionLike,
     ensure_datafunction_definition,
-    make_datafunction_key,
+    make_datafunction_name,
+    ensure_datafunction,
 )
 from basis.core.data_function_interface import (
     SELF_REF_PARAM_NAME,
@@ -37,7 +38,7 @@ if TYPE_CHECKING:
 
 class FunctionNode:
     env: Environment
-    key: str
+    name: str
     datafunction: DataFunctionDefinition
     _upstream: Optional[InputStreams]
     parent_node: Optional[FunctionNode]
@@ -45,7 +46,7 @@ class FunctionNode:
     def __init__(
         self,
         _env: Environment,
-        _key: str,
+        _name: str,
         _datafunction: DataFunctionLike,
         upstream: Optional[FunctionNodeRawInput] = None,
         config: Dict[str, Any] = None,
@@ -56,22 +57,22 @@ class FunctionNode:
         #     upstream = inputs
         self.config = config or {}
         self.env = _env
-        self.key = _key
+        self.name = _name
         self.datafunction = ensure_datafunction_definition(_datafunction)
         self._upstream = self.check_datafunction_inputs(upstream)
         self._children: Set[FunctionNode] = set([])
         self.parent_node = None
 
     def __repr__(self):
-        name = self.datafunction.key
-        return f"<{self.__class__.__name__}(key={self.key}, datafunction={name})>"
+        name = self.datafunction.name
+        return f"<{self.__class__.__name__}(name={self.name}, datafunction={name})>"
 
     def __hash__(self):
-        return hash(self.key)
+        return hash(self.name)
 
     # @property
     # def uri(self):
-    #     return self.key  # TODO
+    #     return self.name  # TODO
 
     def set_upstream(self, upstream: FunctionNodeRawInput):
         self._upstream = self.check_datafunction_inputs(upstream)
@@ -151,7 +152,7 @@ class FunctionNode:
             .join(DataFunctionLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                DataFunctionLog.function_node_key == self.key,
+                DataFunctionLog.function_node_name == self.name,
             )
             .order_by(DataBlockLog.created_at.desc())
             .first()
@@ -163,7 +164,7 @@ class FunctionNode:
 
 class DataFunctionLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    function_node_key = Column(String, nullable=False)
+    function_node_name = Column(String, nullable=False)
     data_function_uri = Column(String, nullable=False)
     data_function_config = Column(JSON, nullable=True)
     runtime_url = Column(String, nullable=False)
@@ -177,7 +178,7 @@ class DataFunctionLog(BaseModel):
     def __repr__(self):
         return self._repr(
             id=self.id,
-            function_node_key=self.function_node_key,
+            function_node_name=self.function_node_name,
             data_function_uri=self.data_function_uri,
             runtime_url=self.runtime_url,
             started_at=self.started_at,
@@ -230,16 +231,16 @@ class CompositeFunctionNode(FunctionNode):
     def build_nodes(self, upstream: InputStreams = None) -> List[FunctionNode]:
         raise NotImplementedError
 
-    # TODO: Idea here is to ensure inheriting classes are making keys correctly. maybe not necessary
+    # TODO: Idea here is to ensure inheriting classes are making names correctly. maybe not necessary
     # def validate_nodes(self):
     #     for node in self._internal_nodes:
     #         if node is self.input_node:
     #             continue
-    #         if not node.name.startswith(self.get_node_key_prefix()):
+    #         if not node.name.startswith(self.get_node_name_prefix()):
     #             raise Exception("Child-node does not have parent name prefix")
 
-    def make_child_key(self, parent_key: str, child_name: str) -> str:
-        return f"{parent_key}__{child_name}"
+    def make_child_name(self, parent_name: str, child_name: str) -> str:
+        return f"{parent_name}__{child_name}"
 
     def get_nodes(self) -> List[FunctionNode]:
         raise NotImplementedError
@@ -262,19 +263,21 @@ class CompositeFunctionNode(FunctionNode):
     def ensure_data_function(
         self, df_like: Union[DataFunctionLike, str]
     ) -> DataFunction:
-        return self.env.get_data_function(df_like)
+        if isinstance(df_like, str):
+            return self.env.get_function(df_like)
+        return ensure_datafunction(df_like)
 
 
 class FunctionNodeChain(CompositeFunctionNode):
     def __init__(
         self,
         _env: Environment,
-        _key: str,
+        _name: str,
         _datafunction: DataFunctionDefinition,
         upstream: Optional[FunctionNodeRawInput] = None,
         config: Dict[str, Any] = None,
     ):
-        super().__init__(_env, _key, _datafunction, upstream=upstream, config=config)
+        super().__init__(_env, _name, _datafunction, upstream=upstream, config=config)
         self.data_function_chain = _datafunction
         input_streams = self.get_upstream()
         self._node_chain = self.build_nodes(input_streams)
@@ -285,10 +288,10 @@ class FunctionNodeChain(CompositeFunctionNode):
         nodes = []
         for fn in self.data_function_chain.sub_functions:
             self.ensure_data_function(fn)
-            child_name = make_datafunction_key(fn)
-            child_key = self.make_child_key(self.key, child_name)
+            child_name = make_datafunction_name(fn)
+            child_name = self.make_child_name(self.name, child_name)
             node = FunctionNode(
-                self.env, child_key, fn, upstream=upstream, config=self.config
+                self.env, child_name, fn, upstream=upstream, config=self.config
             )
             node.parent_node = self
             nodes.append(node)
@@ -305,7 +308,7 @@ def is_composite_function_node(df_like: Any) -> bool:
 
 def function_node_factory(
     env: Environment,
-    key: str,
+    name: str,
     df_like: Any,
     upstream: Optional[FunctionNodeRawInput] = None,
     config: Dict[str, Any] = None,
@@ -322,7 +325,7 @@ def function_node_factory(
         #     ), f"Upstream must be a single Streamable in a Chain: {upstream}"
         # TODO: other composites besides chains, and is there now a principled way to do this without the factory?
         #      like a DFD class has a FN factory method? Yes
-        node = FunctionNodeChain(env, key, df, upstream=upstream, config=config)
+        node = FunctionNodeChain(env, name, df, upstream=upstream, config=config)
     else:
-        node = FunctionNode(env, key, df, upstream=upstream, config=config)
+        node = FunctionNode(env, name, df, upstream=upstream, config=config)
     return node

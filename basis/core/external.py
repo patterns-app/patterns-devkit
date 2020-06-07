@@ -12,7 +12,7 @@ from basis.core.data_function_interface import DataFunctionAnnotation
 from basis.core.metadata.orm import BaseModel
 from basis.core.runnable import DataFunctionContext, ExecutionContext
 from basis.core.typing.object_type import ObjectTypeLike
-from basis.utils.registry import T
+from basis.utils.typing import T
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass(frozen=True)
 class ExternalResource:
     provider: ExternalProvider
-    key: str
+    name: str
     verbose_name: str
     description: str
     otype: ObjectTypeLike
@@ -41,7 +41,7 @@ class ExternalResource:
 
     def __call__(
         self,
-        key,
+        name,
         configured_provider: ConfiguredExternalProvider = None,
         initial_high_water_mark: datetime = None,
         **kwargs,
@@ -56,9 +56,9 @@ class ExternalResource:
         if not initial_high_water_mark:
             initial_high_water_mark = self.initial_high_water_mark
         if not configured_provider:
-            configured_provider = self.provider(key + "_provider")
+            configured_provider = self.provider(name + "_provider")
         return ConfiguredExternalResource(
-            key=key,
+            name=name,
             external_resource=self,
             configuration=cfg,
             configured_provider=configured_provider,
@@ -68,7 +68,7 @@ class ExternalResource:
 
 @dataclass(frozen=True)
 class ConfiguredExternalResource(Generic[T]):
-    key: str
+    name: str
     external_resource: ExternalResource
     configured_provider: ConfiguredExternalProvider
     configuration: Optional[T] = None
@@ -85,14 +85,14 @@ class ConfiguredExternalResource(Generic[T]):
         state = (
             ctx.metadata_session.query(ConfiguredExternalResourceState)
             .filter(
-                ConfiguredExternalResourceState.configured_external_resource_key
-                == self.key
+                ConfiguredExternalResourceState.configured_external_resource_name
+                == self.name
             )
             .first()
         )
         if state is None:
             state = ConfiguredExternalResourceState(
-                configured_external_resource_key=self.key
+                configured_external_resource_name=self.name
             )
             state = ctx.add(state)
         return state
@@ -109,12 +109,12 @@ class ConfiguredExternalResource(Generic[T]):
 
 
 class ConfiguredExternalResourceState(BaseModel):
-    configured_external_resource_key = Column(String, primary_key=True)
+    configured_external_resource_name = Column(String, primary_key=True)
     high_water_mark = Column(DateTime, nullable=True)
 
     def __repr__(self):
         return self._repr(
-            configured_external_resource_key=self.configured_external_resource_key,
+            configured_external_resource_name=self.configured_external_resource_name,
             high_water_mark=self.high_water_mark,
         )
 
@@ -129,7 +129,7 @@ class ExternalResourceList(list):
 
 @dataclass(frozen=True)
 class ExternalProvider:
-    key: str
+    name: str
     verbose_name: str
     description: str
     resources: ExternalResourceList = field(default_factory=ExternalResourceList)
@@ -143,26 +143,26 @@ class ExternalProvider:
     # def get_default_authenticator(self):
     #     return self.authenticators[0]
 
-    def __call__(self, key, **kwargs) -> ConfiguredExternalProvider:
+    def __call__(self, name, **kwargs) -> ConfiguredExternalProvider:
         cfg = None
         args = (self.initial_configuration or {}).copy()
         args.update(**kwargs)
         if self.configuration_class:
             cfg = self.configuration_class(**args)
-        return ConfiguredExternalProvider(key=key, provider=self, configuration=cfg)
+        return ConfiguredExternalProvider(name=name, provider=self, configuration=cfg)
 
     # def get_resources(self) -> Sequence[SourceResource]:
     #     return self._resources
 
     def add_resource(self, external_resource: ExternalResource):
         self.resources.append(external_resource)
-        setattr(self.resources, external_resource.key, external_resource)
+        setattr(self.resources, external_resource.name, external_resource)
 
-    def get_resource(self, resource_key: str) -> ExternalResource:
+    def get_resource(self, resource_name: str) -> ExternalResource:
         for r in self.resources:
-            if r.key == resource_key:
+            if r.name == resource_name:
                 return r
-        raise Exception(f"No resource {resource_key}")
+        raise Exception(f"No resource {resource_name}")
 
     # TODO: too much magic?
     def __getattr__(self, item) -> ExternalResource:
@@ -173,12 +173,12 @@ class ExternalProvider:
 
     def __dir__(self) -> List[str]:
         d = super().__dir__()
-        return list(set(d) | set([r.key for r in self.resources]))
+        return list(set(d) | set([r.name for r in self.resources]))
 
 
 @dataclass(frozen=True)
 class ConfiguredExternalProvider(Generic[T]):
-    key: str
+    name: str
     provider: ExternalProvider
     configuration: Optional[T] = None
 
@@ -217,9 +217,9 @@ class ExtractorDataFunction:
         extractor_function: ExtractorLike,
         configured_provider: ConfiguredExternalProvider,
         configured_external_resource: ConfiguredExternalResource,
-        key: str = None,
+        name: str = None,
     ):
-        super().__init__(extractor_function, key)
+        super().__init__(extractor_function, name)
         self.extract_function = extractor_function
         self.configured_provider = configured_provider
         self.configured_external_resource = configured_external_resource

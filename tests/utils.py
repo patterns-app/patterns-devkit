@@ -10,19 +10,19 @@ from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from basis.core.storage import Storage, StorageClass, StorageEngine
 from basis.core.typing.object_type import create_quick_otype
 from basis.utils.common import rand_str
-from basis.utils.registry import T
+from basis.utils.typing import T
 
 TestType1 = create_quick_otype(
-    "TestType1", [("f1", "Unicode(256)")], module_key="_test"
+    "TestType1", [("f1", "Unicode(256)")], module_name="_test"
 )
 TestType2 = create_quick_otype(
-    "TestType2", [("f1", "Unicode(256)")], module_key="_test"
+    "TestType2", [("f1", "Unicode(256)")], module_name="_test"
 )
 TestType3 = create_quick_otype(
-    "TestType3", [("f1", "Unicode(256)")], module_key="_test"
+    "TestType3", [("f1", "Unicode(256)")], module_name="_test"
 )
 TestType4 = create_quick_otype(
-    "TestType4", [("f1", "Unicode(256)")], module_key="_test"
+    "TestType4", [("f1", "Unicode(256)")], module_name="_test"
 )
 
 

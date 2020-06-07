@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import strictyaml
 
+from basis.core.component import ComponentType, ComponentUri
 from basis.utils.common import title_to_snake_case
-from basis.utils.uri import DEFAULT_MODULE_KEY, UriMixin, is_uri
 
 logger = logging.getLogger(__name__)
 
@@ -55,23 +55,23 @@ class Validator:
 
 
 ObjectTypeUri = str
-ObjectTypeKey = str
+ObjectTypeName = str
 
 
 # Too much, just use str
 # @dataclass(frozen=True)
-# class ObjectTypeKey:
-#     key: str
+# class ObjectTypeName:
+#     name: str
 #     module: Optional[str] = None
 #
 #     @classmethod
-#     def from_str(cls, k: str) -> ObjectTypeKey:
-#         return ObjectTypeKey(*k.split(".")[::-1])
+#     def from_str(cls, k: str) -> ObjectTypeName:
+#         return ObjectTypeName(*k.split(".")[::-1])
 
 
 @dataclass(frozen=True)
 class Reference:
-    key: str
+    name: str
     type: ObjectTypeUri
     fields: Dict[str, str]
 
@@ -102,8 +102,9 @@ def otype_uri_to_identifier(uri: str) -> str:
     return title_to_snake_case(uri)
 
 
-@dataclass
-class ObjectType(UriMixin):
+@dataclass(frozen=True)
+class ObjectType(ComponentUri):
+    component_type = ComponentType.ObjectType
     type_class: ObjectTypeClass
     description: str
     unique_on: List[str]
@@ -114,15 +115,13 @@ class ObjectType(UriMixin):
     extends: Optional[ObjectTypeUri] = None  # TODO
     raw_definition: Optional[str] = None
     # parameterized_by: Sequence[str] = field(default_factory=list) # This is like GPV use case in CountryIndicator
-    # parametererized_from: Optional[ObjectTypeKey] = None
+    # parametererized_from: Optional[ObjectTypeName] = None
     # unregistered: bool = False
     # Data set order of magnitude / expected cardinality ? 1e2, country = 1e2, EcommOrder = 1e6 (Optional for sure, and overridable as "compiler hint")
     #       How often is this a property of the type, and how often a property of the SourceResource? SR probably better place for it
     # curing window? data records are supposed to be stateless (are they?? what about Product name), but often not possible. Curing window sets the duration of statefulness for a record
     # late arriving?
     # statefulness?
-
-    __hash__ = UriMixin.__hash__
 
     def get_identifier(self) -> str:  # TODO: better name for this fn
         return otype_uri_to_identifier(self.uri)
@@ -135,26 +134,19 @@ class ObjectType(UriMixin):
         raise NameError
 
 
-ObjectTypeLike = Union[ObjectType, ObjectTypeUri, ObjectTypeKey]
+ObjectTypeLike = Union[ObjectType, ObjectTypeUri, ObjectTypeName]
 
 
 def is_generic(otype_like: ObjectTypeLike) -> bool:
-    if isinstance(otype_like, ObjectType):
-        key = otype_like.key
-    elif is_uri(otype_like):
-        module, key = otype_like.split(".")
-    else:
-        key = otype_like
-    return len(key) == 1
+    uri = otype_like_to_uri(otype_like)
+    return len(uri.name) == 1
 
 
-def otype_like_to_uri(d: ObjectTypeLike) -> str:
+def otype_like_to_uri(d: ObjectTypeLike) -> ComponentUri:
     if isinstance(d, ObjectType):
-        return d.uri
+        return d.get_component_uri()
     if isinstance(d, str):
-        if is_uri(d):
-            return d
-        raise TypeError(f"Invalid ObjectTypeUri, no module specified: '{d}'")
+        return ComponentUri.from_str(d)
     raise TypeError(d)
 
 
@@ -185,8 +177,8 @@ def clean_raw_otype_defintion(raw_def: dict) -> dict:
     if isinstance(raw_def.get("unique_on"), str):
         raw_def["unique_on"] = [raw_def["unique_on"]]
     raw_def["type_class"] = raw_def.pop("class", None)
-    if "module_key" not in raw_def:
-        raw_def["module_key"] = raw_def.pop("module", None)
+    if "module_name" not in raw_def:
+        raw_def["module_name"] = raw_def.pop("module", None)
     raw_def["version"] = int(raw_def["version"])
     return raw_def
 
@@ -195,7 +187,7 @@ def build_otype_from_dict(d: dict, **overrides: Any) -> ObjectType:
     fields = [build_field_type_from_dict(f) for f in d.pop("fields", [])]
     d["fields"] = fields
     d.update(**overrides)
-    otype = ObjectType(**d)
+    otype = ObjectType(**d, component_type=ComponentType.ObjectType)
     return otype
 
 
@@ -213,7 +205,7 @@ def load_validator_from_dict(v: str) -> Validator:
 def otype_to_yaml(otype: ObjectType) -> str:
     if otype.raw_definition:
         return otype.raw_definition
-    yml = f"key: {otype.key}\nversion: {otype.version}\nclass: {otype.type_class}\ndescription: {otype.description}\n"
+    yml = f"name: {otype.name}\nversion: {otype.version}\nclass: {otype.type_class}\ndescription: {otype.description}\n"
     unique_list = "\n  - ".join(otype.unique_on)
     yml += f"unique on: \n  - {unique_list}\n"
     yml += f"on conflict: {otype.on_conflict}\nfields:\n"
@@ -225,8 +217,8 @@ def otype_to_yaml(otype: ObjectType) -> str:
     # TODO:
     # on_conflict: ConflictBehavior
     # relationships: List[Reference] = field(default_factory=list)
-    # implementations: List[ObjectTypeKey] = field(default_factory=list)
-    # extends: Optional[ObjectTypeKey] = None
+    # implementations: List[ObjectTypeName] = field(default_factory=list)
+    # extends: Optional[ObjectTypeName] = None
 
 
 def field_to_yaml(f: Field) -> str:
@@ -245,10 +237,10 @@ def create_quick_field(name: str, field_type: str, **kwargs) -> Field:
 
 
 # Helper
-def create_quick_otype(key: str, fields: List[Tuple[str, str]], **kwargs):
+def create_quick_otype(name: str, fields: List[Tuple[str, str]], **kwargs):
     defaults = dict(
-        key=key,
-        module_key=None,
+        name=name,
+        module_name=None,
         type_class="Observation",
         version="1.0",
         description="...",
@@ -258,5 +250,5 @@ def create_quick_otype(key: str, fields: List[Tuple[str, str]], **kwargs):
     )
     defaults.update(kwargs)
     defaults["fields"] = [create_quick_field(f[0], f[1]) for f in fields]
-    otype = ObjectType(**defaults)  # type: ignore
+    otype = ObjectType(**defaults, component_type=ComponentType.ObjectType)  # type: ignore
     return otype

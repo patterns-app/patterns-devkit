@@ -4,16 +4,14 @@ import logging
 import os
 from contextlib import contextmanager
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from basis.core.component import ComponentLibrary
 from basis.core.metadata.orm import BaseModel
-from basis.core.module import BasisModule
-from basis.core.registries import DataFunctionRegistry, ObjectTypeRegistry
+from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
-from basis.utils.registry import Registry, UriRegistry
-from basis.utils.uri import DEFAULT_MODULE_KEY
 
 if TYPE_CHECKING:
     from basis.core.storage import (
@@ -28,7 +26,6 @@ if TYPE_CHECKING:
     )
     from basis.core.function_node import FunctionNode, function_node_factory
     from basis.core.data_function_interface import FunctionGraphResolver
-    from basis.indexing.components import IndexableComponent
     from basis.core.runnable import ExecutionContext
     from basis.core.data_block import DataBlock
 
@@ -36,19 +33,14 @@ logger = logging.getLogger(__name__)
 
 
 class Environment:
-    otype_registry: UriRegistry
+    library: ComponentLibrary
     storages: List[Storage]
     metadata_storage: Storage
 
     def __init__(
         self,
-        key: str = None,
+        name: str = None,
         metadata_storage: Union["Storage", str] = None,
-        otype_registry: ObjectTypeRegistry = None,
-        data_function_registry: DataFunctionRegistry = None,
-        provider_registry: Registry = None,
-        # TODO: SourceResource registry too?
-        module_registry: Registry = None,
         create_metadata_storage: bool = True,
         add_default_python_runtime: bool = True,
     ):
@@ -57,10 +49,8 @@ class Environment:
         from basis.core.runtime import RuntimeEngine
         from basis.core.storage import Storage
 
-        self.key = key
-
+        self.name = name
         if metadata_storage is None and create_metadata_storage:
-
             # TODO: kind of hidden. make configurable at least, and log/print to user
             metadata_storage = Storage.from_url("sqlite:///.basis_metadata.db")
         if isinstance(metadata_storage, str):
@@ -68,14 +58,11 @@ class Environment:
         if metadata_storage is None:
             raise Exception("Must specify metadata_storage or allow default")
         self.metadata_storage = metadata_storage
-        # if create_metadata_storage: # TODO: hmmm
         self.initialize_metadata_database()
-        self.module_registry = module_registry or Registry()
-        self.otype_registry = otype_registry or ObjectTypeRegistry()
-        self.data_function_registry = data_function_registry or DataFunctionRegistry()
-        self.provider_registry = provider_registry or Registry()
-        self.added_nodes: Registry = Registry()
-        self._flattened_nodes: Registry = Registry()
+        self._local_module = DEFAULT_LOCAL_MODULE  #     BasisModule(name=f"_env")
+        self.library = ComponentLibrary(default_module=self._local_module)
+        self._added_nodes: Dict[str, FunctionNode] = {}
+        self._flattened_nodes: Dict[str, FunctionNode] = {}
         self.storages = []
         self.runtimes = []
         if add_default_python_runtime:
@@ -86,7 +73,6 @@ class Environment:
                     runtime_engine=RuntimeEngine.LOCAL,
                 )
             )
-        self._module_order: List[str] = []
 
     def initialize_metadata_database(self):
         from basis.core.metadata.listeners import add_persisting_sdb_listener
@@ -101,35 +87,27 @@ class Environment:
         return self._env_session
 
     def get_new_metadata_session(self) -> Session:
-        # return self.Session()
         return self.Session()
 
+    def get_local_module(self) -> BasisModule:
+        return self._local_module
+
     def get_module_order(self) -> List[str]:
-        return [DEFAULT_MODULE_KEY] + self._module_order
+        return self.library.module_precedence
 
     def get_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
-        if isinstance(otype_like, ObjectType):
-            return otype_like
-        return self.otype_registry.get(
-            otype_like, module_precedence=self.get_module_order()
-        )
+        return self.library.get_otype(otype_like)
 
-    def get_data_function(self, df_like: Union[DataFunctionLike, str]) -> DataFunction:
-        from basis.core.data_function import ensure_datafunction
-
-        if isinstance(df_like, str):
-            return self.data_function_registry.get(
-                df_like, module_precedence=self.get_module_order()
-            )
-        return ensure_datafunction(df_like)
+    def get_function(self, df_like: Union[DataFunctionLike, str]) -> DataFunction:
+        return self.library.get_function(df_like)
 
     def add_node(
-        self, _key: str, _data_function: DataFunctionCallable, **kwargs
+        self, _name: str, _data_function: DataFunctionCallable, **kwargs
     ) -> FunctionNode:
         from basis.core.function_node import function_node_factory
 
-        node = function_node_factory(self, _key, _data_function, **kwargs)
-        self.added_nodes.register(node)
+        node = function_node_factory(self, _name, _data_function, **kwargs)
+        self._added_nodes[node.name] = node
         self.register_node(node)
         return node
 
@@ -138,13 +116,13 @@ class Environment:
             for sub_node in node.get_nodes():
                 self.register_node(sub_node)
         else:
-            self._flattened_nodes.register(node)
+            self._flattened_nodes[node.name] = node
 
     def all_added_nodes(self) -> List[FunctionNode]:
-        return list(self.added_nodes.all())
+        return list(self._added_nodes.values())
 
-    def flattened_nodes(self) -> List[FunctionNode]:
-        return list(self._flattened_nodes.all())
+    def all_flattened_nodes(self) -> List[FunctionNode]:
+        return list(self._flattened_nodes.values())
 
     def get_node(self, node_like: Union["FunctionNode", str]) -> "FunctionNode":
         from basis.core.function_node import FunctionNode
@@ -152,9 +130,9 @@ class Environment:
         if isinstance(node_like, FunctionNode):
             return node_like
         try:
-            return self.added_nodes.get(node_like)
+            return self._added_nodes[node_like]
         except KeyError:  # TODO: do we want to get flattened (sub) nodes too? Probably
-            return self._flattened_nodes.get(node_like)
+            return self._flattened_nodes[node_like]
 
     def get_function_graph_resolver(self) -> FunctionGraphResolver:
         from basis.core.data_function_interface import FunctionGraphResolver
@@ -162,16 +140,12 @@ class Environment:
         return FunctionGraphResolver(self)  # TODO: maybe cache this?
 
     def add_module(self, module: BasisModule):
-        self.module_registry.register(module)
-        self.otype_registry.merge(module.otypes)
-        self.data_function_registry.merge(module.data_functions)
-        self.provider_registry.merge(module.providers)
-        self._module_order.append(module.key)
+        self.library.add_module(module)
 
-    def get_indexable_components(self) -> Iterable[IndexableComponent]:
-        for module in self.module_registry.all():
-            for c in module.get_indexable_components():
-                yield c
+    # def get_indexable_components(self) -> Iterable[IndexableComponent]:
+    #     for module in self.module_registry.all():
+    #         for c in module.get_indexable_components():
+    #             yield c
 
     @contextmanager
     def session_scope(self, **kwargs):

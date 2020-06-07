@@ -1,4 +1,4 @@
-key: TestType
+name: TestType
 version: 3
 class: Entity
 description: Description

@@ -14,10 +14,10 @@ from basis.core.data_function import (
 from basis.core.runnable import DataFunctionContext
 from basis.core.runtime import RuntimeClass
 from basis.core.sql.data_function import sql_datafunction
-from basis.utils.registry import T
+from basis.utils.typing import T
 
 
-@datafunction(key="accumulator")
+@datafunction(name="accumulator")
 def dataframe_accumulator(
     input: DataBlock[T], this: DataBlock[T] = None,
 ) -> DataFrame[T]:
@@ -29,7 +29,7 @@ def dataframe_accumulator(
 
 
 sql_accumulator = sql_datafunction(
-    key="accumulator",
+    name="accumulator",
     sql="""
     select:T * from input:T
     {% if inputs.this %}
@@ -41,7 +41,7 @@ sql_accumulator = sql_datafunction(
 
 
 dedupe_unique_keep_max_value = sql_datafunction(
-    key="dedupe_unique_keep_max_value",
+    name="dedupe_unique_keep_max_value",
     sql="""
 select:T
 distinct on (
@@ -69,7 +69,7 @@ group by
 
 # TODO: only supported by postgres
 dedupe_unique_keep_first_value = sql_datafunction(
-    key="dedupe_unique_keep_first_value",
+    name="dedupe_unique_keep_first_value",
     sql="""
 select:T
 distinct on (
@@ -89,27 +89,27 @@ from input:T
 
 
 def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
-    key = ctx.config("dataset_key")
+    name = ctx.config("dataset_name")
     ds = (
         ctx.execution_context.metadata_session.query(DataSetMetadata)
-        .filter(DataSetMetadata.key == key)
+        .filter(DataSetMetadata.name == name)
         .first()
     )
     if ds is None:
-        ds = DataSetMetadata(key=key, otype_uri=input.otype_uri)
+        ds = DataSetMetadata(name=name, otype_uri=input.otype_uri)
     ds.data_block_id = input.data_block_id
     ctx.execution_context.add(ds)
     table = input.as_table()
     ctx.worker.execute_sql(
-        f"drop view if exists {key}"
+        f"drop view if exists {name}"
     )  # TODO: downtime here while table swaps, how to handle?
-    ctx.worker.execute_sql(f"create view {key} as select * from {table.table_name}")
+    ctx.worker.execute_sql(f"create view {name} as select * from {table.table_name}")
     return ds
 
 
 accumulate_as_dataset = datafunction_chain(
-    key=f"accumulate_as_dataset",
-    function_chain=["core.accumulator", dedupe_unique_keep_first_value, as_dataset],
+    name=f"accumulate_as_dataset",
+    function_chain=["accumulator", dedupe_unique_keep_first_value, as_dataset],
 )
 
 

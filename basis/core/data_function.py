@@ -6,12 +6,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Uni
 
 from pandas import DataFrame
 
+from basis.core.component import ComponentType, ComponentUri, ComponentUriBase
 from basis.core.data_block import DataBlockMetadata, DataSetMetadata
 from basis.core.data_format import DatabaseTable, DictList
 from basis.core.data_function_interface import DataFunctionInterface
-from basis.core.registries import DataFunctionRegistry
 from basis.core.runtime import RuntimeClass
-from basis.utils.uri import DEFAULT_MODULE_KEY, UriMixin
 
 if TYPE_CHECKING:
     from basis.core.runnable import DataFunctionContext
@@ -44,23 +43,34 @@ def get_runtime_class(runtime: Optional[str]) -> RuntimeClass:
     return RuntimeClass.PYTHON
 
 
-def make_datafunction_key(data_function: DataFunctionCallable) -> str:
+def make_datafunction_name(data_function: DataFunctionCallable) -> str:
     # TODO: something more principled / explicit?
-    if hasattr(data_function, "key"):
-        return data_function.key  # type: ignore
+    if hasattr(data_function, "name"):
+        return data_function.name  # type: ignore
     if hasattr(data_function, "__name__"):
         return data_function.__name__
     if hasattr(data_function, "__class__"):
         return data_function.__class__.__name__
-    raise Exception(f"Invalid DataFunction Key {data_function}")
+    raise Exception(f"Invalid DataFunction name {data_function}")
 
 
-@dataclass
-class DataFunction(UriMixin):
+@dataclass(frozen=True)
+class DataFunction(ComponentUriBase):
+    component_type = ComponentType.DataFunction
     runtime_data_functions: Dict[RuntimeClass, DataFunctionDefinition] = field(
         default_factory=dict
     )
-    __hash__ = UriMixin.__hash__
+
+    def __call__(
+        self, *args: DataFunctionContext, **kwargs: DataInterfaceType
+    ) -> Optional[DataInterfaceType]:
+        raise NotImplementedError
+        # # TODO: hack, but maybe useful to have actual DataFunction still act like a function
+        # for v in self.runtime_data_functions.values():
+        #     try:
+        #         return v(*args, **kwargs)
+        #     except:
+        #         pass
 
     def add_definition(self, df: DataFunctionDefinition):
         for cls in df.supported_runtime_classes:
@@ -81,25 +91,26 @@ class DataFunction(UriMixin):
         return self.runtime_data_functions.get(runtime_cls)
 
 
-@dataclass
-class DataFunctionDefinition(UriMixin):
+@dataclass(frozen=True)
+class DataFunctionDefinition(ComponentUriBase):
+    component_type = ComponentType.DataFunction
     function_callable: Optional[
         Callable
     ]  # Optional since Composite DFs don't have a Callable
     supported_runtime_classes: List[RuntimeClass]
     is_composite: bool = False
     configuration_class: Optional[Type] = None
-    sub_functions: List[DataFunctionDefinitionLike] = field(
+    sub_functions: List[ComponentUri] = field(
         default_factory=list
     )  # TODO: support proper graphs
     # TODO: runtime engine eg "mysql>=8.0", "python==3.7.4"  ???
     # TODO: runtime dependencies
 
-    __hash__ = UriMixin.__hash__
-
     def __call__(
         self, *args: DataFunctionContext, **kwargs: DataInterfaceType
     ) -> Optional[DataInterfaceType]:
+        if self.is_composite:
+            raise NotImplementedError(f"Cannot call a composite DataFunction {self}")
         return self.function_callable(*args, **kwargs)
 
     def get_interface(self) -> Optional[DataFunctionInterface]:
@@ -114,50 +125,38 @@ class DataFunctionDefinition(UriMixin):
 
     def as_data_function(self) -> DataFunction:
         df = DataFunction(
-            key=self.key, module_key=self.module_key, version=self.version
+            component_type=ComponentType.DataFunction,
+            name=self.name,
+            module_name=self.module_name,
+            version=self.version,
         )
         df.add_definition(self)
         return df
 
 
+DataFunctionDefinitionLike = Union[DataFunctionCallable, DataFunctionDefinition]
 DataFunctionLike = Union[DataFunctionCallable, DataFunctionDefinition, DataFunction]
-
-
-@dataclass(frozen=True)
-class LazyDataFunction:
-    uri_or_key: Optional[str] = None
-    df_like: Optional[DataFunctionLike] = None
-    df_like_kwargs: Optional[Dict] = None
-
-    def resolve(self, registry: DataFunctionRegistry) -> DataFunction:
-        if self.uri_or_key:
-            return registry.get(self.uri_or_key)
-        dfl = self.df_like
-        if self.df_like_kwargs:
-            dfl = datafunction(**self.df_like_kwargs)
-        return registry.process(dfl)
 
 
 def data_function_definition_factory(
     function_callable: Optional[
         DataFunctionCallable
     ],  # Composite DFs don't have a callable
-    key: str = None,
+    name: str = None,
     version: str = None,
     supported_runtimes: str = None,
-    module_key: str = None,
+    module_name: str = None,
     **kwargs: Any,
 ) -> DataFunctionDefinition:
-    if key is None:
+    if name is None:
         if function_callable is None:
             raise
-        key = make_datafunction_key(function_callable)
+        name = make_datafunction_name(function_callable)
     runtime_class = get_runtime_class(supported_runtimes)
-    if not module_key:
-        module_key = DEFAULT_MODULE_KEY
     return DataFunctionDefinition(
-        key=key,
-        module_key=module_key,
+        component_type=ComponentType.DataFunction,
+        name=name,
+        module_name=module_name,
         version=version,
         function_callable=function_callable,
         supported_runtime_classes=[runtime_class],
@@ -166,41 +165,45 @@ def data_function_definition_factory(
 
 
 def datafunction(
-    df_or_key: Union[str, DataFunctionCallable] = None,
-    key: str = None,
+    df_or_name: Union[str, DataFunctionCallable] = None,
+    name: str = None,
     version: str = None,
     supported_runtimes: str = None,
-    module_key: str = None,
+    module_name: str = None,
 ) -> Union[Callable, DataFunctionDefinition]:
-    if isinstance(df_or_key, str) or df_or_key is None:
+    if isinstance(df_or_name, str) or df_or_name is None:
         return partial(
             datafunction,
-            key=df_or_key,
+            name=df_or_name,
             version=version,
             supported_runtimes=supported_runtimes,
-            module_key=module_key,
+            module_name=module_name,
         )
     return data_function_definition_factory(
-        df_or_key,
-        key=key,
+        df_or_name,
+        name=name,
         version=version,
         supported_runtimes=supported_runtimes,
-        module_key=module_key,
+        module_name=module_name,
     )
 
 
 def datafunction_chain(
-    key: str, function_chain: List[Union[DataFunctionLike, str]], **kwargs
+    name: str, function_chain: List[Union[DataFunctionLike, str]], **kwargs
 ) -> DataFunctionDefinition:
     sub_funcs = []
     for fn in function_chain:
         if isinstance(fn, str):
-            df = fn  # is a key, we will lazy resolve it when we have an env
+            uri = ComponentUri.from_str(fn)
+        elif isinstance(fn, ComponentUri):
+            uri = fn
+        elif callable(fn):
+            uri = ensure_datafunction_definition(fn, **kwargs)
         else:
-            df = ensure_datafunction_definition(fn, **kwargs)
-        sub_funcs.append(df)
+            raise TypeError(f"Invalid function uri in chain {fn}")
+        sub_funcs.append(uri)
     return data_function_definition_factory(
-        None, key=key, sub_functions=sub_funcs, is_composite=True, **kwargs
+        None, name=name, sub_functions=sub_funcs, is_composite=True, **kwargs
     )
 
 

@@ -93,9 +93,9 @@ class DataFunctionAnnotation:
         name = kwargs.get("name")
         if name:
             kwargs["is_self_ref"] = name == SELF_REF_PARAM_NAME
-        otype_key = kwargs.get("otype_like")
-        if isinstance(otype_key, str):
-            kwargs["is_generic"] = is_generic(otype_key)
+        otype_name = kwargs.get("otype_like")
+        if isinstance(otype_name, str):
+            kwargs["is_generic"] = is_generic(otype_name)
         if kwargs["data_format_class"] not in VALID_DATA_INTERFACE_TYPES:
             raise TypeError(
                 f"`{kwargs['data_format_class']}` is not a valid data input type"
@@ -125,10 +125,10 @@ class DataFunctionAnnotation:
             raise Exception(f"Invalid DataFunction annotation '{annotation}'")
         is_optional = bool(m.groupdict()["optional"])
         data_format_class = m.groupdict()["origin"]
-        otype_key = m.groupdict()["arg"]
+        otype_name = m.groupdict()["arg"]
         args = dict(
             data_format_class=data_format_class,
-            otype_like=otype_key,
+            otype_like=otype_name,
             is_optional=is_optional,
             original_annotation=annotation,
         )
@@ -275,7 +275,7 @@ class FunctionGraphCycleError(Exception):
 class FunctionGraphResolver:
     def __init__(self, env: Environment, nodes: Optional[List[FunctionNode]] = None):
         self.env = env
-        self._nodes = nodes or env.flattened_nodes()
+        self._nodes = nodes or env.all_flattened_nodes()
         self._resolved_output_types: Dict[FunctionNode, ObjectType] = {}
         self._resolved_inputs: Dict[FunctionNode, List[ResolvedFunctionNodeInput]] = {}
         self._resolved = False
@@ -437,7 +437,7 @@ class FunctionGraphResolver:
             otypes = []
             for n in nodes:
                 otypes.append(self.resolve_output_type(n, visited))
-            if len(set(otypes)) != 1:
+            if len(set(o.name for o in otypes)) != 1:
                 raise Exception("Mixed otype streams not suppported atm")
             return otypes[0]
         elif stream.otypes:

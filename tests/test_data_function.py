@@ -5,14 +5,14 @@ from typing import Callable
 import pytest
 from pandas import DataFrame
 
-from basis.core.data_block import DataBlock, DataBlockMetadata
+from basis.core.component import ComponentType
+from basis.core.data_block import DataBlock
 from basis.core.data_function import (
     DataFunction,
     DataFunctionInterface,
     DataFunctionLike,
     datafunction,
     datafunction_chain,
-    ensure_datafunction_definition,
 )
 from basis.core.data_function_interface import (
     DataFunctionAnnotation,
@@ -23,15 +23,12 @@ from basis.core.function_node import (
     FunctionNodeChain,
     function_node_factory,
 )
-from basis.core.registries import DataFunctionRegistry
 from basis.core.runtime import RuntimeClass
 from basis.core.sql.data_function import sql_datafunction
-from basis.core.streams import DataBlockStream, InputBlocks
+from basis.core.streams import DataBlockStream
 from basis.modules import core
 from basis.modules.core.dataset import DataSetAccumulator
-from basis.utils.common import md5_hash
-from basis.utils.registry import T, U
-from basis.utils.uri import DEFAULT_MODULE_KEY
+from basis.utils.typing import T, U
 from tests.utils import (
     TestType1,
     TestType2,
@@ -40,7 +37,6 @@ from tests.utils import (
     df_t1_source,
     df_t1_to_t2,
     make_test_env,
-    make_test_execution_context,
 )
 
 
@@ -350,7 +346,7 @@ def test_stream_input():
     ds1 = env.add_node(
         "ds1",
         DataSetAccumulator,
-        config=dict(dataset_key="type1"),
+        config=dict(dataset_name="type1"),
         upstream=DataBlockStream(otype="TestType1"),
     )
     dfi = ds1.get_interface()
@@ -359,12 +355,12 @@ def test_stream_input():
 def test_python_data_function():
     df = datafunction(df_t1_sink)
     assert (
-        df.key == df_t1_sink.__name__
+        df.name == df_t1_sink.__name__
     )  # TODO: do we really want this implicit name? As long as we error on duplicate should be ok
 
-    k = "key1"
-    df = datafunction(df_t1_sink, key=k)
-    assert df.key == k
+    k = "name1"
+    df = datafunction(df_t1_sink, name=k)
+    assert df.name == k
 
     dfi = df.get_interface()
     assert dfi is not None
@@ -375,7 +371,7 @@ def test_sql_data_function():
     sql = "select:T 1 from t:T"
     k = "k1"
     df = sql_datafunction(k, sql)
-    assert df.key == k
+    assert df.name == k
 
     dfi = df.get_interface()
     assert dfi is not None
@@ -413,28 +409,43 @@ def df2():
 
 
 def test_data_function_set():
-    dfs = DataFunction(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
+    dfs = DataFunction(
+        name="k1",
+        component_type=ComponentType.DataFunction,
+        version=None,
+        module_name=None,
+    )
     dfs.add_definition(df1)
     assert dfs.runtime_data_functions[RuntimeClass.PYTHON] is df1
     dfs.add_definition(df2)
     assert dfs.runtime_data_functions[RuntimeClass.DATABASE] is df2
-    dfs1 = DataFunction(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
+    dfs1 = DataFunction(
+        name="k1",
+        component_type=ComponentType.DataFunction,
+        version=None,
+        module_name=None,
+    )
     dfs1.add_definition(df1)
-    dfs2 = DataFunction(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
+    dfs2 = DataFunction(
+        name="k1",
+        component_type=ComponentType.DataFunction,
+        version=None,
+        module_name=None,
+    )
     dfs2.add_definition(df2)
     dfs1.merge(dfs2)
     assert dfs1.runtime_data_functions[RuntimeClass.PYTHON] is df1
     assert dfs1.runtime_data_functions[RuntimeClass.DATABASE] is df2
 
 
-def test_data_function_registry():
-    r = DataFunctionRegistry()
-    dfs = DataFunction(key="k1", module_key=DEFAULT_MODULE_KEY, version=None)
-    dfs.add_definition(df1)
-    r.process_and_register_all([df_t1_sink, df_chain, dfs, df2])
-    assert r.get("k1") is dfs
-    assert r.get("k1").runtime_data_functions[RuntimeClass.PYTHON] is df1
-    assert r.get("k1").runtime_data_functions[RuntimeClass.DATABASE] is df2
+# def test_data_function_registry():
+#     r = DataFunctionRegistry()
+#     dfs = DataFunction(name="k1", module_name=DEFAULT_MODULE_NAME, version=None)
+#     dfs.add_definition(df1)
+#     r.process_and_register_all([df_t1_sink, df_chain, dfs, df2])
+#     assert r.get("k1") is dfs
+#     assert r.get("k1").runtime_data_functions[RuntimeClass.PYTHON] is df1
+#     assert r.get("k1").runtime_data_functions[RuntimeClass.DATABASE] is df2
 
 
 def test_function_node_no_inputs():
@@ -457,7 +468,7 @@ def test_function_node_inputs():
     df = datafunction(df_t1_sink)
     with pytest.raises(Exception):
         # Bad input
-        FunctionNode(env, "node_fail", df, input="Turkey")  # type: ignore
+        FunctionNode(env, "node_fail", df, input="Turname")  # type: ignore
     node1 = FunctionNode(env, "node1", df, upstream=node)
     dfi = node1.get_interface()
     dfi = node1.get_interface()
@@ -480,7 +491,7 @@ def test_function_node_chain():
     # Output NODE
     output_node = node1.get_output_node()
     assert output_node is not node1
-    assert node1.key in output_node.key
+    assert node1.name in output_node.name
     out_dfi = output_node.get_interface()
     assert len(out_dfi.inputs) == 1
     assert out_dfi.output is not None

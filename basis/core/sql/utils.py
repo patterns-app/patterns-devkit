@@ -116,7 +116,7 @@ class ObjectTypeMapper:
         sa_columns = self.to_sqlalchemy(otype)
         if not table_name:
             table_name = (
-                f"_{otype.key}_{rand_str(6)}"  # TODO: probably an error instead?
+                f"_{otype.name}_{rand_str(6)}"  # TODO: probably an error instead?
             )
         sa_table = Table(table_name, self.sqlalchemy_metadata, *sa_columns)
         dialect = self.storage_engine_to_sa_dialect[storage_engine]

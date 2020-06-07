@@ -58,14 +58,14 @@ def infer_otype_fields_from_records(
     return fields
 
 
-def dict_to_rough_otype(key: str, d: Dict, convert_to_snake_case=True, **kwargs):
+def dict_to_rough_otype(name: str, d: Dict, convert_to_snake_case=True, **kwargs):
     fields = []
     for k, v in d.items():
         if convert_to_snake_case:
             k = title_to_snake_case(k)
         fields.append((k, pandas_series_to_sqlalchemy_type(pd.Series([v]))))
     fields = sorted(fields)
-    return create_quick_otype(key, fields, **kwargs)
+    return create_quick_otype(name, fields, **kwargs)
 
 
 def has_dict_or_list(series: Series) -> bool:

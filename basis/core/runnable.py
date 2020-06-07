@@ -6,7 +6,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Generator, List, Optional, Union, Any
+from typing import Any, Dict, Generator, List, Optional, Union
 
 import sqlalchemy
 from sqlalchemy.engine import ResultProxy
@@ -77,7 +77,7 @@ class LanguageDialectSupport:
 
 @dataclass(frozen=True)
 class CompiledDataFunction:  # TODO: this is unused currently, just a dumb wrapper on the df
-    key: str
+    name: str
     # code: str
     function: DataFunctionDefinition  # TODO: compile this to actual string code we can run aaannnnnnyyywhere
     # language_support: Iterable[LanguageDialect] = None  # TODO
@@ -93,7 +93,7 @@ class RuntimeSpecification:
 
 @dataclass(frozen=True)
 class Runnable:
-    function_node_key: str
+    function_node_name: str
     compiled_datafunction: CompiledDataFunction
     # runtime_specification: RuntimeSpecification # TODO: support this
     datafunction_interface: ResolvedFunctionInterface
@@ -152,7 +152,7 @@ class ExecutionContext:
     ) -> Generator[RunSession, None, None]:
         assert self.current_runtime is not None, "Runtime not set"
         dfl = DataFunctionLog(  # type: ignore
-            function_node_key=node.key,
+            function_node_name=node.name,
             data_function_uri=node.datafunction.uri,
             # data_function_config=node.datafunction.configuration,  # TODO
             runtime_url=self.current_runtime.url,
@@ -257,7 +257,7 @@ class ExecutionManager:
 
         # Setup for run
         base_msg = (
-            f"Running node: {cf.green(node.key)} {cf.dimmed(node.datafunction.key)}"
+            f"Running node: {cf.green(node.name)} {cf.dimmed(node.datafunction.name)}"
         )
         spinner = get_spinner()
         spinner.start(base_msg)
@@ -268,9 +268,9 @@ class ExecutionManager:
             while True:
                 dfi = self.get_bound_data_function_interface(node)
                 runnable = Runnable(
-                    function_node_key=node.key,
+                    function_node_name=node.name,
                     compiled_datafunction=CompiledDataFunction(
-                        key=node.key, function=node.datafunction.function_callable
+                        name=node.name, function=node.datafunction.function_callable
                     ),
                     datafunction_interface=dfi,
                     configuration=node.config,
@@ -329,7 +329,7 @@ class Worker:
 
     def run(self, runnable: Runnable) -> Optional[DataBlockMetadata]:
         output_block: Optional[DataBlockMetadata] = None
-        node = self.env.get_node(runnable.function_node_key)
+        node = self.env.get_node(runnable.function_node_name)
         with self.ctx.start_data_function_run(node) as run_session:
             output = self.execute_datafunction(runnable)
             if output is not None:

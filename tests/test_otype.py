@@ -2,17 +2,16 @@ from __future__ import annotations
 
 import pytest
 
-from basis.core.registries import ObjectTypeRegistry
+from basis.core.module import DEFAULT_LOCAL_MODULE
 from basis.core.typing.inference import infer_otype_fields_from_records
 from basis.core.typing.object_type import (
     create_quick_otype,
     is_generic,
     otype_from_yaml,
 )
-from basis.utils.uri import DEFAULT_MODULE_KEY, is_uri
 
 test_type_yml = """
-key: TestType
+name: TestType
 version: 3
 class: Entity
 description: Description
@@ -38,13 +37,13 @@ implementations:
 
 def test_otype_identifiers():
     t1 = create_quick_otype("T1", fields=[("f1", "Unicode"), ("f2", "Integer")])
-    assert t1.key == "T1"
-    assert t1.uri == DEFAULT_MODULE_KEY + ".T1"
+    assert t1.name == "T1"
+    assert t1.uri == f"{DEFAULT_LOCAL_MODULE.name}.T1"
 
     t2 = create_quick_otype(
-        "TestType", fields=[("f1", "Unicode"), ("f2", "Integer")], module_key="m1"
+        "TestType", fields=[("f1", "Unicode"), ("f2", "Integer")], module_name="m1"
     )
-    assert t2.key == "TestType"
+    assert t2.name == "TestType"
     assert t2.uri == "m1.TestType"
     assert t2.get_identifier() == "m1_test_type"
     assert t2.get_field("f1").name == "f1"
@@ -53,11 +52,6 @@ def test_otype_identifiers():
 
 
 def test_otype_helpers():
-    assert is_uri("t.two")
-    assert is_uri("a.1")
-    assert not is_uri("1")
-    assert not is_uri("a")
-    assert not is_uri("two")
     assert is_generic("T")
     assert is_generic("Z")
     assert not is_generic("ZZ")
@@ -66,7 +60,7 @@ def test_otype_helpers():
 
 def test_otype_yaml():
     tt = otype_from_yaml(test_type_yml)
-    assert tt.key == "TestType"
+    assert tt.name == "TestType"
     assert tt.version == 3
     assert len(tt.fields) == 2
     assert len(tt.relationships) == 1
@@ -117,14 +111,3 @@ def test_otype_inference():
     assert field_types["e"] == "JSON"
     assert field_types["f"] == "UnicodeText"
     # assert field_types["g"] == "BigInteger"  # TODO: Fix this. See notes on type inference and why pandas not sufficient
-
-
-def test_otype_registry():
-    r = ObjectTypeRegistry()
-    t1 = create_quick_otype("T1", fields=[("f1", "Unicode"), ("f2", "Integer")])
-    t2 = create_quick_otype(
-        "TestType", fields=[("f1", "Unicode"), ("f2", "Integer")], module_key="m1"
-    )
-    r.process_and_register_all([t1, t2])
-    assert r.get("T1") is t1
-    assert r.get("m1.TestType") is t2

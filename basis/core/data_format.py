@@ -17,7 +17,7 @@ import pandas as pd
 from sqlalchemy.engine import ResultProxy
 
 from basis.utils.common import StringEnum
-from basis.utils.registry import T
+from basis.utils.typing import T
 
 if TYPE_CHECKING:
     from basis.core.storage import StorageClass

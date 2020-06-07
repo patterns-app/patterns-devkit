@@ -18,7 +18,7 @@ from basis.core.environment import Environment
 from basis.core.metadata.listeners import immutability_update_listener
 from basis.core.metadata.orm import BaseModel, timestamp_rand_key
 from basis.core.typing.object_type import ObjectType, ObjectTypeUri
-from basis.utils.registry import T
+from basis.utils.typing import T
 
 if TYPE_CHECKING:
     from basis.core.conversion import (
@@ -116,7 +116,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         from basis.core.function_node import Direction
 
         result = (
-            sess.query(DataFunctionLog.function_node_key)
+            sess.query(DataFunctionLog.function_node_name)
             .join(DataBlockLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
@@ -208,7 +208,7 @@ event.listen(StoredDataBlockMetadata, "before_update", immutability_update_liste
 
 class DataSetMetadata(BaseModel):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
-    key = Column(String, nullable=False)
+    name = Column(String, nullable=False)
     otype_uri: ObjectTypeUri = Column(String, nullable=False)  # type: ignore
     data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
     # Hints
@@ -221,7 +221,7 @@ class DataSetMetadata(BaseModel):
     def __repr__(self):
         return self._repr(
             id=self.id,
-            name=self.key,
+            name=self.name,
             otype_uri=self.otype_uri,
             data_block=self.data_block,
         )
@@ -230,7 +230,7 @@ class DataSetMetadata(BaseModel):
         mgr = DataBlockManager(ctx, self.data_block)
         return ManagedDataSet(
             data_set_id=self.id,
-            data_set_key=self.key,
+            data_set_name=self.name,
             data_block_id=self.data_block_id,
             otype_uri=self.otype_uri,
             manager=mgr,
@@ -240,7 +240,7 @@ class DataSetMetadata(BaseModel):
 @dataclass(frozen=True)
 class ManagedDataSet(Generic[T]):
     data_set_id: str
-    data_set_key: str
+    data_set_name: str
     data_block_id: str
     otype_uri: ObjectTypeUri
     # otype_is_validated: bool

@@ -37,7 +37,7 @@ class TestStreams:
 
     def test_stream_unprocessed_eligible(self):
         dfl = DataFunctionLog(
-            function_node_key=self.node_source.key,
+            function_node_name=self.node_source.name,
             data_function_uri=self.node_source.datafunction.uri,
             runtime_url="test",
         )
@@ -52,7 +52,7 @@ class TestStreams:
 
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = DataFunctionLog(
-            function_node_key=self.node_source.key,
+            function_node_name=self.node_source.name,
             data_function_uri=self.node_source.datafunction.uri,
             runtime_url="test",
         )
@@ -60,7 +60,7 @@ class TestStreams:
             data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = DataFunctionLog(
-            function_node_key=self.node1.key,
+            function_node_name=self.node1.name,
             data_function_uri=self.node1.datafunction.uri,
             runtime_url="test",
         )
@@ -79,7 +79,7 @@ class TestStreams:
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
         dfl = DataFunctionLog(
-            function_node_key=self.node_source.key,
+            function_node_name=self.node_source.name,
             data_function_uri=self.node_source.datafunction.uri,
             runtime_url="test",
         )
@@ -87,7 +87,7 @@ class TestStreams:
             data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = DataFunctionLog(
-            function_node_key=self.node1.key,
+            function_node_name=self.node1.name,
             data_function_uri=self.node1.datafunction.uri,
             runtime_url="test",
         )
@@ -106,7 +106,7 @@ class TestStreams:
 
     def test_stream_unprocessed_eligible_otype(self):
         dfl = DataFunctionLog(
-            function_node_key=self.node_source.key,
+            function_node_name=self.node_source.name,
             data_function_uri=self.node_source.datafunction.uri,
             runtime_url="test",
         )
