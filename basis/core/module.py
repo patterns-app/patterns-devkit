@@ -46,6 +46,8 @@ class BasisModule:
             self.add_otype(otype)
         for fn in functions or []:
             self.add_function(fn)
+        for p in providers or []:
+            self.add_provider(p)
 
     # TODO: implement dir for usability
     # def __dir__(self):
@@ -71,17 +73,6 @@ class BasisModule:
     @property
     def functions(self) -> ComponentView[ObjectType]:
         return self.library.component_view(ctype=ComponentType.DataFunction)
-
-    def process_providers(
-        self, providers: Sequence[ExternalProvider]
-    ) -> Sequence[ExternalProvider]:
-        return providers
-        # """Ensure otypes"""
-        # processed = []
-        # for s in providers:
-        #     for sr in s.reproviders:
-        #         sr.otype = self.get_otype(sr.otype)
-        # return processed
 
     def add_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
         otype = self.process_otype(otype_like)
@@ -141,6 +132,14 @@ class BasisModule:
                 raise Exception(f"Invalid DataFunction {df_like}")
             df = dfd.as_data_function()
         return df
+
+    def add_provider(self, provider: ExternalProvider) -> ExternalProvider:
+        p = self.process_provider(provider)
+        self.library.add_component(p)
+        return p
+
+    def process_provider(self, provider: ExternalProvider) -> ExternalProvider:
+        return provider
 
     # def get_indexable_components(self) -> Iterable[IndexableComponent]:
     #     dti = self.otype_indexer()

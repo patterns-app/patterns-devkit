@@ -57,7 +57,7 @@ def make_datafunction_name(data_function: DataFunctionCallable) -> str:
 
 @dataclass(frozen=True)
 class DataFunction(ComponentUri):
-    component_type = ComponentType.DataFunction
+    # component_type = ComponentType.DataFunction
     runtime_data_functions: Dict[RuntimeClass, DataFunctionDefinition] = field(
         default_factory=dict
     )
@@ -109,7 +109,7 @@ class DataFunction(ComponentUri):
 
 @dataclass(frozen=True)
 class DataFunctionDefinition(ComponentUri):
-    component_type = ComponentType.DataFunction
+    # component_type = ComponentType.DataFunction
     function_callable: Optional[
         Callable
     ]  # Optional since Composite DFs don't have a Callable

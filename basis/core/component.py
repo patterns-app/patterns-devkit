@@ -4,7 +4,7 @@ import os
 import re
 import sys
 from collections import defaultdict
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields, replace
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -47,7 +47,8 @@ class ComponentBase:
 class ComponentType(Enum):
     DataFunction = "dfn"
     ObjectType = "otype"
-    ExternalResource = "ext"
+    External = "ext"
+    # ExternalResource = "ext"
 
 
 class OverwriteBehavior(Enum):
@@ -110,7 +111,7 @@ class ComponentUri(ComponentBase):
         return self.component_type.value + ":" + self.versioned_uri
 
     def clone(self, **kwargs: Any) -> ComponentUri:
-        d = asdict(self)
+        d = {f.name: getattr(self, f.name) for f in fields(self)}
         d.update(kwargs)
         return self.__class__(**d)
 

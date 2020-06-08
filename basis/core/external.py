@@ -7,9 +7,11 @@ from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type
 
 from sqlalchemy import Column, DateTime, String
 
+from basis.core.component import ComponentType, ComponentUri
 from basis.core.data_function import DataFunctionInterface, DataInterfaceType
 from basis.core.data_function_interface import DataFunctionAnnotation
 from basis.core.metadata.orm import BaseModel
+from basis.core.module import BasisModule
 from basis.core.runnable import DataFunctionContext, ExecutionContext
 from basis.core.typing.object_type import ObjectTypeLike
 from basis.utils.typing import T
@@ -18,9 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class ExternalResource:
+class ExternalResource(ComponentUri):
     provider: ExternalProvider
-    name: str
     verbose_name: str
     description: str
     otype: ObjectTypeLike
@@ -64,6 +65,16 @@ class ExternalResource:
             configured_provider=configured_provider,
             initial_high_water_mark=initial_high_water_mark,
         )
+
+
+def external_resource_factory(**kwargs: Any) -> ExternalResource:
+    kwargs["component_type"] = ComponentType.External
+    kwargs["module_name"] = kwargs.get("module_name")
+    kwargs["version"] = kwargs.get("version")
+    return ExternalResource(**kwargs)
+
+
+ExternalDataResource = external_resource_factory
 
 
 @dataclass(frozen=True)
@@ -124,11 +135,12 @@ class ConfiguredExternalResourceState(BaseModel):
 
 
 class ExternalResourceList(list):
+    # We subclass list so we can add resources directly as attributes to the list
     pass
 
 
 @dataclass(frozen=True)
-class ExternalProvider:
+class ExternalProvider(ComponentUri):
     name: str
     verbose_name: str
     description: str
@@ -155,6 +167,10 @@ class ExternalProvider:
     #     return self._resources
 
     def add_resource(self, external_resource: ExternalResource):
+        for r in self.resources:
+            if r.name == external_resource.name:
+                # Don't add twice
+                return
         self.resources.append(external_resource)
         setattr(self.resources, external_resource.name, external_resource)
 
@@ -174,6 +190,24 @@ class ExternalProvider:
     def __dir__(self) -> List[str]:
         d = super().__dir__()
         return list(set(d) | set([r.name for r in self.resources]))
+
+    def associate_with_module(self, module: BasisModule) -> ComponentUri:
+        resources: ExternalResourceList = ExternalResourceList()
+        for r in self.resources:
+            resources.append(r.associate_with_module(module))
+        return self.clone(module_name=module.name, resources=resources)
+
+
+def external_provider_factory(**kwargs: Any) -> ExternalProvider:
+    kwargs["component_type"] = ComponentType.External
+    kwargs["module_name"] = kwargs.get("module_name")
+    kwargs["version"] = kwargs.get("version")
+    return ExternalProvider(**kwargs)
+
+
+# TODO: not a fan of this. How do we provide proper init on dataclasses?
+#   Let them be mutable? "Final" hint would be ideal...
+DataProvider = external_provider_factory
 
 
 @dataclass(frozen=True)
