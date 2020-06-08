@@ -11,10 +11,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from basis.core.component import ComponentLibrary
 from basis.core.metadata.orm import BaseModel
 from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
-from basis.core.streams import FunctionNodeRawInput
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 
 if TYPE_CHECKING:
+    from basis.core.streams import FunctionNodeRawInput
     from basis.core.storage import (
         Storage,
         new_local_memory_storage,
