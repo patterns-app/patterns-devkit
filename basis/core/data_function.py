@@ -76,7 +76,7 @@ class DataFunction(ComponentUri):
     def get_representative_definition(self) -> DataFunctionDefinition:
         return list(self.runtime_data_functions.values())[0]
 
-    def get_interface(self) -> DataFunctionInterface:
+    def get_interface(self) -> Optional[DataFunctionInterface]:
         dfd = self.get_representative_definition()
         if not dfd:
             raise
@@ -127,6 +127,8 @@ class DataFunctionDefinition(ComponentUri):
     ) -> Optional[DataInterfaceType]:
         if self.is_composite:
             raise NotImplementedError(f"Cannot call a composite DataFunction {self}")
+        if self.function_callable is None:
+            raise
         return self.function_callable(*args, **kwargs)
 
     def get_interface(self) -> Optional[DataFunctionInterface]:
@@ -135,7 +137,6 @@ class DataFunctionDefinition(ComponentUri):
             return None
         if hasattr(self.function_callable, "get_interface"):
             return self.function_callable.get_interface()
-        print(self.function_callable)
         return DataFunctionInterface.from_datafunction_definition(
             self.function_callable
         )

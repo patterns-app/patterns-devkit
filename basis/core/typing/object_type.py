@@ -104,7 +104,6 @@ def otype_uri_to_identifier(uri: str) -> str:
 
 @dataclass(frozen=True)
 class ObjectType(ComponentUri):
-    component_type = ComponentType.ObjectType
     type_class: ObjectTypeClass
     description: str
     unique_on: List[str]
@@ -144,7 +143,7 @@ def is_generic(otype_like: ObjectTypeLike) -> bool:
 
 def otype_like_to_uri(d: ObjectTypeLike) -> ComponentUri:
     if isinstance(d, ObjectType):
-        return d.get_component_uri()
+        return d
     if isinstance(d, str):
         return ComponentUri.from_str(d)
     raise TypeError(d)

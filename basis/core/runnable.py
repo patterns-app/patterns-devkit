@@ -270,7 +270,7 @@ class ExecutionManager:
                 runnable = Runnable(
                     function_node_name=node.name,
                     compiled_datafunction=CompiledDataFunction(
-                        name=node.name, function=node.datafunction.function_callable
+                        name=node.name, function=node.datafunction
                     ),
                     datafunction_interface=dfi,
                     configuration=node.config,
@@ -361,7 +361,9 @@ class Worker:
         mgd_inputs = {
             n: self.get_managed_data_block(block) for n, block in inputs.items()
         }
-        return runnable.compiled_datafunction.function(*args, **mgd_inputs)
+        return runnable.compiled_datafunction.function.function_callable(
+            *args, **mgd_inputs
+        )
 
     def get_managed_data_block(self, block: DataBlockMetadata) -> ManagedDataBlock:
         return block.as_managed_data_block(self.ctx)

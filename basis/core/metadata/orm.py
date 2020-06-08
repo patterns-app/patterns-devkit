@@ -34,7 +34,7 @@ class _BaseModel:
                 from basis.core.typing.object_type import ObjectType
 
                 if isinstance(field, ObjectType):
-                    field_strings.append(f"{key}={field.key}")
+                    field_strings.append(f"{key}={field.name}")
                 elif key in ("id", "url"):
                     field_strings.append(str(cf.bold_italic(f"{key}={field!r}")))
                 else:

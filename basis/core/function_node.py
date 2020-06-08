@@ -102,11 +102,13 @@ class FunctionNode:
             }
         raise Exception(f"Invalid data function input {upstream}")
 
-    def _get_interface(self) -> DataFunctionInterface:
+    def _get_interface(self) -> Optional[DataFunctionInterface]:
         return self.datafunction.get_interface()
 
     def get_interface(self) -> DataFunctionInterface:
         dfi = self._get_interface()
+        if dfi is None:
+            raise
         dfi.connect_upstream(self, self.get_upstream())
         return dfi
 

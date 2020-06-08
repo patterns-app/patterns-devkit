@@ -146,7 +146,7 @@ class ComponentRegistry:
         overwrite_behavior: Union[OverwriteBehavior, str] = OverwriteBehavior.MERGE,
         key_attrs: List[str] = ["component_type", "name", "module_name"],
     ):
-        self._uri_to_component: Dict[ComponentUri, ComponentUri] = {}
+        self._uri_to_component: Dict[str, ComponentUri] = {}
         self._name_to_modules: DefaultDict[str, List[str]] = defaultdict(list)
         if isinstance(overwrite_behavior, str):
             overwrite_behavior = OverwriteBehavior(overwrite_behavior)
@@ -168,7 +168,7 @@ class ComponentRegistry:
 
     def __dir__(self) -> List[str]:
         d = super().__dir__()
-        return list(set(d) | set(self._uri_to_component))
+        return list(set(d) | set(self._uri_to_component.keys()))
 
     def get_key(self, uri: ComponentUri) -> str:
         attrs = [getattr(uri, a) for a in self._key_attrs]
@@ -225,7 +225,15 @@ class ComponentRegistry:
     def __getitem__(self, uri: UriLike) -> ComponentUri:
         uri = ensure_uri(uri)
         uri = self.qualify_uri(uri)
-        return self._uri_to_component[uri]
+        key = self.get_key(uri)
+        return self._uri_to_component[key]
+
+    def get_key_from_uri_like(
+        self, uri: UriLike, module_precedence: List[str] = None, **kwargs: Any
+    ) -> str:
+        uri = ensure_uri(uri, **kwargs)
+        uri = self.qualify_uri(uri, module_precedence)
+        return self.get_key(uri)
 
     def get(
         self,
@@ -234,19 +242,14 @@ class ComponentRegistry:
         module_precedence: List[str] = None,
         **kwargs: Any,
     ) -> Optional[ComponentUri]:
-        # print("--------------")
-        # print("Getting:", uri)
-        uri = ensure_uri(uri, **kwargs)
-        # print(uri)
-        uri = self.qualify_uri(uri, module_precedence)
-        # print("qual", uri)
-        # print(self._name_to_modules)
-        # print({k: v.uri for k, v in self._uri_to_component.items()})
-        k = self.get_key(uri)
+        k = self.get_key_from_uri_like(
+            uri, module_precedence=module_precedence, **kwargs
+        )
         return self._uri_to_component.get(k, default)
 
-    def delete(self, uri: UriLike):
-        del self._uri_to_component[uri]
+    def delete(self, uri: UriLike, **kwargs: Any):
+        k = self.get_key_from_uri_like(uri, **kwargs)
+        del self._uri_to_component[k]
 
     def all(self) -> Iterable[ComponentUri]:
         return self._uri_to_component.values()

@@ -253,7 +253,7 @@ class ExtractorDataFunction:
         configured_external_resource: ConfiguredExternalResource,
         name: str = None,
     ):
-        super().__init__(extractor_function, name)
+        # super().__init__(extractor_function, name)
         self.extract_function = extractor_function
         self.configured_provider = configured_provider
         self.configured_external_resource = configured_external_resource

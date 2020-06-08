@@ -399,7 +399,7 @@ class FunctionGraphResolver:
 
     def resolve_output_type(
         self, node: FunctionNode, visited: Set[FunctionNode] = None
-    ) -> Optional[ObjectTypeLike]:
+    ) -> Optional[ObjectType]:
         if node in self._resolved_output_types:
             return self._resolved_output_types[node]
         if visited is None:
@@ -434,9 +434,11 @@ class FunctionGraphResolver:
     ):
         if stream.upstream:
             nodes = stream.get_upstream(self.env)
-            otypes = []
+            otypes: List[ObjectType] = []
             for n in nodes:
-                otypes.append(self.resolve_output_type(n, visited))
+                ot = self.resolve_output_type(n, visited)
+                assert ot, f"Upstream has no output {n}"
+                otypes.append(ot)
             if len(set(o.name for o in otypes)) != 1:
                 raise Exception("Mixed otype streams not suppported atm")
             return otypes[0]
@@ -552,7 +554,7 @@ class FunctionNodeInterfaceManager:
                 if not input.is_optional:
                     # print(actual_input_node, annotation, storages)
                     raise InputExhaustedException(
-                        f"    Required input '{input.name}'={stream} to DataFunction '{self.node.key}' is empty"
+                        f"    Required input '{input.name}'={stream} to DataFunction '{self.node.name}' is empty"
                     )
             else:
                 input_data_blocks[input.name] = block
