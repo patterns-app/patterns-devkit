@@ -68,7 +68,7 @@ class UriMixin:
 class ComponentUri(ComponentBase):
     component_type: ComponentType
     name: str
-    module_name: str
+    module_name: Optional[str]
     version: Optional[str]
 
     @classmethod
@@ -80,7 +80,6 @@ class ComponentUri(ComponentBase):
         d.update(kwargs)
         if isinstance(d["component_type"], str):
             d["component_type"] = ComponentType(d["component_type"])
-        assert d["module_name"]
         return ComponentUri(**d)
 
     @property
@@ -110,25 +109,13 @@ class ComponentUri(ComponentBase):
     def full_uri(self):
         return self.component_type.value + ":" + self.versioned_uri
 
-    # def get_component_uri(self) -> ComponentUri:
-    #     return ComponentUri(
-    #         name=self.name,
-    #         module_name=self.module_name,
-    #         version=self.version,
-    #         component_type=self.component_type,
-    #     )
-
     def clone(self, **kwargs: Any) -> ComponentUri:
-        # d = dict(
-        #     component_type=self.component_type,
-        #     name=self.name,
-        #     module_name=self.module_name,
-        #     version=self.version,
-        # )
-        # d.update(kwargs)
         d = asdict(self)
         d.update(kwargs)
         return self.__class__(**d)
+
+    def associate_with_module(self, module: BasisModule) -> ComponentUri:
+        return self.clone(module_name=module.name)
 
     def merge(self, other: ComponentUri):
         raise NotImplementedError
@@ -314,7 +301,7 @@ class ComponentLibrary:
 
     def ensure_uri_module(self, c: ComponentUri) -> ComponentUri:
         if not c.module_name:
-            return c.clone(module_name=self.default_module.py_module_name)
+            return c.associate_with_module(self.default_module)
         return c
 
     def add_component(self, c: ComponentUri):
@@ -327,6 +314,8 @@ class ComponentLibrary:
         return self.registry.get(c, module_precedence=self.module_precedence, **kwargs)
 
     def get_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
+        from basis.core.typing.object_type import ObjectType
+
         otype = self.registry.get(
             otype_like,
             module_precedence=self.module_precedence,
@@ -339,6 +328,8 @@ class ComponentLibrary:
         return cast(ObjectType, otype)
 
     def get_function(self, df_like: DataFunctionLike) -> DataFunction:
+        from basis.core.data_function import DataFunction
+
         fn = self.registry.get(
             df_like,
             module_precedence=self.module_precedence,

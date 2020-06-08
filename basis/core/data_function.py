@@ -6,10 +6,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Uni
 
 from pandas import DataFrame
 
-from basis.core.component import ComponentType, ComponentUri, ComponentUriBase
+from basis.core.component import ComponentType, ComponentUri
 from basis.core.data_block import DataBlockMetadata, DataSetMetadata
 from basis.core.data_format import DatabaseTable, DictList
 from basis.core.data_function_interface import DataFunctionInterface
+from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
 from basis.core.runtime import RuntimeClass
 
 if TYPE_CHECKING:
@@ -55,7 +56,7 @@ def make_datafunction_name(data_function: DataFunctionCallable) -> str:
 
 
 @dataclass(frozen=True)
-class DataFunction(ComponentUriBase):
+class DataFunction(ComponentUri):
     component_type = ComponentType.DataFunction
     runtime_data_functions: Dict[RuntimeClass, DataFunctionDefinition] = field(
         default_factory=dict
@@ -71,6 +72,15 @@ class DataFunction(ComponentUriBase):
         #         return v(*args, **kwargs)
         #     except:
         #         pass
+
+    def get_representative_definition(self) -> DataFunctionDefinition:
+        return list(self.runtime_data_functions.values())[0]
+
+    def get_interface(self) -> DataFunctionInterface:
+        dfd = self.get_representative_definition()
+        if not dfd:
+            raise
+        return dfd.get_interface()
 
     def add_definition(self, df: DataFunctionDefinition):
         for cls in df.supported_runtime_classes:
@@ -90,9 +100,15 @@ class DataFunction(ComponentUriBase):
     ) -> Optional[DataFunctionDefinition]:
         return self.runtime_data_functions.get(runtime_cls)
 
+    def associate_with_module(self, module: BasisModule) -> ComponentUri:
+        dfds: Dict[RuntimeClass, DataFunctionDefinition] = {}
+        for cls, dfd in self.runtime_data_functions.items():
+            dfds[cls] = dfd.associate_with_module(module)
+        return self.clone(module_name=module.name, runtime_data_functions=dfds)
+
 
 @dataclass(frozen=True)
-class DataFunctionDefinition(ComponentUriBase):
+class DataFunctionDefinition(ComponentUri):
     component_type = ComponentType.DataFunction
     function_callable: Optional[
         Callable
@@ -119,9 +135,17 @@ class DataFunctionDefinition(ComponentUriBase):
             return None
         if hasattr(self.function_callable, "get_interface"):
             return self.function_callable.get_interface()
+        print(self.function_callable)
         return DataFunctionInterface.from_datafunction_definition(
             self.function_callable
         )
+
+    def associate_with_module(self, module: BasisModule) -> ComponentUri:
+        new_subs = []
+        if self.sub_functions:
+            for sub in self.sub_functions:
+                new_subs.append(sub.associate_with_module(module))
+        return self.clone(module_name=module.name, sub_functions=new_subs)
 
     def as_data_function(self) -> DataFunction:
         df = DataFunction(
@@ -194,7 +218,7 @@ def datafunction_chain(
     sub_funcs = []
     for fn in function_chain:
         if isinstance(fn, str):
-            uri = ComponentUri.from_str(fn)
+            uri = ComponentUri.from_str(fn, component_type=ComponentType.DataFunction)
         elif isinstance(fn, ComponentUri):
             uri = fn
         elif callable(fn):

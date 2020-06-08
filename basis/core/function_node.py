@@ -9,15 +9,16 @@ from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.schema import Column, ForeignKey
 from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
+from basis.core.component import ComponentUri
 from basis.core.data_block import DataBlock, DataBlockMetadata
 from basis.core.data_function import (
     DataFunction,
     DataFunctionCallable,
     DataFunctionDefinition,
     DataFunctionLike,
+    ensure_datafunction,
     ensure_datafunction_definition,
     make_datafunction_name,
-    ensure_datafunction,
 )
 from basis.core.data_function_interface import (
     SELF_REF_PARAM_NAME,
@@ -102,11 +103,7 @@ class FunctionNode:
         raise Exception(f"Invalid data function input {upstream}")
 
     def _get_interface(self) -> DataFunctionInterface:
-        if hasattr(self.datafunction, "get_interface"):
-            return self.datafunction.get_interface()
-        if callable(self.datafunction):
-            return DataFunctionInterface.from_datafunction_definition(self.datafunction)
-        raise Exception("No interface found for datafunction")
+        return self.datafunction.get_interface()
 
     def get_interface(self) -> DataFunctionInterface:
         dfi = self._get_interface()
@@ -261,9 +258,13 @@ class CompositeFunctionNode(FunctionNode):
         )
 
     def ensure_data_function(
-        self, df_like: Union[DataFunctionLike, str]
+        self, df_like: Union[DataFunctionLike, str, ComponentUri]
     ) -> DataFunction:
-        if isinstance(df_like, str):
+        if isinstance(df_like, DataFunction):
+            return df_like
+        if isinstance(df_like, DataFunctionDefinition):
+            return df_like.as_data_function()
+        if isinstance(df_like, str) or isinstance(df_like, ComponentUri):
             return self.env.get_function(df_like)
         return ensure_datafunction(df_like)
 
@@ -287,7 +288,7 @@ class FunctionNodeChain(CompositeFunctionNode):
 
         nodes = []
         for fn in self.data_function_chain.sub_functions:
-            self.ensure_data_function(fn)
+            fn = self.ensure_data_function(fn)
             child_name = make_datafunction_name(fn)
             child_name = self.make_child_name(self.name, child_name)
             node = FunctionNode(
