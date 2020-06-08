@@ -78,6 +78,10 @@ class FunctionNode:
     def set_upstream(self, upstream: FunctionNodeRawInput):
         self._upstream = self.check_datafunction_inputs(upstream)
 
+    def add_upstream(self, upstream: FunctionNodeRawInput):
+        # TODO: how to add/merge another upstream (useful for incr. building graphs when you don't know all inputs at once)
+        raise NotImplementedError
+
     def get_upstream(self) -> Optional[InputStreams]:
         return self._upstream
 

@@ -1,13 +1,15 @@
 from basis.core.component import ComponentType
 from basis.core.external import (
-    DataProvider,
+    ExternalDataProvider,
     ExternalDataResource,
     ExternalProvider,
     ExternalResource,
 )
 from basis.core.module import BasisModule
 
-p = DataProvider(name="test_provider", verbose_name="Test Provider", description="...")
+p = ExternalDataProvider(
+    name="test_provider", verbose_name="Test Provider", description="..."
+)
 r1 = ExternalDataResource(
     provider=p,
     name="TestExtResource",

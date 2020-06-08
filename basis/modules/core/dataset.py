@@ -14,10 +14,11 @@ from basis.core.data_function import (
 from basis.core.runnable import DataFunctionContext
 from basis.core.runtime import RuntimeClass
 from basis.core.sql.data_function import sql_datafunction
+from basis.testing.functions import DataFunctionTestCase, TestCase
 from basis.utils.typing import T
 
 
-@datafunction(name="accumulator")
+@datafunction(name="accumulator")  # , test_data="test_accumulator.yml")
 def dataframe_accumulator(
     input: DataBlock[T], this: DataBlock[T] = None,
 ) -> DataFrame[T]:
@@ -114,3 +115,28 @@ accumulate_as_dataset = datafunction_chain(
 
 
 DataSetAccumulator = accumulate_as_dataset
+
+
+TestCase(
+    function="accumulator",
+    tests=dict(
+        test_intra_dedupe=dict(
+            input="""
+                k1,k2,f1,f2,f3
+                1,2,abc,1.1,
+                1,2,def,1.1,
+                1,3,abc,1.1,
+                1,4,,,
+                2,2,1.0,2.1,"[1,2,3]"
+            """,
+            this="",
+            output="""
+                k1,k2,f1,f2,f3
+                1,2,abc,1.1,
+                1,3,abc,1.1,
+                1,4,,,
+                2,2,1.0,2.1,"[1,2,3]"
+            """,
+        )
+    ),
+)

@@ -207,7 +207,7 @@ def external_provider_factory(**kwargs: Any) -> ExternalProvider:
 
 # TODO: not a fan of this. How do we provide proper init on dataclasses?
 #   Let them be mutable? "Final" hint would be ideal...
-DataProvider = external_provider_factory
+ExternalDataProvider = external_provider_factory
 
 
 @dataclass(frozen=True)

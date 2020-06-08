@@ -31,7 +31,7 @@ def make_test_env(**kwargs):
         url = "sqlite://"
         metadata_storage = Storage.from_url(url)
         kwargs["metadata_storage"] = metadata_storage
-    env = Environment(**kwargs)
+    env = Environment(initial_modules=[], **kwargs)
     test_module = BasisModule(
         "_test", otypes=[TestType1, TestType2, TestType3, TestType4],
     )

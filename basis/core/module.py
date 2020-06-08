@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
+from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Type, Union
 
 from basis.core.component import (
     ComponentLibrary,
@@ -18,6 +18,11 @@ if TYPE_CHECKING:
         DataFunction,
     )
     from basis.core.external import ExternalProvider
+    from basis.testing.functions import (
+        DataFunctionTestCaseLike,
+        DataFunctionTestCase,
+        test_case_from_yaml,
+    )
 
 
 class BasisModule:
@@ -25,6 +30,7 @@ class BasisModule:
     py_module_path: Optional[str]
     py_module_name: Optional[str]
     library: ComponentLibrary
+    test_cases: List[DataFunctionTestCase]
 
     def __init__(
         self,
@@ -34,6 +40,7 @@ class BasisModule:
         otypes: Optional[Sequence[ObjectTypeLike]] = None,
         functions: Optional[Sequence[Union[DataFunctionLike, str]]] = None,
         providers: Optional[Sequence[ExternalProvider]] = None,
+        tests: Optional[Sequence[DataFunctionTestCaseLike]] = None,
     ):
 
         self.name = name
@@ -48,15 +55,32 @@ class BasisModule:
             self.add_function(fn)
         for p in providers or []:
             self.add_provider(p)
+        for t in tests or []:
+            self.add_test_case(t)
 
     # TODO: implement dir for usability
     # def __dir__(self):
     #     return list(self.members().keys())
 
+    def read_module_file(self, fp: str) -> str:
+        if not self.py_module_path:
+            raise Exception(f"Module path not set, cannot read {fp}")
+        typedef_path = os.path.join(self.py_module_path, fp)
+        with open(typedef_path) as f:
+            s = f.read()
+        return s
+
     def get_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
         if isinstance(otype_like, ObjectType):
             return otype_like
         return self.library.get_otype(otype_like)
+
+    def get_function(self, df_like: DataFunctionLike) -> DataFunction:
+        from basis.core.data_function import DataFunction
+
+        if isinstance(df_like, DataFunction):
+            return df_like
+        return self.library.get_function(df_like)
 
     def export(self):
         if self.py_module_name is None:
@@ -83,13 +107,7 @@ class BasisModule:
         if isinstance(otype_like, ObjectType):
             otype = otype_like
         elif isinstance(otype_like, str):
-            if not self.py_module_path:
-                raise Exception(
-                    f"Module path not set, cannot read otype definition {otype_like}"
-                )
-            typedef_path = os.path.join(self.py_module_path, otype_like)
-            with open(typedef_path) as f:
-                yml = f.read()
+            yml = self.read_module_file(otype_like)
             otype = otype_from_yaml(yml, module_name=self.name)
         else:
             raise TypeError(otype_like)
@@ -140,6 +158,28 @@ class BasisModule:
 
     def process_provider(self, provider: ExternalProvider) -> ExternalProvider:
         return provider
+
+    def add_test_case(self, test_case_like: DataFunctionTestCaseLike):
+        test_case = self.process_test_case(test_case_like)
+        self.test_cases.extend(test_case)
+
+    def process_test_case(
+        self, test_case_like: DataFunctionTestCaseLike
+    ) -> List[DataFunctionTestCase]:
+        from basis.testing.functions import (
+            DataFunctionTestCaseLike,
+            DataFunctionTestCase,
+            test_cases_from_yaml,
+        )
+
+        if isinstance(test_case_like, DataFunctionTestCase):
+            test_cases = [test_case_like]
+        elif isinstance(test_case_like, str):
+            yml = self.read_module_file(test_case_like)
+            test_cases = test_cases_from_yaml(yml, self)
+        else:
+            raise TypeError(test_case_like)
+        return test_cases
 
     # def get_indexable_components(self) -> Iterable[IndexableComponent]:
     #     dti = self.otype_indexer()

@@ -195,6 +195,7 @@ def datafunction(
     version: str = None,
     supported_runtimes: str = None,
     module_name: str = None,
+    # test_data: DataFunctionTestCaseLike = None,
 ) -> Union[Callable, DataFunctionDefinition]:
     if isinstance(df_or_name, str) or df_or_name is None:
         return partial(

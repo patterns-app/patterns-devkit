@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from basis.core.component import ComponentLibrary
 from basis.core.metadata.orm import BaseModel
 from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
+from basis.core.streams import FunctionNodeRawInput
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 
 if TYPE_CHECKING:
@@ -43,11 +44,13 @@ class Environment:
         metadata_storage: Union["Storage", str] = None,
         create_metadata_storage: bool = True,
         add_default_python_runtime: bool = True,
+        initial_modules: List[BasisModule] = None,  # Defaults to `core` module
     ):
         from basis.core.runtime import Runtime
         from basis.core.runtime import RuntimeClass
         from basis.core.runtime import RuntimeEngine
         from basis.core.storage import Storage
+        from basis.modules import core
 
         self.name = name
         if metadata_storage is None and create_metadata_storage:
@@ -73,6 +76,10 @@ class Environment:
                     runtime_engine=RuntimeEngine.LOCAL,
                 )
             )
+        if initial_modules is None:
+            initial_modules = [core]
+        for m in initial_modules:
+            self.add_module(m)
 
     def initialize_metadata_database(self):
         from basis.core.metadata.listeners import add_persisting_sdb_listener
@@ -102,11 +109,11 @@ class Environment:
         return self.library.get_function(df_like)
 
     def add_node(
-        self, _name: str, _data_function: DataFunctionCallable, **kwargs
+        self, name: str, function: DataFunctionCallable, **kwargs: Any
     ) -> FunctionNode:
         from basis.core.function_node import function_node_factory
 
-        node = function_node_factory(self, _name, _data_function, **kwargs)
+        node = function_node_factory(self, name, function, **kwargs)
         self._added_nodes[node.name] = node
         self.register_node(node)
         return node
@@ -138,6 +145,18 @@ class Environment:
         from basis.core.data_function_interface import FunctionGraphResolver
 
         return FunctionGraphResolver(self)  # TODO: maybe cache this?
+
+    def set_upstream(
+        self, node_like: Union[FunctionNode, str], upstream: FunctionNodeRawInput
+    ):
+        n = self.get_node(node_like)
+        n.set_upstream(upstream)
+
+    def add_upstream(
+        self, node_like: Union[FunctionNode, str], upstream: FunctionNodeRawInput
+    ):
+        n = self.get_node(node_like)
+        n.add_upstream(upstream)
 
     def add_module(self, module: BasisModule):
         self.library.add_module(module)

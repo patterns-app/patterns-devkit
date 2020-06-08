@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import Callable, Dict
 
 import pytest
 from pandas import DataFrame
@@ -23,6 +23,7 @@ from basis.core.function_node import (
     FunctionNodeChain,
     function_node_factory,
 )
+from basis.core.runnable import DataFunctionContext
 from basis.core.runtime import RuntimeClass
 from basis.core.sql.data_function import sql_datafunction
 from basis.core.streams import DataBlockStream
@@ -478,6 +479,19 @@ def test_function_node_inputs():
     assert node1.get_input("input").get_upstream(env)[0] is node
 
 
+def test_function_node_config():
+    env = make_test_env()
+    config_vals = []
+
+    def df_ctx(ctx: DataFunctionContext):
+        config_vals.append(ctx.config("test"))
+
+    ctx = env.add_node("ctx", df_ctx, config={"test": 1, "extra_arg": 2})
+    with env.execution() as exe:
+        exe.run(ctx)
+    assert config_vals == [1]
+
+
 def test_function_node_chain():
     env = make_test_env()
     df = datafunction(df_t1_source)
@@ -521,3 +535,17 @@ def test_graph_resolution():
     assert fgr._resolve_node_dependencies(n4)[0].parent_nodes == [n2]
     assert fgr._resolve_node_dependencies(n5)[0].parent_nodes == [n4]
     fgr.resolve_dependencies()
+    # Otype resolution
+    n7 = env.add_node("node7", df_self, upstream=DataBlockStream(otype="TestType2"))
+    fgr = env.get_function_graph_resolver()
+    fgr.resolve()
+    parent_keys = set(
+        p.name for p in fgr.get_resolved_interface(n7).inputs[0].parent_nodes
+    )
+    assert parent_keys == {
+        "node3__df_t1_to_t2",
+        "node3__df_generic",
+        "node4",
+        "node5",
+        "node6",
+    }
