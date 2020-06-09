@@ -270,7 +270,10 @@ class ExecutionManager:
                 runnable = Runnable(
                     function_node_name=node.name,
                     compiled_datafunction=CompiledDataFunction(
-                        name=node.name, function=node.datafunction
+                        name=node.name,
+                        function=node.datafunction.get_definition(
+                            runtime.runtime_class
+                        ),
                     ),
                     datafunction_interface=dfi,
                     configuration=node.config,

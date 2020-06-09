@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 class FunctionNode:
     env: Environment
     name: str
-    datafunction: DataFunctionDefinition
+    datafunction: DataFunction
     _upstream: Optional[InputStreams]
     parent_node: Optional[FunctionNode]
 
@@ -59,7 +59,7 @@ class FunctionNode:
         self.config = config or {}
         self.env = _env
         self.name = _name
-        self.datafunction = ensure_datafunction_definition(_datafunction)
+        self.datafunction = ensure_datafunction(_datafunction)
         self._upstream = self.check_datafunction_inputs(upstream)
         self._children: Set[FunctionNode] = set([])
         self.parent_node = None
@@ -112,7 +112,7 @@ class FunctionNode:
     def get_interface(self) -> DataFunctionInterface:
         dfi = self._get_interface()
         if dfi is None:
-            raise
+            raise TypeError(f"DFI is none for {self}")
         dfi.connect_upstream(self, self.get_upstream())
         return dfi
 
@@ -280,12 +280,12 @@ class FunctionNodeChain(CompositeFunctionNode):
         self,
         _env: Environment,
         _name: str,
-        _datafunction: DataFunctionDefinition,
+        _datafunction: DataFunction,
         upstream: Optional[FunctionNodeRawInput] = None,
         config: Dict[str, Any] = None,
     ):
         super().__init__(_env, _name, _datafunction, upstream=upstream, config=config)
-        self.data_function_chain = _datafunction
+        self.data_function_chain = ensure_datafunction(_datafunction)
         input_streams = self.get_upstream()
         self._node_chain = self.build_nodes(input_streams)
 
@@ -293,7 +293,9 @@ class FunctionNodeChain(CompositeFunctionNode):
         from basis.core.streams import ensure_data_stream
 
         nodes = []
-        for fn in self.data_function_chain.sub_functions:
+        for (
+            fn
+        ) in self.data_function_chain.get_representative_definition().sub_functions:
             fn = self.ensure_data_function(fn)
             child_name = make_datafunction_name(fn)
             child_name = self.make_child_name(self.name, child_name)
@@ -321,7 +323,7 @@ def function_node_factory(
     config: Dict[str, Any] = None,
 ) -> FunctionNode:
     node: FunctionNode
-    df = ensure_datafunction_definition(df_like)
+    df = ensure_datafunction(df_like)
     if df.is_composite:
         # if upstream:
         #     if isinstance(upstream, list):

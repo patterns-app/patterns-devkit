@@ -197,7 +197,21 @@ def show_log():
         echo_table(headers, drls)
 
 
+@click.command("reset")
+def reset_metadata():
+    env = current_env()
+    with env.session_scope() as sess:
+        sess.execute("drop table basis_data_function_log        cascade;")
+        sess.execute("drop table basis_data_function_log_id_seq cascade;")
+        sess.execute("drop table basis_data_resource_log        cascade;")
+        sess.execute("drop table basis_data_resource_log_id_seq cascade;")
+        sess.execute("drop table basis_data_resource_metadata   cascade;")
+        sess.execute("drop table basis_data_set_metadata        cascade;")
+        sess.execute("drop table basis_stored_data_resource_metadata cascade;")
+
+
 app.add_command(generate)
 app.add_command(show_log)
 app.add_command(list_component)
 app.add_command(search)
+app.add_command(reset_metadata)

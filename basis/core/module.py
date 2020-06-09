@@ -98,6 +98,10 @@ class BasisModule:
     def functions(self) -> ComponentView[ObjectType]:
         return self.library.component_view(ctype=ComponentType.DataFunction)
 
+    @property
+    def providers(self) -> ComponentView[ObjectType]:
+        return self.library.component_view(ctype=ComponentType.External)
+
     def add_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
         otype = self.process_otype(otype_like)
         self.library.add_component(otype)

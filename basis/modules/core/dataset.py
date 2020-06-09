@@ -89,6 +89,7 @@ from input:T
 )
 
 
+@datafunction("as_dataset", supported_runtimes="database")
 def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
     name = ctx.config("dataset_name")
     ds = (

@@ -29,14 +29,17 @@ def df_error() -> DictList[TestType1]:
 def test_worker():
     env = make_test_env()
     sess = env.get_new_metadata_session()
-    ec = env.get_execution_context(sess, current_runtime=env.runtimes[0])
+    rt = env.runtimes[0]
+    ec = env.get_execution_context(sess, current_runtime=rt)
     node = env.add_node("node", df_t1_source)
     w = Worker(ec)
     dfi_mgr = FunctionNodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
         node.name,
-        CompiledDataFunction(node.datafunction.name, node.datafunction),
+        CompiledDataFunction(
+            node.datafunction.name, node.datafunction.get_definition(rt.runtime_class)
+        ),
         bdfi,
     )
     output = w.run(r)
@@ -47,8 +50,9 @@ def test_worker_output():
     env = make_test_env()
     sess = env.get_new_metadata_session()
     env.add_storage("memory://test")
+    rt = env.runtimes[0]
     ec = env.get_execution_context(
-        sess, current_runtime=env.runtimes[0], target_storage=env.storages[0]
+        sess, current_runtime=rt, target_storage=env.storages[0]
     )
     node = env.add_node("node", df_dl_source)
     w = Worker(ec)
@@ -56,7 +60,9 @@ def test_worker_output():
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
         node.name,
-        CompiledDataFunction(node.datafunction.name, node.datafunction),
+        CompiledDataFunction(
+            node.datafunction.name, node.datafunction.get_definition(rt.runtime_class)
+        ),
         bdfi,
     )
     output = w.execute_datafunction(r)

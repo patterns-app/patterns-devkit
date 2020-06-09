@@ -62,6 +62,14 @@ class DataFunction(ComponentUri):
         default_factory=dict
     )
 
+    @property
+    def is_composite(self) -> bool:
+        return self.get_representative_definition().is_composite
+
+    @property
+    def supported_runtime_classes(self) -> List[RuntimeClass]:
+        return list(self.runtime_data_functions.keys())
+
     def __call__(
         self, *args: DataFunctionContext, **kwargs: DataInterfaceType
     ) -> Optional[DataInterfaceType]:
@@ -234,8 +242,10 @@ def datafunction_chain(
 
 
 def ensure_datafunction_definition(
-    dfl: DataFunctionLike, **kwargs
+    dfl: DataFunctionDefinitionLike, **kwargs
 ) -> DataFunctionDefinition:
+    if isinstance(dfl, DataFunction):
+        raise TypeError(f"Already a DataFunction {dfl}")
     if isinstance(dfl, DataFunctionDefinition):
         return dfl
     return data_function_definition_factory(dfl, **kwargs)

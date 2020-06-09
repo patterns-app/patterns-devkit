@@ -16,3 +16,9 @@ def test_env_init():
     env.add_node("n1", _test_module.functions.test_sql)
     assert len(env.all_added_nodes()) == 1
     assert len(env.all_flattened_nodes()) == 1
+    n2 = env.add_node("n2", "test_sql")
+    assert env.get_node("n2") is n2
+    assert env.get_function("test_sql") is _test_module.functions.test_sql
+    env.add_storage("postgres://test")
+    assert len(env.storages) == 1
+    assert len(env.runtimes) == 2

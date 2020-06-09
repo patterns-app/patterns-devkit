@@ -109,10 +109,12 @@ class Environment:
         return self.library.get_function(df_like)
 
     def add_node(
-        self, name: str, function: DataFunctionCallable, **kwargs: Any
+        self, name: str, function: Union[DataFunctionLike, str], **kwargs: Any
     ) -> FunctionNode:
         from basis.core.function_node import function_node_factory
 
+        if isinstance(function, str):
+            function = self.get_function(function)
         node = function_node_factory(self, name, function, **kwargs)
         self._added_nodes[node.name] = node
         self.register_node(node)
