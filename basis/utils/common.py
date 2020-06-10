@@ -274,5 +274,7 @@ class BasisJSONEncoder(json.JSONEncoder):
             return str(o)
         elif hasattr(o, "to_json"):
             return o.to_json()
+        elif isinstance(o, StringEnum):
+            return str(o)
         else:
             return super().default(o)

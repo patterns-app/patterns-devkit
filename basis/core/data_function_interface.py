@@ -151,6 +151,9 @@ class ResolvedFunctionNodeInput:
     parent_nodes: List[FunctionNode]
     potential_parent_nodes: List[FunctionNode]
     otype: ObjectType
+    # declared_otype_like: ObjectTypeLike
+    # inferred_otype: ObjectType
+    # realized_otype: Optional[ObjectType]
     bound_data_block: Optional[DataBlockMetadata] = None
 
 

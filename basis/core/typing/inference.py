@@ -17,6 +17,7 @@ from basis.core.typing.object_type import (
     ObjectType,
     create_quick_field,
     create_quick_otype,
+    ConflictBehavior,
 )
 from basis.utils.common import is_datetime_str, title_to_snake_case
 
@@ -64,7 +65,7 @@ def infer_otype_fields_from_records(
     return fields
 
 
-def inferred_otype(records: DictList, **kwargs) -> ObjectType:
+def infer_otype(records: DictList, **kwargs) -> ObjectType:
     fields = infer_otype_fields_from_records(records)
     auto_name = "AutoType" + str(randint(1000, 9999))  # TODO
     args = dict(
@@ -75,7 +76,7 @@ def inferred_otype(records: DictList, **kwargs) -> ObjectType:
         description=f"Automatically inferred type",
         unique_on=[],
         implementations=[],
-        on_conflict="ReplaceWithNewer",
+        on_conflict=ConflictBehavior("ReplaceWithNewer"),
         fields=fields,
     )
     args.update(kwargs)

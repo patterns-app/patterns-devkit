@@ -3,15 +3,20 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import contextmanager
+from dataclasses import asdict
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from basis.core.component import ComponentLibrary
+from basis.core.component import ComponentLibrary, ensure_uri
 from basis.core.metadata.orm import BaseModel
 from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
-from basis.core.typing.object_type import ObjectType, ObjectTypeLike
+from basis.core.typing.object_type import (
+    GeneratedObjectType,
+    ObjectType,
+    ObjectTypeLike,
+)
 
 if TYPE_CHECKING:
     from basis.core.streams import FunctionNodeRawInput
@@ -105,11 +110,31 @@ class Environment:
     def get_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
         if isinstance(otype_like, ObjectType):
             return otype_like
-        return self.library.get_otype(otype_like)
+        try:
+            return self.library.get_otype(otype_like)
+        except KeyError:
+            otype = self.get_generated_otype(otype_like)
+            if otype is None:
+                raise KeyError(otype_like)
 
-    def add_otype(self, otype: ObjectType):
+    def get_generated_otype(self, otype_like: ObjectTypeLike) -> Optional[ObjectType]:
+        c = ensure_uri(otype_like)
+        if c.module_name:
+            if not c.module_name == DEFAULT_LOCAL_MODULE.name:
+                return None
+        with self.session_scope() as sess:
+            got = sess.query(GeneratedObjectType).get(c.name)
+            if got is None:
+                return None
+            return got.as_otype()
+
+    def add_new_otype(self, otype: ObjectType):
         if self.library.get_component(otype):
+            # Already exists
             return
+        got = GeneratedObjectType(name=otype.name, definition=asdict(otype))
+        with self.session_scope() as sess:
+            sess.add(got)
         self.library.add_component(otype)
 
     def get_function(self, df_like: Union[DataFunctionLike, str]) -> DataFunction:

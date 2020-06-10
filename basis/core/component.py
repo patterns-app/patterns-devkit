@@ -22,6 +22,8 @@ from typing import (
     cast,
 )
 
+from basis.utils.common import StringEnum
+
 if TYPE_CHECKING:
     from basis.core.data_function import (
         DataFunctionLike,
@@ -44,14 +46,14 @@ class ComponentBase:
     ctype: ComponentType
 
 
-class ComponentType(Enum):
+class ComponentType(StringEnum):
     DataFunction = "dfn"
     ObjectType = "otype"
     External = "ext"
     # ExternalResource = "ext"
 
 
-class OverwriteBehavior(Enum):
+class OverwriteBehavior(StringEnum):
     OVERWRITE = "overwrite"
     ERROR = "error"
     IGNORE = "ignore"

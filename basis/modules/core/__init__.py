@@ -1,13 +1,26 @@
 from basis.core.module import BasisModule
 
+from ...core.component import ComponentType
+from ...core.typing.object_type import ConflictBehavior, ObjectType
 from .dataset import *
 from .external.static import local_provider
+
+AnyType = ObjectType(
+    component_type=ComponentType.ObjectType,
+    name="Any",
+    module_name="core",
+    version="0",
+    description="Any super type is compatible with all ObjectTypes",
+    on_conflict=ConflictBehavior.ReplaceWithNewer,
+    unique_on=[],
+    fields=[],
+)
 
 module = BasisModule(
     "core",
     py_module_path=__file__,
     py_module_name=__name__,
-    otypes=[],
+    otypes=[AnyType],
     functions=[
         accumulate_as_dataset,
         as_dataset,

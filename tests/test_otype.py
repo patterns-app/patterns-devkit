@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+from dataclasses import asdict
+
 import pytest
 
 from basis.core.module import DEFAULT_LOCAL_MODULE
-from basis.core.typing.inference import infer_otype_fields_from_records
+from basis.core.typing.inference import infer_otype, infer_otype_fields_from_records
 from basis.core.typing.object_type import (
+    GeneratedObjectType,
+    ObjectType,
     create_quick_otype,
     is_generic,
     otype_from_yaml,
 )
+from tests.utils import make_test_env
 
 test_type_yml = """
 name: TestType
@@ -110,3 +115,21 @@ def test_otype_inference():
     assert field_types["e"] == "JSON"
     assert field_types["f"] == "UnicodeText"
     # assert field_types["g"] == "BigInteger"  # TODO: Fix this. See notes on type inference and why pandas not sufficient
+
+
+def test_generated_otype():
+    new_otype = infer_otype(sample_records)
+    got = GeneratedObjectType(name=new_otype.name, definition=asdict(new_otype))
+    env = make_test_env()
+    with env.session_scope() as sess:
+        sess.add(got)
+    with env.session_scope() as sess:
+        got = (
+            sess.query(GeneratedObjectType)
+            .filter(GeneratedObjectType.name == new_otype.name)
+            .first()
+        )
+        got_type = got.as_otype()
+        assert asdict(got_type) == asdict(new_otype)
+    assert env.get_generated_otype(new_otype.name).name == new_otype.name
+    assert env.get_generated_otype("pizza") is None

@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Type, Union
+from typing import List, Type, Union, Any, Callable
 
 import sqlalchemy
 from sqlalchemy.engine import ResultProxy
@@ -12,7 +12,12 @@ from basis.core.environment import Environment
 from basis.core.runtime import Runtime
 from basis.core.sql.utils import ObjectTypeMapper
 from basis.core.storage import Storage, StorageEngine
-from basis.utils.common import JSONEncoder, printd, title_to_snake_case
+from basis.utils.common import (
+    JSONEncoder,
+    printd,
+    title_to_snake_case,
+    BasisJSONEncoder,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +54,24 @@ def conform_columns_for_insert(
 
 
 class DatabaseAPI:
-    def __init__(self, env: Environment, resource: Union[Runtime, Storage]):
+    def __init__(
+        self,
+        env: Environment,
+        resource: Union[Runtime, Storage],
+        json_serializer: Callable = None,
+    ):
         self.env = env
         self.resource = resource
+        self.json_serializer = (
+            json_serializer
+            if json_serializer is not None
+            else lambda o: json.dumps(o, cls=BasisJSONEncoder)
+        )
 
     def get_connection(self) -> sqlalchemy.engine.Engine:
-        return sqlalchemy.create_engine(self.resource.url)
+        return sqlalchemy.create_engine(
+            self.resource.url, json_serializer=self.json_serializer
+        )
 
     def execute_sql(self, sql: str) -> ResultProxy:
         printd("Executing SQL:")

@@ -22,7 +22,7 @@ from basis.core.function_node import (
     FunctionNode,
 )
 from basis.core.storage import Storage
-from basis.core.typing.inference import inferred_otype
+from basis.core.typing.inference import infer_otype
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 from basis.utils.common import ensure_list
 
@@ -231,7 +231,7 @@ class DataBlockStream:
 
     def ensure_raw_records_otype(self):
         if self.raw_records_object is not None and not self.raw_records_otype:
-            self.raw_records_otype = inferred_otype(
+            self.raw_records_otype = infer_otype(
                 ensure_dictlist(self.raw_records_object)
             )
 
@@ -239,9 +239,9 @@ class DataBlockStream:
         if self.raw_records_object is None:
             return query
         self.ensure_raw_records_otype()
-        ctx.env.add_otype(
-            self.raw_records_otype
-        )  # TODO: weird place for this. When/where do we create auto-types? and then add them to env?
+        # ctx.env.add_otype(
+        #     self.raw_records_otype
+        # )  # TODO: weird place for this. When/where do we create auto-types? and then add them to env?
         block, sdb = create_data_block_from_records(
             ctx.env,
             ctx.metadata_session,

@@ -6,9 +6,11 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import strictyaml
+from sqlalchemy import JSON, Column, String
 
 from basis.core.component import ComponentType, ComponentUri
-from basis.utils.common import title_to_snake_case
+from basis.core.metadata.orm import BaseModel
+from basis.utils.common import StringEnum, title_to_snake_case
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +72,7 @@ ObjectTypeName = str
 
 
 @dataclass(frozen=True)
-class Reference:
+class Relationship:
     name: str
     type: ObjectTypeUri
     fields: Dict[str, str]
@@ -83,16 +85,16 @@ class Implementation:
 
 
 # TODO: support these!
-class ConflictBehavior(Enum):
-    ReplaceWithNewer = "ReplaceWithLatest"
+class ConflictBehavior(StringEnum):
+    ReplaceWithNewer = "ReplaceWithNewer"
     MergeUpdateNullValues = "MergeUpdateNullValues"
-    ReplaceWithNewerNotNullValues = "ReplaceLatestNotNullValues"
+    ReplaceWithNewerNotNullValues = "ReplaceWithNewerNotNullValues"
     CreateNewVersion = (
         "CreateNewVersion"  # TODO: would need a field ("_record_version") or something
     )
 
 
-class ObjectTypeClass(Enum):
+class ObjectTypeClass(StringEnum):
     Entity = "Entity"
     Observation = "Observation"
 
@@ -109,7 +111,7 @@ class ObjectType(ComponentUri):
     unique_on: List[str]
     on_conflict: ConflictBehavior
     fields: List[Field]
-    relationships: List[Reference] = field(default_factory=list)
+    relationships: List[Relationship] = field(default_factory=list)
     implementations: List[ObjectTypeUri] = field(default_factory=list)
     extends: Optional[ObjectTypeUri] = None  # TODO
     raw_definition: Optional[str] = None
@@ -132,8 +134,31 @@ class ObjectType(ComponentUri):
         # TODO: relationships
         raise NameError
 
+    @classmethod
+    def from_dict(cls, d: Dict) -> ObjectType:
+        oc = d["on_conflict"]
+        if isinstance(oc, str):
+            d["on_conflict"] = ConflictBehavior(oc)
+        d["component_type"] = ComponentType.ObjectType
+        fields = []
+        for f in d["fields"]:
+            fields.append(build_field_type_from_dict(f))
+        d["fields"] = fields
+        return ObjectType(**d)
+
 
 ObjectTypeLike = Union[ObjectType, ObjectTypeUri, ObjectTypeName]
+
+
+class GeneratedObjectType(BaseModel):
+    name = Column(String, primary_key=True)
+    definition = Column(JSON)
+
+    def __repr__(self):
+        return self._repr(name=self.name)
+
+    def as_otype(self) -> ObjectType:
+        return ObjectType.from_dict(self.definition)
 
 
 def is_generic(otype_like: ObjectTypeLike) -> bool:
@@ -175,6 +200,9 @@ def clean_raw_otype_defintion(raw_def: dict) -> dict:
         raw_def["unique_on"] = []
     if isinstance(raw_def.get("unique_on"), str):
         raw_def["unique_on"] = [raw_def["unique_on"]]
+    oc = raw_def["on_conflict"]
+    if isinstance(oc, str):
+        raw_def["on_conflict"] = ConflictBehavior(oc)
     # raw_def["type_class"] = raw_def.pop("class", None)
     if "module_name" not in raw_def:
         raw_def["module_name"] = raw_def.pop("module", None)

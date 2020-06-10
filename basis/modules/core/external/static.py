@@ -30,6 +30,7 @@ def extract_dataframe(
     configured_resource_state: ConfiguredExternalResourceState,
 ) -> Iterator[ExtractorResult]:
     if configured_resource_state.high_water_mark is not None:
+        # Just emit once
         return
     yield ExtractorResult(
         records=configured_resource.get_config_value("dataframe"),

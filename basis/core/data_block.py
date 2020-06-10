@@ -84,6 +84,8 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     # name = Column(String) ????
     otype_uri: ObjectTypeUri = Column(String, nullable=False)  # type: ignore
+    # declared_otype_uri: ObjectTypeUri = Column(String, nullable=False)  # type: ignore
+    # realized_otype_uri: ObjectTypeUri = Column(String, nullable=False)  # type: ignore
     # metadata_is_set = Column(Boolean, default=False)
     # otype_is_validated = Column(Boolean, default=False) # TODO
     # references_are_resolved = Column(Boolean, default=False)
