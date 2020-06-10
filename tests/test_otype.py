@@ -13,6 +13,7 @@ from basis.core.typing.object_type import (
     is_generic,
     otype_from_yaml,
 )
+from basis.modules import core
 from tests.utils import make_test_env
 
 test_type_yml = """
@@ -133,3 +134,10 @@ def test_generated_otype():
         assert asdict(got_type) == asdict(new_otype)
     assert env.get_generated_otype(new_otype.name).name == new_otype.name
     assert env.get_generated_otype("pizza") is None
+
+
+def test_any_otype():
+    env = make_test_env()
+    env.add_module(core)
+    anytype = env.get_otype("Any")
+    assert anytype.fields == []

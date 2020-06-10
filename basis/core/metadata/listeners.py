@@ -11,7 +11,7 @@ def add_persisting_sdb_listener(session_maker: sessionmaker):
 
         if isinstance(instance, StoredDataBlockMetadata):
             printd(
-                f"Persisted StoredDataBlock SDR#{cf.bold(instance.id)} DR#{cf.bold(instance.data_block.id)} {cf.magenta(instance.data_block.otype_uri)} {cf.dimmed_magenta(instance.data_format)}"
+                f"Persisted StoredDataBlock SDR#{cf.bold(instance.id)} DR#{cf.bold(instance.data_block.id)} {cf.magenta(instance.data_block.declared_otype_uri)} {cf.dimmed_magenta(instance.data_format)}"
             )
 
 

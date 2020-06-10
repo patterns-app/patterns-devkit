@@ -15,7 +15,11 @@ def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
         .first()
     )
     if ds is None:
-        ds = DataSetMetadata(name=name, otype_uri=input.otype_uri)
+        ds = DataSetMetadata(
+            name=name,
+            declared_otype_uri=input.declared_otype_uri,
+            realized_otype_uri=input.realized_otype_uri,
+        )
     ds.data_block_id = input.data_block_id
     ctx.execution_context.add(ds)
     table = input.as_table()

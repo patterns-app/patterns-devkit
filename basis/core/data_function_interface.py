@@ -90,6 +90,8 @@ class DataFunctionAnnotation:
 
     @classmethod
     def create(cls, **kwargs) -> DataFunctionAnnotation:
+        if not kwargs["otype_like"]:
+            kwargs["otype_like"] = "Any"
         name = kwargs.get("name")
         if name:
             kwargs["is_self_ref"] = name == SELF_REF_PARAM_NAME
@@ -150,10 +152,10 @@ class ResolvedFunctionNodeInput:
     connected_stream: DataBlockStream
     parent_nodes: List[FunctionNode]
     potential_parent_nodes: List[FunctionNode]
-    otype: ObjectType
-    # declared_otype_like: ObjectTypeLike
-    # inferred_otype: ObjectType
-    # realized_otype: Optional[ObjectType]
+    # otype: ObjectType
+    declared_otype_like: ObjectTypeLike
+    inferred_otype: ObjectType
+    realized_otype: Optional[ObjectType] = None
     bound_data_block: Optional[DataBlockMetadata] = None
 
 
@@ -385,7 +387,8 @@ class FunctionGraphResolver:
                 data_format_class=input.data_format_class,
                 is_optional=input.is_optional,
                 is_self_ref=input.is_self_ref,
-                otype=self.env.get_otype(resolved_otype),
+                declared_otype_like=input.otype_like,
+                inferred_otype=self.env.get_otype(resolved_otype),
                 connected_stream=input.connected_stream,
                 parent_nodes=parents,
                 potential_parent_nodes=potential_parents,
@@ -609,6 +612,11 @@ class FunctionNodeInterfaceManager:
         #     stream = stream.filter_otype(input.otype_like)
         if storages:
             stream = stream.filter_storages(storages)
+        # TODO: where do we do this parent node filtering? Such hidden, so magic.
+        #   There's the *delcared* input DBS and then this actual one, maybe a bit surprising to
+        #   end user that they differ
+        if input.parent_nodes:
+            stream = stream.filter_upstream(input.parent_nodes)
         block: Optional[DataBlockMetadata]
         if input.data_format_class in ("DataBlock",):
             stream = stream.filter_unprocessed(self.node, allow_cycle=input.is_self_ref)

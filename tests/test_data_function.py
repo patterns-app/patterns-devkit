@@ -537,6 +537,7 @@ def test_graph_resolution():
     fgr.resolve_dependencies()
     # Otype resolution
     n7 = env.add_node("node7", df_self, upstream=DataBlockStream(otype="TestType2"))
+    n8 = env.add_node("node8", df_self, upstream=n7)
     fgr = env.get_function_graph_resolver()
     fgr.resolve()
     parent_keys = set(
@@ -549,3 +550,16 @@ def test_graph_resolution():
         "node5",
         "node6",
     }
+
+
+def test_any_otype_interface():
+    env = make_test_env()
+    env.add_module(core)
+
+    def df_any(input: DataBlock) -> DataFrame:
+        pass
+
+    df = datafunction(df_any)
+    dfi = df.get_interface()
+    assert dfi.inputs[0].otype_like == "Any"
+    assert dfi.output.otype_like == "Any"

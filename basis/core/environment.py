@@ -319,7 +319,7 @@ class Environment:
             for block in sess.query(DataBlockMetadata).filter(
                 ~DataBlockMetadata.stored_data_blocks.any()
             ):
-                print(f"#{block.id} {block.otype_uri} is orphaned! SAD")
+                print(f"#{block.id} {block.declared_otype_uri} is orphaned! SAD")
             if delete_intermediate:
                 # TODO: does no checking if they are unprocessed or not...
                 if not force:

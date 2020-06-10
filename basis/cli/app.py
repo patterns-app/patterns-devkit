@@ -125,7 +125,12 @@ def list_data_blocks():
         )
         headers = ["ID", "BaseType", "Create by node", "Stored"]
         rows = [
-            [r.id, r.otype_uri, r.created_by(sess), r.stored_data_blocks.count()]
+            [
+                r.id,
+                r.declared_otype_uri,
+                r.created_by(sess),
+                r.stored_data_blocks.count(),
+            ]
             for r in query
         ]
         echo_table(headers, rows)
@@ -137,7 +142,11 @@ def list_data_sets():
         query = sess.query(DataSetMetadata).order_by(DataSetMetadata.created_at)
         headers = ["Key", "BaseType", "Stored"]
         rows = [
-            [r.key, r.data_block.otype_uri, r.data_block.stored_data_blocks.count(),]
+            [
+                r.key,
+                r.data_block.declared_otype_uri,
+                r.data_block.stored_data_blocks.count(),
+            ]
             for r in query
         ]
     echo_table(headers, rows)

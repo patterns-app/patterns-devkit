@@ -15,6 +15,7 @@ from basis.core.data_function import (
 )
 from basis.core.data_function_interface import DataFunctionAnnotation, re_type_hint
 from basis.core.runnable import DataFunctionContext
+
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from basis.core.runtime import RuntimeClass
 from basis.utils.common import md5_hash
@@ -128,7 +129,7 @@ class SqlDataFunctionWrapper:
         sql = self.get_compiled_sql(ctx, inputs)
         if ctx.output_otype is None:
             raise Exception("SQL function should always produce output!")
-        block = DataBlockMetadata(otype_uri=ctx.output_otype.uri)
+        block = DataBlockMetadata(declared_otype_uri=ctx.output_otype.uri)
         storage_url = ctx.execution_context.current_runtime.as_storage().url
         sdb = StoredDataBlockMetadata(
             data_block=block,

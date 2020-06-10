@@ -20,10 +20,10 @@ class TestStreams:
         ctx = make_test_execution_context()
         self.ctx = ctx
         self.env = ctx.env
-        self.dr1t1 = DataBlockMetadata(otype_uri="_test.TestType1",)
-        self.dr2t1 = DataBlockMetadata(otype_uri="_test.TestType1",)
-        self.dr1t2 = DataBlockMetadata(otype_uri="_test.TestType2",)
-        self.dr2t2 = DataBlockMetadata(otype_uri="_test.TestType2",)
+        self.dr1t1 = DataBlockMetadata(declared_otype_uri="_test.TestType1",)
+        self.dr2t1 = DataBlockMetadata(declared_otype_uri="_test.TestType1",)
+        self.dr1t2 = DataBlockMetadata(declared_otype_uri="_test.TestType2",)
+        self.dr2t2 = DataBlockMetadata(declared_otype_uri="_test.TestType2",)
         self.node_source = self.env.add_node("df_source", df_t1_source)
         self.node1 = self.env.add_node("df1", df_t1_sink)
         self.node2 = self.env.add_node("df2", df_t1_to_t2)
