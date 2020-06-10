@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
 from sqlalchemy import and_, not_
 from sqlalchemy.orm import Query
 
 from basis.core.data_block import (
+    DataBlock,
     DataBlockMetadata,
     DataSetMetadata,
     StoredDataBlockMetadata,
+    create_data_block_from_records,
 )
+from basis.core.data_format import ensure_dictlist
 from basis.core.environment import Environment
 from basis.core.function_node import (
     DataBlockLog,
@@ -19,6 +22,7 @@ from basis.core.function_node import (
     FunctionNode,
 )
 from basis.core.storage import Storage
+from basis.core.typing.inference import inferred_otype
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 from basis.utils.common import ensure_list
 
@@ -42,6 +46,9 @@ class DataBlockStream:
         unprocessed_by: FunctionNode = None,
         data_sets: List[str] = None,
         data_sets_only: bool = False,
+        data_block: Union[DataBlockMetadata, DataBlock, str] = None,
+        raw_records_object: Any = None,
+        raw_records_otype: ObjectType = None,
         allow_cycle: bool = False,
         most_recent_first: bool = False,
     ):
@@ -58,6 +65,10 @@ class DataBlockStream:
         self.storages = storages
         self.data_sets = data_sets
         self.data_sets_only = data_sets_only
+        self.data_block = data_block
+        self.raw_records_object = raw_records_object
+        self.raw_records_otype = raw_records_otype
+        self.ensure_raw_records_otype()
         self.unprocessed_by = unprocessed_by
         self.allow_cycle = allow_cycle
         self.most_recent_first = most_recent_first
@@ -77,6 +88,10 @@ class DataBlockStream:
             q = self._filter_unprocessed(ctx, q)
         if self.data_sets is not None:
             q = self._filter_datasets(ctx, q)
+        if self.data_block is not None:
+            q = self._filter_data_block(ctx, q)
+        if self.raw_records_object is not None:
+            q = self._filter_raw_records_object(ctx, q)
         return q.with_session(ctx.metadata_session)
 
     def clone(self, **kwargs) -> DataBlockStream:
@@ -89,6 +104,8 @@ class DataBlockStream:
             data_sets_only=self.data_sets_only,
             allow_cycle=self.allow_cycle,
             most_recent_first=self.most_recent_first,
+            raw_records_object=self.raw_records_object,
+            raw_records_otype=self.raw_records_otype,
         )
         args.update(**kwargs)
         return DataBlockStream(**args)  # type: ignore
@@ -194,56 +211,53 @@ class DataBlockStream:
             return query
         return query.filter(DataSetMetadata.name.in_(self.data_sets))  # type: ignore
 
+    def filter_data_block(
+        self, data_block: Union[DataBlockMetadata, DataBlock, str]
+    ) -> DataBlockStream:
+        return self.clone(data_block=data_block)
+
+    def _filter_data_block(self, ctx: ExecutionContext, query: Query) -> Query:
+        if not self.data_block:
+            return query
+        if isinstance(self.data_block, str):
+            db_id = self.data_block
+        elif isinstance(self.data_block, DataBlockMetadata):
+            db_id = self.data_block.id
+        elif isinstance(self.data_block, DataBlock):
+            db_id = self.data_block.data_block_id
+        else:
+            raise TypeError(self.data_block)
+        return query.filter(DataBlockMetadata.id == db_id)
+
+    def ensure_raw_records_otype(self):
+        if self.raw_records_object is not None and not self.raw_records_otype:
+            self.raw_records_otype = inferred_otype(
+                ensure_dictlist(self.raw_records_object)
+            )
+
+    def _filter_raw_records_object(self, ctx: ExecutionContext, query: Query) -> Query:
+        if self.raw_records_object is None:
+            return query
+        self.ensure_raw_records_otype()
+        ctx.env.add_otype(
+            self.raw_records_otype
+        )  # TODO: weird place for this. When/where do we create auto-types? and then add them to env?
+        block, sdb = create_data_block_from_records(
+            ctx.env,
+            ctx.metadata_session,
+            ctx.local_memory_storage,
+            self.raw_records_object,
+            self.raw_records_otype,
+        )
+        assert block.id
+        return query.filter(DataBlockMetadata.id == block.id)
+
     def is_unprocessed(
         self, ctx: ExecutionContext, block: DataBlockMetadata, node: FunctionNode,
     ) -> bool:
         drs = self.filter_unprocessed(node)
         q = drs.get_query(ctx)
         return q.filter(DataBlockMetadata.id == block.id).exists()
-
-    # def resolve_dependencies(self, env: Environment) -> List[FunctionNode]:
-    #     from basis.core.graph import get_all_nodes_outputting_otype
-    #
-    #     deps: List[FunctionNode] = []
-    #     if self.upstream:
-    #         return self.get_upstream(env)
-    #     elif self.otypes:
-    #         if len(self.otypes) > 1:
-    #             raise NotImplementedError("Mixed otype streams not supported atm")
-    #         otype = self.get_otypes(env)[0]
-    #
-    #         for otype in self.get_otypes(env):
-    #             streams.extend(get_all_nodes_outputting_otype(env, otype))
-    #
-    #     # if as_streams:
-    #     #     streams = [ensure_data_stream(v) for v in streams]
-    #     return deps
-    #
-    # def resolve_output_otype(self, env: Environment) -> ObjectType:
-    #     pass
-
-    # def get_data_stream_inputs(
-    #     self, env: Environment, as_streams=False
-    # ) -> List[DataBlockStreamable]:
-    #     # TODO: ONLY handles explicit upstream and otype filters, and only with respect to NON-GENERIC data functions
-    #     #   support for generic data functions would require compiling the otype graph statically.
-    #     #   this may be tricky, eg do we need to handle
-    #     #   heterogenuously typed inputs to a function?. Regardless, not how we do things currently --
-    #     #   atm we bind inputs to concrete DataBlocks and resolve generics that way. Would require
-    #     #   a rethink of that. Static compilation of type graph is probably desirable for other reasons, so likely
-    #     #   the right long-term solution.
-    #     from basis.core.graph import get_all_nodes_outputting_otype
-    #
-    #     streams: List[DataBlockStreamable] = []
-    #     if self.upstream:
-    #         streams = self.get_upstream(env)
-    #     elif self.otypes:
-    #         for otype in self.get_otypes(env):
-    #             streams.extend(get_all_nodes_outputting_otype(env, otype))
-    #
-    #     if as_streams:
-    #         streams = [ensure_data_stream(v) for v in streams]
-    #     return streams
 
     def get_next(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:
         order_by = DataBlockMetadata.updated_at
@@ -267,7 +281,7 @@ class DataBlockStream:
 
 DataBlockStreamable = Union[DataBlockStream, FunctionNode]
 DataBlockStreamLike = Union[DataBlockStreamable, str]
-FunctionNodeRawInput = Union[DataBlockStreamLike, Dict[str, DataBlockStreamLike]]
+FunctionNodeRawInput = Any  # Union[DataBlockStreamLike, Dict[str, DataBlockStreamLike]] + records object formats # TODO
 FunctionNodeInput = Union[DataBlockStreamable, Dict[str, DataBlockStreamable]]
 InputStreams = Union[DataBlockStream, Dict[str, DataBlockStream]]
 InputBlocks = Dict[str, DataBlockMetadata]

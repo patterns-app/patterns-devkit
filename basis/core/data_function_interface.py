@@ -273,6 +273,18 @@ class FunctionGraphCycleError(Exception):
 
 
 class FunctionGraphResolver:
+    """
+    Oof, a beast. Goal is to resolve function dependency graph statically. Easy when
+    upstream is just other functions. But DataBlockStream inputs allow arbitrary otype dependency
+    (among others), to do that statically requires:
+        1 first resolve all output types for all nodes, this is trivial currently (generics are
+            resolved by input types)
+        2 build "maximal" graph, adding explicit function dependencies and tracking all POTENTIAL otype
+            dependencies. some potential otype deps may be downstream of function and create cycles tho, so
+        3 incrementally add potential otype deps one by one in arbitrary order,
+            keeping them only if they DO NOT create a cycle in the graph
+    """
+
     def __init__(self, env: Environment, nodes: Optional[List[FunctionNode]] = None):
         self.env = env
         self._nodes = nodes or env.all_flattened_nodes()
@@ -352,11 +364,17 @@ class FunctionGraphResolver:
                 )
             if input.is_generic:
                 if not parents and not potential_parents:
-                    raise Exception(f"No parents {node} {input}")
-                sample_node = parents[0] if parents else potential_parents[0]
-                resolved_otype = self._resolved_output_types[
-                    sample_node
-                ]  # TODO: check that all parents are the same otype
+                    if input.connected_stream is not None:
+                        resolved_otype = self.resolve_stream_output_type(
+                            input.connected_stream, set()
+                        )
+                    else:
+                        raise Exception(f"No parents {node} {input}")
+                else:
+                    sample_node = parents[0] if parents else potential_parents[0]
+                    resolved_otype = self._resolved_output_types[
+                        sample_node
+                    ]  # TODO: check that all parents are the same otype
             else:
                 resolved_otype = self.env.get_otype(input.otype_like)
             i = ResolvedFunctionNodeInput(
@@ -391,6 +409,8 @@ class FunctionGraphResolver:
                 if output_type == otype:
                     potential_parents.append(other_node)
             return [], potential_parents
+        if stream.raw_records_object is not None:
+            return [], []
         raise NotImplementedError
 
     def resolve_output_types(self):
@@ -420,9 +440,7 @@ class FunctionGraphResolver:
                 generic_otype = cast(str, input.otype_like)
                 if not input.connected_stream:
                     raise Exception(f"no input connected {input}")
-                otype = self.resolve_stream_output_type(
-                    node, input.connected_stream, visited
-                )
+                otype = self.resolve_stream_output_type(input.connected_stream, visited)
                 resolved_generics[generic_otype] = otype
             generic_output_otype = cast(str, dfi.output.otype_like)
             output_otype = self.env.get_otype(resolved_generics[generic_output_otype])
@@ -430,8 +448,8 @@ class FunctionGraphResolver:
         return output_otype
 
     def resolve_stream_output_type(
-        self, node: FunctionNode, stream: DataBlockStream, visited: Set[FunctionNode]
-    ):
+        self, stream: DataBlockStream, visited: Set[FunctionNode]
+    ) -> ObjectType:
         if stream.upstream:
             nodes = stream.get_upstream(self.env)
             otypes: List[ObjectType] = []
@@ -446,6 +464,10 @@ class FunctionGraphResolver:
             if len(stream.otypes) > 1:
                 raise NotImplementedError("Mixed otype streams not supported atm")
             return stream.otypes[0]
+        elif stream.raw_records_object is not None:
+            if not stream.raw_records_otype:
+                raise ValueError("No otype set for raw records")
+            return stream.raw_records_otype
         raise NotImplementedError
 
     def get_resolved_interface(self, node: FunctionNode) -> ResolvedFunctionInterface:

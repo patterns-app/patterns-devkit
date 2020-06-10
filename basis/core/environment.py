@@ -103,7 +103,14 @@ class Environment:
         return self.library.module_precedence
 
     def get_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
+        if isinstance(otype_like, ObjectType):
+            return otype_like
         return self.library.get_otype(otype_like)
+
+    def add_otype(self, otype: ObjectType):
+        if self.library.get_component(otype):
+            return
+        self.library.add_component(otype)
 
     def get_function(self, df_like: Union[DataFunctionLike, str]) -> DataFunction:
         return self.library.get_function(df_like)

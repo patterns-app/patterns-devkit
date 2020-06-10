@@ -104,7 +104,7 @@ def otype_uri_to_identifier(uri: str) -> str:
 
 @dataclass(frozen=True)
 class ObjectType(ComponentUri):
-    type_class: ObjectTypeClass
+    # type_class: ObjectTypeClass
     description: str
     unique_on: List[str]
     on_conflict: ConflictBehavior
@@ -175,7 +175,7 @@ def clean_raw_otype_defintion(raw_def: dict) -> dict:
         raw_def["unique_on"] = []
     if isinstance(raw_def.get("unique_on"), str):
         raw_def["unique_on"] = [raw_def["unique_on"]]
-    raw_def["type_class"] = raw_def.pop("class", None)
+    # raw_def["type_class"] = raw_def.pop("class", None)
     if "module_name" not in raw_def:
         raw_def["module_name"] = raw_def.pop("module", None)
     raw_def["version"] = int(raw_def["version"])
@@ -240,7 +240,7 @@ def create_quick_otype(name: str, fields: List[Tuple[str, str]], **kwargs):
     defaults = dict(
         name=name,
         module_name=None,
-        type_class="Observation",
+        # type_class="Observation",
         version="1.0",
         description="...",
         unique_on=[],

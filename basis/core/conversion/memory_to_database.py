@@ -22,6 +22,7 @@ class MemoryToDatabaseConverter(Converter):
     supported_output_formats: Sequence[StorageFormat] = (
         StorageFormat(StorageType.MYSQL_DATABASE, DataFormat.DATABASE_TABLE),
         StorageFormat(StorageType.POSTGRES_DATABASE, DataFormat.DATABASE_TABLE),
+        StorageFormat(StorageType.SQLITE_DATABASE, DataFormat.DATABASE_TABLE),
     )
     cost_level = ConversionCostLevel.OVER_WIRE
 
@@ -33,7 +34,7 @@ class MemoryToDatabaseConverter(Converter):
         if input_sdb.data_format == DataFormat.DATABASE_TABLE_REF:
             if input_ldr.records_object.storage_url == output_sdb.storage_url:
                 # No-op, already exists (shouldn't really ever get here)
-                logger.warning("Non-conversion to existing table requested")
+                logger.warning("Non-conversion to existing table requested")  # TODO
                 return output_sdb
             else:
                 raise NotImplementedError(
@@ -48,7 +49,7 @@ class MemoryToDatabaseConverter(Converter):
             records_objects = [records_objects]
         output_runtime = output_sdb.storage.get_database_api(self.env)
         # TODO: this loop is what is actually calling our Iterable DataFunction in DICT_LIST_ITERATOR case. Is that ok?
-        #   a bit of a strange side effect of iterating a loop. what happens if there's an exception here, for instance?
+        #   seems a bit opaque
         for records_object in records_objects:
             output_runtime.bulk_insert_dict_list(output_sdb, records_object)
         return output_sdb

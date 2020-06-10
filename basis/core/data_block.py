@@ -358,3 +358,29 @@ class DataBlockManager:
             eligible_conversion_paths, key=lambda x: x[0]
         )
         return convert_sdb(self.ctx, in_sdb, conversion_path)
+
+
+def create_data_block_from_records(
+    env: Environment,
+    sess: Session,
+    local_storage: Storage,
+    records: Any,
+    otype: ObjectType,
+) -> tuple[DataBlockMetadata, StoredDataBlockMetadata]:
+    from basis.core.storage import LocalMemoryStorageEngine
+
+    otype_uri = otype.uri
+    ldr = LocalMemoryDataRecords.from_records_object(records)
+    block = DataBlockMetadata(otype_uri=otype_uri)
+    sdb = StoredDataBlockMetadata(  # type: ignore
+        data_block=block, storage_url=local_storage.url, data_format=ldr.data_format,
+    )
+    sess.add(block)
+    sess.add(sdb)
+    # TODO: Don't understand merge still
+    block = sess.merge(block)
+    sdb = sess.merge(sdb)
+    LocalMemoryStorageEngine(env, local_storage).store_local_memory_data_records(
+        sdb, ldr
+    )
+    return block, sdb

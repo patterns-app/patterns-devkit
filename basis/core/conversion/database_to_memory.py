@@ -16,6 +16,7 @@ class DatabaseToMemoryConverter(Converter):
     supported_input_formats: Sequence[StorageFormat] = (
         StorageFormat(StorageType.MYSQL_DATABASE, DataFormat.DATABASE_TABLE),
         StorageFormat(StorageType.POSTGRES_DATABASE, DataFormat.DATABASE_TABLE),
+        StorageFormat(StorageType.SQLITE_DATABASE, DataFormat.DATABASE_TABLE),
     )
     supported_output_formats: Sequence[StorageFormat] = (
         StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST),

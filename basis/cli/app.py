@@ -1,5 +1,6 @@
 import json
 import sys
+from importlib import import_module
 from typing import Any, List
 
 import click
@@ -197,8 +198,16 @@ def show_log():
         echo_table(headers, drls)
 
 
+@click.command("test")
+@click.argument("module")
+def test(module: str):
+    m = import_module(module)
+    m.run_tests()
+
+
 @click.command("reset")
 def reset_metadata():
+    # TODO
     env = current_env()
     with env.session_scope() as sess:
         sess.execute("drop table basis_data_function_log        cascade;")
@@ -215,3 +224,4 @@ app.add_command(show_log)
 app.add_command(list_component)
 app.add_command(search)
 app.add_command(reset_metadata)
+app.add_command(test)

@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import pytest
 
-from basis.core.data_block import DataBlockMetadata
+from basis.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from basis.core.function_node import DataBlockLog, DataFunctionLog, Direction
 from basis.core.streams import DataBlockStream
 from tests.utils import (
+    TestType1,
     df_generic,
     df_t1_sink,
     df_t1_source,
@@ -122,3 +123,12 @@ class TestStreams:
         s = DataBlockStream(upstream=self.node_source, otype="TestType2")
         s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) is None
+
+    def test_stream_records_object(self):
+        records = [{"a": 1, "b": 2}]
+        s = DataBlockStream(raw_records_object=records, raw_records_otype=TestType1)
+        db = s.get_next(self.ctx)
+        self.ctx.metadata_session.commit()
+        assert db is not None
+        db = db.as_managed_data_block(self.ctx)
+        assert db.as_dictlist() == records

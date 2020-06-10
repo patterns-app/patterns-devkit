@@ -89,7 +89,7 @@ from input:T
 )
 
 
-@datafunction("as_dataset", supported_runtimes="database")
+@datafunction("as_dataset", compatible_runtimes="database")
 def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
     name = ctx.config("dataset_name")
     ds = (
@@ -118,13 +118,13 @@ accumulate_as_dataset = datafunction_chain(
 DataSetAccumulator = accumulate_as_dataset
 
 
-TestCase(
+accumulator_test = TestCase(
     function="accumulator",
     tests=dict(
         test_intra_dedupe=dict(
             input="""
                 k1,k2,f1,f2,f3
-                1,2,abc,1.1,
+                1,2,abc,1.1,1
                 1,2,def,1.1,
                 1,3,abc,1.1,
                 1,4,,,
@@ -133,7 +133,7 @@ TestCase(
             this="",
             output="""
                 k1,k2,f1,f2,f3
-                1,2,abc,1.1,
+                1,2,abc,1.1,1
                 1,3,abc,1.1,
                 1,4,,,
                 2,2,1.0,2.1,"[1,2,3]"

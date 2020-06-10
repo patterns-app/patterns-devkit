@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class ExternalResource(ComponentUri):
-    provider: ExternalProvider
+    provider: Optional[ExternalProvider]
     verbose_name: str
     description: str
     otype: ObjectTypeLike
@@ -56,7 +56,7 @@ class ExternalResource(ComponentUri):
             cfg = self.configuration_class(**args)
         if not initial_high_water_mark:
             initial_high_water_mark = self.initial_high_water_mark
-        if not configured_provider:
+        if not configured_provider and self.provider:
             configured_provider = self.provider(name + "_provider")
         return ConfiguredExternalResource(
             name=name,
@@ -81,7 +81,7 @@ ExternalDataResource = external_resource_factory
 class ConfiguredExternalResource(Generic[T]):
     name: str
     external_resource: ExternalResource
-    configured_provider: ConfiguredExternalProvider
+    configured_provider: Optional[ConfiguredExternalProvider]
     configuration: Optional[T] = None
     initial_high_water_mark: Optional[datetime] = None
     # Data set expected size ? 1e2, country = 1e2, EcommOrder = 1e6 (Optional for sure, and overridable as "compiler hint")

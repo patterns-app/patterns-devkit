@@ -67,7 +67,7 @@ class DataFunction(ComponentUri):
         return self.get_representative_definition().is_composite
 
     @property
-    def supported_runtime_classes(self) -> List[RuntimeClass]:
+    def compatible_runtime_classes(self) -> List[RuntimeClass]:
         return list(self.runtime_data_functions.keys())
 
     def __call__(
@@ -91,7 +91,7 @@ class DataFunction(ComponentUri):
         return dfd.get_interface()
 
     def add_definition(self, df: DataFunctionDefinition):
-        for cls in df.supported_runtime_classes:
+        for cls in df.compatible_runtime_classes:
             self.runtime_data_functions[cls] = df
 
     def validate(self):
@@ -121,7 +121,7 @@ class DataFunctionDefinition(ComponentUri):
     function_callable: Optional[
         Callable
     ]  # Optional since Composite DFs don't have a Callable
-    supported_runtime_classes: List[RuntimeClass]
+    compatible_runtime_classes: List[RuntimeClass]
     is_composite: bool = False
     configuration_class: Optional[Type] = None
     sub_functions: List[ComponentUri] = field(
@@ -177,7 +177,7 @@ def data_function_definition_factory(
     ],  # Composite DFs don't have a callable
     name: str = None,
     version: str = None,
-    supported_runtimes: str = None,
+    compatible_runtimes: str = None,
     module_name: str = None,
     **kwargs: Any,
 ) -> DataFunctionDefinition:
@@ -185,14 +185,14 @@ def data_function_definition_factory(
         if function_callable is None:
             raise
         name = make_datafunction_name(function_callable)
-    runtime_class = get_runtime_class(supported_runtimes)
+    runtime_class = get_runtime_class(compatible_runtimes)
     return DataFunctionDefinition(
         component_type=ComponentType.DataFunction,
         name=name,
         module_name=module_name,
         version=version,
         function_callable=function_callable,
-        supported_runtime_classes=[runtime_class],
+        compatible_runtime_classes=[runtime_class],
         **kwargs,
     )
 
@@ -201,7 +201,7 @@ def datafunction(
     df_or_name: Union[str, DataFunctionCallable] = None,
     name: str = None,
     version: str = None,
-    supported_runtimes: str = None,
+    compatible_runtimes: str = None,
     module_name: str = None,
     # test_data: DataFunctionTestCaseLike = None,
 ) -> Union[Callable, DataFunctionDefinition]:
@@ -210,14 +210,14 @@ def datafunction(
             datafunction,
             name=df_or_name,
             version=version,
-            supported_runtimes=supported_runtimes,
+            compatible_runtimes=compatible_runtimes,
             module_name=module_name,
         )
     return data_function_definition_factory(
         df_or_name,
         name=name,
         version=version,
-        supported_runtimes=supported_runtimes,
+        compatible_runtimes=compatible_runtimes,
         module_name=module_name,
     )
 

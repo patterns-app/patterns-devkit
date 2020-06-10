@@ -15,11 +15,13 @@ from sqlalchemy.orm import Session
 
 from basis.core.conversion import convert_lowest_cost
 from basis.core.data_block import (
+    DataBlock,
     DataBlockMetadata,
     DataSetMetadata,
     LocalMemoryDataRecords,
     ManagedDataBlock,
     StoredDataBlockMetadata,
+    create_data_block_from_records,
 )
 from basis.core.data_function import (
     DataFunctionDefinition,
@@ -220,14 +222,14 @@ class ExecutionManager:
         self.env = ctx.env
 
     def select_runtime(self, node: FunctionNode) -> Runtime:
-        supported_runtimes = node.datafunction.supported_runtime_classes
+        compatible_runtimes = node.datafunction.compatible_runtime_classes
         for runtime in self.ctx.runtimes:
             if (
-                runtime.runtime_class in supported_runtimes
+                runtime.runtime_class in compatible_runtimes
             ):  # TODO: Just taking the first one...
                 return runtime
         raise Exception(
-            f"No compatible runtime available for {node} (runtime class {supported_runtimes} required)"
+            f"No compatible runtime available for {node} (runtime class {compatible_runtimes} required)"
         )
 
     def get_bound_data_function_interface(
@@ -246,7 +248,7 @@ class ExecutionManager:
 
     def run(
         self, node: FunctionNode, to_exhaustion: bool = False
-    ) -> Optional[ManagedDataBlock]:
+    ) -> Optional[DataBlock]:
         if node.is_composite():
             # node: FunctionNodeGraph
             return self.run_composite(node, to_exhaustion=to_exhaustion)
@@ -388,20 +390,27 @@ class Worker:
             output = self.ctx.merge(output)
             return output.data_block
 
-        ldr = LocalMemoryDataRecords.from_records_object(output)
-        block = DataBlockMetadata(
-            otype_uri=runnable.datafunction_interface.output_otype.uri
+        block, sdb = create_data_block_from_records(
+            self.env,
+            self.ctx.metadata_session,
+            self.ctx.local_memory_storage,
+            output,
+            runnable.datafunction_interface.output_otype,
         )
-        sdb = StoredDataBlockMetadata(  # type: ignore
-            data_block=block,
-            storage_url=self.ctx.local_memory_storage.url,
-            data_format=ldr.data_format,
-        )
-        block = self.ctx.add(block)
-        sdb = self.ctx.add(sdb)
-        LocalMemoryStorageEngine(
-            self.env, self.ctx.local_memory_storage
-        ).store_local_memory_data_records(sdb, ldr)
+        # ldr = LocalMemoryDataRecords.from_records_object(output)
+        # block = DataBlockMetadata(
+        #     otype_uri=runnable.datafunction_interface.output_otype.uri
+        # )
+        # sdb = StoredDataBlockMetadata(  # type: ignore
+        #     data_block=block,
+        #     storage_url=self.ctx.local_memory_storage.url,
+        #     data_format=ldr.data_format,
+        # )
+        # block = self.ctx.add(block)
+        # sdb = self.ctx.add(sdb)
+        # LocalMemoryStorageEngine(
+        #     self.env, self.ctx.local_memory_storage
+        # ).store_local_memory_data_records(sdb, ldr)
         # Place output in target storage
         convert_lowest_cost(
             self.ctx,

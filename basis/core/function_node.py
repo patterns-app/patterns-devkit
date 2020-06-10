@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
+from pandas import DataFrame
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.functions import func
@@ -10,7 +11,11 @@ from sqlalchemy.sql.schema import Column, ForeignKey
 from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
 from basis.core.component import ComponentUri
-from basis.core.data_block import DataBlock, DataBlockMetadata
+from basis.core.data_block import (
+    DataBlock,
+    DataBlockMetadata,
+    create_data_block_from_records,
+)
 from basis.core.data_function import (
     DataFunction,
     DataFunctionCallable,
@@ -91,6 +96,7 @@ class FunctionNode:
         """
         validate resource v set, and validate types
         """
+        # return process_function_node_raw_input(upstream)
         from basis.core.streams import DataBlockStream, ensure_data_stream
 
         if upstream is None:
@@ -338,3 +344,31 @@ def function_node_factory(
     else:
         node = FunctionNode(env, name, df, upstream=upstream, config=config)
     return node
+
+
+# def process_function_node_raw_input(
+#     ctx: ExecutionContext, upstream: FunctionNodeRawInput
+# ) -> Optional[InputStreams]:
+#     from basis.core.streams import DataBlockStream, ensure_data_stream
+#
+#     if upstream is None:
+#         return None
+#     if isinstance(upstream, FunctionNode) or isinstance(upstream, DataBlockStream):
+#         return ensure_data_stream(upstream)
+#     if isinstance(upstream, str):
+#         return ensure_data_stream(ctx.env.get_node(upstream))
+#     # TODO: nope, check for dict first, then process each value in this function
+#     if isinstance(upstream, dict):
+#         return {
+#             k: ensure_data_stream(ctx.env.get_node(v) if isinstance(v, str) else v)
+#             for k, v in upstream.items()
+#         }
+#     # if isinstance(upstream, DataFrame) or isinstance(
+#     #     upstream, list
+#     # ):  # DataFrame or DictList
+#     #     block, sdb = create_data_block_from_records(
+#     #         ctx.env, ctx.metadata_session, ctx.local_memory_storage, upstream
+#     #     )
+#     #     assert block.id
+#     #     return DataBlockStream(data_block=block.id)
+#     raise Exception(f"Invalid data function input {upstream}")

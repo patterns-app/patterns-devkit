@@ -3,13 +3,21 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
+from random import randint
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 from pandas import Series
 
+from basis.core.component import ComponentType
 from basis.core.data_format import DictList
-from basis.core.typing.object_type import Field, create_quick_field, create_quick_otype
+from basis.core.module import DEFAULT_LOCAL_MODULE
+from basis.core.typing.object_type import (
+    Field,
+    ObjectType,
+    create_quick_field,
+    create_quick_otype,
+)
 from basis.utils.common import is_datetime_str, title_to_snake_case
 
 logger = logging.getLogger(__name__)
@@ -50,12 +58,28 @@ def infer_otype_fields_from_records(
     df = pd.DataFrame(records)
     fields = []
     for s in df:
-        print(s)
         satype = pandas_series_to_sqlalchemy_type(df[s])
-        print(satype)
         f = create_quick_field(s, satype)
         fields.append(f)
     return fields
+
+
+def inferred_otype(records: DictList, **kwargs) -> ObjectType:
+    fields = infer_otype_fields_from_records(records)
+    auto_name = "AutoType" + str(randint(1000, 9999))  # TODO
+    args = dict(
+        component_type=ComponentType.ObjectType,
+        name=auto_name,
+        module_name=DEFAULT_LOCAL_MODULE.name,
+        version="0",
+        description=f"Automatically inferred type",
+        unique_on=[],
+        implementations=[],
+        on_conflict="ReplaceWithNewer",
+        fields=fields,
+    )
+    args.update(kwargs)
+    return ObjectType(**args)
 
 
 def dict_to_rough_otype(name: str, d: Dict, convert_to_snake_case=True, **kwargs):
@@ -81,7 +105,6 @@ def pandas_series_to_sqlalchemy_type(series: Series) -> str:
         - No single/32 numeric types 
     """
     dtype = pd.api.types.infer_dtype(series, skipna=True)
-    print(dtype)
     if dtype == "datetime64" or dtype == "datetime":
         # GH 9086: TIMESTAMP is the suggested type if the column contains
         # timezone information

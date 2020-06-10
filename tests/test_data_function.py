@@ -399,12 +399,12 @@ def test_sql_data_function2():
     assert dfi.inputs[1].is_optional
 
 
-@datafunction("k1", supported_runtimes="python")
+@datafunction("k1", compatible_runtimes="python")
 def df1():
     pass
 
 
-@datafunction("k1", supported_runtimes="mysql")
+@datafunction("k1", compatible_runtimes="mysql")
 def df2():
     pass
 

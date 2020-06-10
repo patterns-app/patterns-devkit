@@ -1,6 +1,7 @@
 from basis.core.module import BasisModule
 
 from .dataset import *
+from .external.static import local_provider
 
 module = BasisModule(
     "core",
@@ -14,5 +15,7 @@ module = BasisModule(
         sql_accumulator,
         dataframe_accumulator,
     ],
+    providers=[local_provider],
+    tests=[accumulator_test],
 )
 module.export()

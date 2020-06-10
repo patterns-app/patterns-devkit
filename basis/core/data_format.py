@@ -11,6 +11,7 @@ from typing import (
     Optional,
     Sequence,
     Type,
+    Union,
 )
 
 import pandas as pd
@@ -219,3 +220,11 @@ def get_data_format_of_object(obj: Any) -> Optional[DataFormat]:
         if m.isinstance(obj):
             return m.data_format
     return None
+
+
+def ensure_dictlist(obj: Union[pd.DataFrame, DictList]) -> DictList:
+    if isinstance(obj, list):
+        return obj
+    if isinstance(obj, pd.DataFrame):
+        return obj.to_dict(orient="records")
+    raise TypeError(obj)

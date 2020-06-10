@@ -250,10 +250,6 @@ class JSONEncoder(json.JSONEncoder):
 
 
 class BasisJSONEncoder(json.JSONEncoder):
-    def __init__(self, *args, **kwargs):
-        # kwargs["ignore_nan"] = True
-        super().__init__(*args, **kwargs)
-
     def default(self, o: Any) -> str:
         # See "Date Time String Format" in the ECMA-262 specification.
         if isinstance(o, datetime):

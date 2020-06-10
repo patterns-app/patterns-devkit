@@ -11,8 +11,10 @@ from basis.core.component import (
     ComponentView,
 )
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike, otype_from_yaml
+from basis.utils.common import cf
 
 if TYPE_CHECKING:
+    from basis.core.environment import Environment
     from basis.core.data_function import (
         DataFunctionLike,
         DataFunction,
@@ -22,6 +24,7 @@ if TYPE_CHECKING:
         DataFunctionTestCaseLike,
         DataFunctionTestCase,
         test_case_from_yaml,
+        TestCase,
     )
 
 
@@ -30,7 +33,7 @@ class BasisModule:
     py_module_path: Optional[str]
     py_module_name: Optional[str]
     library: ComponentLibrary
-    test_cases: List[DataFunctionTestCase]
+    test_cases: List[TestCase]
 
     def __init__(
         self,
@@ -40,7 +43,7 @@ class BasisModule:
         otypes: Optional[Sequence[ObjectTypeLike]] = None,
         functions: Optional[Sequence[Union[DataFunctionLike, str]]] = None,
         providers: Optional[Sequence[ExternalProvider]] = None,
-        tests: Optional[Sequence[DataFunctionTestCaseLike]] = None,
+        tests: Optional[Sequence[TestCase]] = None,
     ):
 
         self.name = name
@@ -55,8 +58,9 @@ class BasisModule:
             self.add_function(fn)
         for p in providers or []:
             self.add_provider(p)
-        for t in tests or []:
-            self.add_test_case(t)
+        self.test_cases = tests or []
+        # for t in tests or []:
+        #     self.add_test_case(t)
 
     # TODO: implement dir for usability
     # def __dir__(self):
@@ -163,27 +167,80 @@ class BasisModule:
     def process_provider(self, provider: ExternalProvider) -> ExternalProvider:
         return provider
 
-    def add_test_case(self, test_case_like: DataFunctionTestCaseLike):
-        test_case = self.process_test_case(test_case_like)
-        self.test_cases.extend(test_case)
+    def get_test_env(self) -> Environment:
+        # TODO: need way more hooks here (adding runtimes and storages, for instance)
+        from basis.core.environment import Environment
 
-    def process_test_case(
-        self, test_case_like: DataFunctionTestCaseLike
-    ) -> List[DataFunctionTestCase]:
-        from basis.testing.functions import (
-            DataFunctionTestCaseLike,
-            DataFunctionTestCase,
-            test_cases_from_yaml,
+        env = Environment(f"test_{self.name}", metadata_storage="sqlite://")
+        env.add_storage("sqlite://")
+        env = Environment(
+            f"test_{self.name}",
+            metadata_storage="postgres://postgres@localhost:5432/basis",
         )
+        env.add_storage("postgres://postgres@localhost:5432/basis")
+        env.add_module(self)
+        return env
 
-        if isinstance(test_case_like, DataFunctionTestCase):
-            test_cases = [test_case_like]
-        elif isinstance(test_case_like, str):
-            yml = self.read_module_file(test_case_like)
-            test_cases = test_cases_from_yaml(yml, self)
-        else:
-            raise TypeError(test_case_like)
-        return test_cases
+    def run_test(self, test: TestCase):
+        from basis.core.streams import DataBlockStream
+
+        env = self.get_test_env()
+        fn = env.get_function(test.function)
+        dfi = fn.get_interface()
+        for case in test.tests:
+            print(f"Case {case.name}", end="")
+            try:
+                inputs = {}
+                for input in dfi.inputs:
+                    otype = None
+                    # TODO: a way to pass in the otype? Also this doesn't feel principled...
+                    #   will get an auto-type if it is generic
+                    if not input.is_generic:
+                        otype = input.otype_like
+                    dbs = DataBlockStream(
+                        raw_records_object=case.test_data[input.name],
+                        raw_records_otype=otype,
+                    )
+                    inputs[input.name] = dbs
+                n = env.add_node("_test_node", fn, upstream=inputs)
+                output = env.produce(n)
+                print("Output", output)
+                print(cf.success("Ok"))
+            except Exception as e:
+                print(cf.error("Fail:"), str(e))
+                raise e
+
+    def run_tests(self):
+        print(f"Running tests for module {self.name}")
+        for test in self.test_cases:
+            print(f"Function {test.function}")
+            try:
+                self.run_test(test)
+            except Exception as e:
+                print(e)
+                raise e
+
+    # def add_test_case(self, test_case_like: DataFunctionTestCaseLike):
+    #     test_case = self.process_test_case(test_case_like)
+    #     self.test_cases.extend(test_case)
+    #
+    # def process_test_case(
+    #     self, test_case_like: DataFunctionTestCaseLike
+    # ) -> List[DataFunctionTestCase]:
+    #     from basis.testing.functions import (
+    #         DataFunctionTestCaseLike,
+    #         DataFunctionTestCase,
+    #         test_cases_from_yaml,
+    #     )
+    #
+    #     if isinstance(test_case_like, DataFunctionTestCase):
+    #         test_cases = [test_case_like]
+    #     elif isinstance(test_case_like, str):
+    #         yml = self.read_module_file(test_case_like)
+    #         test_cases = test_cases_from_yaml(yml, self)
+    #     else:
+    #         raise TypeError(test_case_like)
+    #     return test_cases
 
     # def get_indexable_components(self) -> Iterable[IndexableComponent]:
     #     dti = self.otype_indexer()

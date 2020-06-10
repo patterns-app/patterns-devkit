@@ -13,7 +13,6 @@ from basis.core.typing.object_type import (
 test_type_yml = """
 name: TestType
 version: 3
-class: Entity
 description: Description
 unique on: uniq
 on conflict: MergeUpdateNullValues
