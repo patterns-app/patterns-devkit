@@ -8,7 +8,7 @@ import requests
 from sqlalchemy import func
 
 from basis.core.data_block import DataBlockMetadata, DataSetMetadata
-from basis.core.environment import current_env
+from basis.core.environment import Environment, current_env
 from basis.core.function_node import DataFunctionLog
 from basis.core.typing.inference import dict_to_rough_otype
 from basis.core.typing.object_type import otype_to_yaml
@@ -53,8 +53,15 @@ def echo_table(headers, rows):
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
-def app():
-    pass
+@click.pass_context
+def app(ctx):
+    # TODO some way to pass in env
+    env = Environment()
+    try:
+        env = current_env()
+    except:
+        pass
+    ctx.obj = env
 
 
 @click.command()
@@ -104,19 +111,19 @@ def generate(component_type: str):
 
 @click.command("list")
 @click.argument("component_type")
-def list_component(component_type):
-    if component_type == "dataresources":
-        list_data_blocks()
+@click.pass_obj
+def list_component(env: Environment, component_type):
+    if component_type == "datablocks":
+        list_data_blocks(env)
     elif component_type == "datasets":
-        list_data_sets()
-    elif component_type == "datafunctions":
-        list_data_functions()
+        list_data_sets(env)
+    elif component_type == "functions":
+        list_data_functions(env)
     else:
         click.echo(f"Unknown component type {component_type}")
 
 
-def list_data_blocks():
-    env = current_env()  # TODO inject this via optional arg too -e --env
+def list_data_blocks(env: Environment):
     with env.session_scope() as sess:
         query = (
             sess.query(DataBlockMetadata)
@@ -136,14 +143,13 @@ def list_data_blocks():
         echo_table(headers, rows)
 
 
-def list_data_sets():
-    env = current_env()
+def list_data_sets(env: Environment):
     with env.session_scope() as sess:
         query = sess.query(DataSetMetadata).order_by(DataSetMetadata.created_at)
-        headers = ["Key", "BaseType", "Stored"]
+        headers = ["Name", "BaseType", "Stored"]
         rows = [
             [
-                r.key,
+                r.name,
                 r.data_block.declared_otype_uri,
                 r.data_block.stored_data_blocks.count(),
             ]
@@ -152,20 +158,19 @@ def list_data_sets():
     echo_table(headers, rows)
 
 
-def list_data_functions():
-    env = current_env()
+def list_data_functions(env: Environment):
     with env.session_scope() as sess:
         query = (
             sess.query(
-                DataFunctionLog.function_node_key,
+                DataFunctionLog.function_node_name,
                 func.count(DataFunctionLog.id),
                 func.max(DataFunctionLog.started_at),
             )
-            .group_by(DataFunctionLog.function_node_key)
+            .group_by(DataFunctionLog.function_node_name)
             .all()
         )
         headers = [
-            "Key",
+            "Name",
             "Run count",
             "Last run at",
         ]
@@ -174,8 +179,8 @@ def list_data_functions():
 
 
 @click.command("log")
-def show_log():
-    env = current_env()
+@click.pass_obj
+def show_log(env: Environment):
     with env.session_scope() as sess:
         query = sess.query(DataFunctionLog).order_by(DataFunctionLog.updated_at.desc())
         drls = []
@@ -184,7 +189,7 @@ def show_log():
                 for drl in dfl.data_block_logs:
                     r = [
                         dfl.started_at.strftime("%F %T"),
-                        dfl.function_node_key,
+                        dfl.function_node_name,
                         drl.direction.display,
                         cycle_colors_unique(drl.data_block_id),
                     ]
@@ -193,7 +198,7 @@ def show_log():
                 drls.append(
                     [
                         dfl.started_at.strftime("%F %t"),
-                        f"{dfl.function_node_key} nothing to do",
+                        f"{dfl.function_node_name} nothing to do",
                         "-",
                         "-",
                     ]
