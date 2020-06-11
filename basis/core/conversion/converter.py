@@ -94,8 +94,9 @@ class ConverterLookup:
     ) -> Optional[ConversionPath]:
         if storages:
             return self.clone(
-                set(s.storage_type for s in storages)
+                eligible_storage_types=set(s.storage_type for s in storages)
             ).get_lowest_cost_path(conversion)
+
         # TODO: conversion paths
         try:
             path = nx.shortest_path(self._graph, *conversion, weight="cost")

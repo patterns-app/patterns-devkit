@@ -31,7 +31,7 @@ from basis.core.storage import StorageType
         ),
         (
             (
-                StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST_ITERATOR),
+                StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST_GENERATOR),
                 StorageFormat(StorageType.POSTGRES_DATABASE, DataFormat.DATABASE_TABLE),
             ),
             ConversionCostLevel.OVER_WIRE.value,

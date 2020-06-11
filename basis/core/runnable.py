@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections import abc
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
+from itertools import tee
 from typing import Any, Dict, Generator, List, Optional, Union
 
 import sqlalchemy
@@ -23,6 +25,7 @@ from basis.core.data_block import (
     StoredDataBlockMetadata,
     create_data_block_from_records,
 )
+from basis.core.data_format import DataFrameGenerator, DictListGenerator
 from basis.core.data_function import (
     DataFunctionDefinition,
     DataFunctionInterface,
@@ -51,6 +54,7 @@ from basis.utils.common import (
     BasisJSONEncoder,
     cf,
     error_symbol,
+    generator_is_empty_tee,
     get_spinner,
     printd,
     success_symbol,
@@ -343,8 +347,9 @@ class Worker:
                     self.ctx.target_storage is not None
                 ), "Must specify target storage for output"
                 output_block = self.conform_output(run_session, output, runnable)
-                assert output_block is not None, output
-                run_session.log_output(output_block)
+                # assert output_block is not None, output    # Output block may be none if empty generator
+                if output_block is not None:
+                    run_session.log_output(output_block)
 
             for input in runnable.datafunction_interface.inputs:
                 assert input.bound_data_block is not None, input
@@ -375,7 +380,7 @@ class Worker:
 
     def conform_output(
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
-    ) -> DataBlockMetadata:
+    ) -> Optional[DataBlockMetadata]:
         assert runnable.datafunction_interface.output_otype is not None
         assert self.ctx.target_storage is not None
         # TODO: check if these Metadata objects have been added to session!
@@ -390,12 +395,28 @@ class Worker:
             output = self.ctx.merge(output)
             return output.data_block
 
+        if isinstance(output, abc.Generator):
+            if (
+                runnable.datafunction_interface.output.data_format_class
+                == "DataFrameGenerator"
+            ):
+                output = DataFrameGenerator(output)
+            elif (
+                runnable.datafunction_interface.output.data_format_class
+                == "DictListGenerator"
+            ):
+                output = DictListGenerator(output)
+            else:
+                TypeError(output)
+            if output.get_one() is None:
+                # Empty generator
+                return None
         block, sdb = create_data_block_from_records(
             self.env,
             self.ctx.metadata_session,
             self.ctx.local_memory_storage,
             output,
-            runnable.datafunction_interface.output_otype,
+            declared_otype=runnable.datafunction_interface.output_otype,
         )
         # ldr = LocalMemoryDataRecords.from_records_object(output)
         # block = DataBlockMetadata(

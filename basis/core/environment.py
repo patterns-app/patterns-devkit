@@ -20,16 +20,14 @@ from basis.core.typing.object_type import (
 
 if TYPE_CHECKING:
     from basis.core.streams import FunctionNodeRawInput
-    from basis.core.storage import (
-        Storage,
-        new_local_memory_storage,
-    )
+    from basis.core.storage import Storage, new_local_memory_storage, StorageClass
     from basis.core.data_function import (
         DataFunctionCallable,
         DataFunctionLike,
         DataFunction,
         ensure_datafunction,
     )
+    from basis.core.external import ConfiguredExternalResource, ExternalResource
     from basis.core.function_node import FunctionNode, function_node_factory
     from basis.core.data_function_interface import FunctionGraphResolver
     from basis.core.runnable import ExecutionContext
@@ -88,7 +86,12 @@ class Environment:
 
     def initialize_metadata_database(self):
         from basis.core.metadata.listeners import add_persisting_sdb_listener
+        from basis.core.storage import StorageClass
 
+        if self.metadata_storage.storage_class != StorageClass.DATABASE:
+            raise ValueError(
+                f"metadata storage expected a database, got {self.metadata_storage}"
+            )
         conn = self.metadata_storage.get_database_api(self).get_connection()
         BaseModel.metadata.create_all(conn)
         self.Session = sessionmaker(bind=conn)
@@ -140,6 +143,11 @@ class Environment:
     def get_function(self, df_like: Union[DataFunctionLike, str]) -> DataFunction:
         return self.library.get_function(df_like)
 
+    def get_external_resource(
+        self, ext_like: Union[ExternalResource, str]
+    ) -> ExternalResource:
+        return self.library.get_external_resource(ext_like)
+
     def add_node(
         self, name: str, function: Union[DataFunctionLike, str], **kwargs: Any
     ) -> FunctionNode:
@@ -158,6 +166,22 @@ class Environment:
                 self.register_node(sub_node)
         else:
             self._flattened_nodes[node.name] = node
+
+    def add_external_source_node(
+        self,
+        name: str,
+        external_resource: Union[ExternalResource, str],
+        config: Dict,
+        **kwargs: Any,
+    ) -> FunctionNode:
+        from basis.core.function_node import function_node_factory
+        from basis.core.external import ConfiguredExternalResource
+
+        if isinstance(external_resource, str):
+            external_resource = self.library.get_external_resource(external_resource)
+        p = external_resource.provider(name=name + "_provider", **config)
+        r = external_resource(name=name + "_resource", **config, configured_provider=p)
+        return self.add_node(name, r.extractor, **kwargs)
 
     def all_added_nodes(self) -> List[FunctionNode]:
         return list(self._added_nodes.values())
@@ -212,11 +236,14 @@ class Environment:
         finally:
             session.close()
 
-    def get_execution_context(self, session: Session, **kwargs) -> ExecutionContext:
+    def get_execution_context(
+        self, session: Session, target_storage: Storage = None, **kwargs
+    ) -> ExecutionContext:
         from basis.core.runnable import ExecutionContext
         from basis.core.storage import new_local_memory_storage
 
-        target_storage = self.storages[0] if self.storages else None
+        if target_storage is None:
+            target_storage = self.storages[0] if self.storages else None
         args = dict(
             env=self,
             metadata_session=session,
@@ -229,12 +256,14 @@ class Environment:
         return ExecutionContext(**args)
 
     @contextmanager
-    def execution(self, target_storage: Storage = None):
+    def execution(self, target_storage: Storage = None, **kwargs):
         # TODO: target storage??
         from basis.core.runnable import ExecutionManager
 
         session = self.Session()
-        ec = self.get_execution_context(session)
+        ec = self.get_execution_context(
+            session, target_storage=target_storage, **kwargs
+        )
         em = ExecutionManager(ec)
         try:
             yield em

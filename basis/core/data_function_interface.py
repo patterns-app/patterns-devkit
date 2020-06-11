@@ -65,7 +65,8 @@ VALID_DATA_INTERFACE_TYPES = [
     "DataSet",
     "DataFrame",
     "DictList",
-    "DictListIterator",
+    "DictListGenerator",
+    "DataFrameGenerator",
     "DatabaseTable",
     # TODO: is this list just a list of formats? which ones are valid i/o to DFs?
     # TODO: also, are DataBlocks the only valid *input* type?
@@ -163,6 +164,7 @@ class ResolvedFunctionNodeInput:
 class ResolvedFunctionInterface:
     inputs: List[ResolvedFunctionNodeInput]
     output_otype: Optional[ObjectType]
+    output: Optional[DataFunctionAnnotation]
     requires_data_function_context: bool = True
     is_bound: bool = False
 
@@ -481,10 +483,12 @@ class FunctionGraphResolver:
         resolved_otype = self._resolved_output_types.get(node)
         if resolved_otype is not None:
             resolved_otype = self.env.get_otype(resolved_otype)
+        dfi = node.get_interface()
         return ResolvedFunctionInterface(
             inputs=self._resolved_inputs.get(node, []),
             output_otype=resolved_otype,
-            requires_data_function_context=node.get_interface().requires_data_function_context,
+            output=dfi.output,
+            requires_data_function_context=dfi.requires_data_function_context,
         )
 
     def get_all_upstream_dependencies_in_execution_order(

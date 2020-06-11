@@ -22,3 +22,8 @@ def test_env_init():
     env.add_storage("postgres://test")
     assert len(env.storages) == 1
     assert len(env.runtimes) == 2
+
+    assert (
+        env.get_external_resource("TestExtResource")
+        is list(_test_module.external_resources)[0]
+    )

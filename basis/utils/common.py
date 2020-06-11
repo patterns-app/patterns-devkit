@@ -5,9 +5,22 @@ import random
 import re
 import string
 import uuid
+from dataclasses import dataclass, fields
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union, overload
+from itertools import tee, _tee
+from typing import (
+    Any,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    Union,
+    overload,
+    Generator,
+)
 
 import pytz
 from colorful import Colorful
@@ -62,6 +75,10 @@ def md5_hash(s: str) -> str:
     h = hashlib.md5()
     h.update(s.encode("utf8"))
     return h.hexdigest()
+
+
+def dataclass_kwargs(dc: Union[dataclass, Type[dataclass]], kwargs: Dict) -> Dict:
+    return {f.name: kwargs.get(f.name, f.default) for f in fields(dc)}
 
 
 def ensure_list(x: Any) -> List:
@@ -278,3 +295,8 @@ class BasisJSONEncoder(json.JSONEncoder):
             return str(o)
         else:
             return super().default(o)
+
+
+def generator_is_empty_tee(g: Generator) -> Tuple[bool, _tee]:
+    g, expendable_g = tee(g, 2)
+    return next(expendable_g, None) is None, g

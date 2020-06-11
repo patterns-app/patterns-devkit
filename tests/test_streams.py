@@ -124,11 +124,12 @@ class TestStreams:
         s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) is None
 
-    def test_stream_records_object(self):
-        records = [{"a": 1, "b": 2}]
-        s = DataBlockStream(raw_records_object=records, raw_records_otype=TestType1)
-        db = s.get_next(self.ctx)
-        self.ctx.metadata_session.commit()
-        assert db is not None
-        db = db.as_managed_data_block(self.ctx)
-        assert db.as_dictlist() == records
+    # Deprecated for now
+    # def test_stream_records_object(self):
+    #     records = [{"a": 1, "b": 2}]
+    #     s = DataBlockStream(raw_records_object=records, raw_records_otype=TestType1)
+    #     db = s.get_next(self.ctx)
+    #     self.ctx.metadata_session.commit()
+    #     assert db is not None
+    #     db = db.as_managed_data_block(self.ctx)
+    #     assert db.as_dictlist() == records

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import inspect
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime
 from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type
 
@@ -14,6 +15,7 @@ from basis.core.metadata.orm import BaseModel
 from basis.core.module import BasisModule
 from basis.core.runnable import DataFunctionContext, ExecutionContext
 from basis.core.typing.object_type import ObjectTypeLike
+from basis.utils.common import dataclass_kwargs, printd
 from basis.utils.typing import T
 
 logger = logging.getLogger(__name__)
@@ -27,7 +29,7 @@ class ExternalResource(ComponentUri):
     otype: ObjectTypeLike
     default_extractor: ExtractorLike
     # default_loader: LoaderLike  # TODO
-    configuration_class: Optional[Type] = None
+    configuration_class: Optional[Type[dataclass]] = None
     initial_configuration: Optional[Dict[str, Any]] = None
     initial_high_water_mark: Optional[datetime] = None
     is_public: bool = False
@@ -53,7 +55,10 @@ class ExternalResource(ComponentUri):
         args = (self.initial_configuration or {}).copy()
         args.update(**kwargs)
         if self.configuration_class:
-            cfg = self.configuration_class(**args)
+            dc_args = dataclass_kwargs(self.configuration_class, args)
+            cfg = self.configuration_class(**dc_args)
+        else:
+            cfg = args
         if not initial_high_water_mark:
             initial_high_water_mark = self.initial_high_water_mark
         if not configured_provider and self.provider:
@@ -130,7 +135,6 @@ class ConfiguredExternalResourceState(BaseModel):
         )
 
     def set_high_water_mark(self, hwm: datetime):
-        print(hwm)
         self.high_water_mark = hwm
 
 
@@ -147,7 +151,7 @@ class ExternalProvider(ComponentUri):
     resources: ExternalResourceList = field(default_factory=ExternalResourceList)
     # authenticators: list[AuthenticatorBaseView]
     requires_authentication: bool = False
-    configuration_class: Optional[Type] = None
+    configuration_class: Optional[Type[dataclass]] = None
     initial_configuration: Optional[Dict[str, Any]] = None
     is_public: bool = False
     unregistered: bool = False
@@ -160,7 +164,10 @@ class ExternalProvider(ComponentUri):
         args = (self.initial_configuration or {}).copy()
         args.update(**kwargs)
         if self.configuration_class:
-            cfg = self.configuration_class(**args)
+            dc_args = dataclass_kwargs(self.configuration_class, args)
+            cfg = self.configuration_class(**dc_args)
+        else:
+            cfg = args
         return ConfiguredExternalProvider(name=name, provider=self, configuration=cfg)
 
     # def get_resources(self) -> Sequence[SourceResource]:
@@ -227,9 +234,9 @@ class ConfiguredExternalProvider(Generic[T]):
 
 
 @dataclass(frozen=True)
-class ExtractorResult:
+class ExtractorResult(Generic[T]):
     # more_to_extract: bool
-    records: Optional[DataInterfaceType] = None  # [DictList]
+    records: Optional[T] = None  # [DictList]
     new_high_water_mark: Optional[datetime] = None
     new_state: Optional[Dict] = None
 
@@ -278,7 +285,7 @@ class ExtractorDataFunction:
     ):
         if extract_result.new_high_water_mark:
             state.set_high_water_mark(extract_result.new_high_water_mark)
-        print("Setting state", state.high_water_mark)
+        printd("Setting state", state.high_water_mark)
         # TODO: handle arbitrary state blob
 
     def __call__(
@@ -295,85 +302,21 @@ class ExtractorDataFunction:
             self.set_state(state, extract_result)
 
     def get_interface(self) -> DataFunctionInterface:
-        # TODO: more than dictlistiterator
-        #   get it from actual extractor!
+        s = inspect.signature(self.extract_function)
+        ret = s.return_annotation
+        fmt = "DictListGenerator"
+        if ret is not inspect.Signature.empty:
+            ret = str(ret)
+            if "DataFrame" in ret:
+                fmt = "DataFrameGenerator"
+            else:
+                fmt = "DictListGenerator"
         out_annotation = DataFunctionAnnotation.create(
-            data_format_class="DictListIterator",
-            otype_like=self.configured_external_resource.otype,
+            data_format_class=fmt, otype_like=self.configured_external_resource.otype,
         )
         return DataFunctionInterface(
             inputs=[], output=out_annotation, requires_data_function_context=True
         )
-
-
-# def extractor_decorator(extract_function: ExtractFunction):
-#     raise
-#
-#     def extractor_factory(
-#         configured_provider: ConfiguredSource,
-#         configured_external_resource: ConfiguredSourceResource,
-#         key: str = None,
-#     ):
-#         return ExtractDataFunction(
-#             extract_function, configured_provider, configured_external_resource, key=key
-#         )
-#
-#     return extractor_factory
-
-
-# Decorator
-# extractor = extractor_decorator
-
-
-# TODO: redo this when needed
-# def static_source_resource(df: DataFunctionCallable) -> DataFunctionCallable:
-#     """
-#     Only run function once, since source data is static and only one output
-#     """
-#
-#     def csr_key_from_node(node: ConfiguredDataFunction) -> str:
-#         return f"_mock_source_resource_from_node_{node.key}"
-#
-#     @wraps(df)
-#     def static_source(*args, **kwargs):
-#         ctx: Any = args[0]  # DataFunctionContext = args[0]
-#         key = csr_key_from_node(ctx.node)
-#         state = (
-#             ctx._metadata_session.query(ConfiguredSourceResourceState)
-#             .filter(ConfiguredSourceResourceState.configured_external_resource_key == key)
-#             .first()
-#         )
-#         if state is not None:
-#             # Already run once, don't run again
-#             raise InputExhaustedException()
-#         ret = df(*args, **kwargs)
-#         state = ConfiguredSourceResourceState(
-#             configured_external_resource_key=key, high_water_mark=utcnow(),
-#         )
-#         ctx._metadata_session.add(state)
-#         return ret
-#
-#     # TODO: hmmm, we should have a unified interface for all DataFunctions
-#     #   Probably has to be class / class wrapper?
-#     #   wrapped either with decorator at declare time or ensured at runtime?
-#     if hasattr(df, "get_interface"):
-#
-#         def call_(self, *args, **kwargs):
-#             return static_source(*args, **kwargs)
-#
-#         df.__call__ = call_
-#         return df
-#
-#         # class S:
-#         #     def __call__(self, *args, **kwargs):
-#         #         return static_source(*args, **kwargs)
-#         #
-#         #     def __getattr__(self, item):
-#         #         return getattr(df, item)
-#         #
-#         # return S()
-#
-#     return static_source
 
 
 # class JsonHttpApiExtractor:

@@ -59,8 +59,8 @@ NATURAL_STORAGE_CLASS = {
     DataFormat.DATABASE_TABLE: StorageClass.DATABASE,
     DataFormat.DELIMITED_FILE: StorageClass.FILE_SYSTEM,
     DataFormat.JSON_LIST_FILE: StorageClass.FILE_SYSTEM,
-    DataFormat.DICT_LIST_ITERATOR: StorageClass.MEMORY,
-    DataFormat.DATAFRAME_ITERATOR: StorageClass.MEMORY,
+    DataFormat.DICT_LIST_GENERATOR: StorageClass.MEMORY,
+    DataFormat.DATAFRAME_GENERATOR: StorageClass.MEMORY,
 }
 
 

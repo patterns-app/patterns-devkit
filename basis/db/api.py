@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Type, Union, Any, Callable
+from typing import Any, Callable, List, Type, Union
 
 import sqlalchemy
 from sqlalchemy.engine import ResultProxy
@@ -13,10 +13,10 @@ from basis.core.runtime import Runtime
 from basis.core.sql.utils import ObjectTypeMapper
 from basis.core.storage import Storage, StorageEngine
 from basis.utils.common import (
+    BasisJSONEncoder,
     JSONEncoder,
     printd,
     title_to_snake_case,
-    BasisJSONEncoder,
 )
 
 logger = logging.getLogger(__name__)
@@ -124,7 +124,8 @@ class DatabaseAPI:
             self.execute_sql(f"select * from {table_name} limit 0")
             return True
         except (OperationalError, ProgrammingError) as x:
-            if "does not exist" in str(x).lower():
+            s = str(x).lower()
+            if "does not exist" in s or "no such" in s:
                 return False
             raise x
 

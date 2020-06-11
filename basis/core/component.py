@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     )
     from basis.core.module import BasisModule, DEFAULT_LOCAL_MODULE
     from basis.core.typing.object_type import ObjectTypeLike, ObjectType
-    from basis.core.external import ExternalProvider
+    from basis.core.external import ExternalProvider, ExternalResource
 
 VERSIONED_URIS = (
     False  # TODO: think about when we would want to use versioned URIs (never?)
@@ -121,7 +121,9 @@ class ComponentUri(ComponentBase):
         return self.clone(module_name=module.name)
 
     def merge(self, other: ComponentUri):
-        raise NotImplementedError
+        # TODO: should this raise an error or be a no op by default? Probably error
+        pass
+        # raise NotImplementedError
 
 
 UriLike = Union[ComponentUri, str]
@@ -328,8 +330,8 @@ class ComponentLibrary:
             component_type=ComponentType.ObjectType,
         )
         if otype is None:
-            print({k: v.uri for k, v in self.registry._uri_to_component.items()})
-            print(self.registry._name_to_modules)
+            # print({k: v.uri for k, v in self.registry._uri_to_component.items()})
+            # print(self.registry._name_to_modules)
             raise KeyError(otype_like)
         return cast(ObjectType, otype)
 
@@ -344,6 +346,20 @@ class ComponentLibrary:
         if fn is None:
             raise KeyError(df_like)
         return cast(DataFunction, fn)
+
+    def get_external_resource(
+        self, ext_like: Union[ExternalResource, str]
+    ) -> ExternalResource:
+        from basis.core.external import ExternalResource
+
+        ext = self.registry.get(
+            ext_like,
+            module_precedence=self.module_precedence,
+            component_type=ComponentType.External,
+        )
+        if ext is None:
+            raise KeyError(ext_like)
+        return cast(ExternalResource, ext)
 
     def all_otypes(self) -> List[ObjectType]:
         return [

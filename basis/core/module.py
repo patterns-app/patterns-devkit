@@ -103,7 +103,7 @@ class BasisModule:
         return self.library.component_view(ctype=ComponentType.DataFunction)
 
     @property
-    def providers(self) -> ComponentView[ObjectType]:
+    def external_resources(self) -> ComponentView[ObjectType]:
         return self.library.component_view(ctype=ComponentType.External)
 
     def add_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
@@ -161,7 +161,9 @@ class BasisModule:
 
     def add_provider(self, provider: ExternalProvider) -> ExternalProvider:
         p = self.process_provider(provider)
-        self.library.add_component(p)
+        # self.library.add_component(p)  # TODO
+        for r in p.resources:
+            self.library.add_component(r)
         return p
 
     def process_provider(self, provider: ExternalProvider) -> ExternalProvider:

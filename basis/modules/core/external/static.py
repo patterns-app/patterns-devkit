@@ -28,7 +28,7 @@ def extract_dataframe(
     configured_provider: ConfiguredExternalProvider,
     configured_resource: ConfiguredExternalResource,
     configured_resource_state: ConfiguredExternalResourceState,
-) -> Iterator[ExtractorResult]:
+) -> Iterator[ExtractorResult[DataFrame]]:
     if configured_resource_state.high_water_mark is not None:
         # Just emit once
         return

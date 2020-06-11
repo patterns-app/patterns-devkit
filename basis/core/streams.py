@@ -13,7 +13,6 @@ from basis.core.data_block import (
     StoredDataBlockMetadata,
     create_data_block_from_records,
 )
-from basis.core.data_format import ensure_dictlist
 from basis.core.environment import Environment
 from basis.core.function_node import (
     DataBlockLog,
@@ -47,8 +46,8 @@ class DataBlockStream:
         data_sets: List[str] = None,
         data_sets_only: bool = False,
         data_block: Union[DataBlockMetadata, DataBlock, str] = None,
-        raw_records_object: Any = None,
-        raw_records_otype: ObjectType = None,
+        # raw_records_object: Any = None,
+        # raw_records_otype: ObjectType = None,
         allow_cycle: bool = False,
         most_recent_first: bool = False,
     ):
@@ -66,9 +65,9 @@ class DataBlockStream:
         self.data_sets = data_sets
         self.data_sets_only = data_sets_only
         self.data_block = data_block
-        self.raw_records_object = raw_records_object
-        self.raw_records_otype = raw_records_otype
-        self.ensure_raw_records_otype()
+        # self.raw_records_object = raw_records_object
+        # self.raw_records_otype = raw_records_otype
+        # self.ensure_raw_records_otype()
         self.unprocessed_by = unprocessed_by
         self.allow_cycle = allow_cycle
         self.most_recent_first = most_recent_first
@@ -90,8 +89,8 @@ class DataBlockStream:
             q = self._filter_datasets(ctx, q)
         if self.data_block is not None:
             q = self._filter_data_block(ctx, q)
-        if self.raw_records_object is not None:
-            q = self._filter_raw_records_object(ctx, q)
+        # if self.raw_records_object is not None:
+        #     q = self._filter_raw_records_object(ctx, q)
         return q.with_session(ctx.metadata_session)
 
     def clone(self, **kwargs) -> DataBlockStream:
@@ -104,8 +103,8 @@ class DataBlockStream:
             data_sets_only=self.data_sets_only,
             allow_cycle=self.allow_cycle,
             most_recent_first=self.most_recent_first,
-            raw_records_object=self.raw_records_object,
-            raw_records_otype=self.raw_records_otype,
+            # raw_records_object=self.raw_records_object,
+            # raw_records_otype=self.raw_records_otype,
         )
         args.update(**kwargs)
         return DataBlockStream(**args)  # type: ignore
@@ -229,28 +228,28 @@ class DataBlockStream:
             raise TypeError(self.data_block)
         return query.filter(DataBlockMetadata.id == db_id)
 
-    def ensure_raw_records_otype(self):
-        if self.raw_records_object is not None and not self.raw_records_otype:
-            self.raw_records_otype = infer_otype(
-                ensure_dictlist(self.raw_records_object)
-            )
-
-    def _filter_raw_records_object(self, ctx: ExecutionContext, query: Query) -> Query:
-        if self.raw_records_object is None:
-            return query
-        self.ensure_raw_records_otype()
-        # ctx.env.add_otype(
-        #     self.raw_records_otype
-        # )  # TODO: weird place for this. When/where do we create auto-types? and then add them to env?
-        block, sdb = create_data_block_from_records(
-            ctx.env,
-            ctx.metadata_session,
-            ctx.local_memory_storage,
-            self.raw_records_object,
-            self.raw_records_otype,
-        )
-        assert block.id
-        return query.filter(DataBlockMetadata.id == block.id)
+    # def ensure_raw_records_otype(self):
+    #     if self.raw_records_object is not None and not self.raw_records_otype:
+    #         self.raw_records_otype = infer_otype(
+    #             ensure_dictlist(self.raw_records_object)
+    #         )
+    #
+    # def _filter_raw_records_object(self, ctx: ExecutionContext, query: Query) -> Query:
+    #     if self.raw_records_object is None:
+    #         return query
+    #     self.ensure_raw_records_otype()
+    #     # ctx.env.add_otype(
+    #     #     self.raw_records_otype
+    #     # )  # TODO: weird place for this. When/where do we create auto-types? and then add them to env?
+    #     block, sdb = create_data_block_from_records(
+    #         ctx.env,
+    #         ctx.metadata_session,
+    #         ctx.local_memory_storage,
+    #         self.raw_records_object,
+    #         self.raw_records_otype,
+    #     )
+    #     assert block.id
+    #     return query.filter(DataBlockMetadata.id == block.id)
 
     def is_unprocessed(
         self, ctx: ExecutionContext, block: DataBlockMetadata, node: FunctionNode,

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections import abc
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Optional
+from itertools import _tee, tee
+from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple
 
 import sqlalchemy as sa
 from pandas import DataFrame
@@ -13,10 +15,12 @@ from basis.core.data_format import (
     DataFormat,
     DictList,
     get_data_format_of_object,
+    get_dictlist_sample,
 )
 from basis.core.environment import Environment
 from basis.core.metadata.listeners import immutability_update_listener
 from basis.core.metadata.orm import BaseModel, timestamp_rand_key
+from basis.core.typing.inference import infer_otype
 from basis.core.typing.object_type import ObjectType, ObjectTypeUri
 from basis.utils.typing import T
 
@@ -43,7 +47,7 @@ class LocalMemoryDataRecords:
     def from_records_object(cls, obj: Any) -> LocalMemoryDataRecords:
         fmt = get_data_format_of_object(obj)
         if fmt is None:
-            raise NotImplementedError(fmt)
+            raise NotImplementedError(obj)
         cnt = fmt.get_manager().get_record_count(obj)
         return LocalMemoryDataRecords(
             data_format=fmt, records_object=obj, record_count=cnt
@@ -403,12 +407,16 @@ def create_data_block_from_records(
     records: Any,
     declared_otype: ObjectType = None,
     realized_otype: ObjectType = None,
-) -> tuple[DataBlockMetadata, StoredDataBlockMetadata]:
+) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
     from basis.core.storage import LocalMemoryStorageEngine
 
     if not declared_otype:
         declared_otype = env.get_otype("Any")
     declared_otype_uri = declared_otype.uri
+    if not realized_otype and declared_otype.name == "Any":
+        dl = get_dictlist_sample(records)
+        realized_otype = infer_otype(dl)
+        env.add_new_otype(realized_otype)
     realized_otype_uri = None
     if realized_otype:
         realized_otype_uri = realized_otype.uri

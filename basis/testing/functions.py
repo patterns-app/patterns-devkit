@@ -63,7 +63,6 @@ def test_cases_from_yaml(yml: str, module: BasisModule) -> List[DataFunctionTest
     for test_name, test_inputs in tests.items():
         test_data = {}
         for input_name, data in test_inputs.items():
-            print(data.strip())
             test_data[input_name] = pd.read_csv(StringIO(data.strip()))
         DataFunctionTestCase(
             name=test_name, function=fn, test_data=test_data,

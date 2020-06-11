@@ -14,7 +14,7 @@ from basis.core.storage import LocalMemoryStorageEngine, StorageType
 class MemoryToDatabaseConverter(Converter):
     supported_input_formats: Sequence[StorageFormat] = (
         StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST),
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST_ITERATOR),
+        StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST_GENERATOR),
         # StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATAFRAME),  # Note: supporting this via MemoryToMemory
         StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATABASE_TABLE_REF),
         # StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATABASE_CURSOR), # TODO: need to figure out how to get db url from ResultProxy
@@ -42,13 +42,15 @@ class MemoryToDatabaseConverter(Converter):
                 )
         assert input_sdb.data_format in (
             DataFormat.DICT_LIST,
-            DataFormat.DICT_LIST_ITERATOR,
+            DataFormat.DICT_LIST_GENERATOR,
         )
         records_objects = input_ldr.records_object
         if input_sdb.data_format == DataFormat.DICT_LIST:
             records_objects = [records_objects]
+        if input_sdb.data_format == DataFormat.DICT_LIST_GENERATOR:
+            records_objects = records_objects.get_generator()
         output_runtime = output_sdb.storage.get_database_api(self.env)
-        # TODO: this loop is what is actually calling our Iterable DataFunction in DICT_LIST_ITERATOR case. Is that ok?
+        # TODO: this loop is what is actually calling our Iterable DataFunction in DICT_LIST_GENERATOR case. Is that ok?
         #   seems a bit opaque
         for records_object in records_objects:
             output_runtime.bulk_insert_dict_list(output_sdb, records_object)
