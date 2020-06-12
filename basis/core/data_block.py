@@ -13,14 +13,14 @@ from sqlalchemy.orm import RelationshipProperty, Session, relationship
 from basis.core.data_format import (
     DatabaseTable,
     DataFormat,
-    DictList,
+    RecordsList,
     get_data_format_of_object,
-    get_dictlist_sample,
+    get_records_list_sample,
 )
 from basis.core.environment import Environment
 from basis.core.metadata.listeners import immutability_update_listener
 from basis.core.metadata.orm import BaseModel, timestamp_rand_key
-from basis.core.typing.inference import infer_otype_from_dictlist
+from basis.core.typing.inference import infer_otype_from_records_list
 from basis.core.typing.object_type import ObjectType, ObjectTypeUri, is_any
 from basis.utils.typing import T
 
@@ -40,17 +40,21 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class LocalMemoryDataRecords:
     data_format: DataFormat
-    records_object: Any  # TODO: only eligible types: DataFrame, DictList, table name (str)
+    records_object: Any  # TODO: only eligible types: DataFrame, RecordsList, table name (str)
     record_count: Optional[int] = None
 
     @classmethod
-    def from_records_object(cls, obj: Any) -> LocalMemoryDataRecords:
-        fmt = get_data_format_of_object(obj)
-        if fmt is None:
+    def from_records_object(
+        cls, obj: Any, data_format: DataFormat = None, record_count: int = None
+    ) -> LocalMemoryDataRecords:
+        if data_format is None:
+            data_format = get_data_format_of_object(obj)
+        if data_format is None:
             raise NotImplementedError(obj)
-        cnt = fmt.get_manager().get_record_count(obj)
+        if record_count is None:
+            record_count = data_format.get_manager().get_record_count(obj)
         return LocalMemoryDataRecords(
-            data_format=fmt, records_object=obj, record_count=cnt
+            data_format=data_format, records_object=obj, record_count=record_count
         )
 
     def copy(self) -> LocalMemoryDataRecords:
@@ -67,7 +71,7 @@ class LocalMemoryDataRecords:
         # TODO: idea here is to make sure local records look like what we expect. part of larger project on ObjectType
         #   validation
         # if self.data_format == DataFormat.DATAFRAME:
-        #     from basis.core.pandas_utils import coerce_dataframe_to_otype
+        #     from basis.core.pandas import coerce_dataframe_to_otype
         #
         #     printd(f"Before validation")
         #     printd(f"-----------------")
@@ -161,8 +165,8 @@ class ManagedDataBlock(Generic[T]):
     def as_dataframe(self) -> DataFrame:
         return self.manager.as_dataframe()
 
-    def as_dictlist(self) -> DictList:
-        return self.manager.as_dictlist()
+    def as_records_list(self) -> RecordsList:
+        return self.manager.as_records_list()
 
     def as_table(self) -> DatabaseTable:
         return self.manager.as_table()
@@ -286,8 +290,8 @@ class ManagedDataSet(Generic[T]):
     def as_dataframe(self) -> DataFrame:
         return self.manager.as_dataframe()
 
-    def as_dictlist(self) -> DictList:
-        return self.manager.as_dictlist()
+    def as_records_list(self) -> RecordsList:
+        return self.manager.as_records_list()
 
     def as_table(self) -> DatabaseTable:
         return self.manager.as_table()
@@ -331,8 +335,8 @@ class DataBlockManager:
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFormat.DATAFRAME)
 
-    def as_dictlist(self) -> DictList:
-        return self.as_format(DataFormat.DICT_LIST)
+    def as_records_list(self) -> RecordsList:
+        return self.as_format(DataFormat.RECORDS_LIST)
 
     def as_table(self) -> DatabaseTable:
         return self.as_format(DataFormat.DATABASE_TABLE_REF)
@@ -430,8 +434,8 @@ def create_data_block_from_records(
     expected_otype_uri = expected_otype.uri
     if not realized_otype:
         if is_any(expected_otype):
-            dl = get_dictlist_sample(records)
-            realized_otype = infer_otype_from_dictlist(dl)
+            dl = get_records_list_sample(records)
+            realized_otype = infer_otype_from_records_list(dl)
             env.add_new_otype(realized_otype)
         else:
             realized_otype = expected_otype

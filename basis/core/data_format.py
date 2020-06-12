@@ -35,13 +35,13 @@ class DataFormat(StringEnum):
     DATABASE_TABLE = "database_table"
     # Memory
     JSON_LIST = "json_list"
-    DICT_LIST = "dict_list"
+    RECORDS_LIST = "records_list"
     DELIMITED_FILE_POINTER = "delimited_file_pointer"
     DATABASE_CURSOR = "database_cursor"
     DATABASE_TABLE_REF = "database_table_ref"
     DATAFRAME = "dataframe"
     DATAFRAME_GENERATOR = "dataframe_generator"
-    DICT_LIST_GENERATOR = "dict_list_generator"
+    RECORDS_LIST_GENERATOR = "records_list_generator"
 
     def get_manager(self) -> Type[DataFormatManager]:
         return data_format_managers[self]
@@ -49,13 +49,13 @@ class DataFormat(StringEnum):
     def memory_formats(self) -> Sequence[DataFormat]:
         return (
             DataFormat.JSON_LIST,
-            DataFormat.DICT_LIST,
+            DataFormat.RECORDS_LIST,
             DataFormat.DELIMITED_FILE_POINTER,
             DataFormat.DATABASE_CURSOR,
             DataFormat.DATABASE_TABLE_REF,
             DataFormat.DATAFRAME,
             DataFormat.DATAFRAME_GENERATOR,
-            DataFormat.DICT_LIST_GENERATOR,
+            DataFormat.RECORDS_LIST_GENERATOR,
         )
 
     def is_memory_format(self) -> bool:
@@ -112,8 +112,8 @@ class DataFrameFormat(DataFormatManager):
         return len(obj)
 
 
-class DictListFormat(DataFormatManager):
-    data_format = DataFormat.DICT_LIST
+class RecordsListFormat(DataFormatManager):
+    data_format = DataFormat.RECORDS_LIST
 
     @classmethod
     def type(cls):
@@ -121,7 +121,7 @@ class DictListFormat(DataFormatManager):
 
     @classmethod
     def type_hint(cls) -> str:
-        return "DictList"
+        return "RecordsList"
 
     @classmethod
     def isinstance(cls, obj: Any) -> bool:
@@ -140,12 +140,12 @@ class DictListFormat(DataFormatManager):
         return len(obj)
 
 
-class DictListGeneratorFormat(DataFormatManager):
-    data_format = DataFormat.DICT_LIST_GENERATOR
+class RecordsListGeneratorFormat(DataFormatManager):
+    data_format = DataFormat.RECORDS_LIST_GENERATOR
 
     @classmethod
     def type(cls) -> Type:
-        return DictListGenerator
+        return RecordsListGenerator
 
 
 class DataFrameGeneratorFormat(DataFormatManager):
@@ -200,7 +200,7 @@ class DatabaseTableRefFormat(DataFormatManager):
 
 
 JSONList = List[str]
-DictList = List[Dict[str, Any]]
+RecordsList = List[Dict[str, Any]]
 DelimitedFilePointer = Any  # TODO ??
 DatabaseCursor = Any  # TODO
 
@@ -224,16 +224,16 @@ class DataFrameGenerator(ReusableGenerator[pd.DataFrame]):
     pass
 
 
-class DictListGenerator(ReusableGenerator[DictList]):
+class RecordsListGenerator(ReusableGenerator[RecordsList]):
     pass
 
 
 all_managers = [
     DataFrameFormat,
-    DictListFormat,
+    RecordsListFormat,
     DatabaseCursorFormat,
     DatabaseTableRefFormat,
-    DictListGeneratorFormat,
+    RecordsListGeneratorFormat,
     DataFrameGeneratorFormat,
 ]
 data_format_managers = {m.data_format: m for m in all_managers}
@@ -246,16 +246,16 @@ def get_data_format_of_object(obj: Any) -> Optional[DataFormat]:
     return None
 
 
-def get_dictlist_sample(
-    obj: Union[pd.DataFrame, DictList, DictListGenerator, DataFrameGenerator]
-) -> DictList:
+def get_records_list_sample(
+    obj: Union[pd.DataFrame, RecordsList, RecordsListGenerator, DataFrameGenerator]
+) -> RecordsList:
     if isinstance(obj, list):
         return obj
     if isinstance(obj, pd.DataFrame):
         return obj.to_dict(orient="records")
     if isinstance(obj, DataFrameGenerator):
-        return get_dictlist_sample(obj.get_one())
-    if isinstance(obj, DictListGenerator):
+        return get_records_list_sample(obj.get_one())
+    if isinstance(obj, RecordsListGenerator):
         return obj.get_one()
     if isinstance(obj, collections.abc.Generator):
         raise TypeError("Generators must be `tee`d before being passed in")
@@ -265,5 +265,5 @@ def get_dictlist_sample(
 # def conform_generator_format(g: Generator) -> ReusableGenerator:
 #     if runnable.datafunction_interface.output.data_format_class == "DataFrameGenerator":
 #         output = DataFrameGenerator(output)
-#     if runnable.datafunction_interface.output.data_format_class == "DictListGenerator":
-#         output = DictListGenerator(output)
+#     if runnable.datafunction_interface.output.data_format_class == "RecordsListGenerator":
+#         output = RecordsListGenerator(output)

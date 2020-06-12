@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import decimal
 import hashlib
 import json
@@ -8,19 +10,7 @@ import uuid
 from dataclasses import dataclass, fields
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-from itertools import _tee, tee
-from typing import (
-    Any,
-    Dict,
-    Generator,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    Union,
-    overload,
-)
+from typing import Any, Dict, List, Optional, Tuple, Type, Union
 
 import pytz
 from colorful import Colorful
@@ -222,11 +212,11 @@ def as_aware_datetime(v: Union[datetime, str, int]) -> datetime:
 
 
 def is_datetime_str(s: str) -> bool:
-    if len(s) < 10:
+    if len(s) < 8:
         # dateutil.parse is quite greedy, will take any integer like
         # thing as a date, "199603" for instance
         # So we assume shorter strings are not ever valid datetimes
-        # Must be at least "1985-01-02" long
+        # Must be at least "1/1/1985" long
         return False
     try:
         parser.parse(s)
@@ -295,8 +285,3 @@ class BasisJSONEncoder(json.JSONEncoder):
             return str(o)
         else:
             return super().default(o)
-
-
-def generator_is_empty_tee(g: Generator) -> Tuple[bool, _tee]:
-    g, expendable_g = tee(g, 2)
-    return next(expendable_g, None) is None, g

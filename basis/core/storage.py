@@ -44,13 +44,13 @@ class StorageType(enum.Enum):
 
 
 NATURAL_STORAGE_FORMAT = {
-    StorageClass.MEMORY: DataFormat.DICT_LIST,
+    StorageClass.MEMORY: DataFormat.RECORDS_LIST,
     StorageClass.DATABASE: DataFormat.DATABASE_TABLE,
     StorageClass.FILE_SYSTEM: DataFormat.DELIMITED_FILE,
 }
 
 NATURAL_STORAGE_CLASS = {
-    DataFormat.DICT_LIST: StorageClass.MEMORY,
+    DataFormat.RECORDS_LIST: StorageClass.MEMORY,
     DataFormat.DATAFRAME: StorageClass.MEMORY,
     DataFormat.DATABASE_TABLE_REF: StorageClass.MEMORY,
     DataFormat.DATABASE_CURSOR: StorageClass.MEMORY,
@@ -59,7 +59,7 @@ NATURAL_STORAGE_CLASS = {
     DataFormat.DATABASE_TABLE: StorageClass.DATABASE,
     DataFormat.DELIMITED_FILE: StorageClass.FILE_SYSTEM,
     DataFormat.JSON_LIST_FILE: StorageClass.FILE_SYSTEM,
-    DataFormat.DICT_LIST_GENERATOR: StorageClass.MEMORY,
+    DataFormat.RECORDS_LIST_GENERATOR: StorageClass.MEMORY,
     DataFormat.DATAFRAME_GENERATOR: StorageClass.MEMORY,
 }
 

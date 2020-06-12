@@ -241,7 +241,7 @@ class ConfiguredExternalProvider(Generic[T]):
 @dataclass(frozen=True)
 class ExtractorResult(Generic[T]):
     # more_to_extract: bool
-    records: Optional[T] = None  # [DictList]
+    records: Optional[T] = None  # [RecordsList]
     new_high_water_mark: Optional[datetime] = None
     new_state: Optional[Dict] = None
 
@@ -309,18 +309,18 @@ class ExtractorDataFunction:
     def get_interface(self) -> DataFunctionInterface:
         s = inspect.signature(self.extract_function)
         ret = s.return_annotation
-        fmt = "DictListGenerator"
+        fmt = "RecordsListGenerator"
         if ret is not inspect.Signature.empty:
             ret = str(ret)
             if "DataFrame" in ret:
                 fmt = "DataFrameGenerator"
             else:
-                fmt = "DictListGenerator"
+                fmt = "RecordsListGenerator"
         out_annotation = DataFunctionAnnotation.create(
             data_format_class=fmt,
             otype_like=self.configured_external_resource.get_expected_otype(),
         )
-        print(
+        printd(
             f"Extractor {self.configured_external_resource.name} output: {out_annotation}"
         )
         return DataFunctionInterface(

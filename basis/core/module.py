@@ -14,6 +14,7 @@ from basis.core.component import (
 )
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike, otype_from_yaml
 from basis.utils.common import cf
+from basis.utils.pandas import assert_dataframes_are_almost_equal
 
 if TYPE_CHECKING:
     from basis.core.environment import Environment
@@ -190,6 +191,7 @@ class BasisModule:
         return env
 
     def run_test(self, test: TestCase):
+        # TODO: clean this function up
         env = self.get_test_env()
         fn = env.get_function(test.function)
         dfi = fn.get_interface()
@@ -211,10 +213,13 @@ class BasisModule:
                 output = env.produce(n)
                 output_df = output.as_dataframe()
                 expected_df = case.test_data["output"]
-                print("Output", output_df)
+                expected_otype = env.get_otype(case.test_data_otypes["output"])
+                print("Output", id(output_df), output_df)
                 print("Expected", expected_df)
                 if "output" in case.test_data:
-                    assert_almost_equal(output_df, expected_df)
+                    assert_dataframes_are_almost_equal(
+                        output_df, expected_df, expected_otype
+                    )
                 print(cf.success("Ok"))
             except Exception as e:
                 print(cf.error("Fail:"), str(e))

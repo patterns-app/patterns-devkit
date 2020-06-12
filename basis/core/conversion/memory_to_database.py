@@ -13,8 +13,8 @@ from basis.core.storage import LocalMemoryStorageEngine, StorageType
 
 class MemoryToDatabaseConverter(Converter):
     supported_input_formats: Sequence[StorageFormat] = (
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST),
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST_GENERATOR),
+        StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST),
+        StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST_GENERATOR),
         # StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATAFRAME),  # Note: supporting this via MemoryToMemory
         StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATABASE_TABLE_REF),
         # StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATABASE_CURSOR), # TODO: need to figure out how to get db url from ResultProxy
@@ -41,18 +41,18 @@ class MemoryToDatabaseConverter(Converter):
                     f"No inter-db migration implemented yet ({input_sdb.storage_url} to {output_sdb.storage_url})"
                 )
         assert input_sdb.data_format in (
-            DataFormat.DICT_LIST,
-            DataFormat.DICT_LIST_GENERATOR,
+            DataFormat.RECORDS_LIST,
+            DataFormat.RECORDS_LIST_GENERATOR,
         )
         records_objects = input_ldr.records_object
-        if input_sdb.data_format == DataFormat.DICT_LIST:
+        if input_sdb.data_format == DataFormat.RECORDS_LIST:
             records_objects = [records_objects]
-        if input_sdb.data_format == DataFormat.DICT_LIST_GENERATOR:
+        if input_sdb.data_format == DataFormat.RECORDS_LIST_GENERATOR:
             records_objects = records_objects.get_generator()
         output_runtime = output_sdb.storage.get_database_api(self.env)
-        # TODO: this loop is what is actually calling our Iterable DataFunction in DICT_LIST_GENERATOR case. Is that ok?
+        # TODO: this loop is what is actually calling our Iterable DataFunction in RECORDS_LIST_GENERATOR case. Is that ok?
         #   seems a bit opaque. Why don't we just iterate this at the conform_output level? We decided this approach was
         #   better / necessary for some reason... don't remember why
         for records_object in records_objects:
-            output_runtime.bulk_insert_dict_list(output_sdb, records_object)
+            output_runtime.bulk_insert_records_list(output_sdb, records_object)
         return output_sdb

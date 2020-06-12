@@ -25,15 +25,15 @@ from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
 from sqlalchemy.orm import RelationshipProperty, relationship
 
 from basis.core.data_block import DataBlock, DataBlockMetadata, DataSetMetadata
-from basis.core.data_format import DatabaseTable, DictList
+from basis.core.data_format import DatabaseTable, RecordsList
 from basis.core.environment import Environment
 from basis.core.metadata.orm import BaseModel
 from basis.core.typing.object_type import (
     ObjectType,
     ObjectTypeLike,
     ObjectTypeUri,
-    is_generic,
     is_any,
+    is_generic,
 )
 from basis.utils.common import printd
 
@@ -65,8 +65,8 @@ VALID_DATA_INTERFACE_TYPES = [
     "DataBlock",
     "DataSet",
     "DataFrame",
-    "DictList",
-    "DictListGenerator",
+    "RecordsList",
+    "RecordsListGenerator",
     "DataFrameGenerator",
     "DatabaseTable",
     # TODO: is this list just a list of formats? which ones are valid i/o to DFs?

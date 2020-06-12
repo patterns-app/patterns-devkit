@@ -140,4 +140,4 @@ class TestStreams:
     #     self.ctx.metadata_session.commit()
     #     assert db is not None
     #     db = db.as_managed_data_block(self.ctx)
-    #     assert db.as_dictlist() == records
+    #     assert db.as_records_list() == records

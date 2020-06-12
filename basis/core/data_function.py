@@ -8,7 +8,7 @@ from pandas import DataFrame
 
 from basis.core.component import ComponentType, ComponentUri
 from basis.core.data_block import DataBlockMetadata, DataSetMetadata
-from basis.core.data_format import DatabaseTable, DictList
+from basis.core.data_format import DatabaseTable, RecordsList
 from basis.core.data_function_interface import DataFunctionInterface
 from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
 from basis.core.runtime import RuntimeClass
@@ -28,7 +28,7 @@ class InputExhaustedException(DataFunctionException):
 DataFunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame, DictList, DatabaseTable, DataBlockMetadata, DataSetMetadata
+    DataFrame, RecordsList, DatabaseTable, DataBlockMetadata, DataSetMetadata
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 

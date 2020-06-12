@@ -25,7 +25,7 @@ from basis.core.data_block import (
     StoredDataBlockMetadata,
     create_data_block_from_records,
 )
-from basis.core.data_format import DataFrameGenerator, DictListGenerator
+from basis.core.data_format import DataFrameGenerator, RecordsListGenerator
 from basis.core.data_function import (
     DataFunctionDefinition,
     DataFunctionInterface,
@@ -54,7 +54,6 @@ from basis.utils.common import (
     BasisJSONEncoder,
     cf,
     error_symbol,
-    generator_is_empty_tee,
     get_spinner,
     printd,
     success_symbol,
@@ -405,9 +404,9 @@ class Worker:
                 output = DataFrameGenerator(output)
             elif (
                 runnable.datafunction_interface.output.data_format_class
-                == "DictListGenerator"
+                == "RecordsListGenerator"
             ):
-                output = DictListGenerator(output)
+                output = RecordsListGenerator(output)
             else:
                 TypeError(output)
             if output.get_one() is None:

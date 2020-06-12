@@ -6,8 +6,8 @@ import pytest
 
 from basis.core.module import DEFAULT_LOCAL_MODULE
 from basis.core.typing.inference import (
-    infer_otype_from_dictlist,
     infer_otype_fields_from_records,
+    infer_otype_from_records_list,
 )
 from basis.core.typing.object_type import (
     GeneratedObjectType,
@@ -84,6 +84,7 @@ sample_records = [
         "e": {1: 2},
         "f": "1.3",
         "g": 123,
+        "h": "null",
     },
     {
         "a": "2017-02-17T15:09:26-08:00",
@@ -93,6 +94,7 @@ sample_records = [
         "e": {1: 2},
         "f": "cookies",
         "g": 123,
+        "h": "null",
     },
     {
         "a": "2017-02-17T15:09:26-08:00",
@@ -102,6 +104,7 @@ sample_records = [
         "e": "string",
         "f": "true",
         "g": 12345,
+        "h": "helloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworld",
     },
     {"a": None, "b": None, "c": None, "d": None, "e": None, "f": None, "g": None},
 ]
@@ -109,20 +112,23 @@ sample_records = [
 
 def test_otype_inference():
     fields = infer_otype_fields_from_records(sample_records)
-    assert len(fields) == 7
-    assert set(f.name for f in fields) == set("abcdefg")
+    assert len(fields) == 8
+    assert set(f.name for f in fields) == set("abcdefgh")
     field_types = {f.name: f.field_type for f in fields}
     assert field_types["a"] == "DateTime"
-    assert field_types["b"] == "UnicodeText"
-    assert field_types["c"] == "UnicodeText"
+    assert (
+        field_types["b"] == "Unicode"
+    )  # TODO: what do we want this to be? Probably Unicode, SQL can't handle invalid date
+    assert field_types["c"] == "BigInteger"
     assert field_types["d"] == "JSON"
     assert field_types["e"] == "JSON"
-    assert field_types["f"] == "UnicodeText"
-    # assert field_types["g"] == "BigInteger"  # TODO: Fix this. See notes on type inference and why pandas not sufficient
+    assert field_types["f"] == "Unicode"
+    assert field_types["g"] == "BigInteger"
+    assert field_types["h"] == "UnicodeText"
 
 
 def test_generated_otype():
-    new_otype = infer_otype_from_dictlist(sample_records)
+    new_otype = infer_otype_from_records_list(sample_records)
     got = GeneratedObjectType(name=new_otype.name, definition=asdict(new_otype))
     env = make_test_env()
     with env.session_scope() as sess:

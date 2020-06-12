@@ -125,7 +125,7 @@ DataSetAccumulator = accumulate_as_dataset
 accumulator_test = TestCase(
     function="accumulator",
     tests=dict(
-        test_intra_dedupe=dict(
+        test_empty_this=dict(
             input="""
                 otype: CoreTestType
                 k1,k2,f1,f2,f3
@@ -139,12 +139,64 @@ accumulator_test = TestCase(
             output="""
                 otype: CoreTestType
                 k1,k2,f1,f2,f3
+                1,2,abc,1.1,1
                 1,2,def,1.1,{"1":2}
                 1,3,abc,1.1,2
                 1,4,,,"[1,2,3]"
                 2,2,1.0,2.1,"[1,2,3]"
-
             """,
-        )
+        ),
+        test_recursive_input=dict(
+            input="""
+                otype: CoreTestType
+                k1,k2,f1,f2,f3
+                1,2,abc,1.1,1
+                1,2,def,1.1,{"1":2}
+                1,3,abc,1.1,2
+                1,4,,,"[1,2,3]"
+                2,2,1.0,2.1,"[1,2,3]"
+            """,
+            this="""
+                otype: CoreTestType
+                k1,k2,f1,f2,f3
+                1,5,abc,1.1,
+                1,6,abc,1.1,2
+            """,
+            output="""
+                otype: CoreTestType
+                k1,k2,f1,f2,f3
+                1,2,def,1.1,{"1":2}
+                1,3,abc,1.1,2
+                1,4,,,"[1,2,3]"
+                2,2,1.0,2.1,"[1,2,3]"
+                1,5,abc,1.1,
+                1,6,abc,1.1,2
+            """,
+        ),
+    ),
+)
+
+dedupe_test = TestCase(
+    function="dedupe_unique_keep_first_value",
+    tests=dict(
+        test_dupe=dict(
+            input="""
+                otype: CoreTestType
+                k1,k2,f1,f2,f3
+                1,2,abc,1.1,1
+                1,2,def,1.1,{"1":2}
+                1,3,abc,1.1,2
+                1,4,,,"[1,2,3]"
+                2,2,1.0,2.1,"[1,2,3]"
+            """,
+            output="""
+                otype: CoreTestType
+                k1,k2,f1,f2,f3
+                1,2,def,1.1,1
+                1,3,abc,1.1,2
+                1,4,,,"[1,2,3]"
+                2,2,1.0,2.1,"[1,2,3]"
+            """,
+        ),
     ),
 )

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from basis.core.data_format import DictList
+from basis.core.data_format import RecordsList
 from basis.core.data_function_interface import FunctionNodeInterfaceManager
 from basis.core.runnable import CompiledDataFunction, Runnable, RunSession, Worker
 from tests.utils import (
@@ -18,11 +18,11 @@ from tests.utils import (
 mock_dl_output = [{1: 2}, {2: 3}]
 
 
-def df_dl_source() -> DictList[TestType1]:
+def df_dl_source() -> RecordsList[TestType1]:
     return mock_dl_output
 
 
-def df_error() -> DictList[TestType1]:
+def df_error() -> RecordsList[TestType1]:
     raise Exception("DF FAIL")
 
 
@@ -71,4 +71,4 @@ def test_worker_output():
     outputblock = w.conform_output(ws, output, r)
     assert outputblock is not None
     block = outputblock.as_managed_data_block(ec)
-    assert block.as_dictlist() == mock_dl_output
+    assert block.as_records_list() == mock_dl_output

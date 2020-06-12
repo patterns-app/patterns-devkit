@@ -3,7 +3,7 @@ from typing import List
 
 from sqlalchemy.engine import Engine
 
-from basis.core.data_format import DictList
+from basis.core.data_format import RecordsList
 from basis.core.sql.utils import compile_jinja_sql_template
 from basis.db.api import (
     DatabaseAPI,
@@ -31,7 +31,7 @@ def bulk_insert(*args, **kwargs):
 def bulk_upsert(
     eng: Engine,
     table_name: str,
-    records: DictList,
+    records: RecordsList,
     unique_on_column: str = None,
     ignore_duplicates: bool = False,
     update: bool = True,
@@ -64,7 +64,9 @@ def bulk_upsert(
     pg_execute_values(eng, sql, records, page_size=page_size)
 
 
-def pg_execute_values(eng: Engine, sql: str, records: DictList, page_size: int = 5000):
+def pg_execute_values(
+    eng: Engine, sql: str, records: RecordsList, page_size: int = 5000
+):
     conn = eng.raw_connection()
     try:
         with conn.cursor() as curs:
@@ -81,7 +83,7 @@ def pg_execute_values(eng: Engine, sql: str, records: DictList, page_size: int =
 
 
 class PostgresDatabaseAPI(DatabaseAPI):
-    def _bulk_insert(self, table_name: str, records: DictList, **kwargs):
+    def _bulk_insert(self, table_name: str, records: RecordsList, **kwargs):
         bulk_insert(
             eng=self.get_connection(), table_name=table_name, records=records, **kwargs
         )

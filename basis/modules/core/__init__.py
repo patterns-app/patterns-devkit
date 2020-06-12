@@ -29,6 +29,6 @@ module = BasisModule(
         dataframe_accumulator,
     ],
     providers=[local_provider],
-    tests=[accumulator_test],
+    tests=[accumulator_test, dedupe_test],
 )
 module.export()

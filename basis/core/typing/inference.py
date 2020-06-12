@@ -4,6 +4,7 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from random import randint
+from statistics import StatisticsError, mode
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
@@ -11,7 +12,7 @@ from pandas import Series
 from sqlalchemy import Table
 
 from basis.core.component import ComponentType
-from basis.core.data_format import DictList
+from basis.core.data_format import RecordsList
 from basis.core.module import DEFAULT_LOCAL_MODULE
 from basis.core.typing.object_type import (
     ConflictBehavior,
@@ -21,6 +22,7 @@ from basis.core.typing.object_type import (
     create_quick_otype,
 )
 from basis.utils.common import is_datetime_str, title_to_snake_case
+from basis.utils.data import is_nullish, records_list_as_listdicts
 
 if TYPE_CHECKING:
     from basis.db.api import DatabaseAPI
@@ -34,6 +36,18 @@ dtypes and then dtypes to sqlalchemy column types.
 """
 # TODO: This needs to be redone. Prioritize compatible with SQL over Numpy.
 #    For instance, SQL handles nulls in all types, whereas numpy can only sentinel NaN in floats, not in ints.
+
+
+VARCHAR_MAX_LEN = (
+    256  # TODO: what is the real value for different db engines? pg is NA, mysql ??
+)
+
+
+def get_highest_precedence_sa_type(types: List[str]) -> str:
+    for t in type_precendence:
+        if t in types:
+            return t
+    return types[0]
 
 
 def dataframe_to_sqlalchemy_schema():
@@ -56,20 +70,38 @@ def get_sample(
     return sample
 
 
+# type_precendence = [
+#     "JSON",
+#     "UnicodeText",
+#     "Unicode",
+#     "DateTime",
+#     "Numeric",
+#     "Float",
+#     "BigInteger",
+#     "Boolean",
+# ]
+
+
 def infer_otype_fields_from_records(
-    records: DictList, sample_size: int = 100
+    records: RecordsList, sample_size: int = 100
 ) -> List[Field]:
     records = get_sample(records, sample_size=sample_size)
-    df = pd.DataFrame(records)
+    # df = pd.DataFrame(records)
+    d = records_list_as_listdicts(records)
     fields = []
-    for s in df:
-        satype = pandas_series_to_sqlalchemy_type(df[s])
-        f = create_quick_field(s, satype)
+    for s in d:
+        # satype = pandas_series_to_sqlalchemy_type(df[s])
+        # objs = [r.get(s) for r in records]
+        satype2 = get_sqlalchemy_type_for_python_objects(d[s])
+        # if satype != satype2:
+        #     print(f"Differing for {s}", satype, satype2)
+        #     # satype2 = get_highest_precedence_sa_type([satype, satype2])
+        f = create_quick_field(s, satype2)
         fields.append(f)
     return fields
 
 
-def infer_otype_from_dictlist(records: DictList, **kwargs) -> ObjectType:
+def infer_otype_from_records_list(records: RecordsList, **kwargs) -> ObjectType:
     fields = infer_otype_fields_from_records(records)
     return generate_auto_otype(fields, **kwargs)
 
@@ -130,7 +162,7 @@ def pandas_series_to_sqlalchemy_type(series: Series) -> str:
     Changes:
         - strict datetime and JSON inference
         - No timezone handling
-        - No single/32 numeric types 
+        - No single/32 numeric types
     """
     dtype = pd.api.types.infer_dtype(series, skipna=True)
     if dtype == "datetime64" or dtype == "datetime":
@@ -208,22 +240,30 @@ def sqlalchemy_type_to_pandas_type(satype: str) -> str:
     raise NotImplementedError
 
 
-# type_precendence = [
-#     "Numeric",
-#     "Float",
-#     "JSON",
-#     "DateTime",
-#     "BigInteger",
-#     "Boolean",
-#     "Unicode",
-# ]
+# NB: list is a bit counter-intuitive. since types are converted as aggressively as possible,
+# higher precedence here means *less specific* types, since there were some values we couldn't
+# convert to more specific type.
+type_precendence = [
+    "JSON",  # JSON is least specific type, can handle most sub-types as special case
+    "UnicodeText",
+    "Unicode",
+    "DateTime",  # The way we convert datetimes is pretty aggressive, so this could lead to false positives
+    "Numeric",
+    "Float",
+    "BigInteger",
+    "Boolean",  # bool is most specific, can only handle 0/1, nothing else
+]
 
 
-def get_sqlalchemy_type_for_python_object(o: Any) -> str:
+def get_sqlalchemy_type_for_python_object(o: Any) -> Optional[str]:
     # This is a: Dirty filthy good for nothing hack
-    # Defaults to unicode
+    # Defaults to unicode text
+    if is_nullish(o):
+        return None
     if isinstance(o, str):
         # Try some things with str and see what sticks
+        if len(o) > VARCHAR_MAX_LEN:
+            return "UnicodeText"
         if is_datetime_str(o):
             return "DateTime"
         try:
@@ -234,7 +274,7 @@ def get_sqlalchemy_type_for_python_object(o: Any) -> str:
             except ValueError:
                 pass
     return dict(
-        str="UnicodeText",
+        str="Unicode",
         int="BigInteger",
         float="Float",
         Decimal="Numeric",
@@ -246,12 +286,29 @@ def get_sqlalchemy_type_for_python_object(o: Any) -> str:
     ).get(type(o).__name__, "UnicodeText")
 
 
-# def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
-#     types = set([])
-#     for o in objects:
-#         typ = get_sqlalchemy_type_for_python_object(o)
-#         types.add(typ)
-#     for t in type_precendence:
-#         if t in types:
-#             return t
-#     raise Exception("Shouldn't get here")
+def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
+    types = []
+    for o in objects:
+        typ = get_sqlalchemy_type_for_python_object(o)
+        if typ is None:
+            continue
+        types.append(typ)
+    try:
+        mode_type = mode(types)
+    except StatisticsError:
+        mode_type = None
+    dom_type = get_highest_precedence_sa_type(list(set(types)))
+    print(f"Mode {mode_type} Dom {dom_type}")
+    return dom_type
+
+
+# TODO: any point to this? just adding missing columns as None. Type conversion is real reason, todo i guess
+# def coerce_records_list_to_otype(d: RecordsList, otype: ObjectType) -> RecordsList:
+#     # sa_cols = ObjectTypeMapper(env).to_sqlalchemy(otype)
+#     for field in otype.fields:
+#         pd_type = field_type_to_pandas_type(field.field_type)
+#         if field.name in df:
+#             df[field.name] = df[field.name].astype(pd_type, copy=False)
+#         else:
+#             df[field.name] = pd.Series(dtype=pd_type)
+#     return df

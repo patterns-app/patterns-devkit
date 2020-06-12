@@ -22,7 +22,10 @@ TestType3 = create_quick_otype(
     "TestType3", [("f1", "Unicode(256)")], module_name="_test"
 )
 TestType4 = create_quick_otype(
-    "TestType4", [("f1", "Unicode(256)")], module_name="_test"
+    "TestType4",
+    [("f1", "Unicode(256)"), ("f2", "Integer")],
+    unique_on=["f1"],
+    module_name="_test",
 )
 
 

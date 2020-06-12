@@ -365,7 +365,7 @@ def function_node_factory(
 #         }
 #     # if isinstance(upstream, DataFrame) or isinstance(
 #     #     upstream, list
-#     # ):  # DataFrame or DictList
+#     # ):  # DataFrame or RecordsList
 #     #     block, sdb = create_data_block_from_records(
 #     #         ctx.env, ctx.metadata_session, ctx.local_memory_storage, upstream
 #     #     )

@@ -16,7 +16,7 @@ from basis.core.storage import StorageType
         # Memory to DB
         (
             (
-                StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST),
+                StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST),
                 StorageFormat(StorageType.POSTGRES_DATABASE, DataFormat.DATABASE_TABLE),
             ),
             ConversionCostLevel.OVER_WIRE.value,
@@ -27,11 +27,13 @@ from basis.core.storage import StorageType
                 StorageFormat(StorageType.POSTGRES_DATABASE, DataFormat.DATABASE_TABLE),
             ),
             ConversionCostLevel.OVER_WIRE.value
-            + ConversionCostLevel.MEMORY.value,  # To DictList, then to DB
+            + ConversionCostLevel.MEMORY.value,  # To RecordsList, then to DB
         ),
         (
             (
-                StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST_GENERATOR),
+                StorageFormat(
+                    StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST_GENERATOR
+                ),
                 StorageFormat(StorageType.POSTGRES_DATABASE, DataFormat.DATABASE_TABLE),
             ),
             ConversionCostLevel.OVER_WIRE.value,
@@ -54,7 +56,7 @@ from basis.core.storage import StorageType
         (
             (
                 StorageFormat(StorageType.POSTGRES_DATABASE, DataFormat.DATABASE_TABLE),
-                StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST),
+                StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST),
             ),
             ConversionCostLevel.OVER_WIRE.value,
         ),
@@ -68,7 +70,7 @@ from basis.core.storage import StorageType
         # Memory to memory
         (
             (
-                StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST),
+                StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST),
                 StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATAFRAME),
             ),
             ConversionCostLevel.MEMORY.value,
@@ -76,7 +78,7 @@ from basis.core.storage import StorageType
         (
             (
                 StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATAFRAME),
-                StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST),
+                StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST),
             ),
             ConversionCostLevel.MEMORY.value,
         ),
@@ -84,14 +86,14 @@ from basis.core.storage import StorageType
         (
             (
                 StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATABASE_TABLE_REF),
-                StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST),
+                StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST),
             ),
             ConversionCostLevel.OVER_WIRE.value
             * 2,  # TODO Not really 2x! Converter doesn't understand the REF is free
         ),
         (
             (
-                StorageFormat(StorageType.DICT_MEMORY, DataFormat.DICT_LIST),
+                StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST),
                 StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATABASE_TABLE_REF),
             ),
             ConversionCostLevel.OVER_WIRE.value * 2,

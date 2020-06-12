@@ -21,7 +21,7 @@ from basis.core.function_node import (
     FunctionNode,
 )
 from basis.core.storage import Storage
-from basis.core.typing.inference import infer_otype_from_dictlist
+from basis.core.typing.inference import infer_otype_from_records_list
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 from basis.utils.common import ensure_list
 
@@ -231,7 +231,7 @@ class DataBlockStream:
     # def ensure_raw_records_otype(self):
     #     if self.raw_records_object is not None and not self.raw_records_otype:
     #         self.raw_records_otype = infer_otype(
-    #             ensure_dictlist(self.raw_records_object)
+    #             ensure_records_list(self.raw_records_object)
     #         )
     #
     # def _filter_raw_records_object(self, ctx: ExecutionContext, query: Query) -> Query:

@@ -9,7 +9,7 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from basis.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
-from basis.core.data_format import DataFormat, DictList
+from basis.core.data_format import DataFormat, RecordsList
 from basis.core.environment import Environment
 from basis.core.runtime import Runtime
 from basis.core.sql.utils import ObjectTypeMapper
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 
 def conform_records_for_insert(
-    records: DictList, columns: List[str], adapt_objects_to_json: bool = True,
+    records: RecordsList, columns: List[str], adapt_objects_to_json: bool = True,
 ):
     rows = []
     for r in records:
@@ -47,7 +47,7 @@ def conform_records_for_insert(
 
 
 def conform_columns_for_insert(
-    records: DictList,
+    records: RecordsList,
     columns: List[str] = None,
     convert_columns_to_snake_case: bool = False,
 ) -> List[str]:
@@ -158,8 +158,8 @@ class DatabaseAPI:
         self.rename_table(tmp_name, sdb.get_name(self.env))
         return block, sdb
 
-    def bulk_insert_dict_list(
-        self, destination_sdb: StoredDataBlockMetadata, records: DictList
+    def bulk_insert_records_list(
+        self, destination_sdb: StoredDataBlockMetadata, records: RecordsList
     ):
         # Create table whether or not there is anything to insert (side-effect consistency)
         name = self.ensure_table(destination_sdb)
@@ -167,7 +167,7 @@ class DatabaseAPI:
             return
         self._bulk_insert(name, records)
 
-    def _bulk_insert(self, table_name: str, records: DictList):
+    def _bulk_insert(self, table_name: str, records: RecordsList):
         raise NotImplementedError(
             f"Bulk insert is not implemented for {self.resource.url}"
         )
