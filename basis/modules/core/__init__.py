@@ -20,7 +20,7 @@ module = BasisModule(
     "core",
     py_module_path=__file__,
     py_module_name=__name__,
-    otypes=[AnyType],
+    otypes=[AnyType, "otypes/core_test_type.yml"],
     functions=[
         accumulate_as_dataset,
         as_dataset,

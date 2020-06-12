@@ -17,7 +17,7 @@ def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
     if ds is None:
         ds = DataSetMetadata(
             name=name,
-            declared_otype_uri=input.declared_otype_uri,
+            declared_otype_uri=input.expected_otype_uri,
             realized_otype_uri=input.realized_otype_uri,
         )
     ds.data_block_id = input.data_block_id

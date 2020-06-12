@@ -66,7 +66,7 @@ def app(ctx):
 
 @click.command()
 @click.option("-c", "--component_type")
-@click.argument("query")
+@click.argument("search")
 def search(query: str, component_type: str = None):
     params = {"q": query}
     if component_type:
@@ -220,9 +220,10 @@ def test(module: str):
 
 
 @click.command("reset")
-def reset_metadata():
+@click.pass_obj
+def reset_metadata(env: Environment):
     # TODO
-    env = current_env()
+    raise NotImplementedError
     with env.session_scope() as sess:
         sess.execute("drop table basis_data_function_log        cascade;")
         sess.execute("drop table basis_data_function_log_id_seq cascade;")

@@ -1,23 +1,31 @@
 import json
 import logging
-from typing import Any, Callable, List, Type, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Tuple, Type, Union
 
 import sqlalchemy
+from sqlalchemy import MetaData
 from sqlalchemy.engine import ResultProxy
 from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy.orm import Session
 
-from basis.core.data_block import StoredDataBlockMetadata
-from basis.core.data_format import DictList
+from basis.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
+from basis.core.data_format import DataFormat, DictList
 from basis.core.environment import Environment
 from basis.core.runtime import Runtime
 from basis.core.sql.utils import ObjectTypeMapper
 from basis.core.storage import Storage, StorageEngine
+from basis.core.typing.inference import infer_otype_from_db_table
+from basis.core.typing.object_type import ObjectType, is_any
 from basis.utils.common import (
     BasisJSONEncoder,
     JSONEncoder,
     printd,
+    rand_str,
     title_to_snake_case,
 )
+
+if TYPE_CHECKING:
+    from basis.core.runnable import ExecutionContext
 
 logger = logging.getLogger(__name__)
 
@@ -82,16 +90,19 @@ class DatabaseAPI:
         name = sdb.get_name(self.env)
         if self.exists(name):
             return name
-        otype = sdb.get_otype(self.env)
+        otype = sdb.get_realized_otype(self.env)
         ddl = ObjectTypeMapper(self.env).create_table_statement(
             otype=otype, storage_engine=sdb.storage.storage_engine, table_name=name,
         )
         self.execute_sql(ddl)
         return name
 
+    def rename_table(self, table_name: str, new_name: str):
+        self.execute_sql(f"alter table {table_name} rename to {new_name}")
+
     def insert_sql(self, destination_sdb: StoredDataBlockMetadata, sql: str):
         name = self.ensure_table(destination_sdb)
-        otype = destination_sdb.get_otype(self.env)
+        otype = destination_sdb.get_realized_otype(self.env)
         columns = "\n,".join(f.name for f in otype.fields)
         insert_sql = f"""
         insert into {name} (
@@ -104,6 +115,48 @@ class DatabaseAPI:
         ) as __sub
         """
         self.execute_sql(insert_sql)
+
+    def create_data_block_from_sql(
+        self, sess: Session, sql: str, expected_otype: ObjectType = None
+    ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
+        tmp_name = f"_tmp_{rand_str(10)}"
+        create_sql = f"""
+        create table {tmp_name} as
+        select
+        *
+        from (
+        {sql}
+        ) as __sub
+        """
+        self.execute_sql(create_sql)
+        # TODO: DRY this with other "create_data_block"
+        if not expected_otype:
+            expected_otype = self.env.get_otype("Any")
+        expected_otype_uri = expected_otype.uri
+        if is_any(expected_otype):
+            realized_otype = infer_otype_from_db_table(self, tmp_name)
+            self.env.add_new_otype(realized_otype)
+        else:
+            realized_otype = expected_otype
+        realized_otype_uri = realized_otype.uri
+        block = DataBlockMetadata(
+            expected_otype_uri=expected_otype_uri, realized_otype_uri=realized_otype_uri
+        )
+        storage_url = self.resource.url
+        sdb = StoredDataBlockMetadata(
+            data_block=block,
+            storage_url=storage_url,
+            data_format=DataFormat.DATABASE_TABLE,
+        )
+        sess.add(block)
+        sess.add(sdb)
+        # TODO: Don't understand merge still
+        block = sess.merge(block)
+        sdb = sess.merge(sdb)
+        # TODO: would be great to validate that a DB/SDB resource is named right, or even to record the name
+        #   eg what if we change the naming logic at some point...?  attr on SDB: storage_name or something
+        self.rename_table(tmp_name, sdb.get_name(self.env))
+        return block, sdb
 
     def bulk_insert_dict_list(
         self, destination_sdb: StoredDataBlockMetadata, records: DictList
@@ -136,6 +189,12 @@ class DatabaseAPI:
             raise
         return row[0]
 
+    def get_sqlalchemy_metadata(self):
+        sa_engine = self.get_connection()
+        meta = MetaData()
+        meta.reflect(bind=sa_engine)
+        return meta
+
 
 def get_database_api_class(engine: StorageEngine) -> Type[DatabaseAPI]:
     from basis.db.postgres import PostgresDatabaseAPI
@@ -144,3 +203,23 @@ def get_database_api_class(engine: StorageEngine) -> Type[DatabaseAPI]:
         StorageEngine.POSTGRES: PostgresDatabaseAPI,
         # StorageEngine.MYSQL: MysqlDatabaseAPI, # TODO
     }.get(engine, DatabaseAPI)
+
+
+def create_db(url: str, database_name: str):
+    sa = sqlalchemy.create_engine(url)
+    conn = sa.connect()
+    conn.execute("commit")  # Close default open transaction (can't create db inside tx)
+    conn.execute(f"create database {database_name}")
+    conn.close()
+
+
+def drop_db(url: str, database_name: str):
+    if "test" not in database_name:
+        i = input("Dropping db {database_name}, are you sure? (y/N)")
+        if not i.lower().startswith("y"):
+            return
+    sa = sqlalchemy.create_engine(url)
+    conn = sa.connect()
+    conn.execute("commit")  # Close default open transaction (can't drop db inside tx)
+    conn.execute(f"drop database {database_name}")
+    conn.close()

@@ -20,8 +20,8 @@ from basis.core.data_format import (
 from basis.core.environment import Environment
 from basis.core.metadata.listeners import immutability_update_listener
 from basis.core.metadata.orm import BaseModel, timestamp_rand_key
-from basis.core.typing.inference import infer_otype
-from basis.core.typing.object_type import ObjectType, ObjectTypeUri
+from basis.core.typing.inference import infer_otype_from_dictlist
+from basis.core.typing.object_type import ObjectType, ObjectTypeUri, is_any
 from basis.utils.typing import T
 
 if TYPE_CHECKING:
@@ -63,7 +63,7 @@ class LocalMemoryDataRecords:
             records_object=records_object,
         )
 
-    def validate_and_conform_otype(self, declared_otype: ObjectType):
+    def validate_and_conform_otype(self, expected_otype: ObjectType):
         # TODO: idea here is to make sure local records look like what we expect. part of larger project on ObjectType
         #   validation
         # if self.data_format == DataFormat.DATAFRAME:
@@ -88,7 +88,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     # name = Column(String) ????
     # otype_uri: ObjectTypeUri = Column(String, nullable=False)  # type: ignore
-    declared_otype_uri: ObjectTypeUri = Column(String, nullable=True)  # type: ignore
+    expected_otype_uri: ObjectTypeUri = Column(String, nullable=True)  # type: ignore
     realized_otype_uri: ObjectTypeUri = Column(String, nullable=True)  # type: ignore
     # metadata_is_set = Column(Boolean, default=False)
     # otype_is_validated = Column(Boolean, default=False) # TODO
@@ -110,23 +110,23 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     def __repr__(self):
         return self._repr(
             id=self.id,
-            declared_otype_uri=self.declared_otype_uri,
+            expected_otype_uri=self.expected_otype_uri,
             realized_otype_uri=self.realized_otype_uri,
         )
 
     @property
     def most_real_otype_uri(self) -> ObjectTypeUri:
-        return self.realized_otype_uri or self.declared_otype_uri
+        return self.realized_otype_uri or self.expected_otype_uri
 
     @property
     def most_abstract_otype_uri(self) -> ObjectTypeUri:
-        return self.declared_otype_uri or self.realized_otype_uri
+        return self.expected_otype_uri or self.realized_otype_uri
 
     def as_managed_data_block(self, ctx: ExecutionContext):
         mgr = DataBlockManager(ctx, self,)
         return ManagedDataBlock(
             data_block_id=self.id,
-            declared_otype_uri=self.declared_otype_uri,
+            expected_otype_uri=self.expected_otype_uri,
             realized_otype_uri=self.realized_otype_uri,
             manager=mgr,
         )
@@ -153,7 +153,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 @dataclass(frozen=True)
 class ManagedDataBlock(Generic[T]):
     data_block_id: str
-    declared_otype_uri: ObjectTypeUri
+    expected_otype_uri: ObjectTypeUri
     realized_otype_uri: ObjectTypeUri
     # otype_is_validated: bool
     manager: DataBlockManager
@@ -171,8 +171,8 @@ class ManagedDataBlock(Generic[T]):
         return self.manager.as_format(fmt)
 
     @property
-    def declared_otype(self) -> ObjectType:
-        return self.manager.get_declared_otype()
+    def expected_otype(self) -> ObjectType:
+        return self.manager.get_expected_otype()
 
     @property
     def realized_otype(self) -> ObjectType:
@@ -201,10 +201,14 @@ class StoredDataBlockMetadata(BaseModel):
         )
 
     def get_realized_otype(self, env: Environment) -> ObjectType:
+        if self.data_block.realized_otype_uri is None:
+            return None
         return env.get_otype(self.data_block.realized_otype_uri)
 
-    def get_declared_otype(self, env: Environment) -> ObjectType:
-        return env.get_otype(self.data_block.declared_otype_uri)
+    def get_expected_otype(self, env: Environment) -> ObjectType:
+        if self.data_block.expected_otype_uri is None:
+            return None
+        return env.get_otype(self.data_block.expected_otype_uri)
 
     @property
     def storage(self) -> Storage:
@@ -238,8 +242,8 @@ event.listen(StoredDataBlockMetadata, "before_update", immutability_update_liste
 class DataSetMetadata(BaseModel):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     name = Column(String, nullable=False)
-    declared_otype_uri: ObjectTypeUri = Column(String, nullable=True)  # type: ignore
-    realized_otype_uri: ObjectTypeUri = Column(String, nullable=True)  # type: ignore
+    expected_otype_uri: ObjectTypeUri = Column(String, nullable=True)  # type: ignore
+    realized_otype_uri: ObjectTypeUri = Column(String, nullable=False)  # type: ignore
     data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
     # Hints
     data_block: "DataBlockMetadata"
@@ -252,7 +256,7 @@ class DataSetMetadata(BaseModel):
         return self._repr(
             id=self.id,
             name=self.name,
-            declared_otype_uri=self.declared_otype_uri,
+            expected_otype_uri=self.expected_otype_uri,
             realized_otype_uri=self.realized_otype_uri,
             data_block=self.data_block,
         )
@@ -263,7 +267,7 @@ class DataSetMetadata(BaseModel):
             data_set_id=self.id,
             data_set_name=self.name,
             data_block_id=self.data_block_id,
-            declared_otype_uri=self.declared_otype_uri,
+            expected_otype_uri=self.expected_otype_uri,
             realized_otype_uri=self.realized_otype_uri,
             manager=mgr,
         )
@@ -274,7 +278,7 @@ class ManagedDataSet(Generic[T]):
     data_set_id: str
     data_set_name: str
     data_block_id: str
-    declared_otype_uri: ObjectTypeUri
+    expected_otype_uri: ObjectTypeUri
     realized_otype_uri: ObjectTypeUri
     # otype_is_validated: bool
     manager: DataBlockManager
@@ -292,8 +296,8 @@ class ManagedDataSet(Generic[T]):
         return self.manager.as_format(fmt)
 
     @property
-    def declared_otype(self) -> ObjectType:
-        return self.manager.get_declared_otype()
+    def expected_otype(self) -> ObjectType:
+        return self.manager.get_expected_otype()
 
     @property
     def realized_otype(self) -> ObjectType:
@@ -314,11 +318,15 @@ class DataBlockManager:
     def __str__(self):
         return f"DRM: {self.data_block}, Local: {self.ctx.local_memory_storage}, rest: {self.ctx.storages}"
 
-    def get_realized_otype(self) -> ObjectType:
+    def get_realized_otype(self) -> Optional[ObjectType]:
+        if self.data_block.realized_otype_uri is None:
+            return None
         return self.ctx.env.get_otype(self.data_block.realized_otype_uri)
 
-    def get_declared_otype(self) -> ObjectType:
-        return self.ctx.env.get_otype(self.data_block.declared_otype_uri)
+    def get_expected_otype(self) -> Optional[ObjectType]:
+        if self.data_block.expected_otype_uri is None:
+            return None
+        return self.ctx.env.get_otype(self.data_block.expected_otype_uri)
 
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFormat.DATAFRAME)
@@ -400,29 +408,37 @@ class DataBlockManager:
         return convert_sdb(self.ctx, in_sdb, conversion_path)
 
 
+# class DataBlockFactory:
+#     def __init__(self, env: Environment):
+#         self.env = env
+#
+#     def create_data_block_from_records(self, records: Any) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
+
+
 def create_data_block_from_records(
     env: Environment,
     sess: Session,
     local_storage: Storage,
     records: Any,
-    declared_otype: ObjectType = None,
+    expected_otype: ObjectType = None,
     realized_otype: ObjectType = None,
 ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
     from basis.core.storage import LocalMemoryStorageEngine
 
-    if not declared_otype:
-        declared_otype = env.get_otype("Any")
-    declared_otype_uri = declared_otype.uri
-    if not realized_otype and declared_otype.name == "Any":
-        dl = get_dictlist_sample(records)
-        realized_otype = infer_otype(dl)
-        env.add_new_otype(realized_otype)
-    realized_otype_uri = None
-    if realized_otype:
-        realized_otype_uri = realized_otype.uri
+    if not expected_otype:
+        expected_otype = env.get_otype("Any")
+    expected_otype_uri = expected_otype.uri
+    if not realized_otype:
+        if is_any(expected_otype):
+            dl = get_dictlist_sample(records)
+            realized_otype = infer_otype_from_dictlist(dl)
+            env.add_new_otype(realized_otype)
+        else:
+            realized_otype = expected_otype
+    realized_otype_uri = realized_otype.uri
     ldr = LocalMemoryDataRecords.from_records_object(records)
     block = DataBlockMetadata(
-        declared_otype_uri=declared_otype_uri, realized_otype_uri=realized_otype_uri
+        expected_otype_uri=expected_otype_uri, realized_otype_uri=realized_otype_uri
     )
     sdb = StoredDataBlockMetadata(  # type: ignore
         data_block=block, storage_url=local_storage.url, data_format=ldr.data_format,

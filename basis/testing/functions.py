@@ -1,5 +1,5 @@
 from io import StringIO
-from typing import Dict, List, Union
+from typing import Dict, List, Tuple, Union
 
 import pandas as pd
 import strictyaml
@@ -9,6 +9,7 @@ from basis.core.data_function import DataFunction, DataFunctionLike, ensure_data
 from basis.core.environment import Environment
 from basis.core.module import BasisModule
 from basis.core.streams import InputBlocks
+from basis.core.typing.object_type import ObjectTypeLike
 
 
 class DataFunctionTestCase:
@@ -17,10 +18,12 @@ class DataFunctionTestCase:
         name: str,
         function: Union[DataFunctionLike, str],
         test_data: Dict[str, DataFrame],
+        test_data_otypes: Dict[str, ObjectTypeLike] = None,
     ):
         self.name = name
         self.function = function
         self.test_data = test_data
+        self.test_data_otypes = test_data_otypes
 
     def as_input_blocks(self, env: Environment) -> InputBlocks:
         raise
@@ -37,18 +40,34 @@ class TestCase:
         cases = []
         for test_name, test_inputs in tests.items():
             test_data = {}
+            test_data_otypes = {}
             for input_name, data in test_inputs.items():
                 if data:
-                    d = "\n".join(l.strip() for l in data.split("\n") if l.strip())
-                    input = pd.read_csv(StringIO(d.strip()))
+                    df, otype = self.process_raw_test_data(data)
                 else:
-                    input = None
-                test_data[input_name] = input
+                    otype = None
+                    df = None
+                test_data[input_name] = df
+                test_data_otypes[input_name] = otype
             case = DataFunctionTestCase(
-                name=test_name, function=self.function, test_data=test_data
+                name=test_name,
+                function=self.function,
+                test_data=test_data,
+                test_data_otypes=test_data_otypes,
             )
             cases.append(case)
         return cases
+
+    def process_raw_test_data(self, test_data: str) -> Tuple[DataFrame, ObjectTypeLike]:
+        lines = [l.strip() for l in test_data.split("\n") if l.strip()]
+        assert lines
+        otype = None
+        if lines[0].startswith("otype:"):
+            otype = lines[0][6:].strip()
+            lines = lines[1:]
+        d = "\n".join(lines)
+        df = pd.read_csv(StringIO(d.strip()))
+        return df, otype
 
 
 DataFunctionTestCaseLike = Union[DataFunctionTestCase, str]

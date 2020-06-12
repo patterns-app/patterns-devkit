@@ -26,9 +26,9 @@ class ExternalResource(ComponentUri):
     provider: Optional[ExternalProvider]
     verbose_name: str
     description: str
-    otype: ObjectTypeLike
     default_extractor: ExtractorLike
     # default_loader: LoaderLike  # TODO
+    otype: ObjectTypeLike = "core.Any"
     configuration_class: Optional[Type[dataclass]] = None
     initial_configuration: Optional[Dict[str, Any]] = None
     initial_high_water_mark: Optional[datetime] = None
@@ -116,6 +116,11 @@ class ConfiguredExternalResource(Generic[T]):
     def reset(self, ctx: ExecutionContext):
         state = self.get_state(ctx)
         state.high_water_mark = None  # type: ignore  # sqlalchemy
+
+    def get_expected_otype(self) -> ObjectTypeLike:
+        return (
+            self.get_config_value("otype") or self.external_resource.otype
+        )  # TODO: bit hidden here...
 
     @property
     def extractor(self) -> ExtractorDataFunction:
@@ -312,7 +317,11 @@ class ExtractorDataFunction:
             else:
                 fmt = "DictListGenerator"
         out_annotation = DataFunctionAnnotation.create(
-            data_format_class=fmt, otype_like=self.configured_external_resource.otype,
+            data_format_class=fmt,
+            otype_like=self.configured_external_resource.get_expected_otype(),
+        )
+        print(
+            f"Extractor {self.configured_external_resource.name} output: {out_annotation}"
         )
         return DataFunctionInterface(
             inputs=[], output=out_annotation, requires_data_function_context=True

@@ -14,6 +14,7 @@ from basis.core.external import (
     ExtractorResult,
 )
 from basis.core.runnable import DataFunctionContext
+from basis.core.typing.object_type import ObjectTypeLike
 from basis.utils.common import utcnow
 
 local_provider = ExternalDataProvider(
@@ -41,6 +42,7 @@ def extract_dataframe(
 @dataclass
 class DataFrameResourceConfiguration:
     dataframe: DataFrame
+    otype: ObjectTypeLike
 
 
 ExternalDataResource(

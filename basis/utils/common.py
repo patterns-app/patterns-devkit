@@ -8,10 +8,11 @@ import uuid
 from dataclasses import dataclass, fields
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-from itertools import tee, _tee
+from itertools import _tee, tee
 from typing import (
     Any,
     Dict,
+    Generator,
     List,
     Optional,
     Sequence,
@@ -19,7 +20,6 @@ from typing import (
     Type,
     Union,
     overload,
-    Generator,
 )
 
 import pytz
@@ -78,7 +78,7 @@ def md5_hash(s: str) -> str:
 
 
 def dataclass_kwargs(dc: Union[dataclass, Type[dataclass]], kwargs: Dict) -> Dict:
-    return {f.name: kwargs.get(f.name, f.default) for f in fields(dc)}
+    return {f.name: kwargs.get(f.name) for f in fields(dc)}
 
 
 def ensure_list(x: Any) -> List:

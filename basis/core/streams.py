@@ -21,7 +21,7 @@ from basis.core.function_node import (
     FunctionNode,
 )
 from basis.core.storage import Storage
-from basis.core.typing.inference import infer_otype
+from basis.core.typing.inference import infer_otype_from_dictlist
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 from basis.utils.common import ensure_list
 
@@ -176,7 +176,7 @@ class DataBlockStream:
             return query
         # otype_names = []  # TODO: Fully qualified otype keys?
         return query.filter(
-            DataBlockMetadata.declared_otype_uri.in_([d.uri for d in self.get_otypes(ctx.env)])  # type: ignore
+            DataBlockMetadata.expected_otype_uri.in_([d.uri for d in self.get_otypes(ctx.env)])  # type: ignore
         )
 
     def filter_otype(self, otype: ObjectTypeLike) -> DataBlockStream:

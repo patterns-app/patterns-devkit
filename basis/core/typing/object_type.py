@@ -166,6 +166,11 @@ def is_generic(otype_like: ObjectTypeLike) -> bool:
     return len(uri.name) == 1
 
 
+def is_any(otype_like: ObjectTypeLike) -> bool:
+    uri = otype_like_to_uri(otype_like)
+    return uri.name == "Any"
+
+
 def otype_like_to_uri(d: ObjectTypeLike) -> ComponentUri:
     if isinstance(d, ObjectType):
         return d

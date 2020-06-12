@@ -33,6 +33,7 @@ from basis.core.typing.object_type import (
     ObjectTypeLike,
     ObjectTypeUri,
     is_generic,
+    is_any,
 )
 from basis.utils.common import printd
 
@@ -148,6 +149,7 @@ class DataFunctionAnnotation:
 class ResolvedFunctionNodeInput:
     name: str
     data_format_class: str
+    original_annotation: DataFunctionAnnotation
     is_optional: bool
     is_self_ref: bool
     connected_stream: DataBlockStream
@@ -155,18 +157,44 @@ class ResolvedFunctionNodeInput:
     potential_parent_nodes: List[FunctionNode]
     # otype: ObjectType
     declared_otype_like: ObjectTypeLike
-    inferred_otype: ObjectType
+    resolved_otype: ObjectType
     realized_otype: Optional[ObjectType] = None
     bound_data_block: Optional[DataBlockMetadata] = None
+
+    def __post_init__(self):
+        self.validate()
+
+    def validate(self):
+        assert self.declared_otype_like is not None
+        assert self.resolved_otype is not None
+        assert not is_generic(self.resolved_otype)
+        if self.realized_otype is not None:
+            assert not is_generic(self.realized_otype)
+            assert not is_any(self.realized_otype)
+        if self.bound_data_block is not None:
+            assert self.realized_otype is not None
 
 
 @dataclass
 class ResolvedFunctionInterface:
     inputs: List[ResolvedFunctionNodeInput]
-    output_otype: Optional[ObjectType]
+    resolved_output_otype: Optional[ObjectType]
+    realized_output_otype: Optional[ObjectType]
     output: Optional[DataFunctionAnnotation]
     requires_data_function_context: bool = True
     is_bound: bool = False
+
+    def __post_init__(self):
+        self.validate()
+
+    def validate(self):
+        if self.output is not None:
+            assert self.resolved_output_otype is not None
+        if self.resolved_output_otype is not None:
+            assert not is_generic(self.resolved_output_otype)
+        if self.realized_output_otype is not None:
+            assert not is_generic(self.realized_output_otype)
+            assert not is_any(self.realized_output_otype)
 
     def get_input(self, name: str) -> ResolvedFunctionNodeInput:
         for input in self.inputs:
@@ -174,11 +202,24 @@ class ResolvedFunctionInterface:
                 return input
         raise KeyError(name)
 
-    def bind(self, input_blocks: InputBlocks):
+    def bind_and_specify_otypes(self, env: Environment, input_blocks: InputBlocks):
         if self.is_bound:
             raise Exception("Already bound")
+        realized_generics: Dict[str, ObjectType] = {}
         for name, input_block in input_blocks.items():
-            self.get_input(name).bound_data_block = input_block
+            i = self.get_input(name)
+            i.bound_data_block = input_block
+            i.realized_otype = env.get_otype(input_block.realized_otype_uri)
+            if i.original_annotation.is_generic:
+                realized_generics[i.original_annotation.otype_like] = i.realized_otype
+        if (
+            self.output
+            and is_any(self.resolved_output_otype)
+            and self.output.is_generic
+        ):
+            # Further specify resolved type now that we have something concrete for Any
+            # TODO: man this is too complex. how do we simplify different type levels
+            self.resolved_output_otype = realized_generics[self.output.otype_like]
         self.is_bound = True
 
     def as_kwargs(self):
@@ -387,10 +428,11 @@ class FunctionGraphResolver:
             i = ResolvedFunctionNodeInput(
                 name=input.name,
                 data_format_class=input.data_format_class,
+                original_annotation=input,
                 is_optional=input.is_optional,
                 is_self_ref=input.is_self_ref,
                 declared_otype_like=input.otype_like,
-                inferred_otype=self.env.get_otype(resolved_otype),
+                resolved_otype=self.env.get_otype(resolved_otype),
                 connected_stream=input.connected_stream,
                 parent_nodes=parents,
                 potential_parent_nodes=potential_parents,
@@ -417,8 +459,8 @@ class FunctionGraphResolver:
                 if output_type == otype:
                     potential_parents.append(other_node)
             return [], potential_parents
-        if stream.raw_records_object is not None:
-            return [], []
+        # if stream.raw_records_object is not None:
+        #     return [], []
         raise NotImplementedError
 
     def resolve_output_types(self):
@@ -472,10 +514,10 @@ class FunctionGraphResolver:
             if len(stream.otypes) > 1:
                 raise NotImplementedError("Mixed otype streams not supported atm")
             return stream.otypes[0]
-        elif stream.raw_records_object is not None:
-            if not stream.raw_records_otype:
-                raise ValueError("No otype set for raw records")
-            return stream.raw_records_otype
+        # elif stream.raw_records_object is not None:
+        #     if not stream.raw_records_otype:
+        #         raise ValueError("No otype set for raw records")
+        #     return stream.raw_records_otype
         raise NotImplementedError
 
     def get_resolved_interface(self, node: FunctionNode) -> ResolvedFunctionInterface:
@@ -486,7 +528,8 @@ class FunctionGraphResolver:
         dfi = node.get_interface()
         return ResolvedFunctionInterface(
             inputs=self._resolved_inputs.get(node, []),
-            output_otype=resolved_otype,
+            resolved_output_otype=resolved_otype,
+            realized_output_otype=None,
             output=dfi.output,
             requires_data_function_context=dfi.requires_data_function_context,
         )
@@ -547,7 +590,7 @@ class FunctionNodeInterfaceManager:
         i = self.get_resolved_interface()
         if input_data_blocks is None:
             input_data_blocks = self.get_input_data_blocks()
-        i.bind(input_data_blocks)
+        i.bind_and_specify_otypes(self.env, input_data_blocks)
         return i
 
     def is_input_required(self, annotation: DataFunctionAnnotation) -> bool:

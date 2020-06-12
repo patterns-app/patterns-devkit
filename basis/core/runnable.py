@@ -214,7 +214,8 @@ class DataFunctionContext:
     worker: Worker
     runnable: Runnable
     inputs: List[ResolvedFunctionNodeInput]
-    output_otype: Optional[ObjectType]
+    resolved_output_otype: Optional[ObjectType]
+    realized_output_otype: Optional[ObjectType]
 
     def config(self, key: str) -> Any:
         return self.runnable.configuration.get(key)
@@ -342,7 +343,7 @@ class Worker:
         with self.ctx.start_data_function_run(node) as run_session:
             output = self.execute_datafunction(runnable)
             if output is not None:
-                assert runnable.datafunction_interface.output_otype is not None
+                assert runnable.datafunction_interface.resolved_output_otype is not None
                 assert (
                     self.ctx.target_storage is not None
                 ), "Must specify target storage for output"
@@ -364,7 +365,8 @@ class Worker:
                 worker=self,
                 runnable=runnable,
                 inputs=runnable.datafunction_interface.inputs,
-                output_otype=runnable.datafunction_interface.output_otype,
+                resolved_output_otype=runnable.datafunction_interface.resolved_output_otype,
+                realized_output_otype=runnable.datafunction_interface.realized_output_otype,
             )
             args.append(dfc)
         inputs = runnable.datafunction_interface.as_kwargs()
@@ -381,7 +383,7 @@ class Worker:
     def conform_output(
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
     ) -> Optional[DataBlockMetadata]:
-        assert runnable.datafunction_interface.output_otype is not None
+        assert runnable.datafunction_interface.resolved_output_otype is not None
         assert self.ctx.target_storage is not None
         # TODO: check if these Metadata objects have been added to session!
         #   also figure out what merge actually does
@@ -416,7 +418,7 @@ class Worker:
             self.ctx.metadata_session,
             self.ctx.local_memory_storage,
             output,
-            declared_otype=runnable.datafunction_interface.output_otype,
+            expected_otype=runnable.datafunction_interface.resolved_output_otype,
         )
         # ldr = LocalMemoryDataRecords.from_records_object(output)
         # block = DataBlockMetadata(

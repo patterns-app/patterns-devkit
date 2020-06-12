@@ -4,22 +4,26 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from random import randint
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
 import pandas as pd
 from pandas import Series
+from sqlalchemy import Table
 
 from basis.core.component import ComponentType
 from basis.core.data_format import DictList
 from basis.core.module import DEFAULT_LOCAL_MODULE
 from basis.core.typing.object_type import (
+    ConflictBehavior,
     Field,
     ObjectType,
     create_quick_field,
     create_quick_otype,
-    ConflictBehavior,
 )
 from basis.utils.common import is_datetime_str, title_to_snake_case
+
+if TYPE_CHECKING:
+    from basis.db.api import DatabaseAPI
 
 logger = logging.getLogger(__name__)
 
@@ -65,8 +69,12 @@ def infer_otype_fields_from_records(
     return fields
 
 
-def infer_otype(records: DictList, **kwargs) -> ObjectType:
+def infer_otype_from_dictlist(records: DictList, **kwargs) -> ObjectType:
     fields = infer_otype_fields_from_records(records)
+    return generate_auto_otype(fields, **kwargs)
+
+
+def generate_auto_otype(fields, **kwargs) -> ObjectType:
     auto_name = "AutoType" + str(randint(1000, 9999))  # TODO
     args = dict(
         component_type=ComponentType.ObjectType,
@@ -81,6 +89,25 @@ def infer_otype(records: DictList, **kwargs) -> ObjectType:
     )
     args.update(kwargs)
     return ObjectType(**args)
+
+
+def create_sa_table(dbapi: DatabaseAPI, table_name: str) -> Table:
+    sa_table = Table(
+        table_name,
+        dbapi.get_sqlalchemy_metadata(),
+        autoload=True,
+        autoload_with=dbapi.get_connection(),
+    )
+    return sa_table
+
+
+def infer_otype_from_db_table(
+    dbapi: DatabaseAPI, table_name: str, **otype_kwargs
+) -> ObjectType:
+    from basis.core.sql.utils import fields_from_sqlalchemy_table
+
+    fields = fields_from_sqlalchemy_table(create_sa_table(dbapi, table_name))
+    return generate_auto_otype(fields, **otype_kwargs)
 
 
 def dict_to_rough_otype(name: str, d: Dict, convert_to_snake_case=True, **kwargs):

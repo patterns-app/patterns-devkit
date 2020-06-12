@@ -131,3 +131,15 @@ class ObjectTypeMapper:
             fields.append(field_mapper.from_sqlalchemy(column))
         kwargs["fields"] = fields
         return ObjectType(**kwargs)
+
+
+def field_from_sqlalchemy_column(sa_column: Column, **kwargs) -> Field:
+    # TODO: clean up reflected types? Conform / cast to standard set?
+    return Field(name=sa_column.name, field_type=repr(sa_column.type), **kwargs)
+
+
+def fields_from_sqlalchemy_table(self, sa_table: Table) -> List[Field]:
+    fields = []
+    for column in sa_table.columns:
+        fields.append(field_from_sqlalchemy_column(column))
+    return fields

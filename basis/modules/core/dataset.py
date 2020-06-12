@@ -100,7 +100,7 @@ def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
     if ds is None:
         ds = DataSetMetadata(
             name=name,
-            declared_otype_uri=input.declared_otype_uri,
+            declared_otype_uri=input.expected_otype_uri,
             realized_otype_uri=input.realized_otype_uri,
         )
     ds.data_block_id = input.data_block_id
@@ -127,20 +127,23 @@ accumulator_test = TestCase(
     tests=dict(
         test_intra_dedupe=dict(
             input="""
+                otype: CoreTestType
                 k1,k2,f1,f2,f3
                 1,2,abc,1.1,1
-                1,2,def,1.1,
-                1,3,abc,1.1,
-                1,4,,,
+                1,2,def,1.1,{"1":2}
+                1,3,abc,1.1,2
+                1,4,,,"[1,2,3]"
                 2,2,1.0,2.1,"[1,2,3]"
             """,
             this="",
             output="""
+                otype: CoreTestType
                 k1,k2,f1,f2,f3
-                1,2,abc,1.1,1
-                1,3,abc,1.1,
-                1,4,,,
+                1,2,def,1.1,{"1":2}
+                1,3,abc,1.1,2
+                1,4,,,"[1,2,3]"
                 2,2,1.0,2.1,"[1,2,3]"
+
             """,
         )
     ),

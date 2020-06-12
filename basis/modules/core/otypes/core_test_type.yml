@@ -1,0 +1,20 @@
+name: CoreTestType
+version: 1
+description: All-purpose testing type
+unique on:
+  - k1
+  - k2
+on conflict: ReplaceWithNewer
+fields:
+  k1:
+    type: Integer
+    validators:
+      - NotNull
+  k2:
+    type: Unicode
+  f1:
+    type: Unicode
+  f2:
+    type: Float
+  f3:
+    type: JSON

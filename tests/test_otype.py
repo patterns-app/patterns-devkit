@@ -5,7 +5,10 @@ from dataclasses import asdict
 import pytest
 
 from basis.core.module import DEFAULT_LOCAL_MODULE
-from basis.core.typing.inference import infer_otype, infer_otype_fields_from_records
+from basis.core.typing.inference import (
+    infer_otype_from_dictlist,
+    infer_otype_fields_from_records,
+)
 from basis.core.typing.object_type import (
     GeneratedObjectType,
     ObjectType,
@@ -119,7 +122,7 @@ def test_otype_inference():
 
 
 def test_generated_otype():
-    new_otype = infer_otype(sample_records)
+    new_otype = infer_otype_from_dictlist(sample_records)
     got = GeneratedObjectType(name=new_otype.name, definition=asdict(new_otype))
     env = make_test_env()
     with env.session_scope() as sess:

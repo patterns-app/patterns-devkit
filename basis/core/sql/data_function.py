@@ -127,23 +127,19 @@ class SqlDataFunctionWrapper:
             if not isinstance(i, DataBlock):
                 raise NotImplementedError(f"Unsupported input type {i}")
         sql = self.get_compiled_sql(ctx, inputs)
-        if ctx.output_otype is None:
+        if ctx.resolved_output_otype is None:
             raise Exception("SQL function should always produce output!")
-        block = DataBlockMetadata(declared_otype_uri=ctx.output_otype.uri)
-        storage_url = ctx.execution_context.current_runtime.as_storage().url
-        sdb = StoredDataBlockMetadata(
-            data_block=block,
-            storage_url=storage_url,
-            data_format=DataFormat.DATABASE_TABLE,
-        )
-        ctx.execution_context.add(sdb)
 
         # TODO: oof this is doozy, will get fixed as part of runtime re-think
         db_api = ctx.execution_context.current_runtime.get_database_api(
             ctx.execution_context.env
         )
-        db_api.insert_sql(sdb, sql)
-        # TODO: handle anonymous ObjectTypes in SQL
+        block, sdb = db_api.create_data_block_from_sql(
+            ctx.execution_context.metadata_session,
+            sql,
+            expected_otype=ctx.resolved_output_otype,
+        )
+
         return sdb
 
     def get_input_table_names(
@@ -168,7 +164,8 @@ class SqlDataFunctionWrapper:
             worker=ctx.worker,
             runnable=ctx.runnable,
             inputs={i.name: i for i in ctx.inputs},
-            output_otype=ctx.output_otype,
+            output_otype=ctx.resolved_output_otype,
+            # output_otype=ctx.realized_output_otype,
         )
         # sql_ctx.update(inputs) # TODO: decide what is in the sql jinja ctx. usability is key
         return compile_jinja_sql(sql, sql_ctx)
