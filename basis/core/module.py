@@ -4,8 +4,6 @@ import os
 import sys
 from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Type, Union
 
-from pandas._testing import assert_almost_equal
-
 from basis.core.component import (
     ComponentLibrary,
     ComponentType,
@@ -13,22 +11,14 @@ from basis.core.component import (
     ComponentView,
 )
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike, otype_from_yaml
-from basis.utils.common import cf
-from basis.utils.pandas import assert_dataframes_are_almost_equal
 
 if TYPE_CHECKING:
-    from basis.core.environment import Environment
     from basis.core.data_function import (
         DataFunctionLike,
         DataFunction,
     )
     from basis.core.external import ExternalProvider
-    from basis.testing.functions import (
-        DataFunctionTestCaseLike,
-        DataFunctionTestCase,
-        test_case_from_yaml,
-        TestCase,
-    )
+    from basis.testing.functions import TestCase
 
 
 class BasisModule:
@@ -172,65 +162,12 @@ class BasisModule:
     def process_provider(self, provider: ExternalProvider) -> ExternalProvider:
         return provider
 
-    def get_test_env(self) -> Environment:
-        # TODO: need way more hooks here (adding runtimes and storages, for instance)
-        from basis.core.environment import Environment
-        from basis.db.api import create_db, drop_db
-
-        # TODO: what is this hack
-        db_name = f"__test_{self.name}"
-        try:
-            drop_db(f"postgres://postgres@localhost:5432/postgres", db_name)
-        except:
-            pass
-        create_db(f"postgres://postgres@localhost:5432/postgres", db_name)
-        pg_url = f"postgres://postgres@localhost:5432/{db_name}"
-        env = Environment(f"test_{self.name}", metadata_storage=pg_url,)
-        env.add_storage(pg_url)
-        env.add_module(self)
-        return env
-
-    def run_test(self, test: TestCase):
-        # TODO: clean this function up
-        env = self.get_test_env()
-        fn = env.get_function(test.function)
-        dfi = fn.get_interface()
-        for case in test.tests:
-            print(f"Case {case.name}", end="")
-            print(case.test_data_otypes)
-            try:
-                inputs = {}
-                for input in dfi.inputs:
-                    test_df = case.test_data[input.name]
-                    test_otype = case.test_data_otypes[input.name]
-                    n = env.add_external_source_node(
-                        f"_test_source_node_{input.name}",
-                        "DataFrameExternalResource",
-                        config={"dataframe": test_df, "otype": test_otype},
-                    )
-                    inputs[input.name] = n
-                n = env.add_node("_test_node", fn, upstream=inputs)
-                output = env.produce(n)
-                output_df = output.as_dataframe()
-                expected_df = case.test_data["output"]
-                expected_otype = env.get_otype(case.test_data_otypes["output"])
-                print("Output", id(output_df), output_df)
-                print("Expected", expected_df)
-                if "output" in case.test_data:
-                    assert_dataframes_are_almost_equal(
-                        output_df, expected_df, expected_otype
-                    )
-                print(cf.success("Ok"))
-            except Exception as e:
-                print(cf.error("Fail:"), str(e))
-                raise e
-
     def run_tests(self):
         print(f"Running tests for module {self.name}")
         for test in self.test_cases:
-            print(f"Function {test.function}")
+            print(f"======= {test.function} =======")
             try:
-                self.run_test(test)
+                test.run(initial_modules=[self])
             except Exception as e:
                 print(e)
                 raise e

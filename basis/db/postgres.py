@@ -85,5 +85,5 @@ def pg_execute_values(
 class PostgresDatabaseAPI(DatabaseAPI):
     def _bulk_insert(self, table_name: str, records: RecordsList, **kwargs):
         bulk_insert(
-            eng=self.get_connection(), table_name=table_name, records=records, **kwargs
+            eng=self.get_engine(), table_name=table_name, records=records, **kwargs
         )

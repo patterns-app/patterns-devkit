@@ -1,10 +1,22 @@
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Callable, List, Tuple, Type, Union
+import os
+from contextlib import contextmanager
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    List,
+    Tuple,
+    Type,
+    Union,
+    ContextManager,
+    Dict,
+)
 
 import sqlalchemy
 from sqlalchemy import MetaData
-from sqlalchemy.engine import ResultProxy
+from sqlalchemy.engine import ResultProxy, Connection, Engine
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
@@ -28,6 +40,13 @@ if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext
 
 logger = logging.getLogger(__name__)
+
+_sa_engines: Dict[str, Engine] = {}
+
+
+def dispose_all():
+    for e in _sa_engines.values():
+        e.dispose()
 
 
 def conform_records_for_insert(
@@ -76,15 +95,29 @@ class DatabaseAPI:
             else lambda o: json.dumps(o, cls=BasisJSONEncoder)
         )
 
-    def get_connection(self) -> sqlalchemy.engine.Engine:
-        return sqlalchemy.create_engine(
-            self.resource.url, json_serializer=self.json_serializer
-        )
+    def get_engine(self) -> sqlalchemy.engine.Engine:
+        # return sqlalchemy.create_engine(
+        #     self.resource.url, json_serializer=self.json_serializer
+        # )
+        url = self.resource.url
+        try:
+            return _sa_engines[url]
+        except KeyError:
+            _sa_engines[url] = sqlalchemy.create_engine(
+                url, json_serializer=self.json_serializer, echo=False
+            )
+            return _sa_engines[url]
+
+    @contextmanager
+    def connection(self) -> ContextManager[Connection]:
+        with self.get_engine().connect() as conn:
+            yield conn
 
     def execute_sql(self, sql: str) -> ResultProxy:
         printd("Executing SQL:")
         printd(sql)
-        return self.get_connection().execute(sql)
+        with self.connection() as conn:
+            return conn.execute(sql)
 
     def ensure_table(self, sdb: StoredDataBlockMetadata) -> str:
         name = sdb.get_name(self.env)
@@ -190,7 +223,7 @@ class DatabaseAPI:
         return row[0]
 
     def get_sqlalchemy_metadata(self):
-        sa_engine = self.get_connection()
+        sa_engine = self.get_engine()
         meta = MetaData()
         meta.reflect(bind=sa_engine)
         return meta
@@ -206,20 +239,39 @@ def get_database_api_class(engine: StorageEngine) -> Type[DatabaseAPI]:
 
 
 def create_db(url: str, database_name: str):
+    if url.startswith("sqlite"):
+        logger.info("create_db is no-op for sqlite")
+        return
     sa = sqlalchemy.create_engine(url)
     conn = sa.connect()
-    conn.execute("commit")  # Close default open transaction (can't create db inside tx)
-    conn.execute(f"create database {database_name}")
-    conn.close()
+    try:
+        conn.execute(
+            "commit"
+        )  # Close default open transaction (can't create db inside tx)
+        conn.execute(f"create database {database_name}")
+    finally:
+        conn.close()
 
 
 def drop_db(url: str, database_name: str):
+    if url.startswith("sqlite"):
+        return drop_sqlite_db(url, database_name)
     if "test" not in database_name:
         i = input("Dropping db {database_name}, are you sure? (y/N)")
         if not i.lower().startswith("y"):
             return
     sa = sqlalchemy.create_engine(url)
     conn = sa.connect()
-    conn.execute("commit")  # Close default open transaction (can't drop db inside tx)
-    conn.execute(f"drop database {database_name}")
-    conn.close()
+    try:
+        conn.execute(
+            "commit"
+        )  # Close default open transaction (can't drop db inside tx)
+        conn.execute(f"drop database {database_name}")
+    finally:
+        conn.close()
+
+
+def drop_sqlite_db(url: str, database_name: str):
+    if database_name == ":memory:":
+        return
+    os.remove(database_name)

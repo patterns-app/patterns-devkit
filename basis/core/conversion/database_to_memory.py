@@ -21,7 +21,7 @@ class DatabaseToMemoryConverter(Converter):
     )
     supported_output_formats: Sequence[StorageFormat] = (
         StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST),
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATAFRAME),
+        # StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATAFRAME),
         StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATABASE_TABLE_REF),
         StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATABASE_CURSOR),
     )
@@ -33,7 +33,7 @@ class DatabaseToMemoryConverter(Converter):
         input_runtime = input_sdb.storage.get_database_api(self.env)
         output_memory_storage = LocalMemoryStorageEngine(self.env, output_sdb.storage)
         name = input_sdb.get_name(self.env)
-        db_conn = input_runtime.get_connection()
+        db_conn = input_runtime.get_engine()
         output_records: Any
         select_sql = f"select * from {name}"
         if output_sdb.data_format == DataFormat.DATABASE_TABLE_REF:

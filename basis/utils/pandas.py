@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import List
 
 import pandas as pd
@@ -26,8 +25,6 @@ def assert_dataframes_are_almost_equal(
 ):
     assert df1.shape == df2.shape
     assert set(df1.columns) == set(df2.columns)
-    print(df1.dtypes)
-    print(df2.dtypes)
     df1.sort_values(otype.unique_on, inplace=True)
     df2.sort_values(otype.unique_on, inplace=True)
     assert_almost_equal(df1, df2, check_dtype=False)
@@ -48,20 +45,22 @@ def records_list_to_dataframe(records: RecordsList, otype: ObjectType) -> DataFr
 
     series = records_list_as_listdicts(records)
     df = DataFrame()
+    # print("=========")
+    # print(otype.fields)
     for n, s in series.items():
         f = otype.get_field(n)
         if f is None:
             dtype = None
         else:
             dtype = sqlalchemy_type_to_pandas_type(f.field_type)
-        print(n, dtype, s)
+        # print(n, dtype, s)
         try:
             df[n] = Series(s, dtype=dtype)
         except TypeError as e:
-            print("Type error:", n, dtype, s)
+            # print("Type error:", n, dtype, s)
             df[n] = Series(s)
             df[n] = df[n].infer_objects()
-    print("Made DF: ", df.dtypes, id(df))
+    # print("Made DF: ", df.dtypes, id(df))
     return df
 
 

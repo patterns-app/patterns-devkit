@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
-from enum import Enum
 from random import randint
 from statistics import StatisticsError, mode
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
 
 import pandas as pd
 from pandas import Series
@@ -128,7 +126,7 @@ def create_sa_table(dbapi: DatabaseAPI, table_name: str) -> Table:
         table_name,
         dbapi.get_sqlalchemy_metadata(),
         autoload=True,
-        autoload_with=dbapi.get_connection(),
+        autoload_with=dbapi.get_engine(),
     )
     return sa_table
 
@@ -298,7 +296,7 @@ def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
     except StatisticsError:
         mode_type = None
     dom_type = get_highest_precedence_sa_type(list(set(types)))
-    print(f"Mode {mode_type} Dom {dom_type}")
+    # print(f"Mode {mode_type} Dom {dom_type}")
     return dom_type
 
 

@@ -1,19 +1,22 @@
-import csv
-from io import StringIO
-from typing import Dict, List, Tuple, Union
+import time
+from contextlib import contextmanager
+from typing import Any, Dict, List, Tuple, Union
 
-import pandas as pd
-import strictyaml
 from pandas import DataFrame
+from sqlalchemy.orm import close_all_sessions
 
-from basis.core.data_function import DataFunction, DataFunctionLike, ensure_datafunction
+from basis.core.data_function import DataFunctionLike
 from basis.core.environment import Environment
-from basis.core.module import BasisModule
 from basis.core.streams import InputBlocks
 from basis.core.typing.inference import infer_otype_from_records_list
 from basis.core.typing.object_type import ObjectTypeLike
+from basis.db.api import dispose_all
+from basis.utils.common import cf, printd, rand_str
 from basis.utils.data import read_csv
-from basis.utils.pandas import records_list_to_dataframe
+from basis.utils.pandas import (
+    assert_dataframes_are_almost_equal,
+    records_list_to_dataframe,
+)
 
 
 class DataFunctionTestCase:
@@ -73,6 +76,65 @@ class TestCase:
         auto_otype = infer_otype_from_records_list(records)
         df = records_list_to_dataframe(records, auto_otype)
         return df, otype
+
+    @contextmanager
+    def test_env(self, **kwargs: Any) -> Environment:
+        # TODO: need way more hooks here (adding runtimes and storages, for instance)
+        from basis.core.environment import Environment
+        from basis.db.api import create_db, drop_db
+
+        # TODO: what is this hack
+        db_name = f"__test_{rand_str(10).lower()}"
+        conn_url = f"postgres://postgres@localhost:5432/postgres"
+        db_url = f"postgres://postgres@localhost:5432/{db_name}"
+        # conn_url = f"sqlite:///" + db_name + ".db"
+        # try:
+        #     drop_db(conn_url, db_name)
+        # except Exception as e:
+        #     pass
+        create_db(conn_url, db_name)
+        env = Environment(db_name, metadata_storage=db_url, **kwargs)
+        env.add_storage(db_url)
+        try:
+            yield env
+        finally:
+            close_all_sessions()
+            dispose_all()
+            drop_db(conn_url, db_name)
+
+    def run(self, **env_args: Any):
+        # TODO: clean this function up
+        for case in self.tests:
+            print(f"{case.name}:")
+            with self.test_env(**env_args) as env:
+                fn = env.get_function(self.function)
+                dfi = fn.get_interface()
+                try:
+                    inputs = {}
+                    for input in dfi.inputs:
+                        test_df = case.test_data[input.name]
+                        test_otype = case.test_data_otypes[input.name]
+                        n = env.add_external_source_node(
+                            f"_test_source_node_{input.name}",
+                            "DataFrameExternalResource",
+                            config={"dataframe": test_df, "otype": test_otype},
+                        )
+                        inputs[input.name] = n
+                    n = env.add_node("_test_node", fn, upstream=inputs)
+                    output = env.produce(n, to_exhaustion=False)
+                    output_df = output.as_dataframe()
+                    expected_df = case.test_data["output"]
+                    expected_otype = env.get_otype(case.test_data_otypes["output"])
+                    printd("Output", output_df)
+                    printd("Expected", expected_df)
+                    if "output" in case.test_data:
+                        assert_dataframes_are_almost_equal(
+                            output_df, expected_df, expected_otype
+                        )
+                    print(cf.success("Ok"))
+                except Exception as e:
+                    print(cf.error("Fail:"), str(e))
+                    # raise e
 
 
 DataFunctionTestCaseLike = Union[DataFunctionTestCase, str]

@@ -74,12 +74,12 @@ dedupe_unique_keep_first_value = sql_datafunction(
     sql="""
 select:T
 distinct on (
-    {% for col in inputs.input.otype.unique_on %}
+    {% for col in inputs.input.realized_otype.unique_on %}
         "{{ col }}"
         {%- if not loop.last %},{% endif %}
     {% endfor %}
     )
-    {% for col in inputs.input.otype.fields %}
+    {% for col in inputs.input.realized_otype.fields %}
         "{{ col.name }}"
         {%- if not loop.last %},{% endif %}
     {% endfor %}
@@ -146,33 +146,34 @@ accumulator_test = TestCase(
                 2,2,1.0,2.1,"[1,2,3]"
             """,
         ),
-        test_recursive_input=dict(
-            input="""
-                otype: CoreTestType
-                k1,k2,f1,f2,f3
-                1,2,abc,1.1,1
-                1,2,def,1.1,{"1":2}
-                1,3,abc,1.1,2
-                1,4,,,"[1,2,3]"
-                2,2,1.0,2.1,"[1,2,3]"
-            """,
-            this="""
-                otype: CoreTestType
-                k1,k2,f1,f2,f3
-                1,5,abc,1.1,
-                1,6,abc,1.1,2
-            """,
-            output="""
-                otype: CoreTestType
-                k1,k2,f1,f2,f3
-                1,2,def,1.1,{"1":2}
-                1,3,abc,1.1,2
-                1,4,,,"[1,2,3]"
-                2,2,1.0,2.1,"[1,2,3]"
-                1,5,abc,1.1,
-                1,6,abc,1.1,2
-            """,
-        ),
+        # TODO: how to test `this`?
+        # test_recursive_input=dict(
+        #     input="""
+        #         otype: CoreTestType
+        #         k1,k2,f1,f2,f3
+        #         1,2,abc,1.1,1
+        #         1,2,def,1.1,{"1":2}
+        #         1,3,abc,1.1,2
+        #         1,4,,,"[1,2,3]"
+        #         2,2,1.0,2.1,"[1,2,3]"
+        #     """,
+        #     this="""
+        #         otype: CoreTestType
+        #         k1,k2,f1,f2,f3
+        #         1,5,abc,1.1,
+        #         1,6,abc,1.1,2
+        #     """,
+        #     output="""
+        #         otype: CoreTestType
+        #         k1,k2,f1,f2,f3
+        #         1,2,def,1.1,{"1":2}
+        #         1,3,abc,1.1,2
+        #         1,4,,,"[1,2,3]"
+        #         2,2,1.0,2.1,"[1,2,3]"
+        #         1,5,abc,1.1,
+        #         1,6,abc,1.1,2
+        #     """,
+        # ),
     ),
 )
 
@@ -192,7 +193,7 @@ dedupe_test = TestCase(
             output="""
                 otype: CoreTestType
                 k1,k2,f1,f2,f3
-                1,2,def,1.1,1
+                1,2,abc,1.1,1
                 1,3,abc,1.1,2
                 1,4,,,"[1,2,3]"
                 2,2,1.0,2.1,"[1,2,3]"

@@ -88,6 +88,7 @@ class ObjectTypeMapper:
     def __init__(self, env: Environment, sqlalchemy_metadata: MetaData = None):
         self.storage_engine_to_sa_dialect: Dict[StorageEngine, Dialect] = {
             StorageEngine.POSTGRES: dialects.postgresql.dialect(),
+            StorageEngine.SQLITE: dialects.sqlite.dialect(),
             # StorageEngine.MYSQL: dialects.mysql.dialect(), # TODO: mysql support
         }
         self.env = env

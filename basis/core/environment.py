@@ -71,6 +71,7 @@ class Environment:
         self._flattened_nodes: Dict[str, FunctionNode] = {}
         self.storages = []
         self.runtimes = []
+        self._metadata_sessions: List[Session] = []
         if add_default_python_runtime:
             self.runtimes.append(
                 Runtime(
@@ -92,17 +93,20 @@ class Environment:
             raise ValueError(
                 f"metadata storage expected a database, got {self.metadata_storage}"
             )
-        conn = self.metadata_storage.get_database_api(self).get_connection()
+        conn = self.metadata_storage.get_database_api(self).get_engine()
         BaseModel.metadata.create_all(conn)
         self.Session = sessionmaker(bind=conn)
         add_persisting_sdb_listener(self.Session)
-        self._env_session = self.Session()
-
-    def get_env_metadata_session(self) -> Session:
-        return self._env_session
 
     def get_new_metadata_session(self) -> Session:
-        return self.Session()
+        sess = self.Session()
+        self._metadata_sessions.append(sess)
+        return sess
+
+    def close_sessions(self):
+        for s in self._metadata_sessions:
+            s.close()
+        self._metadata_sessions = []
 
     def get_local_module(self) -> BasisModule:
         return self._local_module
@@ -277,7 +281,10 @@ class Environment:
             session.close()
 
     def produce(
-        self, node_like: Union[FunctionNode, str], **execution_kwargs: Any
+        self,
+        node_like: Union[FunctionNode, str],
+        to_exhaustion: bool = True,
+        **execution_kwargs: Any,
     ) -> Optional[DataBlock]:
         from basis.core.function_node import FunctionNode
 
@@ -291,7 +298,7 @@ class Environment:
         output = None
         for dep in dependencies:
             with self.execution(**execution_kwargs) as em:
-                output = em.run(dep, to_exhaustion=True)
+                output = em.run(dep, to_exhaustion=to_exhaustion)
         return output
 
     def update_all(self, to_exhaustion: bool = True, **execution_kwargs: Any):

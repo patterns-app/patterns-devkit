@@ -12,6 +12,7 @@ from basis.core.environment import Environment, current_env
 from basis.core.function_node import DataFunctionLog
 from basis.core.typing.inference import dict_to_rough_otype
 from basis.core.typing.object_type import otype_to_yaml
+from basis.utils import common
 from basis.utils.common import cf, cycle_colors_unique
 
 REPO_SERVER_API = "http://localhost:8000/components/"  # TODO: configurable
@@ -53,8 +54,11 @@ def echo_table(headers, rows):
 
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.option("-d", "--debug")
 @click.pass_context
-def app(ctx):
+def app(ctx, debug: bool = False):
+    if debug:
+        common.DEBUG = True
     # TODO some way to pass in env
     env = Environment()
     try:

@@ -65,7 +65,8 @@ from basis.core.storage import StorageType
                 StorageFormat(StorageType.POSTGRES_DATABASE, DataFormat.DATABASE_TABLE),
                 StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATAFRAME),
             ),
-            ConversionCostLevel.OVER_WIRE.value,
+            ConversionCostLevel.OVER_WIRE.value
+            + ConversionCostLevel.MEMORY.value,  # DB -> Records -> DF
         ),
         # Memory to memory
         (

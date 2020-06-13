@@ -7,14 +7,14 @@ unique on:
 on conflict: ReplaceWithNewer
 fields:
   k1:
-    type: Integer
+    type: BigInteger
     validators:
       - NotNull
   k2:
-    type: Unicode
+    type: BigInteger
   f1:
     type: Unicode
   f2:
     type: Float
   f3:
-    type: JSON
+    type: Unicode

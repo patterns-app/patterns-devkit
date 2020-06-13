@@ -1,13 +1,13 @@
-<h1 style="font-size: 80px">BASIS</h1>
+# BASIS
 
-### "The World's First Operating System for Data"
+### Modern Data Pipelines
  
 BASIS is a framework for building end-to-end data ETL pipelines from modular components. BASIS
 abstracts over underlying database, runtime, and storage resources with **functional,
 type-aware data graphs**. These graphs are composed of discrete `DataFunctions` written in python or
 SQL operating on streams of immutable `DataBlocks` -- sets of data records of uniform `ObjectType`.
 
-The power of BASIS lies in its Component ecosystem powered by its flexible type system, which
+The power of BASIS lies in its Component ecosystem, powered by its flexible type system, which
 provides universal data interfaces, called **ObjectTypes** or _**otypes**_, that allow
 interoperability and modularity of data operations. BASIS brings the best practices learned over
 the last 60 years in software to the world of data.
