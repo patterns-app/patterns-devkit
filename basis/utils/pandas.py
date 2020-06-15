@@ -23,7 +23,7 @@ def sortable_columns(dtypes: Series) -> List[str]:
 def assert_dataframes_are_almost_equal(
     df1: DataFrame, df2: DataFrame, otype: ObjectType
 ):
-    assert df1.shape == df2.shape
+    assert df1.shape == df2.shape, f"{df1.shape} {df2.shape}"
     assert set(df1.columns) == set(df2.columns)
     df1.sort_values(otype.unique_on, inplace=True)
     df2.sort_values(otype.unique_on, inplace=True)

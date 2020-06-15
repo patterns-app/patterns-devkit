@@ -115,6 +115,7 @@ class ObjectType(ComponentUri):
     implementations: List[ObjectTypeUri] = field(default_factory=list)
     extends: Optional[ObjectTypeUri] = None  # TODO
     raw_definition: Optional[str] = None
+    updated_at_field_name: Optional[str] = None  # TODO
     # parameterized_by: Sequence[str] = field(default_factory=list) # This is like GPV use case in CountryIndicator
     # parametererized_from: Optional[ObjectTypeName] = None
     # unregistered: bool = False
@@ -133,6 +134,15 @@ class ObjectType(ComponentUri):
                 return f
         # TODO: relationships
         raise NameError
+
+    @property
+    def updated_at_field(self) -> Optional[Field]:
+        if self.updated_at_field_name:
+            return self.get_field(self.updated_at_field_name)
+        try:
+            return self.get_field("updated_at")
+        except NameError:
+            return None
 
     @classmethod
     def from_dict(cls, d: Dict) -> ObjectType:

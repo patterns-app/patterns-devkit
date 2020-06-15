@@ -350,7 +350,7 @@ class FunctionGraphResolver:
     def resolve_dependencies(self):
         for node in self._nodes:
             self._resolve_node_dependencies(node)
-        g = self.as_networkx_graph()
+        g = self._as_networkx_graph()
         cycles = list(nx.simple_cycles(g))
         if cycles:
             raise FunctionGraphCycleError(cycles)
@@ -365,7 +365,7 @@ class FunctionGraphResolver:
                         # Add potential edge
                         input.parent_nodes.append(p)
                         # Check for new cycle in graph
-                        g = self.as_networkx_graph()
+                        g = self._as_networkx_graph()
                         cycles = list(nx.simple_cycles(g))
                         if cycles:
                             # printd(f"{node.key} - {p.key} - {cycles}")
@@ -373,10 +373,10 @@ class FunctionGraphResolver:
                             input.parent_nodes.remove(p)
                 input.potential_parent_nodes = []
 
-    def as_networkx_graph(
+    def _as_networkx_graph(
         self,
         resolved_inputs: Dict[FunctionNode, List[ResolvedFunctionNodeInput]] = None,
-    ):
+    ) -> nx.DiGraph:
         if not resolved_inputs:
             resolved_inputs = self._resolved_inputs
         g = nx.DiGraph()
@@ -387,6 +387,11 @@ class FunctionGraphResolver:
                     g.add_node(p)
                     g.add_edge(p, node)
         return g
+
+    def as_networkx_graph(self) -> nx.DiGraph:
+        if not self._resolved:
+            self.resolve()
+        return self._as_networkx_graph()
 
     def _resolve_node_dependencies(
         self, node: FunctionNode, visited: Set[FunctionNode] = None

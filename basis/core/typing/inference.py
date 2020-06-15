@@ -211,7 +211,7 @@ def pandas_series_to_sqlalchemy_type(series: Series) -> str:
 def sqlalchemy_type_to_pandas_type(satype: str) -> str:
     ft = satype.lower()
     if ft.startswith("datetime"):
-        return "datetime64"
+        return "datetime64[ns]"
     if ft.startswith("date"):
         return "date"
     if ft.startswith("time"):

@@ -5,6 +5,7 @@ unique on:
   - k1
   - k2
 on conflict: ReplaceWithNewer
+updated at field name: f4
 fields:
   k1:
     type: BigInteger
@@ -18,3 +19,5 @@ fields:
     type: Float
   f3:
     type: Unicode
+  f4:
+    type: DateTime
