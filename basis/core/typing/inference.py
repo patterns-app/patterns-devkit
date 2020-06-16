@@ -290,6 +290,9 @@ def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
         if typ is None:
             continue
         types.append(typ)
+    if not types:
+        # We detected no types, column is all null-like, or there is no data
+        return "UnicodeText"
     try:
         mode_type = mode(types)
     except StatisticsError:
@@ -335,7 +338,6 @@ def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
 
 
 def conform_records_list_to_otype(d: RecordsList, otype: ObjectType) -> RecordsList:
-    print("Conforming", d, otype.name)
     conformed = []
     for r in d:
         new_record = {}
@@ -345,5 +347,4 @@ def conform_records_list_to_otype(d: RecordsList, otype: ObjectType) -> RecordsL
             )
             new_record[k] = new_v
         conformed.append(new_record)
-    print("Conformed", conformed)
     return conformed

@@ -56,7 +56,7 @@ def records_list_to_dataframe(records: RecordsList, otype: ObjectType) -> DataFr
         # print(n, dtype, s)
         try:
             df[n] = Series(s, dtype=dtype)
-        except TypeError as e:
+        except (TypeError, ValueError) as e:
             # print("Type error:", n, dtype, s)
             df[n] = Series(s)
             df[n] = df[n].infer_objects()

@@ -3,6 +3,7 @@ from typing import Dict, List, Sequence
 
 import jinja2
 import sqlalchemy as sa
+from sqlalchemy.dialects import sqlite, postgresql, mysql
 from sqlalchemy import Column, MetaData, Table, dialects
 from sqlalchemy.engine import Dialect
 from sqlalchemy.sql.ddl import CreateTable
@@ -87,9 +88,9 @@ class ObjectTypeFieldMapper:
 class ObjectTypeMapper:
     def __init__(self, env: Environment, sqlalchemy_metadata: MetaData = None):
         self.storage_engine_to_sa_dialect: Dict[StorageEngine, Dialect] = {
-            StorageEngine.POSTGRES: dialects.postgresql.dialect(),
-            StorageEngine.SQLITE: dialects.sqlite.dialect(),
-            # StorageEngine.MYSQL: dialects.mysql.dialect(), # TODO: mysql support
+            StorageEngine.POSTGRES: postgresql.dialect(),
+            StorageEngine.SQLITE: sqlite.dialect(),
+            StorageEngine.MYSQL: mysql.dialect(),  # TODO: mysql support
         }
         self.env = env
         self.sqlalchemy_metadata = sqlalchemy_metadata or MetaData()

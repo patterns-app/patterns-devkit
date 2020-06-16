@@ -253,7 +253,7 @@ def is_datetime_str(s: str) -> bool:
         return False
     try:
         parser.parse(s)
-    except (ValueError, parser.ParserError):  # type: ignore  # mypy doesn't find ParserError on parser
+    except Exception:
         return False
     return True
 

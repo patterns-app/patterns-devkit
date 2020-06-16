@@ -85,6 +85,7 @@ sample_records = [
         "f": "1.3",
         "g": 123,
         "h": "null",
+        "i": None,
     },
     {
         "a": "2017-02-17T15:09:26-08:00",
@@ -95,6 +96,7 @@ sample_records = [
         "f": "cookies",
         "g": 123,
         "h": "null",
+        "i": None,
     },
     {
         "a": "2017-02-17T15:09:26-08:00",
@@ -106,14 +108,23 @@ sample_records = [
         "g": 12345,
         "h": "helloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworld",
     },
-    {"a": None, "b": None, "c": None, "d": None, "e": None, "f": None, "g": None},
+    {
+        "a": None,
+        "b": None,
+        "c": None,
+        "d": None,
+        "e": None,
+        "f": None,
+        "g": None,
+        "i": None,
+    },
 ]
 
 
 def test_otype_inference():
     fields = infer_otype_fields_from_records(sample_records)
-    assert len(fields) == 8
-    assert set(f.name for f in fields) == set("abcdefgh")
+    assert len(fields) == 9
+    assert set(f.name for f in fields) == set("abcdefghi")
     field_types = {f.name: f.field_type for f in fields}
     assert field_types["a"] == "DateTime"
     assert (
@@ -125,6 +136,7 @@ def test_otype_inference():
     assert field_types["f"] == "Unicode"
     assert field_types["g"] == "BigInteger"
     assert field_types["h"] == "UnicodeText"
+    assert field_types["i"] == "UnicodeText"
 
 
 def test_generated_otype():

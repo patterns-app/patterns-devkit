@@ -5,10 +5,10 @@ from pandas import DataFrame
 from basis.core.data_block import DataBlock
 from basis.core.data_function import datafunction
 from basis.core.sql.data_function import sql_datafunction
-from basis.testing.functions import TestCase
+from basis.testing.functions import DataFunctionTest
 from basis.utils.typing import T
 
-accumulator_test = TestCase(
+accumulator_test = DataFunctionTest(
     function="accumulator",
     tests=[
         {

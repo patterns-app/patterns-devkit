@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from basis.core.sql.data_function import sql_datafunction
-from basis.testing.functions import TestCase
+from basis.testing.functions import DataFunctionTest
 
 # dedupe_unique_keep_max_value = sql_datafunction(
 #     name="dedupe_unique_keep_max_value",
@@ -79,7 +79,7 @@ order by
 )
 
 
-dedupe_test = TestCase(
+dedupe_test = DataFunctionTest(
     function="dedupe_unique_keep_newest_row",
     tests=[
         {

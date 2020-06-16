@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 from pandas import DataFrame
 from sqlalchemy.orm import close_all_sessions
@@ -18,6 +20,9 @@ from basis.utils.pandas import (
     assert_dataframes_are_almost_equal,
     records_list_to_dataframe,
 )
+
+if TYPE_CHECKING:
+    from basis.core.module import BasisModule
 
 
 @dataclass(frozen=True)
@@ -42,10 +47,19 @@ class DataFunctionTestCase:
         raise
 
 
-class TestCase:
-    def __init__(self, function: Union[DataFunctionLike, str], tests: List[Dict]):
+class DataFunctionTest:
+    def __init__(
+        self,
+        function: Union[DataFunctionLike, str],
+        tests: List[Dict],
+        module: BasisModule = None,
+    ):
         self.function = function
-        self.tests = self.process_raw_tests(tests)
+        self.module = module
+        self._raw_tests = tests
+
+    def get_tests(self) -> List[DataFunctionTestCase]:
+        return self.process_raw_tests(self._raw_tests)
 
     def process_raw_tests(self, test_cases: List[Dict]) -> List[DataFunctionTestCase]:
         cases = []
@@ -77,10 +91,14 @@ class TestCase:
 
     def process_raw_test_data_into_dataframe(self, test_data: str) -> DataFrame:
         if test_data.endswith(".csv"):
-            with open(test_data) as f:
+            if not self.module:
+                raise
+            with self.module.open_module_file(test_data) as f:
                 raw_records = read_csv(f.readlines())
         elif test_data.endswith(".json"):
-            with open(test_data) as f:
+            if not self.module:
+                raise
+            with self.module.open_module_file(test_data) as f:
                 raw_records = [read_json(line) for line in f]
         else:
             # Raw str csv
@@ -96,6 +114,7 @@ class TestCase:
         # TODO: need way more hooks here (adding runtimes and storages, for instance)
         from basis.core.environment import Environment
         from basis.db.api import create_db, drop_db
+        from basis.modules import core
 
         # TODO: what is this hack
         db_name = f"__test_{rand_str(10).lower()}"
@@ -107,7 +126,11 @@ class TestCase:
         # except Exception as e:
         #     pass
         create_db(conn_url, db_name)
-        env = Environment(db_name, metadata_storage=db_url, **kwargs)
+        initial_modules = [core] + kwargs.pop("initial_modules", [])
+
+        env = Environment(
+            db_name, metadata_storage=db_url, initial_modules=initial_modules, **kwargs
+        )
         env.add_storage(db_url)
         try:
             yield env
@@ -118,7 +141,7 @@ class TestCase:
 
     def run(self, **env_args: Any):
         # TODO: clean this function up
-        for case in self.tests:
+        for case in self.get_tests():
             print(f"{case.name}:")
             with self.test_env(**env_args) as env:
                 fn = env.get_function(self.function)
