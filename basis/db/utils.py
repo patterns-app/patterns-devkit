@@ -1,4 +1,4 @@
-from collections import Generator, Iterable
+from collections.abc import Generator
 from typing import List
 
 from sqlalchemy.engine import ResultProxy, RowProxy

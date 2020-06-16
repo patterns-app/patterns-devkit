@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from basis.core.module import BasisModule
+from basis.modules import core
 
 
 def test_module_init():
@@ -22,3 +23,7 @@ def test_module_init():
     r = list(_test_module.external_resources)[0]
     assert r.name == "TestExtResource"
     assert r.module_name == "_test_module"
+
+
+def test_core_modules():
+    core.run_tests()  # TODO: This is not a unit test, should separate out

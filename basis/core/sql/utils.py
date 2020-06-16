@@ -8,7 +8,7 @@ from sqlalchemy.engine import Dialect
 from sqlalchemy.sql.ddl import CreateTable
 
 from basis.core.environment import Environment
-from basis.core.storage import StorageEngine
+from basis.core.storage.storage import StorageEngine
 from basis.core.typing.object_type import Field, ObjectType
 from basis.utils.common import rand_str
 

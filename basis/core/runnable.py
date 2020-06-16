@@ -48,7 +48,7 @@ from basis.core.function_node import (
 )
 from basis.core.metadata.orm import BaseModel
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
-from basis.core.storage import LocalMemoryStorageEngine, Storage
+from basis.core.storage.storage import LocalMemoryStorageEngine, Storage
 from basis.core.typing.object_type import ObjectType
 from basis.utils.common import (
     BasisJSONEncoder,

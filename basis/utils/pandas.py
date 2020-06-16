@@ -5,7 +5,7 @@ from typing import List
 import pandas as pd
 from basis.core.data_format import RecordsList
 from basis.core.typing.object_type import ObjectType
-from basis.utils.data import records_list_as_listdicts
+from basis.utils.data import records_list_as_dict_of_lists
 from pandas import DataFrame, Index, Series
 from pandas._testing import assert_almost_equal
 
@@ -43,7 +43,7 @@ def empty_dataframe_for_otype(otype: ObjectType) -> DataFrame:
 def records_list_to_dataframe(records: RecordsList, otype: ObjectType) -> DataFrame:
     from basis.core.typing.inference import sqlalchemy_type_to_pandas_type
 
-    series = records_list_as_listdicts(records)
+    series = records_list_as_dict_of_lists(records)
     df = DataFrame()
     # print("=========")
     # print(otype.fields)

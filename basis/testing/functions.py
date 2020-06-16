@@ -13,7 +13,7 @@ from basis.core.typing.inference import infer_otype_from_records_list
 from basis.core.typing.object_type import ObjectTypeLike
 from basis.db.api import dispose_all
 from basis.utils.common import cf, printd, rand_str
-from basis.utils.data import read_csv
+from basis.utils.data import read_csv, read_json
 from basis.utils.pandas import (
     assert_dataframes_are_almost_equal,
     records_list_to_dataframe,
@@ -43,47 +43,53 @@ class DataFunctionTestCase:
 
 
 class TestCase:
-    def __init__(
-        self,
-        function: Union[DataFunctionLike, str],
-        tests: Dict[str, List[Dict[str, str]]],
-    ):
+    def __init__(self, function: Union[DataFunctionLike, str], tests: List[Dict]):
         self.function = function
         self.tests = self.process_raw_tests(tests)
 
-    def process_raw_tests(self, tests) -> List[DataFunctionTestCase]:
+    def process_raw_tests(self, test_cases: List[Dict]) -> List[DataFunctionTestCase]:
         cases = []
-        for test_name, raw_test_datas in tests.items():
-            test_datas = []
-            for test_data in raw_test_datas:
+        for case in test_cases:
+            test_name = case["name"]
+            if isinstance(case["test_data"], list):
+                test_datas = case["test_data"]
+            else:
+                test_datas = [case["test_data"]]
+            processed_test_datas: List[Dict[str, TestDataBlock]] = []
+            for test_data in test_datas:
                 test_data_blocks = {}
-                for input_name, data in test_data.items():
+                for input_name, data_block_like in test_data.items():
+                    data = data_block_like.get("data")
+                    otype = data_block_like.get("otype")
                     if data:
-                        df, otype = self.process_raw_test_data(data)
+                        df = self.process_raw_test_data_into_dataframe(data)
                     else:
-                        otype = None
                         df = None
                     test_data_blocks[input_name] = TestDataBlock(
                         otype_like=otype, data_frame=df, data_raw=data
                     )
-                test_datas.append(test_data_blocks)
+                processed_test_datas.append(test_data_blocks)
             case = DataFunctionTestCase(
-                name=test_name, function=self.function, test_datas=test_datas,
+                name=test_name, function=self.function, test_datas=processed_test_datas,
             )
             cases.append(case)
         return cases
 
-    def process_raw_test_data(self, test_data: str) -> Tuple[DataFrame, ObjectTypeLike]:
-        lines = [l.strip() for l in test_data.split("\n") if l.strip()]
-        assert lines, "Empty test data"
-        otype = None
-        if lines[0].startswith("otype:"):
-            otype = lines[0][6:].strip()
-            lines = lines[1:]
-        records = read_csv(lines)
-        auto_otype = infer_otype_from_records_list(records)
-        df = records_list_to_dataframe(records, auto_otype)
-        return df, otype
+    def process_raw_test_data_into_dataframe(self, test_data: str) -> DataFrame:
+        if test_data.endswith(".csv"):
+            with open(test_data) as f:
+                raw_records = read_csv(f.readlines())
+        elif test_data.endswith(".json"):
+            with open(test_data) as f:
+                raw_records = [read_json(line) for line in f]
+        else:
+            # Raw str csv
+            lines = [l.strip() for l in test_data.split("\n") if l.strip()]
+            assert lines, "Empty test data"
+            raw_records = read_csv(lines)
+        auto_otype = infer_otype_from_records_list(raw_records)
+        df = records_list_to_dataframe(raw_records, auto_otype)
+        return df
 
     @contextmanager
     def test_env(self, **kwargs: Any) -> Environment:

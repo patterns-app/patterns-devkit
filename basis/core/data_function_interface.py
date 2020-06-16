@@ -43,7 +43,7 @@ if TYPE_CHECKING:
         DataFunctionCallable,
     )
     from basis.core.function_node import FunctionNode
-    from basis.core.storage import Storage
+    from basis.core.storage.storage import Storage
     from basis.core.runnable import ExecutionContext
     from basis.core.streams import (
         InputBlocks,

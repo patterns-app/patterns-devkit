@@ -12,6 +12,7 @@ from basis.core.environment import Environment
 from basis.utils.common import cf, printd, rand_str
 
 if TYPE_CHECKING:
+    from basis.core.storage.file_system import FileSystemAPI, get_file_system_api_class
     from basis.db.api import DatabaseAPI
 
 
@@ -100,6 +101,12 @@ class Storage:
         db_api_cls = get_database_api_class(self.storage_engine)
         return db_api_cls(env, self)
 
+    def get_file_system_api(self, env: Environment) -> FileSystemAPI:
+        from basis.core.storage.file_system import get_file_system_api_class
+
+        api_cls = get_file_system_api_class(self.storage_engine)
+        return api_cls(env, self)
+
     def get_manager(self, env: Environment) -> StorageManager:
         return manager_lookup[self.storage_class](env, self)
 
@@ -132,6 +139,7 @@ class MemoryStorageManager(StorageManager):
         ).record_count
 
 
+# TODO: are this Manager classes doing anything? Seems like we have an extra layer here: API -> Manager -> Storage
 class DatabaseStorageManager(StorageManager):
     @property
     def database(self) -> DatabaseAPI:
@@ -146,9 +154,25 @@ class DatabaseStorageManager(StorageManager):
         return self.database.count(stored_data_block.get_name(self.env))
 
 
+class FileSystemStorageManager(StorageManager):
+    @property
+    def file_system(self) -> FileSystemAPI:
+        return self.storage.get_file_system_api(self.env)
+
+    def exists(self, stored_data_block: StoredDataBlockMetadata) -> bool:
+        return self.file_system.exists(stored_data_block)
+
+    def record_count(self, stored_data_block: StoredDataBlockMetadata) -> Optional[int]:
+        # TODO
+        if not self.exists(stored_data_block):
+            return None
+        return None
+
+
 manager_lookup: Dict[StorageClass, Type[StorageManager]] = {
     StorageClass.MEMORY: MemoryStorageManager,
     StorageClass.DATABASE: DatabaseStorageManager,
+    StorageClass.FILE_SYSTEM: FileSystemStorageManager,
 }
 
 
@@ -237,7 +261,7 @@ class LocalMemoryStorageEngine(BaseStorageEngine):
 
 def new_local_memory_storage():
     local_storage = Storage(
-        url=f"memory://_runtime_default_{rand_str(6)}",
+        url=f"memory://_local_{rand_str(6)}",
         storage_class=StorageClass.MEMORY,
         storage_engine=StorageEngine.DICT,
     )

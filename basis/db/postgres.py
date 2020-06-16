@@ -5,12 +5,9 @@ from sqlalchemy.engine import Engine
 
 from basis.core.data_format import RecordsList
 from basis.core.sql.utils import compile_jinja_sql_template
-from basis.db.api import (
-    DatabaseAPI,
-    conform_columns_for_insert,
-    conform_records_for_insert,
-)
+from basis.db.api import DatabaseAPI, conform_columns_for_insert
 from basis.utils.common import printd, title_to_snake_case
+from basis.utils.data import conform_records_for_insert
 
 try:
     from psycopg2.extras import execute_values

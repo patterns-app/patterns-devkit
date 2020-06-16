@@ -31,7 +31,7 @@ if TYPE_CHECKING:
         convert_sdb,
     )
     from basis.core.runnable import ExecutionContext
-    from basis.core.storage import (
+    from basis.core.storage.storage import (
         Storage,
         LocalMemoryStorageEngine,
     )
@@ -216,7 +216,7 @@ class StoredDataBlockMetadata(BaseModel):
 
     @property
     def storage(self) -> Storage:
-        from basis.core.storage import Storage
+        from basis.core.storage.storage import Storage
 
         return Storage.from_url(self.storage_url)
 
@@ -345,7 +345,7 @@ class DataBlockManager:
         return True  # TODO
 
     def as_format(self, fmt: DataFormat) -> Any:
-        from basis.core.storage import LocalMemoryStorageEngine
+        from basis.core.storage.storage import LocalMemoryStorageEngine
 
         sdb = self.get_or_create_local_stored_data_block(fmt)
         local_memory_storage = LocalMemoryStorageEngine(
@@ -427,7 +427,7 @@ def create_data_block_from_records(
     expected_otype: ObjectType = None,
     realized_otype: ObjectType = None,
 ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
-    from basis.core.storage import LocalMemoryStorageEngine
+    from basis.core.storage.storage import LocalMemoryStorageEngine
 
     if not expected_otype:
         expected_otype = env.get_otype("Any")

@@ -4,6 +4,7 @@ import collections.abc
 import typing
 from collections.abc import Generator
 from copy import deepcopy
+from io import BytesIO
 from itertools import _tee, tee
 from typing import (
     TYPE_CHECKING,
@@ -25,7 +26,7 @@ from basis.utils.common import StringEnum
 from basis.utils.typing import T
 
 if TYPE_CHECKING:
-    from basis.core.storage import StorageClass
+    from basis.core.storage.storage import StorageClass
 
 
 class DataFormat(StringEnum):
@@ -62,7 +63,7 @@ class DataFormat(StringEnum):
         return self in self.memory_formats()
 
     def get_natural_storage_class(self) -> StorageClass:
-        from basis.core.storage import NATURAL_STORAGE_CLASS
+        from basis.core.storage.storage import NATURAL_STORAGE_CLASS
 
         return NATURAL_STORAGE_CLASS[self]
 
@@ -199,9 +200,34 @@ class DatabaseTableRefFormat(DataFormatManager):
         return obj
 
 
+class FilePointer:
+    def __init__(self, file_like: BytesIO):
+        self.file_like = file_like
+
+
+class DelimitedFilePointer(FilePointer):
+    pass
+
+
+# Would we ever really want to use this...?
+# class JsonListFileFormat(DataFormatManager):
+#     data_format = DataFormat.JSON_LIST_FILE_POINTER
+#
+#     @classmethod
+#     def type(cls):
+#         return JsonFilePointer
+
+
+class DelimitedFilePointerFormat(DataFormatManager):
+    data_format = DataFormat.DELIMITED_FILE_POINTER
+
+    @classmethod
+    def type(cls):
+        return DelimitedFilePointer
+
+
 JSONList = List[str]
 RecordsList = List[Dict[str, Any]]
-DelimitedFilePointer = Any  # TODO ??
 DatabaseCursor = Any  # TODO
 
 
@@ -235,6 +261,7 @@ all_managers = [
     DatabaseTableRefFormat,
     RecordsListGeneratorFormat,
     DataFrameGeneratorFormat,
+    DelimitedFilePointerFormat,
 ]
 data_format_managers = {m.data_format: m for m in all_managers}
 

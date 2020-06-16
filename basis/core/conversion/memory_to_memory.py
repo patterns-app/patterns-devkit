@@ -14,7 +14,7 @@ from basis.core.data_format import (
     RecordsList,
     RecordsListGenerator,
 )
-from basis.core.storage import LocalMemoryStorageEngine, StorageType
+from basis.core.storage.storage import LocalMemoryStorageEngine, StorageType
 from basis.core.typing.object_type import ObjectType
 from basis.utils.pandas import dataframe_to_records_list, records_list_to_dataframe
 

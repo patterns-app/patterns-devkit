@@ -20,7 +20,11 @@ from basis.core.typing.object_type import (
 
 if TYPE_CHECKING:
     from basis.core.streams import FunctionNodeRawInput
-    from basis.core.storage import Storage, new_local_memory_storage, StorageClass
+    from basis.core.storage.storage import (
+        Storage,
+        new_local_memory_storage,
+        StorageClass,
+    )
     from basis.core.data_function import (
         DataFunctionCallable,
         DataFunctionLike,
@@ -52,7 +56,7 @@ class Environment:
         from basis.core.runtime import Runtime
         from basis.core.runtime import RuntimeClass
         from basis.core.runtime import RuntimeEngine
-        from basis.core.storage import Storage
+        from basis.core.storage.storage import Storage
         from basis.modules import core
 
         self.name = name
@@ -87,7 +91,7 @@ class Environment:
 
     def initialize_metadata_database(self):
         from basis.core.metadata.listeners import add_persisting_sdb_listener
-        from basis.core.storage import StorageClass
+        from basis.core.storage.storage import StorageClass
 
         if self.metadata_storage.storage_class != StorageClass.DATABASE:
             raise ValueError(
@@ -244,7 +248,7 @@ class Environment:
         self, session: Session, target_storage: Storage = None, **kwargs
     ) -> ExecutionContext:
         from basis.core.runnable import ExecutionContext
-        from basis.core.storage import new_local_memory_storage
+        from basis.core.storage.storage import new_local_memory_storage
 
         if target_storage is None:
             target_storage = self.storages[0] if self.storages else None
@@ -316,7 +320,7 @@ class Environment:
     def add_storage(
         self, storage_like: Union[Storage, str], add_runtime=True
     ) -> Storage:
-        from basis.core.storage import Storage
+        from basis.core.storage.storage import Storage
 
         if isinstance(storage_like, str):
             sr = Storage.from_url(storage_like)
@@ -377,7 +381,7 @@ class Environment:
 
 # Not supporting yml project config atm
 # def load_environment_from_yaml(yml) -> Environment:
-#     from basis.core.storage import StorageResource
+#     from basis.core.storage.storage import StorageResource
 #
 #     env = Environment(
 #         metadata_storage=yml.get("metadata_storage", None),
@@ -392,7 +396,7 @@ class Environment:
 
 
 def load_environment_from_project(project: Any) -> Environment:
-    from basis.core.storage import Storage
+    from basis.core.storage.storage import Storage
 
     env = Environment(
         metadata_storage=getattr(project, "metadata_storage", None),

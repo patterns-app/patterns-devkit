@@ -7,7 +7,7 @@ from basis.core.environment import Environment
 from basis.core.module import BasisModule
 from basis.core.runnable import DataFunctionContext, ExecutionContext, ExecutionManager
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
-from basis.core.storage import Storage, StorageClass, StorageEngine
+from basis.core.storage.storage import Storage, StorageClass, StorageEngine
 from basis.core.typing.object_type import create_quick_otype
 from basis.utils.common import rand_str
 from basis.utils.typing import T

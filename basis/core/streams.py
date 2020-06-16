@@ -20,7 +20,7 @@ from basis.core.function_node import (
     Direction,
     FunctionNode,
 )
-from basis.core.storage import Storage
+from basis.core.storage.storage import Storage
 from basis.core.typing.inference import infer_otype_from_records_list
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike
 from basis.utils.common import ensure_list

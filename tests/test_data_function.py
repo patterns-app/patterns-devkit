@@ -28,7 +28,7 @@ from basis.core.runtime import RuntimeClass
 from basis.core.sql.data_function import sql_datafunction
 from basis.core.streams import DataBlockStream
 from basis.modules import core
-from basis.modules.core.dataset import DataSetAccumulator
+from basis.modules.core.functions.accumulate_as_dataset import accumulate_as_dataset
 from basis.utils.typing import T, U
 from tests.utils import (
     TestType1,
@@ -346,7 +346,7 @@ def test_stream_input():
     n3 = env.add_node("node3", df_chain, upstream="node1")
     ds1 = env.add_node(
         "ds1",
-        DataSetAccumulator,
+        accumulate_as_dataset,
         config=dict(dataset_name="type1"),
         upstream=DataBlockStream(otype="TestType1"),
     )

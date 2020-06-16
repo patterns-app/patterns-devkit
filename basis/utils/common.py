@@ -87,6 +87,39 @@ def ensure_datetime(x: Optional[Union[str, datetime]]) -> Optional[datetime]:
     return parser.parse(x)
 
 
+def ensure_date(x: Optional[Union[str, date]]) -> Optional[date]:
+    if x is None:
+        return None
+    if isinstance(x, datetime):
+        return x.date()
+    if isinstance(x, date):
+        return x
+    return parser.parse(x).date()
+
+
+def ensure_time(x: Optional[Union[str, time]]) -> Optional[time]:
+    if x is None:
+        return None
+    if isinstance(x, time):
+        return x
+    return parser.parse(x).time()
+
+
+def ensure_bool(x: Optional[Union[str, bool]]) -> Optional[bool]:
+    if x is None:
+        return None
+    if isinstance(x, str):
+        x = x.lower()
+        if x in ("t", "true"):
+            return True
+        if x in ("f", "false"):
+            return False
+        raise ValueError(x)
+    elif isinstance(x, bool):
+        return x
+    raise TypeError(x)
+
+
 def get_spinner(**kwargs):
     args = {
         "spinner": {"interval": 225, "frames": ["●∙∙", "∙●∙", "∙∙●", "∙●∙"]},
@@ -285,3 +318,7 @@ class BasisJSONEncoder(json.JSONEncoder):
             return str(o)
         else:
             return super().default(o)
+
+
+def to_json(d: Any) -> str:
+    return json.dumps(d, cls=BasisJSONEncoder)

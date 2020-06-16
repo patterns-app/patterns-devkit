@@ -9,7 +9,7 @@ from basis.core.conversion.converter import (
 )
 from basis.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadata
 from basis.core.data_format import DatabaseTable, DataFormat, RecordsListGenerator
-from basis.core.storage import LocalMemoryStorageEngine, StorageType
+from basis.core.storage.storage import LocalMemoryStorageEngine, StorageType
 from basis.db.utils import db_result_batcher, result_proxy_to_records_list
 
 

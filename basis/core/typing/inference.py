@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 from random import randint
 from statistics import StatisticsError, mode
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
 
 import pandas as pd
 from pandas import Series
@@ -19,22 +20,20 @@ from basis.core.typing.object_type import (
     create_quick_field,
     create_quick_otype,
 )
-from basis.utils.common import is_datetime_str, title_to_snake_case
-from basis.utils.data import is_nullish, records_list_as_listdicts
+from basis.utils.common import (
+    ensure_bool,
+    ensure_date,
+    ensure_datetime,
+    ensure_time,
+    is_datetime_str,
+    title_to_snake_case,
+)
+from basis.utils.data import is_nullish, read_json, records_list_as_dict_of_lists
 
 if TYPE_CHECKING:
     from basis.db.api import DatabaseAPI
 
 logger = logging.getLogger(__name__)
-
-
-"""
-We piggy back on pandas tools here for converting data to pandas/numpy
-dtypes and then dtypes to sqlalchemy column types.
-"""
-# TODO: This needs to be redone. Prioritize compatible with SQL over Numpy.
-#    For instance, SQL handles nulls in all types, whereas numpy can only sentinel NaN in floats, not in ints.
-
 
 VARCHAR_MAX_LEN = (
     256  # TODO: what is the real value for different db engines? pg is NA, mysql ??
@@ -85,7 +84,7 @@ def infer_otype_fields_from_records(
 ) -> List[Field]:
     records = get_sample(records, sample_size=sample_size)
     # df = pd.DataFrame(records)
-    d = records_list_as_listdicts(records)
+    d = records_list_as_dict_of_lists(records)
     fields = []
     for s in d:
         # satype = pandas_series_to_sqlalchemy_type(df[s])
@@ -300,13 +299,51 @@ def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
     return dom_type
 
 
-# TODO: any point to this? just adding missing columns as None. Type conversion is real reason, todo i guess
-# def coerce_records_list_to_otype(d: RecordsList, otype: ObjectType) -> RecordsList:
-#     # sa_cols = ObjectTypeMapper(env).to_sqlalchemy(otype)
-#     for field in otype.fields:
-#         pd_type = field_type_to_pandas_type(field.field_type)
-#         if field.name in df:
-#             df[field.name] = df[field.name].astype(pd_type, copy=False)
-#         else:
-#             df[field.name] = pd.Series(dtype=pd_type)
-#     return df
+def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
+    if obj is None:
+        return obj
+    ft = satype.lower()
+    if ft.startswith("datetime"):
+        return ensure_datetime(obj)
+    if ft.startswith("date"):
+        return ensure_date(obj)
+    if ft.startswith("time"):
+        return ensure_time(obj)
+    if ft.startswith("float"):
+        return float(obj)
+    if ft.startswith("numeric"):
+        return Decimal(obj)
+    if ft.startswith("integer"):
+        return int(obj)
+    if ft.startswith("biginteger"):
+        return int(obj)
+    if ft.startswith("boolean"):
+        return ensure_bool(obj)
+    if (
+        ft.startswith("string")
+        or ft.startswith("unicode")
+        or ft.startswith("varchar")
+        or ft.startswith("text")
+    ):
+        return obj
+    if ft.startswith("json"):
+        if isinstance(obj, str):
+            return read_json(obj)
+        else:
+            return obj
+    raise NotImplementedError
+
+
+def conform_records_list_to_otype(d: RecordsList, otype: ObjectType) -> RecordsList:
+    print("Conforming", d, otype.name)
+    conformed = []
+    for r in d:
+        new_record = {}
+        for k, v in r.items():
+            new_v = cast_python_object_to_sqlalchemy_type(
+                v, otype.get_field(k).field_type
+            )
+            new_record[k] = new_v
+        conformed.append(new_record)
+    print("Conformed", conformed)
+    return conformed

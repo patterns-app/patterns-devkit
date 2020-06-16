@@ -8,7 +8,7 @@ from basis.core.conversion.converter import (
 )
 from basis.core.data_block import StoredDataBlockMetadata
 from basis.core.data_format import DataFormat
-from basis.core.storage import LocalMemoryStorageEngine, StorageType
+from basis.core.storage.storage import LocalMemoryStorageEngine, StorageType
 
 
 class MemoryToDatabaseConverter(Converter):

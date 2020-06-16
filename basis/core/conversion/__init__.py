@@ -10,24 +10,29 @@ from basis.core.conversion.converter import (
 )
 from basis.core.data_block import StoredDataBlockMetadata
 from basis.core.data_format import DataFormat
-from basis.core.storage import Storage, StorageType
+from basis.core.storage.storage import Storage, StorageType
 from basis.utils.common import printd
 
 if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext
 
 
+# TODO: make this extensible
 def get_converter_lookup() -> ConverterLookup:
     from basis.core.conversion.database_to_database import DatabaseToDatabaseConverter
     from basis.core.conversion.database_to_memory import DatabaseToMemoryConverter
     from basis.core.conversion.memory_to_database import MemoryToDatabaseConverter
     from basis.core.conversion.memory_to_memory import MemoryToMemoryConverter
+    from basis.core.conversion.memory_to_file import MemoryToFileConverter
+    from basis.core.conversion.file_to_memory import FileToMemoryConverter
 
     lookup = ConverterLookup()
     lookup.add(MemoryToDatabaseConverter)
     lookup.add(MemoryToMemoryConverter)
     lookup.add(DatabaseToMemoryConverter)
     lookup.add(DatabaseToDatabaseConverter)
+    lookup.add(MemoryToFileConverter)
+    lookup.add(FileToMemoryConverter)
     return lookup
 
 
@@ -36,7 +41,7 @@ def convert_lowest_cost(
     sdb: StoredDataBlockMetadata,
     target_storage: Storage,
     target_format: DataFormat,
-):
+) -> StoredDataBlockMetadata:
     # TODO: cleanup target vs output
     target_storage_format = StorageFormat(target_storage.storage_type, target_format)
     cp = get_conversion_path_for_sdb(sdb, target_storage_format, ctx.all_storages)
@@ -63,7 +68,7 @@ def convert_sdb(
     ctx: ExecutionContext,
     sdb: StoredDataBlockMetadata,
     conversion_path: ConversionPath,
-):
+) -> StoredDataBlockMetadata:
     next_sdb = sdb
     for conversion_edge in conversion_path.conversions:
         conversion = conversion_edge.conversion

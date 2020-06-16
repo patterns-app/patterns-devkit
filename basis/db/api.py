@@ -1,22 +1,14 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
 from contextlib import contextmanager
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    List,
-    Tuple,
-    Type,
-    Union,
-    ContextManager,
-    Dict,
-)
+from typing import TYPE_CHECKING, Callable, ContextManager, List, Tuple, Type, Union
 
 import sqlalchemy
 from sqlalchemy import MetaData
-from sqlalchemy.engine import ResultProxy, Connection, Engine
+from sqlalchemy.engine import Connection, Engine, ResultProxy
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
@@ -25,44 +17,23 @@ from basis.core.data_format import DataFormat, RecordsList
 from basis.core.environment import Environment
 from basis.core.runtime import Runtime
 from basis.core.sql.utils import ObjectTypeMapper
-from basis.core.storage import Storage, StorageEngine
+from basis.core.storage.storage import Storage, StorageEngine
 from basis.core.typing.inference import infer_otype_from_db_table
 from basis.core.typing.object_type import ObjectType, is_any
-from basis.utils.common import (
-    BasisJSONEncoder,
-    JSONEncoder,
-    printd,
-    rand_str,
-    title_to_snake_case,
-)
+from basis.utils.common import BasisJSONEncoder, printd, rand_str, title_to_snake_case
 
 if TYPE_CHECKING:
-    from basis.core.runnable import ExecutionContext
+    pass
 
 logger = logging.getLogger(__name__)
 
-_sa_engines: Dict[str, Engine] = {}
+# _sa_engines: Dict[str, Engine] = {}
+_sa_engines: List[Engine] = []
 
 
 def dispose_all():
-    for e in _sa_engines.values():
+    for e in _sa_engines:
         e.dispose()
-
-
-def conform_records_for_insert(
-    records: RecordsList, columns: List[str], adapt_objects_to_json: bool = True,
-):
-    rows = []
-    for r in records:
-        row = []
-        for c in columns:
-            o = r.get(c)
-            # TODO: this is some magic buried down here. no bueno
-            if adapt_objects_to_json and (isinstance(o, list) or isinstance(o, dict)):
-                o = json.dumps(o, cls=JSONEncoder)
-            row.append(o)
-        rows.append(row)
-    return rows
 
 
 def conform_columns_for_insert(
@@ -100,13 +71,14 @@ class DatabaseAPI:
         #     self.resource.url, json_serializer=self.json_serializer
         # )
         url = self.resource.url
-        try:
-            return _sa_engines[url]
-        except KeyError:
-            _sa_engines[url] = sqlalchemy.create_engine(
-                url, json_serializer=self.json_serializer, echo=False
-            )
-            return _sa_engines[url]
+        # try:
+        #     return _sa_engines[url]
+        # except KeyError:
+        eng = sqlalchemy.create_engine(
+            url, json_serializer=self.json_serializer, echo=False
+        )
+        _sa_engines.append(eng)
+        return eng
 
     @contextmanager
     def connection(self) -> ContextManager[Connection]:
@@ -229,6 +201,7 @@ class DatabaseAPI:
         return meta
 
 
+# TODO: better way to register these types of managers / apis (so someone can extend without editing
 def get_database_api_class(engine: StorageEngine) -> Type[DatabaseAPI]:
     from basis.db.postgres import PostgresDatabaseAPI
 

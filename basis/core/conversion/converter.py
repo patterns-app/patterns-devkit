@@ -10,7 +10,7 @@ import networkx as nx
 
 from basis.core.data_block import StoredDataBlockMetadata
 from basis.core.data_format import DataFormat
-from basis.core.storage import Storage, StorageType
+from basis.core.storage.storage import Storage, StorageType
 
 if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext

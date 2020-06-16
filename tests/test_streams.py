@@ -27,17 +27,20 @@ class TestStreams:
             expected_otype_uri="_test.TestType1", realized_otype_uri="_test.TestType1"
         )
         self.dr1t2 = DataBlockMetadata(
-            expected_otype_uri="_test.TestType2", realized_otype_uri="_test.TestType1"
+            expected_otype_uri="_test.TestType2", realized_otype_uri="_test.TestType2"
         )
         self.dr2t2 = DataBlockMetadata(
-            expected_otype_uri="_test.TestType2", realized_otype_uri="_test.TestType1"
+            expected_otype_uri="_test.TestType2", realized_otype_uri="_test.TestType2"
         )
         self.node_source = self.env.add_node("df_source", df_t1_source)
         self.node1 = self.env.add_node("df1", df_t1_sink)
         self.node2 = self.env.add_node("df2", df_t1_to_t2)
         self.node3 = self.env.add_node("df3", df_generic)
         self.sess = ctx.metadata_session
-        self.sess.add_all([self.dr1t1, self.dr1t2, self.dr2t1, self.dr2t2])
+        self.dr1t1 = ctx.merge(self.dr1t1)
+        self.dr2t1 = ctx.merge(self.dr2t1)
+        self.dr1t2 = ctx.merge(self.dr1t2)
+        self.dr2t2 = ctx.merge(self.dr2t2)
 
     def test_stream_unprocessed_pristine(self):
         s = DataBlockStream(upstream=self.node_source)

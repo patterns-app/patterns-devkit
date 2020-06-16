@@ -13,27 +13,32 @@ accumulate_as_dataset = datafunction_chain(
 
 accumulate_as_dataset_test = TestCase(
     function="accumulate_as_dataset",
-    tests=dict(
-        test_dupe=[
-            dict(
-                input="""
-                otype: CoreTestType
-                k1,k2,f1,f2,f3
-                1,2,abc,1.1,1
-                1,2,def,1.1,{"1":2}
-                1,3,abc,1.1,2
-                1,4,,,"[1,2,3]"
-                2,2,1.0,2.1,"[1,2,3]"
-            """,
-                output="""
-                otype: CoreTestType
-                k1,k2,f1,f2,f3
-                1,2,abc,1.1,1
-                1,3,abc,1.1,2
-                1,4,,,"[1,2,3]"
-                2,2,1.0,2.1,"[1,2,3]"
-            """,
-            )
-        ],
-    ),
+    tests=[
+        {
+            "name": "test_dupe",
+            "test_data": {
+                "input": {
+                    "otype": "CoreTestType",
+                    "data": """
+                            k1,k2,f1,f2,f3
+                            1,2,abc,1.1,1
+                            1,2,def,1.1,{"1":2}
+                            1,3,abc,1.1,2
+                            1,4,,,"[1,2,3]"
+                            2,2,1.0,2.1,"[1,2,3]"
+                        """,
+                },
+                "output": {
+                    "otype": "CoreTestType",
+                    "data": """
+                            k1,k2,f1,f2,f3
+                            1,2,abc,1.1,1
+                            1,3,abc,1.1,2
+                            1,4,,,"[1,2,3]"
+                            2,2,1.0,2.1,"[1,2,3]"
+                        """,
+                },
+            },
+        }
+    ],
 )
