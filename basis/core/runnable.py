@@ -433,6 +433,8 @@ class Worker:
         # LocalMemoryStorageEngine(
         #     self.env, self.ctx.local_memory_storage
         # ).store_local_memory_data_records(sdb, ldr)
+
+        # TODO: check if existing storage_format is compatible with target storage, instead of using natural (no need to convert then)
         # Place output in target storage
         convert_lowest_cost(
             self.ctx,

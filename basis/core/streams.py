@@ -22,7 +22,7 @@ from basis.core.function_node import (
 )
 from basis.core.storage.storage import Storage
 from basis.core.typing.inference import infer_otype_from_records_list
-from basis.core.typing.object_type import ObjectType, ObjectTypeLike
+from basis.core.typing.object_type import ObjectType, ObjectTypeLike, otype_like_to_uri
 from basis.utils.common import ensure_list
 
 logger = logging.getLogger(__name__)
@@ -71,6 +71,11 @@ class DataBlockStream:
         self.unprocessed_by = unprocessed_by
         self.allow_cycle = allow_cycle
         self.most_recent_first = most_recent_first
+
+    # TODO
+    # def __str__(self):
+    #     otypes = [otype_like_to_uri(o).name for o in self.otypes or []]
+    #     upstream =
 
     def _base_query(self) -> Query:
         return Query(DataBlockMetadata)
@@ -124,7 +129,7 @@ class DataBlockStream:
                 DataFunctionLog.function_node_name == self.unprocessed_by.name,
             )
         else:
-            # No DR cycles allowed
+            # No DB cycles allowed
             # Exclude DRs processed as INPUT and DRs outputted
             filter_clause = (
                 DataFunctionLog.function_node_name == self.unprocessed_by.name

@@ -612,7 +612,7 @@ class FunctionNodeInterfaceManager:
         any_unprocessed = False
         for input in self.get_resolved_interface().inputs:
             stream = input.connected_stream
-            printd(f"Getting {input} for {stream}")
+            printd(f"Getting {input.name} for {stream}")
             stream = ensure_data_stream(stream)
             block: Optional[DataBlockMetadata] = self.get_input_data_block(
                 stream, input, self.ctx.all_storages
@@ -621,11 +621,11 @@ class FunctionNodeInterfaceManager:
 
             """
             Inputs are considered "Exhausted" if:
-            - Single DR stream (and zero or more DSs): no unprocessed DRs
-            - Multiple correlated DR streams: ANY stream has no unprocessed DRs
+            - Single DB stream (and zero or more DSs): no unprocessed DRs
+            - Multiple correlated DB streams: ANY stream has no unprocessed DRs
             - One or more DSs: if ALL DS streams have no unprocessed
 
-            In other words, if ANY DR stream is empty, bail out. If ALL DS streams are empty, bail
+            In other words, if ANY DB stream is empty, bail out. If ALL DS streams are empty, bail
             """
             if block is None:
                 printd(
@@ -676,9 +676,9 @@ class FunctionNodeInterfaceManager:
         elif input.data_format_class == "DataSet":
             stream = stream.filter_dataset()
             block = stream.get_most_recent(self.ctx)
-            # TODO: someday probably pass in actual DataSet (not underlying DR) to function that asks
+            # TODO: someday probably pass in actual DataSet (not underlying DB) to function that asks
             #   for it (might want to use `name`, for instance). and then just proxy
-            #   through to underlying DR
+            #   through to underlying DB
         else:
             raise NotImplementedError
 

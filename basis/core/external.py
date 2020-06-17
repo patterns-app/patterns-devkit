@@ -320,9 +320,9 @@ class ExtractorDataFunction:
             data_format_class=fmt,
             otype_like=self.configured_external_resource.get_expected_otype(),
         )
-        printd(
-            f"Extractor {self.configured_external_resource.name} output: {out_annotation}"
-        )
+        # printd(
+        #     f"Extractor {self.configured_external_resource.name} output: {out_annotation}"
+        # )
         return DataFunctionInterface(
             inputs=[], output=out_annotation, requires_data_function_context=True
         )

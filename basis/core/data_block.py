@@ -223,7 +223,7 @@ class StoredDataBlockMetadata(BaseModel):
     def get_name(self, env: Environment) -> str:
         if self.data_block_id is None or self.id is None:
             raise Exception(
-                "Trying to get SDR name, but IDs not set yet"
+                "Trying to get SDB name, but IDs not set yet"
             )  # TODO, better exceptions
         otype = env.get_otype(self.data_block.most_real_otype_uri)
         return f"_{otype.get_identifier()[:40]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
@@ -235,7 +235,7 @@ class StoredDataBlockMetadata(BaseModel):
         return self.storage.get_manager(env).exists(self)
 
     def record_count(self, env: Environment) -> Optional[int]:
-        # TODO: this is really a property of a DR, but can only be computed by a SDR?
+        # TODO: this is really a property of a DB, but can only be computed by a SDB?
         return self.storage.get_manager(env).record_count(self)
 
 
@@ -364,9 +364,9 @@ class DataBlockManager:
 
         existing_sdbs = self.ctx.metadata_session.query(StoredDataBlockMetadata).filter(
             StoredDataBlockMetadata.data_block == self.data_block,
-            # TODO: why do we persist memory SDRs at all? Need more robust solution to this. Either separate class or some flag?
+            # TODO: why do we persist memory SDBs at all? Need more robust solution to this. Either separate class or some flag?
             #   Nice to be able to query all together via orm... hmmmm
-            # DO NOT fetch memory SDRs that aren't of current runtime (since we can't get them!
+            # DO NOT fetch memory SDBs that aren't of current runtime (since we can't get them!
             or_(
                 ~StoredDataBlockMetadata.storage_url.startswith(
                     "memory:"

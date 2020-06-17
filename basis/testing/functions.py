@@ -11,7 +11,10 @@ from sqlalchemy.orm import close_all_sessions
 from basis.core.data_function import DataFunctionLike
 from basis.core.environment import Environment
 from basis.core.streams import InputBlocks
-from basis.core.typing.inference import infer_otype_from_records_list
+from basis.core.typing.inference import (
+    conform_dataframe_to_otype,
+    infer_otype_from_records_list,
+)
 from basis.core.typing.object_type import ObjectTypeLike
 from basis.db.api import dispose_all
 from basis.utils.common import cf, printd, rand_str
@@ -38,10 +41,12 @@ class DataFunctionTestCase:
         name: str,
         function: Union[DataFunctionLike, str],
         test_datas: List[Dict[str, TestDataBlock]],
+        ignored_fields: List[str] = None,
     ):
         self.name = name
         self.function = function
         self.test_datas = test_datas
+        self.ignored_fields = ignored_fields or []
 
     def as_input_blocks(self, env: Environment) -> InputBlocks:
         raise
@@ -84,7 +89,10 @@ class DataFunctionTest:
                     )
                 processed_test_datas.append(test_data_blocks)
             case = DataFunctionTestCase(
-                name=test_name, function=self.function, test_datas=processed_test_datas,
+                name=test_name,
+                function=self.function,
+                test_datas=processed_test_datas,
+                ignored_fields=case.get("ignored_fields", []),
             )
             cases.append(case)
         return cases
@@ -163,14 +171,21 @@ class DataFunctionTest:
                         output = env.produce(test_node, to_exhaustion=False)
                         if "output" in test_data:
                             output_df = output.as_dataframe()
+                            output_df.to_csv("out.csv")
                             expected_df = test_data["output"].data_frame
                             expected_otype = env.get_otype(
                                 test_data["output"].otype_like
                             )
+                            # TODO: conform cleanup
+                            conform_dataframe_to_otype(expected_df, expected_otype)
+                            conform_dataframe_to_otype(output_df, expected_otype)
                             printd("Output", output_df)
                             printd("Expected", expected_df)
                             assert_dataframes_are_almost_equal(
-                                output_df, expected_df, expected_otype
+                                output_df,
+                                expected_df,
+                                expected_otype,
+                                ignored_columns=case.ignored_fields,
                             )
                         else:
                             assert output is None, f"Unexpected output {output}"

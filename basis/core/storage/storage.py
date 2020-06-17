@@ -192,7 +192,7 @@ class BaseStorageEngine:
     ) -> LocalMemoryDataRecords:
         ldr = self._get(stored_data_block)
         printd(
-            f"← Getting {cf.bold(ldr.record_count_display)} records of SDR#{cf.bold(stored_data_block.id)} in {self.storage}"
+            f"← Getting {cf.bold(ldr.record_count_display)} records of SDB#{cf.bold(stored_data_block.id)} in {self.storage}"
         )
         return ldr
 
@@ -202,9 +202,9 @@ class BaseStorageEngine:
         data_records: LocalMemoryDataRecords,
     ):
         if self.exists(stored_data_block):
-            raise Exception("SDRs are immutable")  # TODO / cleanup
+            raise Exception("SDBs are immutable")  # TODO / cleanup
         printd(
-            f"➞ Putting {cf.bold(data_records.record_count)} records of SDR#{cf.bold(stored_data_block.id)} in {self.storage}"
+            f"➞ Putting {cf.bold(data_records.record_count if data_records.record_count is not None else 'Unknown')} records of SDB#{cf.bold(stored_data_block.id)} in {self.storage}"
         )
         data_records.validate_and_conform_otype(
             stored_data_block.get_expected_otype(self.env)
@@ -252,7 +252,7 @@ class LocalMemoryStorageEngine(BaseStorageEngine):
         ldr = global_memory_storage[key]
         return (
             ldr.copy()
-        )  # IMPORTANT: It's critical that we *copy* here, otherwise user may mutate an SDR/DR -- absolute no no
+        )  # IMPORTANT: It's critical that we *copy* here, otherwise user may mutate an SDB/DB -- absolute no no
         # TODO: should also copy on put? Just to be safe. Copying is not zero cost of course...
 
     def _exists(self, stored_data_block: StoredDataBlockMetadata) -> bool:

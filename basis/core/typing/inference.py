@@ -7,7 +7,7 @@ from statistics import StatisticsError, mode
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
 
 import pandas as pd
-from pandas import Series
+from pandas import DataFrame, Series
 from sqlalchemy import Table
 
 from basis.core.component import ComponentType
@@ -26,6 +26,7 @@ from basis.utils.common import (
     ensure_datetime,
     ensure_time,
     is_datetime_str,
+    printd,
     title_to_snake_case,
 )
 from basis.utils.data import is_nullish, read_json, records_list_as_dict_of_lists
@@ -219,10 +220,14 @@ def sqlalchemy_type_to_pandas_type(satype: str) -> str:
         return "float64"
     if ft.startswith("numeric"):
         return "float64"  # TODO: Does np/pd support Decimal?
+    # TODO: numpy integers cannot express null/na, so we have to use float64 in general case?
+    #   (is there an alternative?)
+    #   Issue with using floats THOUGH is case where string column is mistaken for ints, then cast to
+    #   float here, then back to str as "1.0" instead of "1"
     if ft.startswith("integer"):
-        return "int32"
+        return "int32"  # See note above
     if ft.startswith("biginteger"):
-        return "int64"
+        return "int64"  # See note above
     if ft.startswith("boolean"):
         return "boolean"
     if (
@@ -304,7 +309,9 @@ def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
 
 def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
     if obj is None:
-        return obj
+        return None
+    if pd.isna(obj):
+        return None
     ft = satype.lower()
     if ft.startswith("datetime"):
         return ensure_datetime(obj)
@@ -328,7 +335,7 @@ def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
         or ft.startswith("varchar")
         or ft.startswith("text")
     ):
-        return obj
+        return str(obj)
     if ft.startswith("json"):
         if isinstance(obj, str):
             return read_json(obj)
@@ -348,3 +355,38 @@ def conform_records_list_to_otype(d: RecordsList, otype: ObjectType) -> RecordsL
             new_record[k] = new_v
         conformed.append(new_record)
     return conformed
+
+
+def conform_dataframe_to_otype(df: DataFrame, otype: ObjectType) -> DataFrame:
+    printd(f"conforming {id(df)} to otype")
+    for field in otype.fields:
+        pd_type = sqlalchemy_type_to_pandas_type(field.field_type)
+        try:
+            if field.name in df:
+                if df[field.name].dtype.name == pd_type:
+                    continue
+                # TODO: `astype` is not aggressive enough (won't cast values), so doesn't work
+                # Likely need combo of "hard" conversion using `to_*` methods and `infer_objects`
+                # and explicit individual python casts if that fails
+                if "datetime" in pd_type:
+                    printd(f"Casting {field.name} to datetime")
+                    df[field.name] = pd.to_datetime(df[field.name])
+                else:
+                    try:
+                        df[field.name] = df[field.name].astype(pd_type)
+                        printd(f"Casting {field.name} to {pd_type}")
+                    except:
+                        printd(
+                            f"Manually casting {field.name} to py objects {field.field_type}"
+                        )
+                        df[field.name] = [
+                            cast_python_object_to_sqlalchemy_type(v, field.field_type)
+                            for v in df[field.name]
+                        ]
+            else:
+                df[field.name] = Series(dtype=pd_type)
+        except Exception as e:
+            print(field.name)
+            print(df[field.name])
+            raise e
+    return df

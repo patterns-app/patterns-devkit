@@ -39,7 +39,7 @@ def is_nullish(o: Any, null_strings=["None", "null", "na", ""]) -> bool:
 class BasisCsvDialect(csv.Dialect):
     delimiter = ","
     quotechar = '"'
-    escapechar = "/"
+    escapechar = "\\"
     doublequote = True
     skipinitialspace = False
     quoting = csv.QUOTE_MINIMAL

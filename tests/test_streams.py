@@ -87,7 +87,7 @@ class TestStreams:
 
     def test_stream_unprocessed_ineligible_already_output(self):
         """
-        By default we don't input a DR that has already been output by a DF, _even if that DR was never input_,
+        By default we don't input a DB that has already been output by a DF, _even if that DB was never input_,
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
         dfl = DataFunctionLog(
