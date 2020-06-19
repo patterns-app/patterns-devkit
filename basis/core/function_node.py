@@ -65,7 +65,7 @@ class FunctionNode:
         self.env = _env
         self.name = _name
         self.datafunction = ensure_datafunction(_datafunction)
-        self._upstream = self.check_datafunction_inputs(upstream)
+        self.set_upstream(upstream)
         self._children: Set[FunctionNode] = set([])
         self.parent_node = None
 
@@ -237,9 +237,6 @@ class DataBlockLog(BaseModel):
 
 
 class CompositeFunctionNode(FunctionNode):
-    def build_nodes(self, upstream: InputStreams = None) -> List[FunctionNode]:
-        raise NotImplementedError
-
     # TODO: Idea here is to ensure inheriting classes are making names correctly. maybe not necessary
     # def validate_nodes(self):
     #     for node in self._internal_nodes:
@@ -290,13 +287,15 @@ class FunctionNodeChain(CompositeFunctionNode):
         upstream: Optional[FunctionNodeRawInput] = None,
         config: Dict[str, Any] = None,
     ):
-        super().__init__(_env, _name, _datafunction, upstream=upstream, config=config)
         self.data_function_chain = ensure_datafunction(_datafunction)
-        input_streams = self.get_upstream()
-        self._node_chain = self.build_nodes(input_streams)
+        self._child_nodes = None
+        super().__init__(_env, _name, _datafunction, upstream=upstream, config=config)
 
-    def build_nodes(self, upstream: InputStreams = None) -> List[FunctionNode]:
+    def _build_nodes(self) -> List[FunctionNode]:
         from basis.core.streams import ensure_data_stream
+
+        if self._child_nodes is not None:
+            return self._child_nodes
 
         nodes = []
         for (
@@ -305,16 +304,29 @@ class FunctionNodeChain(CompositeFunctionNode):
             fn = self.ensure_data_function(fn)
             child_name = make_datafunction_name(fn)
             child_name = self.make_child_name(self.name, child_name)
-            node = FunctionNode(
-                self.env, child_name, fn, upstream=upstream, config=self.config
-            )
+            # try:
+            #     node = self.env.get_node(child_name)
+            # except KeyError:
+            print(f"creating {child_name}")
+            node = FunctionNode(self.env, child_name, fn, config=self.config)
             node.parent_node = self
             nodes.append(node)
-            upstream = ensure_data_stream(node)
+        self._child_nodes = nodes
         return nodes
 
+    def set_upstream(self, upstream: FunctionNodeRawInput):
+        from basis.core.streams import ensure_data_stream
+
+        super().set_upstream(upstream)
+        upstream = super().get_upstream()
+        nodes = self.get_nodes()
+        for fn in nodes:
+            print(f"setting node {fn.name} upstream {upstream}")
+            fn.set_upstream(upstream)
+            upstream = ensure_data_stream(fn)
+
     def get_nodes(self) -> List[FunctionNode]:
-        return self._node_chain
+        return self._build_nodes()
 
 
 def is_composite_function_node(df_like: Any) -> bool:

@@ -24,7 +24,7 @@ name: TestType
 version: 3
 description: Description
 unique on: uniq
-on conflict: MergeUpdateNullValues
+on conflict: UpdateNullValues
 fields:
   uniq:
     type: Unicode(3)

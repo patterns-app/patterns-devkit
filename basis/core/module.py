@@ -166,7 +166,7 @@ class BasisModule:
 
     def add_provider(self, provider: ExternalProvider) -> ExternalProvider:
         p = self.process_provider(provider)
-        # self.library.add_component(p)  # TODO
+        # self.library.add_component(p)  # TODO: just adding resources for now
         for r in p.resources:
             self.library.add_component(r)
         return p

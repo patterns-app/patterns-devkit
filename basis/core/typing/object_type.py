@@ -87,8 +87,8 @@ class Implementation:
 # TODO: support these!
 class ConflictBehavior(StringEnum):
     ReplaceWithNewer = "ReplaceWithNewer"
-    MergeUpdateNullValues = "MergeUpdateNullValues"
-    ReplaceWithNewerNotNullValues = "ReplaceWithNewerNotNullValues"
+    UpdateNullValues = "UpdateNullValues"
+    UpdateWithNewerNotNullValues = "UpdateWithNewerNotNullValues"
     CreateNewVersion = (
         "CreateNewVersion"  # TODO: would need a field ("_record_version") or something
     )

@@ -362,6 +362,8 @@ class ComponentLibrary:
         return cast(ExternalResource, ext)
 
     def all_otypes(self) -> List[ObjectType]:
+        from basis.core.typing.object_type import ObjectType
+
         return [
             cast(ObjectType, c)
             for c in self.registry.all()
@@ -369,11 +371,25 @@ class ComponentLibrary:
         ]
 
     def all_functions(self) -> List[DataFunction]:
+        from basis.core.data_function import DataFunction
+
         return [
             cast(DataFunction, c)
             for c in self.registry.all()
             if c.component_type == ComponentType.DataFunction
         ]
+
+    def all_external_resources(self) -> List[ExternalResource]:
+        from basis.core.external import ExternalResource
+
+        return [
+            cast(ExternalResource, c)
+            for c in self.registry.all()
+            if c.component_type == ComponentType.External
+        ]
+
+    def all(self) -> Iterable[ComponentUri]:
+        return self.registry.all()
 
     def component_view(self, ctype: ComponentType) -> ComponentView:
         comps = []

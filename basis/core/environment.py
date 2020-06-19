@@ -148,13 +148,22 @@ class Environment:
             sess.add(got)
         self.library.add_component(otype)
 
+    def all_otypes(self) -> List[ObjectType]:
+        return self.library.all_otypes()
+
     def get_function(self, df_like: Union[DataFunctionLike, str]) -> DataFunction:
         return self.library.get_function(df_like)
+
+    def all_functions(self) -> List[DataFunction]:
+        return self.library.all_functions()
 
     def get_external_resource(
         self, ext_like: Union[ExternalResource, str]
     ) -> ExternalResource:
         return self.library.get_external_resource(ext_like)
+
+    def all_external_resources(self) -> List[ExternalResource]:
+        return self.library.all_external_resources()
 
     def add_node(
         self, name: str, function: Union[DataFunctionLike, str], **kwargs: Any
@@ -168,7 +177,7 @@ class Environment:
         self.register_node(node)
         return node
 
-    def register_node(self, node: "FunctionNode"):
+    def register_node(self, node: FunctionNode):
         if node.is_composite():
             for sub_node in node.get_nodes():
                 self.register_node(sub_node)
@@ -210,7 +219,7 @@ class Environment:
     def get_function_graph_resolver(self) -> FunctionGraphResolver:
         from basis.core.data_function_interface import FunctionGraphResolver
 
-        return FunctionGraphResolver(self)  # TODO: maybe cache this?
+        return FunctionGraphResolver(self)
 
     def set_upstream(
         self, node_like: Union[FunctionNode, str], upstream: FunctionNodeRawInput

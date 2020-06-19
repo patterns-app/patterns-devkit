@@ -510,8 +510,6 @@ def test_function_node_chain():
     assert len(out_dfi.inputs) == 1
     assert out_dfi.output is not None
     # Children
-    children = node1.build_nodes()
-    assert len(children) == 2
     assert len(node1.get_nodes()) == 2
 
 

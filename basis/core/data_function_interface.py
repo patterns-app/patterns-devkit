@@ -407,7 +407,7 @@ class FunctionGraphResolver:
         resolved_inputs = []
         for input in dfi.get_non_recursive_inputs():
             if not input.connected_stream:
-                raise Exception(f"no input connected {input}")
+                raise Exception(f"no input connected {input} for node {node.name}")
             if input.is_self_ref:
                 parents = [node]
                 potential_parents: List[FunctionNode] = []
@@ -494,7 +494,9 @@ class FunctionGraphResolver:
                     continue
                 generic_otype = cast(str, input.otype_like)
                 if not input.connected_stream:
-                    raise Exception(f"no input connected {input}")
+                    raise Exception(
+                        f"no input connected {input} for node {node.name}, {node.get_upstream()}"
+                    )
                 otype = self.resolve_stream_output_type(input.connected_stream, visited)
                 resolved_generics[generic_otype] = otype
             generic_output_otype = cast(str, dfi.output.otype_like)
