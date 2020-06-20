@@ -138,7 +138,7 @@ def list_data_blocks(env: Environment):
         rows = [
             [
                 r.id,
-                r.declared_otype_uri,
+                r.expected_otype_uri,
                 r.created_by(sess),
                 r.stored_data_blocks.count(),
             ]
@@ -154,7 +154,7 @@ def list_data_sets(env: Environment):
         rows = [
             [
                 r.name,
-                r.data_block.declared_otype_uri,
+                r.data_block.expected_otype_uri,
                 r.data_block.stored_data_blocks.count(),
             ]
             for r in query

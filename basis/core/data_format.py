@@ -2,16 +2,14 @@ from __future__ import annotations
 
 import collections.abc
 import typing
-from collections.abc import Generator
 from copy import deepcopy
 from io import BytesIO
-from itertools import _tee, tee
+from itertools import tee
 from typing import (
     TYPE_CHECKING,
     Any,
     Dict,
     Generic,
-    Iterator,
     List,
     Optional,
     Sequence,
@@ -31,18 +29,18 @@ if TYPE_CHECKING:
 
 class DataFormat(StringEnum):
     # Storage
-    JSON_LIST_FILE = "json_list_file"
-    DELIMITED_FILE = "delimited_file"
-    DATABASE_TABLE = "database_table"
+    JSON_LIST_FILE = "JSON_LIST_FILE"
+    DELIMITED_FILE = "DELIMITED_FILE"
+    DATABASE_TABLE = "DATABASE_TABLE"
     # Memory
-    JSON_LIST = "json_list"
-    RECORDS_LIST = "records_list"
-    DELIMITED_FILE_POINTER = "delimited_file_pointer"
-    DATABASE_CURSOR = "database_cursor"
-    DATABASE_TABLE_REF = "database_table_ref"
-    DATAFRAME = "dataframe"
-    DATAFRAME_GENERATOR = "dataframe_generator"
-    RECORDS_LIST_GENERATOR = "records_list_generator"
+    JSON_LIST = "JSON_LIST"
+    RECORDS_LIST = "RECORDS_LIST"
+    DELIMITED_FILE_POINTER = "DELIMITED_FILE_POINTER"
+    DATABASE_CURSOR = "DATABASE_CURSOR"
+    DATABASE_TABLE_REF = "DATABASE_TABLE_REF"
+    DATAFRAME = "DATAFRAME"
+    DATAFRAME_GENERATOR = "DATAFRAME_GENERATOR"
+    RECORDS_LIST_GENERATOR = "RECORDS_LIST_GENERATOR"
 
     def get_manager(self) -> Type[DataFormatManager]:
         return data_format_managers[self]
@@ -235,9 +233,10 @@ class ReusableGenerator(Generic[T]):
     def __init__(self, generator: typing.Generator):
         self._generator = generator
 
-    def get_generator(self) -> _tee:
-        self._generator, g = tee(self._generator, 2)
-        return g
+    def get_generator(self) -> typing.Generator:
+        copy1, copy2 = tee(self._generator, 2)
+        self._generator = typing.cast(typing.Generator, copy1)
+        return typing.cast(typing.Generator, copy2)
 
     def get_one(self) -> Optional[T]:
         return next(self.get_generator(), None)
@@ -275,7 +274,7 @@ def get_data_format_of_object(obj: Any) -> Optional[DataFormat]:
 
 def get_records_list_sample(
     obj: Union[pd.DataFrame, RecordsList, RecordsListGenerator, DataFrameGenerator]
-) -> RecordsList:
+) -> Optional[RecordsList]:
     if isinstance(obj, list):
         return obj
     if isinstance(obj, pd.DataFrame):

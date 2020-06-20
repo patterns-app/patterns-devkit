@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections import abc
 from dataclasses import dataclass
-from itertools import _tee, tee
 from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple
 
 import sqlalchemy as sa
@@ -175,11 +174,11 @@ class ManagedDataBlock(Generic[T]):
         return self.manager.as_format(fmt)
 
     @property
-    def expected_otype(self) -> ObjectType:
+    def expected_otype(self) -> Optional[ObjectType]:
         return self.manager.get_expected_otype()
 
     @property
-    def realized_otype(self) -> ObjectType:
+    def realized_otype(self) -> Optional[ObjectType]:
         return self.manager.get_realized_otype()
 
 
@@ -190,7 +189,7 @@ class StoredDataBlockMetadata(BaseModel):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
     storage_url = Column(String, nullable=False)
-    data_format: DataFormat = Column(sa.Enum(DataFormat), nullable=False)  # type: ignore
+    data_format: DataFormat = Column(sa.Enum(DataFormat, native_enum=False), nullable=False)  # type: ignore
     # is_ephemeral = Column(Boolean, default=False) # TODO
     # data_records_object: Optional[Any]  # Union[DataFrame, FilePointer, List[Dict]]
     # Hints
@@ -300,11 +299,11 @@ class ManagedDataSet(Generic[T]):
         return self.manager.as_format(fmt)
 
     @property
-    def expected_otype(self) -> ObjectType:
+    def expected_otype(self) -> Optional[ObjectType]:
         return self.manager.get_expected_otype()
 
     @property
-    def realized_otype(self) -> ObjectType:
+    def realized_otype(self) -> Optional[ObjectType]:
         return self.manager.get_realized_otype()
 
 
@@ -435,6 +434,8 @@ def create_data_block_from_records(
     if not realized_otype:
         if is_any(expected_otype):
             dl = get_records_list_sample(records)
+            if dl is None:
+                raise ValueError("Empty records object")
             realized_otype = infer_otype_from_records_list(dl)
             env.add_new_otype(realized_otype)
         else:

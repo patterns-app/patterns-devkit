@@ -3,8 +3,8 @@ from typing import Dict, List, Sequence
 
 import jinja2
 import sqlalchemy as sa
-from sqlalchemy.dialects import sqlite, postgresql, mysql
 from sqlalchemy import Column, MetaData, Table, dialects
+from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.engine import Dialect
 from sqlalchemy.sql.ddl import CreateTable
 
@@ -140,7 +140,7 @@ def field_from_sqlalchemy_column(sa_column: Column, **kwargs) -> Field:
     return Field(name=sa_column.name, field_type=repr(sa_column.type), **kwargs)
 
 
-def fields_from_sqlalchemy_table(self, sa_table: Table) -> List[Field]:
+def fields_from_sqlalchemy_table(sa_table: Table) -> List[Field]:
     fields = []
     for column in sa_table.columns:
         fields.append(field_from_sqlalchemy_column(column))

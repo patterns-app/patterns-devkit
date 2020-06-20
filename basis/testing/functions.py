@@ -3,10 +3,10 @@ from __future__ import annotations
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 from pandas import DataFrame
-from sqlalchemy.orm import close_all_sessions
+from sqlalchemy.orm import close_all_sessions  # type: ignore
 
 from basis.core.data_function import DataFunctionLike
 from basis.core.environment import Environment
@@ -67,7 +67,7 @@ class DataFunctionTest:
         return self.process_raw_tests(self._raw_tests)
 
     def process_raw_tests(self, test_cases: List[Dict]) -> List[DataFunctionTestCase]:
-        cases = []
+        cases: List[DataFunctionTestCase] = []
         for case in test_cases:
             test_name = case["name"]
             if isinstance(case["test_data"], list):
@@ -88,13 +88,13 @@ class DataFunctionTest:
                         otype_like=otype, data_frame=df, data_raw=data
                     )
                 processed_test_datas.append(test_data_blocks)
-            case = DataFunctionTestCase(
+            dfcase = DataFunctionTestCase(
                 name=test_name,
                 function=self.function,
                 test_datas=processed_test_datas,
                 ignored_fields=case.get("ignored_fields", []),
             )
-            cases.append(case)
+            cases.append(dfcase)
         return cases
 
     def process_raw_test_data_into_dataframe(self, test_data: str) -> DataFrame:
@@ -118,7 +118,7 @@ class DataFunctionTest:
         return df
 
     @contextmanager
-    def test_env(self, **kwargs: Any) -> Environment:
+    def test_env(self, **kwargs: Any) -> Generator[Environment, None, None]:
         # TODO: need way more hooks here (adding runtimes and storages, for instance)
         from basis.core.environment import Environment
         from basis.db.api import create_db, drop_db
@@ -152,13 +152,18 @@ class DataFunctionTest:
         for case in self.get_tests():
             print(f"{case.name}:")
             with self.test_env(**env_args) as env:
-                fn = env.get_function(self.function)
+                if isinstance(self.function, str):
+                    fn = env.get_function(self.function)
+                else:
+                    fn = self.function
                 dfi = fn.get_interface()
+                assert dfi is not None
                 test_node = env.add_node("_test_node", fn)
                 for i, test_data in enumerate(case.test_datas):
                     try:
                         inputs = {}
                         for input in dfi.inputs:
+                            assert input.name is not None
                             test_df = test_data[input.name].data_frame
                             test_otype = test_data[input.name].otype_like
                             n = env.add_external_source_node(
@@ -170,6 +175,9 @@ class DataFunctionTest:
                         test_node.set_upstream(inputs)
                         output = env.produce(test_node, to_exhaustion=False)
                         if "output" in test_data:
+                            assert (
+                                output is not None
+                            ), "Output is None, expected DataBlock"
                             output_df = output.as_dataframe()
                             output_df.to_csv("out.csv")
                             expected_df = test_data["output"].data_frame

@@ -119,7 +119,9 @@ class FunctionNode:
         dfi = self._get_interface()
         if dfi is None:
             raise TypeError(f"DFI is none for {self}")
-        dfi.connect_upstream(self, self.get_upstream())
+        up = self.get_upstream()
+        if up is not None:
+            dfi.connect_upstream(self, up)
         return dfi
 
     def get_input(self, name: str) -> Any:
@@ -267,7 +269,7 @@ class CompositeFunctionNode(FunctionNode):
         )
 
     def ensure_data_function(
-        self, df_like: Union[DataFunctionLike, str, ComponentUri]
+        self, df_like: Union[DataFunctionLike, str]
     ) -> DataFunction:
         if isinstance(df_like, DataFunction):
             return df_like

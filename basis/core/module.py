@@ -4,7 +4,17 @@ import os
 import sys
 from contextlib import contextmanager
 from io import TextIOBase
-from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Generator,
+    Iterable,
+    List,
+    Optional,
+    Sequence,
+    Type,
+    Union,
+    TextIO,
+)
 
 from basis.core.component import (
     ComponentLibrary,
@@ -18,6 +28,8 @@ if TYPE_CHECKING:
     from basis.core.data_function import (
         DataFunctionLike,
         DataFunction,
+        ensure_datafunction_definition,
+        DataFunctionDefinition,
     )
     from basis.core.external import ExternalProvider
     from basis.testing.functions import DataFunctionTest
@@ -71,7 +83,7 @@ class BasisModule:
     #     return list(self.members().keys())
 
     @contextmanager
-    def open_module_file(self, fp: str) -> TextIOBase:
+    def open_module_file(self, fp: str) -> Generator[TextIO, None, None]:
         if not self.py_module_path:
             raise Exception(f"Module path not set, cannot read {fp}")
         typedef_path = os.path.join(self.py_module_path, fp)
@@ -83,8 +95,13 @@ class BasisModule:
             return otype_like
         return self.library.get_otype(otype_like)
 
-    def get_function(self, df_like: DataFunctionLike) -> DataFunction:
-        from basis.core.data_function import DataFunction
+    def get_function(
+        self, df_like: Union[DataFunction, DataFunctionDefinition, str]
+    ) -> DataFunction:
+        from basis.core.data_function import (
+            DataFunction,
+            ensure_datafunction_definition,
+        )
 
         if isinstance(df_like, DataFunction):
             return df_like

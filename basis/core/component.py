@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from basis.core.data_function import (
         DataFunctionLike,
         DataFunction,
+        DataFunctionDefinition,
     )
     from basis.core.module import BasisModule, DEFAULT_LOCAL_MODULE
     from basis.core.typing.object_type import ObjectTypeLike, ObjectType
@@ -82,8 +83,8 @@ class ComponentUri(ComponentBase):
         d = m.groupdict()
         d.update(kwargs)
         if isinstance(d["component_type"], str):
-            d["component_type"] = ComponentType(d["component_type"])
-        return ComponentUri(**d)
+            d["component_type"] = ComponentType(d["component_type"])  # type: ignore
+        return ComponentUri(**d)  # type: ignore
 
     @property
     def unversioned_uri(self):
@@ -335,7 +336,9 @@ class ComponentLibrary:
             raise KeyError(otype_like)
         return cast(ObjectType, otype)
 
-    def get_function(self, df_like: DataFunctionLike) -> DataFunction:
+    def get_function(
+        self, df_like: Union[DataFunction, DataFunctionDefinition, str]
+    ) -> DataFunction:
         from basis.core.data_function import DataFunction
 
         fn = self.registry.get(

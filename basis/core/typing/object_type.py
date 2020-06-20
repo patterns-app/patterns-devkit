@@ -168,6 +168,7 @@ class GeneratedObjectType(BaseModel):
         return self._repr(name=self.name)
 
     def as_otype(self) -> ObjectType:
+        assert isinstance(self.definition, dict)
         return ObjectType.from_dict(self.definition)
 
 
@@ -229,7 +230,8 @@ def build_otype_from_dict(d: dict, **overrides: Any) -> ObjectType:
     fields = [build_field_type_from_dict(f) for f in d.pop("fields", [])]
     d["fields"] = fields
     d.update(**overrides)
-    otype = ObjectType(**d, component_type=ComponentType.ObjectType)
+    d["component_type"] = ComponentType.ObjectType
+    otype = ObjectType(**d)
     return otype
 
 
@@ -247,7 +249,7 @@ def load_validator_from_dict(v: str) -> Validator:
 def otype_to_yaml(otype: ObjectType) -> str:
     if otype.raw_definition:
         return otype.raw_definition
-    yml = f"name: {otype.name}\nversion: {otype.version}\nclass: {otype.type_class}\ndescription: {otype.description}\n"
+    yml = f"name: {otype.name}\nversion: {otype.version}\ndescription: {otype.description}\n"
     unique_list = "\n  - ".join(otype.unique_on)
     yml += f"unique on: \n  - {unique_list}\n"
     yml += f"on conflict: {otype.on_conflict}\nfields:\n"
@@ -289,8 +291,9 @@ def create_quick_otype(name: str, fields: List[Tuple[str, str]], **kwargs):
         unique_on=[],
         implementations=[],
         on_conflict="ReplaceWithNewer",
+        component_type=ComponentType.ObjectType,
     )
     defaults.update(kwargs)
     defaults["fields"] = [create_quick_field(f[0], f[1]) for f in fields]
-    otype = ObjectType(**defaults, component_type=ComponentType.ObjectType)  # type: ignore
+    otype = ObjectType(**defaults)  # type: ignore
     return otype

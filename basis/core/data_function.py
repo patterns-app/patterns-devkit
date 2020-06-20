@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
 from pandas import DataFrame
 
@@ -98,7 +98,8 @@ class DataFunction(ComponentUri):
         # TODO: check if all function signatures match
         pass
 
-    def merge(self, other: DataFunction, overwrite: bool = False):
+    def merge(self, other: ComponentUri, overwrite: bool = False):
+        other = cast(DataFunction, other)
         for cls, df in other.runtime_data_functions.items():
             if cls not in self.runtime_data_functions:
                 self.runtime_data_functions[cls] = df

@@ -4,7 +4,16 @@ import json
 import logging
 import os
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Callable, ContextManager, List, Tuple, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    ContextManager,
+    List,
+    Tuple,
+    Type,
+    Union,
+    Generator,
+)
 
 import sqlalchemy
 from sqlalchemy import MetaData
@@ -81,7 +90,7 @@ class DatabaseAPI:
         return eng
 
     @contextmanager
-    def connection(self) -> ContextManager[Connection]:
+    def connection(self) -> Generator[Connection, None, None]:
         with self.get_engine().connect() as conn:
             yield conn
 

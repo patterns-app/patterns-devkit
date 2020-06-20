@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
 from itertools import tee
-from typing import Any, Dict, Generator, List, Optional, Union
+from typing import Any, Dict, Generator, List, Optional, Union, cast
 
 import sqlalchemy
 from sqlalchemy.engine import ResultProxy
@@ -25,7 +25,11 @@ from basis.core.data_block import (
     StoredDataBlockMetadata,
     create_data_block_from_records,
 )
-from basis.core.data_format import DataFrameGenerator, RecordsListGenerator
+from basis.core.data_format import (
+    DataFrameGenerator,
+    RecordsListGenerator,
+    ReusableGenerator,
+)
 from basis.core.data_function import (
     DataFunctionDefinition,
     DataFunctionInterface,
@@ -254,7 +258,7 @@ class ExecutionManager:
         self, node: FunctionNode, to_exhaustion: bool = False
     ) -> Optional[DataBlock]:
         if node.is_composite():
-            # node: FunctionNodeGraph
+            node = cast(CompositeFunctionNode, node)
             return self.run_composite(node, to_exhaustion=to_exhaustion)
         runtime = self.select_runtime(node)
         run_ctx = self.ctx.clone(current_runtime=runtime)
@@ -273,13 +277,15 @@ class ExecutionManager:
         try:
             while True:
                 dfi = self.get_bound_data_function_interface(node)
+                df = node.datafunction.get_definition(runtime.runtime_class)
+                if df is None:
+                    raise NotImplementedError(
+                        f"No function definition found for {node.datafunction.name} and runtime {runtime.runtime_class}"
+                    )
                 runnable = Runnable(
                     function_node_name=node.name,
                     compiled_datafunction=CompiledDataFunction(
-                        name=node.name,
-                        function=node.datafunction.get_definition(
-                            runtime.runtime_class
-                        ),
+                        name=node.name, function=df,
                     ),
                     datafunction_interface=dfi,
                     configuration=node.config,
@@ -372,6 +378,9 @@ class Worker:
         mgd_inputs = {
             n: self.get_managed_data_block(block) for n, block in inputs.items()
         }
+        assert (
+            runnable.compiled_datafunction.function.function_callable is not None
+        ), f"Attempting to execute composite function directly {runnable.compiled_datafunction.function}"
         return runnable.compiled_datafunction.function.function_callable(
             *args, **mgd_inputs
         )
@@ -382,6 +391,7 @@ class Worker:
     def conform_output(
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
     ) -> Optional[DataBlockMetadata]:
+        assert runnable.datafunction_interface.output is not None
         assert runnable.datafunction_interface.resolved_output_otype is not None
         assert self.ctx.target_storage is not None
         # TODO: check if these Metadata objects have been added to session!
@@ -409,6 +419,7 @@ class Worker:
                 output = RecordsListGenerator(output)
             else:
                 TypeError(output)
+            output = cast(ReusableGenerator, output)
             if output.get_one() is None:
                 # Empty generator
                 return None

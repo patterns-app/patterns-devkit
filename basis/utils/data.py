@@ -11,7 +11,7 @@ from pandas import isnull
 
 
 def records_list_as_dict_of_lists(dl: List[Dict]) -> Dict[str, List]:
-    series = {}
+    series: Dict[str, List] = {}
     for r in dl:
         for k, v in r.items():
             if k in series:

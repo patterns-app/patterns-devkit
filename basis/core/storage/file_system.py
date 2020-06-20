@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 from io import BufferedIOBase, IOBase, TextIOBase
-from typing import Iterable, Type
+from typing import ContextManager, Generator, Iterable, TextIO, Type
 
 from basis.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from basis.core.data_format import RecordsList
@@ -21,7 +21,7 @@ class FileSystemAPI:
     @contextmanager
     def open(
         self, stored_data_block: StoredDataBlockMetadata, *args, **kwargs
-    ) -> TextIOBase:
+    ) -> Generator[TextIO, None, None]:
         with open(self.get_path(stored_data_block), *args, **kwargs) as f:
             yield f
 

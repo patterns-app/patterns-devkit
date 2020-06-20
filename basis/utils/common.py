@@ -67,7 +67,7 @@ def md5_hash(s: str) -> str:
     return h.hexdigest()
 
 
-def dataclass_kwargs(dc: Union[dataclass, Type[dataclass]], kwargs: Dict) -> Dict:
+def dataclass_kwargs(dc: Any, kwargs: Dict) -> Dict:
     return {f.name: kwargs.get(f.name) for f in fields(dc)}
 
 

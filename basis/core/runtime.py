@@ -62,8 +62,8 @@ class Runtime:
             raise ValueError(f"Storage {storage} cannot be adapted to a Runtime")
         return Runtime(
             url=storage.url,
-            runtime_class=runtime_storage_dual_mapping[storage.storage_class],
-            runtime_engine=runtime_storage_dual_mapping[storage.storage_engine],
+            runtime_class=runtime_storage_dual_mapping[storage.storage_class],  # type: ignore # TODO
+            runtime_engine=runtime_storage_dual_mapping[storage.storage_engine],  # type: ignore # TODO
         )
 
     def as_storage(self):
@@ -71,8 +71,8 @@ class Runtime:
             raise ValueError(f"Runtime {self} cannot be adapted to a Storage")
         return Storage(
             url=self.url,
-            storage_class=runtime_storage_dual_mapping[self.runtime_class],
-            storage_engine=runtime_storage_dual_mapping[self.runtime_engine],
+            storage_class=runtime_storage_dual_mapping[self.runtime_class],  # type: ignore # TODO
+            storage_engine=runtime_storage_dual_mapping[self.runtime_engine],  # type: ignore # TODO
         )
 
     def get_default_local_storage(self):

@@ -211,14 +211,16 @@ class ResolvedFunctionInterface:
             i.bound_data_block = input_block
             i.realized_otype = env.get_otype(input_block.realized_otype_uri)
             if i.original_annotation.is_generic:
+                assert isinstance(i.original_annotation.otype_like, str)
                 realized_generics[i.original_annotation.otype_like] = i.realized_otype
         if (
-            self.output
+            self.output is not None
             and is_any(self.resolved_output_otype)
             and self.output.is_generic
         ):
             # Further specify resolved type now that we have something concrete for Any
             # TODO: man this is too complex. how do we simplify different type levels
+            assert isinstance(self.output.otype_like, str)
             self.resolved_output_otype = realized_generics[self.output.otype_like]
         self.is_bound = True
 
@@ -520,7 +522,7 @@ class FunctionGraphResolver:
         elif stream.otypes:
             if len(stream.otypes) > 1:
                 raise NotImplementedError("Mixed otype streams not supported atm")
-            return stream.otypes[0]
+            return stream.get_otypes(self.env)[0]
         # elif stream.raw_records_object is not None:
         #     if not stream.raw_records_otype:
         #         raise ValueError("No otype set for raw records")

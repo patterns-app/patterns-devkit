@@ -29,7 +29,7 @@ class ExternalResource(ComponentUri):
     default_extractor: ExtractorLike
     # default_loader: LoaderLike  # TODO
     otype: ObjectTypeLike = "core.Any"
-    configuration_class: Optional[Type[dataclass]] = None
+    configuration_class: Optional[Type] = None
     initial_configuration: Optional[Dict[str, Any]] = None
     initial_high_water_mark: Optional[datetime] = None
     is_public: bool = False
@@ -40,7 +40,8 @@ class ExternalResource(ComponentUri):
     # default_private: bool = True
 
     def __post_init__(self):
-        self.provider.add_resource(self)
+        if self.provider is not None:
+            self.provider.add_resource(self)
 
     def __call__(
         self,
@@ -156,7 +157,7 @@ class ExternalProvider(ComponentUri):
     resources: ExternalResourceList = field(default_factory=ExternalResourceList)
     # authenticators: list[AuthenticatorBaseView]
     requires_authentication: bool = False
-    configuration_class: Optional[Type[dataclass]] = None
+    configuration_class: Optional[Type] = None
     initial_configuration: Optional[Dict[str, Any]] = None
     is_public: bool = False
     unregistered: bool = False

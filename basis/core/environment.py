@@ -26,10 +26,9 @@ if TYPE_CHECKING:
         StorageClass,
     )
     from basis.core.data_function import (
-        DataFunctionCallable,
         DataFunctionLike,
         DataFunction,
-        ensure_datafunction,
+        ensure_datafunction_definition,
     )
     from basis.core.external import ConfiguredExternalResource, ExternalResource
     from basis.core.function_node import FunctionNode, function_node_factory
@@ -127,6 +126,7 @@ class Environment:
             otype = self.get_generated_otype(otype_like)
             if otype is None:
                 raise KeyError(otype_like)
+            return otype
 
     def get_generated_otype(self, otype_like: ObjectTypeLike) -> Optional[ObjectType]:
         c = ensure_uri(otype_like)
@@ -151,7 +151,7 @@ class Environment:
     def all_otypes(self) -> List[ObjectType]:
         return self.library.all_otypes()
 
-    def get_function(self, df_like: Union[DataFunctionLike, str]) -> DataFunction:
+    def get_function(self, df_like: str) -> DataFunction:
         return self.library.get_function(df_like)
 
     def all_functions(self) -> List[DataFunction]:
@@ -196,8 +196,12 @@ class Environment:
 
         if isinstance(external_resource, str):
             external_resource = self.library.get_external_resource(external_resource)
-        p = external_resource.provider(name=name + "_provider", **config)
-        r = external_resource(name=name + "_resource", **config, configured_provider=p)
+        provider = None
+        if external_resource.provider is not None:
+            provider = external_resource.provider(name=name + "_provider", **config)
+        r = external_resource(
+            name=name + "_resource", configured_provider=provider, **config
+        )
         return self.add_node(name, r.extractor, **kwargs)
 
     def all_added_nodes(self) -> List[FunctionNode]:
@@ -206,7 +210,7 @@ class Environment:
     def all_flattened_nodes(self) -> List[FunctionNode]:
         return list(self._flattened_nodes.values())
 
-    def get_node(self, node_like: Union["FunctionNode", str]) -> "FunctionNode":
+    def get_node(self, node_like: Union[FunctionNode, str]) -> FunctionNode:
         from basis.core.function_node import FunctionNode
 
         if isinstance(node_like, FunctionNode):
@@ -368,7 +372,7 @@ class Environment:
             for block in sess.query(DataBlockMetadata).filter(
                 ~DataBlockMetadata.stored_data_blocks.any()
             ):
-                print(f"#{block.id} {block.declared_otype_uri} is orphaned! SAD")
+                print(f"#{block.id} {block.expected_otype_uri} is orphaned! SAD")
             if delete_intermediate:
                 # TODO: does no checking if they are unprocessed or not...
                 if not force:

@@ -298,12 +298,12 @@ def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
     if not types:
         # We detected no types, column is all null-like, or there is no data
         return "UnicodeText"
-    try:
-        mode_type = mode(types)
-    except StatisticsError:
-        mode_type = None
-    dom_type = get_highest_precedence_sa_type(list(set(types)))
+    # try:
+    #     mode_type = mode(types)
+    # except StatisticsError:
+    #     mode_type = None
     # print(f"Mode {mode_type} Dom {dom_type}")
+    dom_type = get_highest_precedence_sa_type(list(set(types)))
     return dom_type
 
 
