@@ -6,7 +6,7 @@
 #
 # from basis.utils.typing import T
 #
-# logger = logging.getLogger(__name__)
+#
 #
 #
 # class Registry(Generic[T]):

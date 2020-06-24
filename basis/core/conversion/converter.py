@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-import logging
+from loguru import logger
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple, Type
@@ -14,9 +14,6 @@ from basis.core.storage.storage import Storage, StorageType
 
 if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext
-
-
-logger = logging.getLogger(__name__)
 
 
 class ConversionCostLevel(enum.Enum):

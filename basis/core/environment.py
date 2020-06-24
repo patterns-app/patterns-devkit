@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import os
 from contextlib import contextmanager
 from dataclasses import asdict
@@ -17,6 +17,7 @@ from basis.core.typing.object_type import (
     ObjectType,
     ObjectTypeLike,
 )
+from basis.logging.event import Event, EventHandler, EventSubject, event_factory
 
 if TYPE_CHECKING:
     from basis.core.streams import FunctionNodeRawInput
@@ -36,13 +37,12 @@ if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext
     from basis.core.data_block import DataBlock
 
-logger = logging.getLogger(__name__)
-
 
 class Environment:
     library: ComponentLibrary
     storages: List[Storage]
     metadata_storage: Storage
+    event_handlers: List[EventHandler]
 
     def __init__(
         self,
@@ -51,6 +51,7 @@ class Environment:
         create_metadata_storage: bool = True,
         add_default_python_runtime: bool = True,
         initial_modules: List[BasisModule] = None,  # Defaults to `core` module
+        event_handlers: List[EventHandler] = None,
     ):
         from basis.core.runtime import Runtime
         from basis.core.runtime import RuntimeClass
@@ -87,6 +88,8 @@ class Environment:
             initial_modules = [core]
         for m in initial_modules:
             self.add_module(m)
+
+        self.event_handlers = event_handlers or []
 
     def initialize_metadata_database(self):
         from basis.core.metadata.listeners import add_persisting_sdb_listener
@@ -318,6 +321,21 @@ class Environment:
                 output = em.run(dep, to_exhaustion=to_exhaustion)
         return output
 
+    def update(
+        self,
+        node_like: Union[FunctionNode, str],
+        to_exhaustion: bool = True,
+        **execution_kwargs: Any,
+    ) -> Optional[DataBlock]:
+        from basis.core.function_node import FunctionNode
+
+        if isinstance(node_like, str):
+            node_like = self.get_node(node_like)
+        assert isinstance(node_like, FunctionNode)
+
+        with self.execution(**execution_kwargs) as em:
+            return em.run(node_like, to_exhaustion=to_exhaustion)
+
     def update_all(self, to_exhaustion: bool = True, **execution_kwargs: Any):
         fgr = self.get_function_graph_resolver()
         nodes = fgr.get_all_nodes_in_execution_order()
@@ -390,6 +408,17 @@ class Environment:
                     )
                 )
                 print(f"{cnt} intermediate DataBlocks deleted")
+
+    def add_event_handler(self, eh: EventHandler):
+        self.event_handlers.append(eh)
+
+    def send_event(
+        self, event_subject: Union[EventSubject, str], event_details, **kwargs
+    ) -> Event:
+        e = event_factory(event_subject, event_details, **kwargs)
+        for handler in self.event_handlers:
+            handler.handle(e)
+        return e
 
 
 # Not supporting yml project config atm

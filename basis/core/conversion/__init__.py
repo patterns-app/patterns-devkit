@@ -12,6 +12,7 @@ from basis.core.data_block import StoredDataBlockMetadata
 from basis.core.data_format import DataFormat
 from basis.core.storage.storage import Storage, StorageType
 from basis.utils.common import printd
+from loguru import logger
 
 if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext
@@ -76,11 +77,11 @@ def convert_sdb(
         storage = select_storage(
             ctx.local_memory_storage, ctx.storages, target_storage_format
         )
-        printd(
+        logger.debug(
             "CONVERSION:", conversion[0], "->", conversion[1],
         )
-        printd("\t", storage)
-        printd("\t", next_sdb)
+        # printd("\t", storage)
+        # printd("\t", next_sdb)
         next_sdb = conversion_edge.converter_class(ctx).convert(
             next_sdb, storage, target_storage_format.data_format
         )

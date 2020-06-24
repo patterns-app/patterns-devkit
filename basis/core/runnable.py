@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 import time
 from collections import abc
 from contextlib import contextmanager
@@ -64,8 +64,6 @@ from basis.utils.common import (
     utcnow,
 )
 
-logger = logging.getLogger(__name__)
-
 
 class Language(Enum):
     PYTHON = "python"
@@ -124,11 +122,11 @@ class RunSession:
         self.metadata_session.add(drl)
 
     def log_input(self, block: DataBlockMetadata):
-        printd(f"\t\tLogging Input {block}")
+        logger.debug(f"\t\tLogging Input {block}")
         self.log(block, Direction.INPUT)
 
     def log_output(self, block: DataBlockMetadata):
-        printd(f"\t\tLogging Output {block}")
+        logger.debug(f"\t\tLogging Output {block}")
         self.log(block, Direction.OUTPUT)
 
 
@@ -179,7 +177,7 @@ class ExecutionContext:
             self.metadata_session.add(obj)
         except InvalidRequestError as e:
             # Already in session perhaps
-            printd(f"Can't add obj {obj}: {e}")
+            logger.debug(f"Can't add obj {obj}: {e}")
         return self.merge(obj)
 
     def merge(self, obj: BaseModel) -> BaseModel:
@@ -301,9 +299,9 @@ class ExecutionManager:
                 spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataBlocks output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
             spinner.stop_and_persist(symbol=cf.success(success_symbol))
         except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
-            printd(cf.warning("    Input Exhausted"))
+            logger.debug(cf.warning("    Input Exhausted"))
             if e.args:
-                printd(e)
+                logger.debug(e)
             if n_runs == 0:
                 spinner.stop_and_persist(
                     symbol=cf.success(success_symbol),
@@ -464,6 +462,6 @@ class Worker:
         return sqlalchemy.create_engine(self.ctx.current_runtime.url)
 
     def execute_sql(self, sql: str) -> ResultProxy:
-        printd("Executing SQL:")
-        printd(sql)
+        logger.debug("Executing SQL:")
+        logger.debug(sql)
         return self.get_connection().execute(sql)

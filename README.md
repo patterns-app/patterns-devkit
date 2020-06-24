@@ -2,15 +2,15 @@
 
 ### Modern Data Pipelines
  
-BASIS is a framework for building end-to-end data ETL pipelines from modular components. BASIS
+BASIS is a framework for building end-to-end data pipelines from modular components. It brings
+the best practices learned over the last 60 years in software to the world of data. BASIS
 abstracts over underlying database, runtime, and storage resources with **functional,
 type-aware data graphs**. These graphs are composed of discrete `DataFunctions` written in python or
 SQL operating on streams of immutable `DataBlocks` -- sets of data records of uniform `ObjectType`.
 
-The power of BASIS lies in its Component ecosystem, powered by its flexible type system, which
+The power of BASIS lies in its Component ecosystem, powered by its flexible type system which
 provides universal data interfaces, called **ObjectTypes** or _**otypes**_, that allow
-interoperability and modularity of data operations. BASIS brings the best practices learned over
-the last 60 years in software to the world of data.
+interoperability, modularity, and quality assurance of data operations.
 
 Global collaboration, reproducible byte-perfect results, and performance at any
 scale from laptop to AWS cluster -- this is **BASIS**.
@@ -23,11 +23,9 @@ scale from laptop to AWS cluster -- this is **BASIS**.
    
     - Connect Stripe data to LTV models
     - Blend finance and macroeconomics data
-    - Export SaaS metrics to Google Sheets or Looker
+    - Export SaaS metrics to Google Sheets, Tableau, or Looker
     
-   and much more, instantly and out of the box. BASIS supports the entire POP data pipeline (or
-   "POPline"): **P**ull from external sources, **O**perate on the data, and **P**ush to end
-   user applications.
+   and much more, instantly and out of the box.
   
  - **Stateless data pipelines**  
    `DataFunctions` operate statelessly on immutable `DataBlocks` for guaranteed reproducibility
@@ -53,3 +51,257 @@ scale from laptop to AWS cluster -- this is **BASIS**.
   
 BASIS is 0.1.0 **alpha** software, and has only existed a few months. Expect breaking changes to
 core APIs. 
+
+
+### Getting started
+
+`pip install git+git://github.com/kvh/basis.git`
+
+To initialize a Basis project in a directory:
+
+`basis init`
+
+Edit the resulting `project.py` file to add storages, runtimes, and modules.
+
+Build your pipeline (you'll need to add the `stripe` and `bi` modules to your project):
+
+```python
+from basis import current_env
+
+env = current_env()
+env.add_external_source_node(
+    name="stripe_txs",
+    external_source="stripe.StripeTransactionsResource",
+    config={"api_key":"xxxxxxxx"},
+)
+env.add_node(
+    name="ltv_model",
+    function="bi.TransactionLTVModel",
+    upstream="stripe_txs",
+)
+```
+
+Then run it:
+
+`basis run`
+
+
+### Architecture overview
+
+The key elements of Basis:
+
+#### DataFunction
+
+`DataFunction`s are the core computational unit of Basis. They are added as nodes to a function
+ graph and then linked by connecting their inputs and outputs. They are written in python or sql and
+ can be arbitrarily simple or complex. Below are two equivalent and valid (though untyped) DataFunctions:
+ 
+```python
+def sales(txs: DataBlock) -> DataFrame:  
+    df = txs.as_dataframe()
+    return df.groupby("customer_id").sum("amount")
+```
+
+```sql
+select
+    customer_id
+  , sum(amount)
+from txs
+group by customer_id
+```
+
+#### ObjectType
+
+`ObjectType`s define data schemas that let `DataFunction`s specify the data structure
+ they expect and allow them to inter-operate safely. They also
+provide a natural place for column descriptions, validation logic, deduplication
+ behavior, and other metadata associated with
+a specific type of data record. You can think of `ObjectType`s as the equivalent of "Interfaces"
+in a traditional programming language paradigm -- they specify a "contract" that the underlying data
+must abide by. The Basis `ObjectType` system is "duck" typed and "gradually" typed -- types are both
+optional and inferred, there is no formal type hierarchy, and type compatibility can be inspected
+at runtime. A type is said to be `compatible` with another type if it defines a
+superset of compatible fields or if it provides an `implementation` of that type.
+
+A minimal type example, in yaml:
+
+```yaml
+name: Transaction
+version: 1.0
+unique on: id
+on duplicate: ReplaceWithNewer
+fields:
+  id:
+    type: Unicode(256)
+    validators:
+      - NotNull
+  amount:
+    type: Numeric(12,2)
+    validators:
+      - NotNull
+  date:
+    type: DateTime
+    validators:
+      - NotNull
+  customer_id:
+    type: Unicode(256)
+```
+
+We could also specify `relationships` and `implementations` of this type to other types:
+
+```yaml
+relationships:
+  customer:
+    type: Customer
+    fields:
+      id: customer_id
+implementations:
+  common.TimeSeries:
+    datetime: date
+    value: amount
+```
+
+`DataFunction`s can then declare the ObjectTypes they expect, allowing them to specify the
+ (minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
+ 
+```python
+# In python, use type annotations to specify expected ObjectType:  
+def sales(txs: DataBlock[Transaction]) -> DataFrame[CustomerMetric]:  
+    df = txs.as_dataframe()
+    return df.groupby("customer_id").sum("amount")
+```
+
+```sql
+-- In SQL, use special syntax to specify expected ObjectType
+select:CustomerMetric
+    customer_id
+  , sum(amount)
+from txs:Transaction
+group by customer_id
+```
+
+A few things to note:
+    - typing is always optional, our original function definitions were valid with no ObjectTypes
+    - We've taken some liberties with Python's type hints (hence why Basis requires python 3.7+)
+    - We've introduced a special syntax for typing SQL queries: `table:Type` for inputs and
+     `select:Type` for output.
+ 
+Basis `ObjectType`s are a powerful mechanism for producing reusable components and building
+maintainable large-scale data projects and ecosystems. They are always optional though, and
+should be used when the value they provide out-weighs the friction they introduce.
+
+
+#### DataBlock
+
+A `DataBlock` is an immutable set of data records of uniform `ObjectType`. `DataBlock`s are the
+basic data unit of Basis, the unit that `DataFunction`s take as input and ultimately produce as
+output. More precisely, `DataBlock`s are a reference to an abstract ideal of these records. In
+ practice, a DataBlock will be stored on one or more Storage mediums in one or more DataFormats -- a
+  CSV on the local file, a JSON string in memory, or a
+table in a Postgres database, for example. To the extent possible, Basis maintains the 
+same data and byte representation of these records across formats and storages. For some formats and
+data types this is simply not possible, so it is good to keep in mind that the DataBlock as an
+immutable set of perfectly preserved records is an abstract _ideal_, one not always achievable in
+practice.
+ 
+ 
+#### DataSet
+
+`DataBlock`s are the basic data unit of Basis -- their discrete, immutable properties make them
+ideal for building industrial grade pipelines and complex ecosystems of `DataFunction`s. They
+are, however, cumbersome to use as an end user. They act as a "stream" of data, and may be
+ split across many distinct objects (many different database tables, for instance), have long
+  programmatic names, and not
+be easily queried or worked with as a cohesive unit. `DataSet`s fill this gap -- they "accumulate"
+DataBlocks of a uniform ObjectType, deduping and merging records according to desired logic, and
+ provide a clean, nicely named, end set of data records (a single `customers` table, for instance).
+ 
+`DataSet`s can be added to a pipeline as follows:
+ 
+```python
+env.add_dataset_node(
+    name="customers",
+    upstream="normalize_customers",
+)
+```
+
+It's also possible for to specify a DataSet that accumulates DataBlocks that meet certain criteria,
+like all DataBlocks of a specific ObjectType:
+
+```python
+env.add_dataset_node(
+    name="customers",
+    otype="Customer",
+)
+```
+
+This is a shortcut for the more explicit:
+
+```python
+env.add_node(
+    name="customers_dataset",
+    function="core.accumulate_as_dataset",
+    config={"dataset_name": "customers"},
+    upstream=DataBlockStream(otype="Customer"),
+    # Or: upstream="normalize_customers"
+)
+```
+
+#### ExternalResource
+
+Basis handles all stages of the ETL pipeline, including extracting data from external sources. An
+`ExternalResource` is any source of data external to the Basis pipeline. This could be a SaaS API
+ (Stripe, Facebook Ads, Zendesk, Shopify, etc), an external production database, a CSV, or a
+  Google Sheet, for example. `ExternalResource`s are configured and added to an environment as
+   follows:
+  
+```python
+env.add_external_source_node(
+    name="stripe_txs",
+    external_source="stripe.StripeTransactionsResource",
+    config={"api_key": "xxxxxxxx"},
+)
+```
+
+This is a shortcut for the more explicit:
+
+```python
+cfgd_provider = stripe.external.StripeProvider(api_key="xxxxxxx")
+cfgd_resource = cfgd_provider.StripTransactionsResource()
+env.add_node(
+    name="stripe_txs",
+    function=cfgd_resource.extractor,
+)
+```
+
+`ExternalResource`s are **stateful** entities in Basis -- Basis must keep track of what it has
+extracted from the `ExternalResource` so far, and how it will extract more in the future. Every
+`ExternalResource` has an associated default `Extractor` (which is just a specific type of
+`DataFunction`) that updates and utilizes this `ExternalResource` state to fetch and stay in-sync
+with the external data. Working with external systems is a complex and subtle topic (we often have 
+limited visibility into the state and changes of the external system). Read the docs on
+`ExternalResource`s and `Extractor`s for more details [Coming soon].
+
+#### Environment
+A Basis environment tracks the DataFunction graph, and acts as a registry for the `modules`,
+`runtimes`, and `storages` available to DataFunctions. It is associated one-to-one with a single
+`metadata database`.  The primary responsibility of the metadata database is to track which
+DataFunctions have processed which DataBlocks, and the state of ExternalResources. In this
+sense, the environment and its associated metadata database contain all the "state" of a Basis
+project. If you delete the metadata database, you will have effectively "reset" your Basis
+project.
+
+
+### Component Development
+
+Developing new Basis components is straightforward and can be done as part of a Basis `module` or as
+a standalone component. We'll start with a simple standalone example.
+
+Say we want to use the DataFunction we developed in an earlier example in a data pipeline:
+
+```python
+def sales(txs: DataBlock[Transaction]) -> DataFrame[CustomerMetric]:  
+    df = txs.as_dataframe()
+    return df.groupby("customer_id").sum("amount")
+```
+

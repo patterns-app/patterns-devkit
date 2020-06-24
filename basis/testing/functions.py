@@ -23,6 +23,7 @@ from basis.utils.pandas import (
     assert_dataframes_are_almost_equal,
     records_list_to_dataframe,
 )
+from loguru import logger
 
 if TYPE_CHECKING:
     from basis.core.module import BasisModule
@@ -179,7 +180,7 @@ class DataFunctionTest:
                                 output is not None
                             ), "Output is None, expected DataBlock"
                             output_df = output.as_dataframe()
-                            output_df.to_csv("out.csv")
+                            # output_df.to_csv("out.csv")
                             expected_df = test_data["output"].data_frame
                             expected_otype = env.get_otype(
                                 test_data["output"].otype_like
@@ -187,8 +188,8 @@ class DataFunctionTest:
                             # TODO: conform cleanup
                             conform_dataframe_to_otype(expected_df, expected_otype)
                             conform_dataframe_to_otype(output_df, expected_otype)
-                            printd("Output", output_df)
-                            printd("Expected", expected_df)
+                            logger.debug("Output", output_df)
+                            logger.debug("Expected", expected_df)
                             assert_dataframes_are_almost_equal(
                                 output_df,
                                 expected_df,

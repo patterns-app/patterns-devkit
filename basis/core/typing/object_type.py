@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -11,8 +11,6 @@ from sqlalchemy import JSON, Column, String
 from basis.core.component import ComponentType, ComponentUri
 from basis.core.metadata.orm import BaseModel
 from basis.utils.common import StringEnum, title_to_snake_case
-
-logger = logging.getLogger(__name__)
 
 
 ### Not needed atm, maybe in the future

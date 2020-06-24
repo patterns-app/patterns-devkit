@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tempfile
 from typing import Optional
 
 import pytest
@@ -163,7 +164,8 @@ class TestConversions:
     def setup(self):
         env = make_test_env()
         self.env = env
-        self.fs = self.env.add_storage("file:///Users/kvh/Documents")
+        dir = tempfile.gettempdir()
+        self.fs = self.env.add_storage(f"file://{dir}")
         # self.pg = self.env.add_storage("sqlite://")
         self.db = DataBlockMetadata(
             expected_otype_uri="_test.TestType4", realized_otype_uri="_test.TestType4"

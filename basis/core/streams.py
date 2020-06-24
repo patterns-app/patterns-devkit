@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
 from sqlalchemy import and_, not_
@@ -25,7 +25,6 @@ from basis.core.typing.inference import infer_otype_from_records_list
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike, otype_like_to_uri
 from basis.utils.common import ensure_list
 
-logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext

@@ -10,6 +10,7 @@ from basis.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadat
 from basis.core.data_format import DataFormat
 from basis.core.environment import Environment
 from basis.utils.common import cf, printd, rand_str
+from loguru import logger
 
 if TYPE_CHECKING:
     from basis.core.storage.file_system import FileSystemAPI, get_file_system_api_class
@@ -191,7 +192,7 @@ class BaseStorageEngine:
         self, stored_data_block: StoredDataBlockMetadata
     ) -> LocalMemoryDataRecords:
         ldr = self._get(stored_data_block)
-        printd(
+        logger.debug(
             f"← Getting {cf.bold(ldr.record_count_display)} records of SDB#{cf.bold(stored_data_block.id)} in {self.storage}"
         )
         return ldr
@@ -203,7 +204,7 @@ class BaseStorageEngine:
     ):
         if self.exists(stored_data_block):
             raise Exception("SDBs are immutable")  # TODO / cleanup
-        printd(
+        logger.debug(
             f"➞ Putting {cf.bold(data_records.record_count if data_records.record_count is not None else 'Unknown')} records of SDB#{cf.bold(stored_data_block.id)} in {self.storage}"
         )
         data_records.validate_and_conform_otype(

@@ -2,6 +2,7 @@ from sqlalchemy import event
 from sqlalchemy.orm import object_session, sessionmaker
 
 from basis.utils.common import cf, printd
+from loguru import logger
 
 
 def add_persisting_sdb_listener(session_maker: sessionmaker):
@@ -10,7 +11,7 @@ def add_persisting_sdb_listener(session_maker: sessionmaker):
         from basis.core.data_block import StoredDataBlockMetadata
 
         if isinstance(instance, StoredDataBlockMetadata):
-            printd(
+            logger.debug(
                 f"Persisted StoredDataBlock SDB#{cf.bold(instance.id)} DB#{cf.bold(instance.data_block.id)} {cf.magenta(instance.data_block.expected_otype_uri)} {cf.dimmed_magenta(instance.data_format)}"
             )
 

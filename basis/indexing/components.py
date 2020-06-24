@@ -15,7 +15,7 @@
 # from basis.core.module import BasisModule
 # from basis.core.typing.object_type import ObjectType, ObjectTypeUri
 #
-# logger = logging.getLogger(__name__)
+#
 #
 #
 # class ComponentType(Enum):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-import logging
+from loguru import logger
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type
@@ -17,8 +17,6 @@ from basis.core.runnable import DataFunctionContext, ExecutionContext
 from basis.core.typing.object_type import ObjectTypeLike
 from basis.utils.common import dataclass_kwargs, printd
 from basis.utils.typing import T
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -291,7 +289,7 @@ class ExtractorDataFunction:
     ):
         if extract_result.new_high_water_mark:
             state.set_high_water_mark(extract_result.new_high_water_mark)
-        printd("Setting state", state.high_water_mark)
+        logger.debug("Setting state", state.high_water_mark)
         # TODO: handle arbitrary state blob
 
     def __call__(
@@ -321,7 +319,7 @@ class ExtractorDataFunction:
             data_format_class=fmt,
             otype_like=self.configured_external_resource.get_expected_otype(),
         )
-        # printd(
+        # logger.debug(
         #     f"Extractor {self.configured_external_resource.name} output: {out_annotation}"
         # )
         return DataFunctionInterface(

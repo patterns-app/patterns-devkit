@@ -1,4 +1,4 @@
-import logging
+from loguru import logger
 from typing import List
 
 from sqlalchemy.engine import Engine
@@ -15,9 +15,6 @@ except ImportError:
 
     def execute_values(*args):
         raise ImportError("Psycopg2 not installed")
-
-
-logger = logging.getLogger(__name__)
 
 
 def bulk_insert(*args, **kwargs):
@@ -57,7 +54,7 @@ def bulk_upsert(
         "ignore_duplicates": ignore_duplicates,
     }
     sql = compile_jinja_sql_template(tmpl, jinja_ctx)
-    printd("SQL", sql)
+    logger.debug("SQL", sql)
     pg_execute_values(eng, sql, records, page_size=page_size)
 
 

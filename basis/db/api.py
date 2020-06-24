@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 import os
 from contextlib import contextmanager
 from typing import (
@@ -34,7 +34,6 @@ from basis.utils.common import BasisJSONEncoder, printd, rand_str, title_to_snak
 if TYPE_CHECKING:
     pass
 
-logger = logging.getLogger(__name__)
 
 # _sa_engines: Dict[str, Engine] = {}
 _sa_engines: List[Engine] = []
@@ -95,8 +94,8 @@ class DatabaseAPI:
             yield conn
 
     def execute_sql(self, sql: str) -> ResultProxy:
-        printd("Executing SQL:")
-        printd(sql)
+        logger.debug("Executing SQL:")
+        logger.debug(sql)
         with self.connection() as conn:
             return conn.execute(sql)
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from decimal import Decimal
 from random import randint
 from statistics import StatisticsError, mode
@@ -34,7 +34,6 @@ from basis.utils.data import is_nullish, read_json, records_list_as_dict_of_list
 if TYPE_CHECKING:
     from basis.db.api import DatabaseAPI
 
-logger = logging.getLogger(__name__)
 
 VARCHAR_MAX_LEN = (
     256  # TODO: what is the real value for different db engines? pg is NA, mysql ??
@@ -358,7 +357,7 @@ def conform_records_list_to_otype(d: RecordsList, otype: ObjectType) -> RecordsL
 
 
 def conform_dataframe_to_otype(df: DataFrame, otype: ObjectType) -> DataFrame:
-    printd(f"conforming {id(df)} to otype")
+    logger.debug(f"conforming {id(df)} to otype")
     for field in otype.fields:
         pd_type = sqlalchemy_type_to_pandas_type(field.field_type)
         try:
@@ -369,14 +368,14 @@ def conform_dataframe_to_otype(df: DataFrame, otype: ObjectType) -> DataFrame:
                 # Likely need combo of "hard" conversion using `to_*` methods and `infer_objects`
                 # and explicit individual python casts if that fails
                 if "datetime" in pd_type:
-                    printd(f"Casting {field.name} to datetime")
+                    logger.debug(f"Casting {field.name} to datetime")
                     df[field.name] = pd.to_datetime(df[field.name])
                 else:
                     try:
                         df[field.name] = df[field.name].astype(pd_type)
-                        printd(f"Casting {field.name} to {pd_type}")
+                        logger.debug(f"Casting {field.name} to {pd_type}")
                     except:
-                        printd(
+                        logger.debug(
                             f"Manually casting {field.name} to py objects {field.field_type}"
                         )
                         df[field.name] = [

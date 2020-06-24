@@ -1,4 +1,5 @@
 import json
+import os
 import sys
 from importlib import import_module
 from typing import Any, List
@@ -12,8 +13,10 @@ from basis.core.environment import Environment, current_env
 from basis.core.function_node import DataFunctionLog
 from basis.core.typing.inference import dict_to_rough_otype
 from basis.core.typing.object_type import otype_to_yaml
+from basis.project.project import BASIS_PROJECT_FILE_NAME, init_project_in_dir
 from basis.utils import common
 from basis.utils.common import cf, cycle_colors_unique
+from loguru import logger
 
 REPO_SERVER_API = "http://localhost:8000/components/"  # TODO: configurable
 
@@ -57,8 +60,12 @@ def echo_table(headers, rows):
 @click.option("-d", "--debug")
 @click.pass_context
 def app(ctx, debug: bool = False):
+    """Modern Data Pipelines"""
+    logger.enable("basis")
     if debug:
-        common.DEBUG = True
+        logger.add(sys.stderr, level="DEBUG")
+    else:
+        logger.add(sys.stderr, level="INFO")
     # TODO some way to pass in env
     env = Environment()
     try:
@@ -72,6 +79,7 @@ def app(ctx, debug: bool = False):
 @click.option("-c", "--component_type")
 @click.argument("search")
 def search(query: str, component_type: str = None):
+    """Search for components in the Basis Repository"""
     params = {"q": query}
     if component_type:
         params["component_type"] = component_type
@@ -100,6 +108,7 @@ def search(query: str, component_type: str = None):
 @click.command()
 @click.argument("component_type")
 def generate(component_type: str):
+    """Generate components from other sources"""
     # TODO: make this a whole wizard flow for each component type
     if component_type == "otype":
         s = ""
@@ -117,6 +126,7 @@ def generate(component_type: str):
 @click.argument("component_type")
 @click.pass_obj
 def list_component(env: Environment, component_type):
+    """List components in environment"""
     if component_type == "datablocks":
         list_data_blocks(env)
     elif component_type == "datasets":
@@ -185,6 +195,7 @@ def list_data_functions(env: Environment):
 @click.command("log")
 @click.pass_obj
 def show_log(env: Environment):
+    """Show log of DataFunctions on DataBlocks"""
     with env.session_scope() as sess:
         query = sess.query(DataFunctionLog).order_by(DataFunctionLog.updated_at.desc())
         drls = []
@@ -219,6 +230,7 @@ def show_log(env: Environment):
 @click.command("test")
 @click.argument("module")
 def test(module: str):
+    """Run tests for given module"""
     m = import_module(module)
     m.run_tests()
 
@@ -226,6 +238,7 @@ def test(module: str):
 @click.command("reset")
 @click.pass_obj
 def reset_metadata(env: Environment):
+    """Reset metadata, all or selectively"""
     # TODO
     raise NotImplementedError
     with env.session_scope() as sess:
@@ -238,9 +251,50 @@ def reset_metadata(env: Environment):
         sess.execute("drop table basis_stored_data_resource_metadata cascade;")
 
 
+@click.command("init")
+@click.pass_context
+def init_project(ctx: click.Context):
+    """Initialize new Basis project in current dir"""
+    curr_dir = os.getcwd()
+    try:
+        init_project_in_dir(curr_dir)
+    except FileExistsError:
+        ctx.fail(f"{BASIS_PROJECT_FILE_NAME} already exists in {curr_dir}")
+    click.echo(
+        f"Created {BASIS_PROJECT_FILE_NAME} in {curr_dir}. Edit this file to configure your project."
+    )
+
+
+@click.command("run")
+@click.option("-n", "--node", help="Name of node to run (defaults to all)")
+@click.option("-D", "--deps", help="Run node's dependencies too. Default False")
+@click.option(
+    "--once", help="Run each node only once (instead of to exhuastion, the default)"
+)
+@click.pass_obj
+def run(env: Environment, node: str = None, deps: bool = False):
+    """Run Basis pipeline"""
+    if node:
+        if deps:
+            env.produce(node)
+        else:
+            env.update(node)
+    else:
+        env.update_all()
+
+
+# TODO: create new blank component (how diff from generate? Rename?)
+# @click.command("create")
+# @click.pass_obj
+# def create_component(env: Environment):
+#       pass
+
+
+app.add_command(run)
 app.add_command(generate)
 app.add_command(show_log)
 app.add_command(list_component)
 app.add_command(search)
 app.add_command(reset_metadata)
 app.add_command(test)
+app.add_command(init_project)

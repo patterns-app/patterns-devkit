@@ -1,6 +1,6 @@
 from .core.data_format import DataFormat
 from .core.data_function import DataFunction
-from .core.environment import Environment
+from .core.environment import Environment, current_env
 from .core.external import ExternalResource
 from .core.function_node import FunctionNode
 from .core.storage.storage import Storage

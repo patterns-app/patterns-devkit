@@ -36,6 +36,7 @@ from basis.core.typing.object_type import (
     is_generic,
 )
 from basis.utils.common import printd
+from loguru import logger
 
 if TYPE_CHECKING:
     from basis.core.data_function import (
@@ -332,7 +333,8 @@ class FunctionGraphResolver:
         2 build "maximal" graph, adding explicit function dependencies and tracking all POTENTIAL otype
             dependencies. some potential otype deps may be downstream of function and create cycles tho, so
         3 incrementally add potential otype deps one by one in arbitrary order,
-            keeping them only if they DO NOT create a cycle in the graph
+            keeping them only if they DO NOT create a cycle in the graph. Naive approach, there is likely a more
+            efficient way to find a "maximal non-cyclical sub-graph" of a cyclical graph? TODO
     """
 
     def __init__(self, env: Environment, nodes: Optional[List[FunctionNode]] = None):
@@ -360,6 +362,7 @@ class FunctionGraphResolver:
 
     def _resolve_potential_parents(self):
         # TODO: when does the order in which we try potential parents matter? Is it ok if that is non-deterministic?
+        #   ie how do we choose between maximal non-cyclical subgraphs if there are multiple?
         for node, inputs in self._resolved_inputs.items():
             for input in inputs:
                 if input.potential_parent_nodes:
@@ -616,12 +619,12 @@ class FunctionNodeInterfaceManager:
         any_unprocessed = False
         for input in self.get_resolved_interface().inputs:
             stream = input.connected_stream
-            printd(f"Getting {input.name} for {stream}")
+            logger.debug(f"Getting {input.name} for {stream}")
             stream = ensure_data_stream(stream)
             block: Optional[DataBlockMetadata] = self.get_input_data_block(
                 stream, input, self.ctx.all_storages
             )
-            printd("\tFound:", block)
+            logger.debug("\tFound:", block)
 
             """
             Inputs are considered "Exhausted" if:
@@ -632,7 +635,7 @@ class FunctionNodeInterfaceManager:
             In other words, if ANY DB stream is empty, bail out. If ALL DS streams are empty, bail
             """
             if block is None:
-                printd(
+                logger.debug(
                     f"Couldnt find eligible DataBlocks for input `{input.name}` from {stream}"
                 )
                 if not input.is_optional:
