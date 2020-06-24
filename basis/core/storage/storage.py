@@ -7,7 +7,19 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Type
 from urllib.parse import urlparse
 
 from basis.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadata
-from basis.core.data_format import DataFormat
+from basis.core.data_formats import (
+    DataFormat,
+    RecordsListFormat,
+    DelimitedFileFormat,
+    DataFrameFormat,
+    DatabaseTableRefFormat,
+    DatabaseCursorFormat,
+    DelimitedFilePointerFormat,
+    JsonListFileFormat,
+    RecordsListGeneratorFormat,
+    DataFrameGeneratorFormat,
+    DatabaseTableFormat,
+)
 from basis.core.environment import Environment
 from basis.utils.common import cf, printd, rand_str
 from loguru import logger
@@ -45,24 +57,24 @@ class StorageType(enum.Enum):
         return f"{self.value[0].value}-{self.value[1].value}"
 
 
-NATURAL_STORAGE_FORMAT = {
-    StorageClass.MEMORY: DataFormat.RECORDS_LIST,
-    StorageClass.DATABASE: DataFormat.DATABASE_TABLE,
-    StorageClass.FILE_SYSTEM: DataFormat.DELIMITED_FILE,
+NATURAL_FORMAT_FOR_STORAGE_CLASS = {
+    StorageClass.MEMORY: RecordsListFormat,
+    StorageClass.DATABASE: DatabaseTableFormat,
+    StorageClass.FILE_SYSTEM: DelimitedFileFormat,
 }
 
-NATURAL_STORAGE_CLASS = {
-    DataFormat.RECORDS_LIST: StorageClass.MEMORY,
-    DataFormat.DATAFRAME: StorageClass.MEMORY,
-    DataFormat.DATABASE_TABLE_REF: StorageClass.MEMORY,
-    DataFormat.DATABASE_CURSOR: StorageClass.MEMORY,
-    DataFormat.JSON_LIST: StorageClass.MEMORY,
-    DataFormat.DELIMITED_FILE_POINTER: StorageClass.MEMORY,
-    DataFormat.DATABASE_TABLE: StorageClass.DATABASE,
-    DataFormat.DELIMITED_FILE: StorageClass.FILE_SYSTEM,
-    DataFormat.JSON_LIST_FILE: StorageClass.FILE_SYSTEM,
-    DataFormat.RECORDS_LIST_GENERATOR: StorageClass.MEMORY,
-    DataFormat.DATAFRAME_GENERATOR: StorageClass.MEMORY,
+
+NATURAL_STORAGE_CLASS_FOR_FORMAT = {
+    RecordsListFormat: StorageClass.MEMORY,
+    DataFrameFormat: StorageClass.MEMORY,
+    DatabaseTableRefFormat: StorageClass.MEMORY,
+    DatabaseCursorFormat: StorageClass.MEMORY,
+    DelimitedFilePointerFormat: StorageClass.MEMORY,
+    DatabaseTableFormat: StorageClass.DATABASE,
+    DelimitedFileFormat: StorageClass.FILE_SYSTEM,
+    JsonListFileFormat: StorageClass.FILE_SYSTEM,
+    RecordsListGeneratorFormat: StorageClass.MEMORY,
+    DataFrameGeneratorFormat: StorageClass.MEMORY,
 }
 
 
@@ -94,7 +106,7 @@ class Storage:
 
     @property
     def natural_storage_format(self) -> DataFormat:
-        return NATURAL_STORAGE_FORMAT[self.storage_class]
+        return NATURAL_FORMAT_FOR_STORAGE_CLASS[self.storage_class]
 
     def get_database_api(self, env: Environment) -> DatabaseAPI:
         from basis.db.api import get_database_api_class

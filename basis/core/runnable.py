@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from loguru import logger
 import time
 from collections import abc
 from contextlib import contextmanager
@@ -25,11 +24,8 @@ from basis.core.data_block import (
     StoredDataBlockMetadata,
     create_data_block_from_records,
 )
-from basis.core.data_format import (
-    DataFrameGenerator,
-    RecordsListGenerator,
-    ReusableGenerator,
-)
+from basis.core.data_formats import DataFrameGenerator, RecordsListGenerator
+from basis.core.data_formats.base import ReusableGenerator
 from basis.core.data_function import (
     DataFunctionDefinition,
     DataFunctionInterface,
@@ -63,6 +59,7 @@ from basis.utils.common import (
     success_symbol,
     utcnow,
 )
+from loguru import logger
 
 
 class Language(Enum):

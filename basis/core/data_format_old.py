@@ -2,7 +2,6 @@
 #
 # import collections.abc
 # import typing
-# from collections import OrderedDict
 # from copy import deepcopy
 # from io import BytesIO
 # from itertools import tee
@@ -28,7 +27,79 @@
 #     from basis.core.storage.storage import StorageClass
 #
 #
-# class DataFrameFormat(DataFormatBase):
+# class DataFormat(StringEnum):
+#     # Storage
+#     JSON_LIST_FILE = "JSON_LIST_FILE"
+#     DELIMITED_FILE = "DELIMITED_FILE"
+#     DATABASE_TABLE = "DATABASE_TABLE"
+#     # Memory
+#     JSON_LIST = "JSON_LIST"
+#     RECORDS_LIST = "RECORDS_LIST"
+#     DELIMITED_FILE_POINTER = "DELIMITED_FILE_POINTER"
+#     DATABASE_CURSOR = "DATABASE_CURSOR"
+#     DATABASE_TABLE_REF = "DATABASE_TABLE_REF"
+#     DATAFRAME = "DATAFRAME"
+#     DATAFRAME_GENERATOR = "DATAFRAME_GENERATOR"
+#     RECORDS_LIST_GENERATOR = "RECORDS_LIST_GENERATOR"
+#
+#     def get_manager(self) -> Type[DataFormatManager]:
+#         return data_format_managers[self]
+#
+#     def memory_formats(self) -> Sequence[DataFormat]:
+#         return (
+#             JsonListFormat,
+#             RecordsListFormat,
+#             DelimitedFilePointerFormat,
+#             DatabaseCursorFormat,
+#             DatabaseTableRefFormat,
+#             DataFrameFormat,
+#             DataFrameGeneratorFormat,
+#             RecordsListGeneratorFormat,
+#         )
+#
+#     def is_memory_format(self) -> bool:
+#         return self in self.memory_formats()
+#
+#     def get_natural_storage_class(self) -> StorageClass:
+#         from basis.core.storage.storage import NATURAL_STORAGE_CLASS_FOR_FORMAT
+#
+#         return NATURAL_STORAGE_CLASS_FOR_FORMAT[self]
+#
+#
+# class DataFormatManager(Generic[T]):
+#     data_format: DataFormat
+#
+#     @classmethod
+#     def empty(cls) -> T:
+#         return cls.type()()
+#
+#     @classmethod
+#     def type(cls) -> Type[T]:
+#         raise NotImplementedError
+#
+#     @classmethod
+#     def type_hint(cls) -> str:
+#         return cls.type().__name__
+#
+#     @classmethod
+#     def isinstance(cls, obj: Any) -> bool:
+#         return isinstance(obj, cls.type())
+#
+#     @classmethod
+#     def get_record_count(cls, obj: Any) -> Optional[int]:
+#         return None
+#
+#     @classmethod
+#     def copy_records(cls, obj: Any) -> Any:
+#         if hasattr(obj, "copy") and callable(obj.copy):
+#             return obj.copy()
+#         else:
+#             return deepcopy(obj)
+#
+#
+# class DataFrameFormat(DataFormatManager):
+#     data_format = DataFrameFormat
+#
 #     @classmethod
 #     def type(cls):
 #         return pd.DataFrame
@@ -40,7 +111,9 @@
 #         return len(obj)
 #
 #
-# class RecordsListFormat(DataFormatBase):
+# class RecordsListFormat(DataFormatManager):
+#     data_format = RecordsListFormat
+#
 #     @classmethod
 #     def type(cls):
 #         return list
@@ -50,7 +123,7 @@
 #         return "RecordsList"
 #
 #     @classmethod
-#     def maybe_instance(cls, obj: Any) -> bool:
+#     def isinstance(cls, obj: Any) -> bool:
 #         if not isinstance(obj, cls.type()):
 #             return False
 #         if len(obj) == 0:
@@ -66,28 +139,32 @@
 #         return len(obj)
 #
 #
-# class RecordsListGeneratorFormat(DataFormatBase):
+# class RecordsListGeneratorFormat(DataFormatManager):
+#     data_format = RecordsListGeneratorFormat
+#
 #     @classmethod
 #     def type(cls) -> Type:
 #         return RecordsListGenerator
 #
 #
-# class DataFrameGeneratorFormat(DataFormatBase):
+# class DataFrameGeneratorFormat(DataFormatManager):
+#     data_format = DataFrameGeneratorFormat
+#
 #     @classmethod
 #     def type(cls) -> Type:
 #         return DataFrameGenerator
 #
 #
-# class DatabaseCursorFormat(DataFormatBase):
+# class DatabaseCursorFormat(DataFormatManager):
+#     data_format = DatabaseCursorFormat
+#
 #     @classmethod
 #     def empty(cls):
 #         raise NotImplementedError
 #
 #     @classmethod
 #     def type(cls) -> Type:
-#         return (
-#             ResultProxy  # TODO: assumes we are always using sqlalchemy. Which we are?
-#         )
+#         return ResultProxy
 #
 #     @classmethod
 #     def type_hint(cls):
@@ -108,7 +185,9 @@
 #         return f"{self.storage_url}/{self.table_name}"
 #
 #
-# class DatabaseTableRefFormat(DataFormatBase):
+# class DatabaseTableRefFormat(DataFormatManager):
+#     data_format = DatabaseTableRefFormat
+#
 #     @classmethod
 #     def type(cls):
 #         return DatabaseTableRef
@@ -137,7 +216,9 @@
 # #         return JsonFilePointer
 #
 #
-# class DelimitedFilePointerFormat(DataFormatBase):
+# class DelimitedFilePointerFormat(DataFormatManager):
+#     data_format = DelimitedFilePointerFormat
+#
 #     @classmethod
 #     def type(cls):
 #         return DelimitedFilePointer
@@ -172,47 +253,22 @@
 #     pass
 #
 #
-# class DataFormatRegistry:
-#     _registry: Dict[str, DataFormat] = {}
-#
-#     def register(self, fmt_cls: DataFormat):
-#         self._registry[str(fmt_cls)] = fmt_cls
-#
-#     def get(self, key: str) -> DataFormat:
-#         return self._registry.get(key)
-#
-#     def all(self) -> typing.Iterable[DataFormat]:
-#         return self._registry.values()
-#
-#     def __getitem__(self, item: str) -> DataFormat:
-#         return self._registry[item]
-#
-#
-# data_format_registry = DataFormatRegistry()
-# core_data_formats_precedence = [
-#     # Roughly ordered from most universal / "default" to least
-#     # Ordering used when inferring DataFormat from raw object and have ambiguous object (eg an empty list)
-#     RecordsListFormat,
+# all_managers = [
 #     DataFrameFormat,
+#     RecordsListFormat,
 #     DatabaseCursorFormat,
 #     DatabaseTableRefFormat,
 #     RecordsListGeneratorFormat,
 #     DataFrameGeneratorFormat,
 #     DelimitedFilePointerFormat,
 # ]
-# for fmt in core_data_formats_precedence:
-#     data_format_registry.register(fmt)
+# data_format_managers = {m.data_format: m for m in all_managers}
 #
 #
 # def get_data_format_of_object(obj: Any) -> Optional[DataFormat]:
-#     maybes = []
-#     for m in data_format_registry.all():
-#         if m.maybe_instance(obj):
-#             maybes.append(m)
-#     if len(maybes) == 1:
-#         return maybes[0]
-#     elif len(maybes) > 1:
-#         return [f for f in core_data_formats_precedence if f in maybes][0]
+#     for m in all_managers:
+#         if m.isinstance(obj):
+#             return m.data_format
 #     return None
 #
 #
@@ -230,3 +286,10 @@
 #     if isinstance(obj, collections.abc.Generator):
 #         raise TypeError("Generators must be `tee`d before being passed in")
 #     raise TypeError(obj)
+#
+#
+# # def conform_generator_format(g: Generator) -> ReusableGenerator:
+# #     if runnable.datafunction_interface.output.data_format_class == "DataFrameGenerator":
+# #         output = DataFrameGenerator(output)
+# #     if runnable.datafunction_interface.output.data_format_class == "RecordsListGenerator":
+# #         output = RecordsListGenerator(output)

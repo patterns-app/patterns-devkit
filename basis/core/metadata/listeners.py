@@ -10,10 +10,10 @@ def add_persisting_sdb_listener(session_maker: sessionmaker):
     def intercept_t2p(session, instance):
         from basis.core.data_block import StoredDataBlockMetadata
 
-        if isinstance(instance, StoredDataBlockMetadata):
-            logger.debug(
-                f"Persisted StoredDataBlock SDB#{cf.bold(instance.id)} DB#{cf.bold(instance.data_block.id)} {cf.magenta(instance.data_block.expected_otype_uri)} {cf.dimmed_magenta(instance.data_format)}"
-            )
+        # if isinstance(instance, StoredDataBlockMetadata):
+        #     logger.debug(
+        #         f"Persisted StoredDataBlock SDB#{cf.bold(instance.id)} DB#{cf.bold(instance.data_block.id)} {cf.magenta(instance.data_block.expected_otype_uri)} {cf.dimmed_magenta(instance.data_format)}"
+        #     )
 
 
 def immutability_update_listener(mapper, connection, target):

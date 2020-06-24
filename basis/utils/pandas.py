@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List
 
 import pandas as pd
-from basis.core.data_format import RecordsList
+from basis.core.data_formats import RecordsList
 from basis.core.typing.object_type import ObjectType
 from basis.utils.data import is_nullish, records_list_as_dict_of_lists
 from pandas import DataFrame, Index, Series

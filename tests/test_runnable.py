@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from basis.core.data_format import RecordsList
+from basis.core.data_formats import RecordsList
 from basis.core.data_function_interface import FunctionNodeInterfaceManager
 from basis.core.runnable import CompiledDataFunction, Runnable, RunSession, Worker
 from tests.utils import (

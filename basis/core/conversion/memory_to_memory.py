@@ -8,11 +8,15 @@ from basis.core.conversion.converter import (
     StorageFormat,
 )
 from basis.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadata
-from basis.core.data_format import (
+from basis.core.data_formats import (
     DataFormat,
+    DataFrameFormat,
     DataFrameGenerator,
+    DataFrameGeneratorFormat,
     RecordsList,
+    RecordsListFormat,
     RecordsListGenerator,
+    RecordsListGeneratorFormat,
 )
 from basis.core.storage.storage import LocalMemoryStorageEngine, StorageType
 from basis.core.typing.object_type import ObjectType
@@ -26,14 +30,14 @@ class MemoryToMemoryConverter(Converter):
     #   Solution is to add differing costs i suppose
     # TODO: parameterized costs
     supported_input_formats: Sequence[StorageFormat] = (
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATAFRAME),
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST),
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST_GENERATOR),
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATAFRAME_GENERATOR),
+        StorageFormat(StorageType.DICT_MEMORY, DataFrameFormat),
+        StorageFormat(StorageType.DICT_MEMORY, RecordsListFormat),
+        StorageFormat(StorageType.DICT_MEMORY, RecordsListGeneratorFormat),
+        StorageFormat(StorageType.DICT_MEMORY, DataFrameGeneratorFormat),
     )
     supported_output_formats: Sequence[StorageFormat] = (
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST),
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATAFRAME),
+        StorageFormat(StorageType.DICT_MEMORY, RecordsListFormat),
+        StorageFormat(StorageType.DICT_MEMORY, DataFrameFormat),
     )
     cost_level = ConversionCostLevel.MEMORY
 
@@ -44,29 +48,23 @@ class MemoryToMemoryConverter(Converter):
         output_memory_storage = LocalMemoryStorageEngine(self.env, output_sdb.storage)
         input_ldr = input_memory_storage.get_local_memory_data_records(input_sdb)
         lookup = {
+            (DataFrameFormat, RecordsListFormat,): self.dataframe_to_records_list,
+            (RecordsListFormat, DataFrameFormat,): self.records_list_to_dataframe,
             (
-                DataFormat.DATAFRAME,
-                DataFormat.RECORDS_LIST,
-            ): self.dataframe_to_records_list,
-            (
-                DataFormat.RECORDS_LIST,
-                DataFormat.DATAFRAME,
-            ): self.records_list_to_dataframe,
-            (
-                DataFormat.RECORDS_LIST_GENERATOR,
-                DataFormat.DATAFRAME,
+                RecordsListGeneratorFormat,
+                DataFrameFormat,
             ): self.records_list_generator_to_dataframe,
             (
-                DataFormat.RECORDS_LIST_GENERATOR,
-                DataFormat.RECORDS_LIST,
+                RecordsListGeneratorFormat,
+                RecordsListFormat,
             ): self.records_list_generator_to_records_list,
             (
-                DataFormat.DATAFRAME_GENERATOR,
-                DataFormat.DATAFRAME,
+                DataFrameGeneratorFormat,
+                DataFrameFormat,
             ): self.dataframe_generator_to_dataframe,
             (
-                DataFormat.DATAFRAME_GENERATOR,
-                DataFormat.RECORDS_LIST,
+                DataFrameGeneratorFormat,
+                RecordsListFormat,
             ): self.dataframe_generator_to_records_list,
         }
         try:

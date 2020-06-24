@@ -3,7 +3,7 @@ from typing import Iterable, List
 
 from sqlalchemy.engine import ResultProxy, RowProxy
 
-from basis.core.data_format import RecordsList
+from basis.core.data_formats import RecordsList
 
 
 def result_proxy_to_records_list(

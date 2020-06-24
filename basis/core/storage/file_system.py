@@ -6,7 +6,7 @@ from io import BufferedIOBase, IOBase, TextIOBase
 from typing import ContextManager, Generator, Iterable, TextIO, Type
 
 from basis.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
-from basis.core.data_format import RecordsList
+from basis.core.data_formats import RecordsList
 from basis.core.environment import Environment
 from basis.core.storage.storage import FileSystemStorageManager, Storage, StorageEngine
 from basis.utils.common import to_json

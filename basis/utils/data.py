@@ -5,7 +5,7 @@ import json
 from io import IOBase
 from typing import Any, Dict, Iterable, List, Union
 
-from basis.core.data_format import RecordsList
+from basis.core.data_formats import RecordsList
 from basis.utils.common import BasisJSONEncoder
 from pandas import isnull
 

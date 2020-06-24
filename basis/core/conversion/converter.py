@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import enum
-from loguru import logger
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple, Type
@@ -9,8 +8,9 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple, Ty
 import networkx as nx
 
 from basis.core.data_block import StoredDataBlockMetadata
-from basis.core.data_format import DataFormat
+from basis.core.data_formats import DataFormat
 from basis.core.storage.storage import Storage, StorageType
+from loguru import logger
 
 if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext
@@ -33,7 +33,7 @@ class StorageFormat:
     data_format: DataFormat
 
     def __str__(self):
-        return f"{self.storage_type.display()}:{self.data_format.value}"
+        return f"{self.storage_type.display()}:{self.data_format}"
 
 
 Conversion = Tuple[StorageFormat, StorageFormat]

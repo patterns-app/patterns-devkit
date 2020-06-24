@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import json
-from loguru import logger
 import os
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
     Callable,
     ContextManager,
+    Generator,
     List,
     Tuple,
     Type,
     Union,
-    Generator,
 )
 
 import sqlalchemy
@@ -22,7 +21,7 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
 from basis.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
-from basis.core.data_format import DataFormat, RecordsList
+from basis.core.data_formats import DatabaseTableFormat, DataFormat, RecordsList
 from basis.core.environment import Environment
 from basis.core.runtime import Runtime
 from basis.core.sql.utils import ObjectTypeMapper
@@ -30,6 +29,7 @@ from basis.core.storage.storage import Storage, StorageEngine
 from basis.core.typing.inference import infer_otype_from_db_table
 from basis.core.typing.object_type import ObjectType, is_any
 from basis.utils.common import BasisJSONEncoder, printd, rand_str, title_to_snake_case
+from loguru import logger
 
 if TYPE_CHECKING:
     pass
@@ -157,9 +157,7 @@ class DatabaseAPI:
         )
         storage_url = self.resource.url
         sdb = StoredDataBlockMetadata(
-            data_block=block,
-            storage_url=storage_url,
-            data_format=DataFormat.DATABASE_TABLE,
+            data_block=block, storage_url=storage_url, data_format=DatabaseTableFormat,
         )
         sess.add(block)
         sess.add(sdb)

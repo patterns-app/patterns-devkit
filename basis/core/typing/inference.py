@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from loguru import logger
 from decimal import Decimal
 from random import randint
 from statistics import StatisticsError, mode
@@ -11,7 +10,7 @@ from pandas import DataFrame, Series
 from sqlalchemy import Table
 
 from basis.core.component import ComponentType
-from basis.core.data_format import RecordsList
+from basis.core.data_formats import RecordsList
 from basis.core.module import DEFAULT_LOCAL_MODULE
 from basis.core.typing.object_type import (
     ConflictBehavior,
@@ -30,6 +29,7 @@ from basis.utils.common import (
     title_to_snake_case,
 )
 from basis.utils.data import is_nullish, read_json, records_list_as_dict_of_lists
+from loguru import logger
 
 if TYPE_CHECKING:
     from basis.db.api import DatabaseAPI

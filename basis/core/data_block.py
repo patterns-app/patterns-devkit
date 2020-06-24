@@ -9,13 +9,19 @@ from pandas import DataFrame
 from sqlalchemy import Boolean, Column, ForeignKey, String, event, or_
 from sqlalchemy.orm import RelationshipProperty, Session, relationship
 
-from basis.core.data_format import (
-    DatabaseTable,
+from basis.core.data_formats import (
     DataFormat,
-    RecordsList,
+    DataFormatType,
     get_data_format_of_object,
     get_records_list_sample,
+    DataFrameFormat,
 )
+from basis.core.data_formats.base import MemoryDataFormat
+from basis.core.data_formats.database_table_ref import (
+    DatabaseTableRef,
+    DatabaseTableRefFormat,
+)
+from basis.core.data_formats.records_list import RecordsList, RecordsListFormat
 from basis.core.environment import Environment
 from basis.core.metadata.listeners import immutability_update_listener
 from basis.core.metadata.orm import BaseModel, timestamp_rand_key
@@ -50,16 +56,15 @@ class LocalMemoryDataRecords:
             data_format = get_data_format_of_object(obj)
         if data_format is None:
             raise NotImplementedError(obj)
+        assert data_format.is_memory_format()
         if record_count is None:
-            record_count = data_format.get_manager().get_record_count(obj)
+            record_count = data_format.get_record_count(obj)
         return LocalMemoryDataRecords(
             data_format=data_format, records_object=obj, record_count=record_count
         )
 
     def copy(self) -> LocalMemoryDataRecords:
-        records_object = self.data_format.get_manager().copy_records(
-            self.records_object
-        )
+        records_object = self.data_format.copy_records(self.records_object)
         return LocalMemoryDataRecords(
             data_format=self.data_format,
             record_count=self.record_count,
@@ -69,7 +74,7 @@ class LocalMemoryDataRecords:
     def validate_and_conform_otype(self, expected_otype: ObjectType):
         # TODO: idea here is to make sure local records look like what we expect. part of larger project on ObjectType
         #   validation
-        # if self.data_format == DataFormat.DATAFRAME:
+        # if self.data_format == DataFrameFormat:
         #     from basis.core.pandas import coerce_dataframe_to_otype
         #
         #     printd(f"Before validation")
@@ -167,7 +172,7 @@ class ManagedDataBlock(Generic[T]):
     def as_records_list(self) -> RecordsList:
         return self.manager.as_records_list()
 
-    def as_table(self) -> DatabaseTable:
+    def as_table(self) -> DatabaseTableRef:
         return self.manager.as_table()
 
     def as_format(self, fmt: DataFormat) -> Any:
@@ -189,7 +194,7 @@ class StoredDataBlockMetadata(BaseModel):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
     storage_url = Column(String, nullable=False)
-    data_format: DataFormat = Column(sa.Enum(DataFormat, native_enum=False), nullable=False)  # type: ignore
+    data_format: DataFormat = Column(DataFormatType, nullable=False)  # type: ignore
     # is_ephemeral = Column(Boolean, default=False) # TODO
     # data_records_object: Optional[Any]  # Union[DataFrame, FilePointer, List[Dict]]
     # Hints
@@ -292,7 +297,7 @@ class ManagedDataSet(Generic[T]):
     def as_records_list(self) -> RecordsList:
         return self.manager.as_records_list()
 
-    def as_table(self) -> DatabaseTable:
+    def as_table(self) -> DatabaseTableRef:
         return self.manager.as_table()
 
     def as_format(self, fmt: DataFormat) -> Any:
@@ -332,13 +337,13 @@ class DataBlockManager:
         return self.ctx.env.get_otype(self.data_block.expected_otype_uri)
 
     def as_dataframe(self) -> DataFrame:
-        return self.as_format(DataFormat.DATAFRAME)
+        return self.as_format(DataFrameFormat)
 
     def as_records_list(self) -> RecordsList:
-        return self.as_format(DataFormat.RECORDS_LIST)
+        return self.as_format(RecordsListFormat)
 
-    def as_table(self) -> DatabaseTable:
-        return self.as_format(DataFormat.DATABASE_TABLE_REF)
+    def as_table(self) -> DatabaseTableRef:
+        return self.as_format(DatabaseTableRefFormat)
 
     def is_valid_storage_format(self, fmt: StorageFormat) -> bool:
         return True  # TODO

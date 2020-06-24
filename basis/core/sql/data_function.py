@@ -6,7 +6,7 @@ from re import Match
 from typing import Any, Dict, Tuple
 
 from basis.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMetadata
-from basis.core.data_format import DataFormat
+from basis.core.data_formats import DataFormat
 from basis.core.data_function import (
     DataFunctionDefinition,
     DataFunctionInterface,
@@ -15,6 +15,7 @@ from basis.core.data_function import (
 )
 from basis.core.data_function_interface import DataFunctionAnnotation, re_type_hint
 from basis.core.runnable import DataFunctionContext
+
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from basis.core.runtime import RuntimeClass
 from basis.utils.common import md5_hash

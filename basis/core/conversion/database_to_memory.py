@@ -8,22 +8,31 @@ from basis.core.conversion.converter import (
     StorageFormat,
 )
 from basis.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadata
-from basis.core.data_format import DatabaseTable, DataFormat, RecordsListGenerator
+from basis.core.data_formats import (
+    DatabaseCursorFormat,
+    DatabaseTableFormat,
+    DatabaseTableRef,
+    DatabaseTableRefFormat,
+    DataFormat,
+    RecordsListFormat,
+    RecordsListGenerator,
+    RecordsListGeneratorFormat,
+)
 from basis.core.storage.storage import LocalMemoryStorageEngine, StorageType
 from basis.db.utils import db_result_batcher, result_proxy_to_records_list
 
 
 class DatabaseToMemoryConverter(Converter):
     supported_input_formats: Sequence[StorageFormat] = (
-        StorageFormat(StorageType.MYSQL_DATABASE, DataFormat.DATABASE_TABLE),
-        StorageFormat(StorageType.POSTGRES_DATABASE, DataFormat.DATABASE_TABLE),
-        StorageFormat(StorageType.SQLITE_DATABASE, DataFormat.DATABASE_TABLE),
+        StorageFormat(StorageType.MYSQL_DATABASE, DatabaseTableFormat),
+        StorageFormat(StorageType.POSTGRES_DATABASE, DatabaseTableFormat),
+        StorageFormat(StorageType.SQLITE_DATABASE, DatabaseTableFormat),
     )
     supported_output_formats: Sequence[StorageFormat] = (
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.RECORDS_LIST),
-        # StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATAFRAME),
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATABASE_TABLE_REF),
-        StorageFormat(StorageType.DICT_MEMORY, DataFormat.DATABASE_CURSOR),
+        StorageFormat(StorageType.DICT_MEMORY, RecordsListFormat),
+        # StorageFormat(StorageType.DICT_MEMORY, DataFrameFormat),
+        StorageFormat(StorageType.DICT_MEMORY, DatabaseTableRefFormat),
+        StorageFormat(StorageType.DICT_MEMORY, DatabaseCursorFormat),
     )
     cost_level = ConversionCostLevel.OVER_WIRE
 
@@ -36,17 +45,17 @@ class DatabaseToMemoryConverter(Converter):
         db_conn = input_runtime.get_engine()
         output_records: Any
         select_sql = f"select * from {name}"
-        if output_sdb.data_format == DataFormat.DATABASE_TABLE_REF:
-            output_records = DatabaseTable(name, storage_url=input_sdb.storage_url)
-        elif output_sdb.data_format == DataFormat.DATABASE_CURSOR:
+        if output_sdb.data_format == DatabaseTableRefFormat:
+            output_records = DatabaseTableRef(name, storage_url=input_sdb.storage_url)
+        elif output_sdb.data_format == DatabaseCursorFormat:
             output_records = db_conn.execute(select_sql)
         # TODO: We are not using Pandas type inference generally, so can't use read_sql or any other read_* method
         #   so this goes through DB -> RECORDS_LIST -> DATAFRAME conversion for now
-        # elif output_sdb.data_format == DataFormat.DATAFRAME:
+        # elif output_sdb.data_format == DataFrameFormat:
         #     output_records = pd.read_sql_table(name, con=db_conn)
-        elif output_sdb.data_format == DataFormat.RECORDS_LIST:
+        elif output_sdb.data_format == RecordsListFormat:
             output_records = result_proxy_to_records_list(db_conn.execute(select_sql))
-        elif output_sdb.data_format == DataFormat.RECORDS_LIST_GENERATOR:
+        elif output_sdb.data_format == RecordsListGeneratorFormat:
             output_records = RecordsListGenerator(
                 db_result_batcher(db_conn.execute(select_sql))
             )

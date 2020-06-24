@@ -1,33 +1,14 @@
 from __future__ import annotations
 
-import enum
 import inspect
 import re
 from dataclasses import asdict, dataclass
-from functools import partial
-from pprint import pprint
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Set,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, cast
 
 import networkx as nx
-from pandas import DataFrame
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, func
-from sqlalchemy.orm import RelationshipProperty, relationship
 
 from basis.core.data_block import DataBlock, DataBlockMetadata, DataSetMetadata
-from basis.core.data_format import DatabaseTable, RecordsList
 from basis.core.environment import Environment
-from basis.core.metadata.orm import BaseModel
 from basis.core.typing.object_type import (
     ObjectType,
     ObjectTypeLike,
@@ -69,7 +50,7 @@ VALID_DATA_INTERFACE_TYPES = [
     "RecordsList",
     "RecordsListGenerator",
     "DataFrameGenerator",
-    "DatabaseTable",
+    "DatabaseTableRef",
     # TODO: is this list just a list of formats? which ones are valid i/o to DFs?
     # TODO: also, are DataBlocks the only valid *input* type?
     # "DatabaseCursor",

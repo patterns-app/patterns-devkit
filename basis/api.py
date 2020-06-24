@@ -1,4 +1,4 @@
-from .core.data_format import DataFormat
+from .core.data_formats import DataFormat
 from .core.data_function import DataFunction
 from .core.environment import Environment, current_env
 from .core.external import ExternalResource
