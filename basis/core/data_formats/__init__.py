@@ -3,32 +3,32 @@ from __future__ import annotations
 import collections
 from typing import Any, Dict, Iterable, Optional, Union
 
-from networkx.tests.test_convert_pandas import pd
+import pandas as pd
 from sqlalchemy import types
 
 from basis.core.data_formats.base import (
     DataFormat,
-    MemoryDataFormatBase,
     DataFormatBase,
+    MemoryDataFormatBase,
 )
 from basis.core.data_formats.data_frame import DataFrameFormat
 from basis.core.data_formats.data_frame_generator import (
-    DataFrameGeneratorFormat,
     DataFrameGenerator,
+    DataFrameGeneratorFormat,
 )
 from basis.core.data_formats.database_cursor import DatabaseCursorFormat
 from basis.core.data_formats.database_table import DatabaseTableFormat
 from basis.core.data_formats.database_table_ref import (
-    DatabaseTableRefFormat,
     DatabaseTableRef,
+    DatabaseTableRefFormat,
 )
 from basis.core.data_formats.delimited_file import DelimitedFileFormat
 from basis.core.data_formats.delimited_file_pointer import DelimitedFilePointerFormat
 from basis.core.data_formats.json_list_file import JsonListFileFormat
-from basis.core.data_formats.records_list import RecordsListFormat, RecordsList
+from basis.core.data_formats.records_list import RecordsList, RecordsListFormat
 from basis.core.data_formats.records_list_generator import (
-    RecordsListGeneratorFormat,
     RecordsListGenerator,
+    RecordsListGeneratorFormat,
 )
 
 
