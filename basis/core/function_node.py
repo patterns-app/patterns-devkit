@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union, Iterable
 
 from pandas import DataFrame
 from sqlalchemy.orm import relationship
@@ -195,6 +195,12 @@ class DataFunctionLog(BaseModel):
             started_at=self.started_at,
         )
 
+    def output_data_blocks(self) -> Iterable[DataBlockMetadata]:
+        return [db for db in self.data_block_logs if db.direction == Direction.OUTPUT]
+
+    def input_data_blocks(self) -> Iterable[DataBlockMetadata]:
+        return [db for db in self.data_block_logs if db.direction == Direction.INPUT]
+
 
 class Direction(enum.Enum):
     INPUT = "input"
@@ -222,7 +228,7 @@ class DataBlockLog(BaseModel):
     data_block_id = Column(
         String, ForeignKey("basis_data_block_metadata.id"), nullable=False
     )  # TODO table name ref ugly here. We can parameterize with orm constant at least, or tablename("DataBlock.id")
-    direction = Column(Enum(Direction), nullable=False)
+    direction = Column(Enum(Direction, native_enum=False), nullable=False)
     processed_at = Column(DateTime, default=func.now(), nullable=False)
     # Hints
     data_block: "DataBlockMetadata"

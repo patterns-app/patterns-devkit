@@ -20,7 +20,7 @@ from basis.core.typing.object_type import (
 from basis.logging.event import Event, EventHandler, EventSubject, event_factory
 
 if TYPE_CHECKING:
-    from basis.core.streams import FunctionNodeRawInput
+    from basis.core.streams import FunctionNodeRawInput, DataBlockStream
     from basis.core.storage.storage import (
         Storage,
         new_local_memory_storage,
@@ -206,6 +206,26 @@ class Environment:
             name=name + "_resource", configured_provider=provider, **config
         )
         return self.add_node(name, r.extractor, **kwargs)
+
+    def add_dataset_node(
+        self,
+        name: str,
+        dataset_name: str = None,
+        upstream: Any = None,
+        **stream_kwargs: Any,
+    ) -> FunctionNode:
+        from basis.core.streams import DataBlockStream
+
+        if dataset_name is None:
+            dataset_name = name
+        if upstream is None:
+            upstream = DataBlockStream(**stream_kwargs)
+        return self.add_node(
+            name,
+            "core.accumulate_as_dataset",
+            config={"dataset_name": dataset_name},
+            upstream=upstream,
+        )
 
     def all_added_nodes(self) -> List[FunctionNode]:
         return list(self._added_nodes.values())

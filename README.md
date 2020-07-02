@@ -1,19 +1,16 @@
-# BASIS
+<img src="basis.png">
 
 ### Modern Data Pipelines
  
-BASIS is a framework for building end-to-end data pipelines from modular components. It brings
-the best practices learned over the last 60 years in software to the world of data. BASIS
+BASIS is a framework for building end-to-end functional data pipelines from modular components, from
+API extraction to SQL transformation to loading into end applications. BASIS
 abstracts over underlying database, runtime, and storage resources with **functional,
 type-aware data graphs**. These graphs are composed of discrete `DataFunctions` written in python or
 SQL operating on streams of immutable `DataBlocks` -- sets of data records of uniform `ObjectType`.
 
-The power of BASIS lies in its Component ecosystem, powered by its flexible type system which
-provides universal data interfaces, called **ObjectTypes** or _**otypes**_, that allow
-interoperability, modularity, and quality assurance of data operations.
-
-Global collaboration, reproducible byte-perfect results, and performance at any
-scale from laptop to AWS cluster -- this is **BASIS**.
+BASIS brings the best practices learned over the last 60 years in software to the world of data,
+with the goal of global collaboration, reproducible byte-perfect results, and performance at any
+scale from laptop to AWS cluster.
 
 ### Features:
 
@@ -67,16 +64,17 @@ Build your pipeline (you'll need to add the `stripe` and `bi` modules to your pr
 
 ```python
 from basis import current_env
+from basis_modules import stripe, bi
 
 env = current_env()
 env.add_external_source_node(
     name="stripe_txs",
-    external_source="stripe.StripeTransactionsResource",
+    external_source=stripe.StripeTransactionsResource,
     config={"api_key":"xxxxxxxx"},
 )
 env.add_node(
     name="ltv_model",
-    function="bi.TransactionLTVModel",
+    function=bi.TransactionLTVModel,
     upstream="stripe_txs",
 )
 ```
