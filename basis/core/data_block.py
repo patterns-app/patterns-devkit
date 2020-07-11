@@ -12,9 +12,9 @@ from sqlalchemy.orm import RelationshipProperty, Session, relationship
 from basis.core.data_formats import (
     DataFormat,
     DataFormatType,
+    DataFrameFormat,
     get_data_format_of_object,
     get_records_list_sample,
-    DataFrameFormat,
 )
 from basis.core.data_formats.base import MemoryDataFormat
 from basis.core.data_formats.database_table_ref import (

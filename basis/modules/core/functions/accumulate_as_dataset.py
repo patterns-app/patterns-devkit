@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from basis.core.data_function import datafunction_chain
+from basis.core.data_function import DataFunction, datafunction_chain
 from basis.modules.core.functions.as_dataset import as_dataset
 from basis.modules.core.functions.dedupe import dedupe_unique_keep_newest_row
 from basis.testing.functions import DataFunctionTest
@@ -9,6 +9,13 @@ accumulate_as_dataset = datafunction_chain(
     name=f"accumulate_as_dataset",
     function_chain=["accumulator", dedupe_unique_keep_newest_row, as_dataset],
 )
+
+
+# def with_dataset(fn: DataFunction) -> DataFunction:
+#     return datafunction_chain(
+#         name=f"accumulate_{fn.name}_as_dataset",
+#         function_chain=[fn, "accumulator", dedupe_unique_keep_newest_row, as_dataset],
+#     )
 
 
 accumulate_as_dataset_test = DataFunctionTest(

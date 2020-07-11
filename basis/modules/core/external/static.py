@@ -4,6 +4,7 @@ from typing import Any, Iterator
 import pandas as pd
 from pandas import DataFrame
 
+from basis.core.data_formats import RecordsList
 from basis.core.data_function import datafunction
 from basis.core.external import (
     ConfiguredExternalProvider,
@@ -16,8 +17,9 @@ from basis.core.external import (
 from basis.core.runnable import DataFunctionContext
 from basis.core.typing.object_type import ObjectTypeLike
 from basis.utils.common import utcnow
+from basis.utils.data import read_csv
 
-local_provider = ExternalDataProvider(
+local_memory_provider = ExternalDataProvider(
     name="LocalMemoryProvider",
     verbose_name="Local memory provider",
     description="Dummy provider for local memory external objects (DataFrames, etc)",
@@ -47,7 +49,7 @@ class DataFrameResourceConfiguration:
 
 ExternalDataResource(
     name="DataFrameExternalResource",
-    provider=local_provider,
+    provider=local_memory_provider,
     otype="Any",  # TODO
     verbose_name=f"Static DataFrame External Resource",
     description=f"Use a DataFrame external to Basis as a node input",
@@ -55,6 +57,45 @@ ExternalDataResource(
     configuration_class=DataFrameResourceConfiguration,
 )
 
+local_file_provider = ExternalDataProvider(
+    name="LocalFileProvider",
+    verbose_name="Local file provider",
+    description="Dummy provider for local file external objects (CSVs, etc)",
+    requires_authentication=False,
+)
+
+
+def extract_csv(
+    configured_provider: ConfiguredExternalProvider,
+    configured_resource: ConfiguredExternalResource,
+    configured_resource_state: ConfiguredExternalResourceState,
+) -> Iterator[ExtractorResult[RecordsList]]:
+    if configured_resource_state.high_water_mark is not None:
+        # Just emit once
+        return
+    path = configured_resource.get_config_value("path")
+    with open(path) as f:
+        records = read_csv(f.readlines())
+    yield ExtractorResult(
+        records=records, new_high_water_mark=utcnow(),
+    )
+
+
+@dataclass
+class LocalCSVResourceConfiguration:
+    path: str
+    otype: ObjectTypeLike
+
+
+ExternalDataResource(
+    name="LocalCSVExternalResource",
+    provider=local_file_provider,
+    otype="Any",  # TODO
+    verbose_name=f"Static CSV External Resource",
+    description=f"Use a CSV external to Basis as a node input",
+    default_extractor=extract_csv,
+    configuration_class=LocalCSVResourceConfiguration,
+)
 
 # def source_dataframe(ctx: DataFunctionContext) -> DataFrame[Any]:
 #     return ctx.config

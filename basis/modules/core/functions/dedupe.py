@@ -51,30 +51,34 @@ from basis.testing.functions import DataFunctionTest
 # )
 
 
+# TODO: currently no-op when no unique columns specified, should probably be ALL columns
+#   but _very_ expensive. In general any deduping on non-indexed columns will be costly.
 dedupe_unique_keep_newest_row = sql_datafunction(
     name="dedupe_unique_keep_newest_row",
     compatible_runtimes="postgres",
     sql="""
-select:T
-distinct on (
-    {% for col in inputs.input.realized_otype.unique_on %}
-        "{{ col }}"
-        {%- if not loop.last %},{% endif %}
-    {% endfor %}
-    )
-    {% for col in inputs.input.realized_otype.fields %}
-        "{{ col.name }}"
-        {%- if not loop.last %},{% endif %}
-    {% endfor %}
+        select:T
+        {% if inputs.input.realized_otype.unique_on %}
+            distinct on (
+                {% for col in inputs.input.realized_otype.unique_on %}
+                    "{{ col }}"
+                    {%- if not loop.last %},{% endif %}
+                {% endfor %}
+                )
+        {% endif %}
+            {% for col in inputs.input.realized_otype.fields %}
+                "{{ col.name }}"
+                {%- if not loop.last %},{% endif %}
+            {% endfor %}
 
-from input:T
-{% if inputs.input.resolved_otype.updated_at_field %}
-order by
-    {% for col in inputs.input.realized_otype.unique_on %}
-        "{{ col }}",
-    {% endfor %}
-    {{ inputs.input.resolved_otype.updated_at_field.name }} desc
-{% endif %}
+        from input:T
+        {% if inputs.input.resolved_otype.updated_at_field %}
+        order by
+            {% for col in inputs.input.realized_otype.unique_on %}
+                "{{ col }}",
+            {% endfor %}
+            "{{ inputs.input.resolved_otype.updated_at_field.name }}" desc
+        {% endif %}
 """,
 )
 

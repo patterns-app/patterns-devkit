@@ -31,7 +31,7 @@ def bulk_upsert(
     update: bool = True,
     columns: List[str] = None,
     adapt_objects_to_json: bool = True,
-    convert_columns_to_snake_case: bool = True,
+    convert_columns_to_snake_case: bool = False,
     page_size: int = 5000,
 ):
     if not records:
