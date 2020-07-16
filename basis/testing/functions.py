@@ -169,7 +169,7 @@ class DataFunctionTest:
                             test_otype = test_data[input.name].otype_like
                             n = env.add_external_source_node(
                                 f"_test_source_node_{input.name}_{i}",
-                                "DataFrameExternalResource",
+                                "DataFrameResource",
                                 config={"dataframe": test_df, "otype": test_otype},
                             )
                             inputs[input.name] = n

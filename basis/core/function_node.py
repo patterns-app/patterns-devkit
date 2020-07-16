@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union, Iterable
+import traceback
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Union
 
 from pandas import DataFrame
 from sqlalchemy.orm import relationship
@@ -182,6 +183,7 @@ class DataFunctionLog(BaseModel):
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
+    error = Column(JSON, nullable=True)
     data_block_logs: RelationshipProperty = relationship(
         "DataBlockLog", backref="data_function_log"
     )
@@ -200,6 +202,11 @@ class DataFunctionLog(BaseModel):
 
     def input_data_blocks(self) -> Iterable[DataBlockMetadata]:
         return [db for db in self.data_block_logs if db.direction == Direction.INPUT]
+
+    def set_error(self, e: Exception):
+        tback = traceback.format_exc()
+        # Traceback can be v large (like in max recursion), so we truncate to 5k chars
+        self.error = {"error": str(e), "traceback": tback[:5000]}
 
 
 class Direction(enum.Enum):

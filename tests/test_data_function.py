@@ -399,6 +399,38 @@ def test_sql_data_function2():
     assert dfi.inputs[1].is_optional
 
 
+def test_sql_data_function_no_types():
+    sql = "select 1 from from t1 join t2 on t1.a = t2.b left join t3 on"
+    df = sql_datafunction("s1", sql)
+    dfi = df.get_interface()
+    assert dfi is not None
+
+    assert len(dfi.inputs) == 3
+    assert dfi.inputs[0].otype_like == "Any"
+    assert dfi.inputs[0].name == "t1"
+    assert dfi.inputs[1].otype_like == "Any"
+    assert dfi.inputs[1].name == "t2"
+    assert dfi.inputs[2].otype_like == "Any"
+    assert dfi.inputs[2].name == "t3"
+
+    sql = """select 1 from
+    from -- comment inbetween
+    t1
+    join t2 on t1.a = t2.b"""
+    df = sql_datafunction("s1", sql)
+    dfi = df.get_interface()
+    assert dfi is not None
+    assert len(dfi.inputs) == 2
+
+    sql = """select 1, 'not a commment -- nope'
+    from -- comment inbetween
+    t1, t2 on t1.a = t2.b"""
+    df = sql_datafunction("s1", sql)
+    dfi = df.get_interface()
+    assert dfi is not None
+    assert len(dfi.inputs) == 2
+
+
 @datafunction("k1", compatible_runtimes="python")
 def df1():
     pass

@@ -13,8 +13,6 @@ def test_example():
     env.add_storage("memory://test")
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
-    env.add_external_source_node(
-        "n1", "DataFrameExternalResource", config={"dataframe": df}
-    )
+    env.add_external_source_node("n1", "DataFrameResource", config={"dataframe": df})
     output = env.produce("n1")
     assert_almost_equal(output.as_dataframe(), df)

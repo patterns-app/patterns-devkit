@@ -48,7 +48,7 @@ class DataFrameResourceConfiguration:
 
 
 ExternalDataResource(
-    name="DataFrameExternalResource",
+    name="DataFrameResource",
     provider=local_memory_provider,
     otype="Any",  # TODO
     verbose_name=f"Static DataFrame External Resource",
@@ -88,7 +88,7 @@ class LocalCSVResourceConfiguration:
 
 
 ExternalDataResource(
-    name="LocalCSVExternalResource",
+    name="LocalCSVResource",
     provider=local_file_provider,
     otype="Any",  # TODO
     verbose_name=f"Static CSV External Resource",

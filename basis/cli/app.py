@@ -67,7 +67,7 @@ def app(ctx, debug: bool = False):
     else:
         logger.add(sys.stderr, level="INFO")
     # TODO some way to pass in env
-    env = Environment()
+    env = Environment(metadata_storage="sqlite:///:memory:")
     try:
         env = current_env()
     except:

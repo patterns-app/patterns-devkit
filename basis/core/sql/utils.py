@@ -1,4 +1,5 @@
 import os
+import re
 from typing import Dict, List, Sequence
 
 import jinja2
@@ -14,6 +15,9 @@ from basis.core.typing.object_type import Field, ObjectType
 from basis.utils.common import rand_str
 
 core_dir = os.path.dirname(__file__)
+
+re_comment = re.compile(r"(--|#).*")
+re_table_ref = re.compile(r"\b(from|join)\s+(\w+\.)?\w+")
 
 
 def column_list(cols: List[str], commas_first: bool = True) -> str:
@@ -43,6 +47,15 @@ def compile_jinja_sql_template(template, template_ctx=None):
     tmpl = env.get_template(template)
     sql = tmpl.render(**template_ctx)
     return sql
+
+
+def strip_comments(sql: str) -> str:
+    return re_comment.sub("", sql)
+
+
+def find_all_tables(sql: str) -> List[str]:
+    # TODO: this is a hack. Need dialect-specific parsers?
+    raise NotImplementedError
 
 
 class ObjectTypeFieldMapper:

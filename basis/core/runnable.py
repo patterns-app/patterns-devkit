@@ -165,6 +165,7 @@ class ExecutionContext:
         try:
             yield RunSession(dfl, self.metadata_session)
         except Exception as e:
+            dfl.set_error(e)
             raise e
         finally:
             dfl.completed_at = utcnow()

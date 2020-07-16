@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from loguru import logger
 import os
 from contextlib import contextmanager
 from dataclasses import asdict
@@ -18,6 +17,7 @@ from basis.core.typing.object_type import (
     ObjectTypeLike,
 )
 from basis.logging.event import Event, EventHandler, EventSubject, event_factory
+from loguru import logger
 
 if TYPE_CHECKING:
     from basis.core.streams import FunctionNodeRawInput, DataBlockStream
@@ -63,6 +63,9 @@ class Environment:
         if metadata_storage is None and create_metadata_storage:
             # TODO: kind of hidden. make configurable at least, and log/print to user
             metadata_storage = Storage.from_url("sqlite:///.basis_metadata.db")
+            logger.warn(
+                f"No metadata storage specified, using local '.basis_metadata.db' sqlite db"
+            )
         if isinstance(metadata_storage, str):
             metadata_storage = Storage.from_url(metadata_storage)
         if metadata_storage is None:
@@ -156,6 +159,9 @@ class Environment:
 
     def get_function(self, df_like: str) -> DataFunction:
         return self.library.get_function(df_like)
+
+    def add_function(self, df: DataFunction):
+        self.library.add_component(df)
 
     def all_functions(self) -> List[DataFunction]:
         return self.library.all_functions()
