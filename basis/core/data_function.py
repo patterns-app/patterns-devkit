@@ -44,7 +44,7 @@ def get_runtime_class(runtime: Optional[str]) -> RuntimeClass:
     return RuntimeClass.PYTHON
 
 
-def make_datafunction_name(data_function: DataFunctionCallable) -> str:
+def make_data_function_name(data_function: DataFunctionCallable) -> str:
     # TODO: something more principled / explicit?
     if hasattr(data_function, "name"):
         return data_function.name  # type: ignore
@@ -125,7 +125,7 @@ class DataFunctionDefinition(ComponentUri):
     compatible_runtime_classes: List[RuntimeClass]
     is_composite: bool = False
     configuration_class: Optional[Type] = None
-    sub_functions: List[ComponentUri] = field(
+    sub_graph: List[ComponentUri] = field(
         default_factory=list
     )  # TODO: support proper graphs
     # TODO: runtime engine eg "mysql>=8.0", "python==3.7.4"  ???
@@ -146,14 +146,14 @@ class DataFunctionDefinition(ComponentUri):
             return None
         if hasattr(self.function_callable, "get_interface"):
             return self.function_callable.get_interface()
-        return DataFunctionInterface.from_datafunction_definition(
+        return DataFunctionInterface.from_data_function_definition(
             self.function_callable
         )
 
     def associate_with_module(self, module: BasisModule) -> ComponentUri:
         new_subs = []
-        if self.sub_functions:
-            for sub in self.sub_functions:
+        if self.sub_graph:
+            for sub in self.sub_graph:
                 new_subs.append(sub.associate_with_module(module))
         return self.clone(module_name=module.name, sub_functions=new_subs)
 
@@ -185,7 +185,7 @@ def data_function_definition_factory(
     if name is None:
         if function_callable is None:
             raise
-        name = make_datafunction_name(function_callable)
+        name = make_data_function_name(function_callable)
     runtime_class = get_runtime_class(compatible_runtimes)
     return DataFunctionDefinition(
         component_type=ComponentType.DataFunction,
@@ -198,7 +198,7 @@ def data_function_definition_factory(
     )
 
 
-def datafunction(
+def data_function(
     df_or_name: Union[str, DataFunctionCallable] = None,
     name: str = None,
     version: str = None,
@@ -208,7 +208,7 @@ def datafunction(
 ) -> Union[Callable, DataFunctionDefinition]:
     if isinstance(df_or_name, str) or df_or_name is None:
         return partial(
-            datafunction,
+            data_function,
             name=df_or_name,
             version=version,
             compatible_runtimes=compatible_runtimes,
@@ -223,7 +223,7 @@ def datafunction(
     )
 
 
-def datafunction_chain(
+def data_function_chain(
     name: str, function_chain: List[Union[DataFunctionLike, str]], **kwargs
 ) -> DataFunctionDefinition:
     sub_funcs = []
@@ -233,7 +233,7 @@ def datafunction_chain(
         elif isinstance(fn, ComponentUri):
             uri = fn
         elif callable(fn):
-            uri = ensure_datafunction_definition(fn, **kwargs)
+            uri = make_data_function_definition(fn, **kwargs)
         else:
             raise TypeError(f"Invalid function uri in chain {fn}")
         sub_funcs.append(uri)
@@ -242,7 +242,7 @@ def datafunction_chain(
     )
 
 
-def ensure_datafunction_definition(
+def make_data_function_definition(
     dfl: DataFunctionDefinitionLike, **kwargs
 ) -> DataFunctionDefinition:
     if isinstance(dfl, DataFunction):
@@ -252,8 +252,8 @@ def ensure_datafunction_definition(
     return data_function_definition_factory(dfl, **kwargs)
 
 
-def ensure_datafunction(dfl: DataFunctionLike, **kwargs) -> DataFunction:
+def make_data_function(dfl: DataFunctionLike, **kwargs) -> DataFunction:
     if isinstance(dfl, DataFunction):
         return dfl
-    dfd = ensure_datafunction_definition(dfl, **kwargs)
+    dfd = make_data_function_definition(dfl, **kwargs)
     return dfd.as_data_function()

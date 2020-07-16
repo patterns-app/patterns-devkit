@@ -3,8 +3,8 @@ from __future__ import annotations
 from pandas import DataFrame
 
 from basis.core.data_block import DataBlock
-from basis.core.data_function import datafunction
-from basis.core.sql.data_function import sql_datafunction
+from basis.core.data_function import data_function
+from basis.core.sql.data_function import sql_data_function
 from basis.testing.functions import DataFunctionTest
 from basis.utils.typing import T
 
@@ -128,7 +128,7 @@ accumulator_test = DataFunctionTest(
 )
 
 
-@datafunction(name="accumulator")  # , test_data="test_accumulator.yml")
+@data_function(name="accumulator")  # , test_data="test_accumulator.yml")
 def dataframe_accumulator(
     input: DataBlock[T], this: DataBlock[T] = None,
 ) -> DataFrame[T]:
@@ -139,7 +139,7 @@ def dataframe_accumulator(
     return records
 
 
-sql_accumulator = sql_datafunction(
+sql_accumulator = sql_data_function(
     name="accumulator",
     sql="""
     select:T * from input:T

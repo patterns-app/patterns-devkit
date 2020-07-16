@@ -34,19 +34,13 @@ from basis.core.data_function import (
 )
 from basis.core.data_function_interface import (
     DataFunctionAnnotation,
-    FunctionNodeInterfaceManager,
+    NodeInterfaceManager,
     ResolvedFunctionInterface,
     ResolvedFunctionNodeInput,
 )
 from basis.core.environment import Environment
-from basis.core.function_node import (
-    CompositeFunctionNode,
-    DataBlockLog,
-    DataFunctionLog,
-    Direction,
-    FunctionNode,
-)
 from basis.core.metadata.orm import BaseModel
+from basis.core.node import DataBlockLog, DataFunctionLog, Direction, Node
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from basis.core.storage.storage import LocalMemoryStorageEngine, Storage
 from basis.core.typing.object_type import ObjectType
@@ -98,20 +92,20 @@ class RuntimeSpecification:
 @dataclass(frozen=True)
 class Runnable:
     function_node_name: str
-    compiled_datafunction: CompiledDataFunction
+    compiled_data_function: CompiledDataFunction
     # runtime_specification: RuntimeSpecification # TODO: support this
-    datafunction_interface: ResolvedFunctionInterface
+    data_function_interface: ResolvedFunctionInterface
     configuration: Dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class RunSession:
-    datafunction_log: DataFunctionLog
+    data_function_log: DataFunctionLog
     metadata_session: Session  # Make this a URL or other jsonable and then runtime can connect
 
     def log(self, block: DataBlockMetadata, direction: Direction):
         drl = DataBlockLog(  # type: ignore
-            data_function_log=self.datafunction_log,
+            data_function_log=self.data_function_log,
             data_block=block,
             direction=direction,
             processed_at=utcnow(),
@@ -151,14 +145,12 @@ class ExecutionContext:
         return ExecutionContext(**args)  # type: ignore
 
     @contextmanager
-    def start_data_function_run(
-        self, node: FunctionNode
-    ) -> Generator[RunSession, None, None]:
+    def start_data_function_run(self, node: Node) -> Generator[RunSession, None, None]:
         assert self.current_runtime is not None, "Runtime not set"
         dfl = DataFunctionLog(  # type: ignore
             function_node_name=node.name,
-            data_function_uri=node.datafunction.uri,
-            # data_function_config=node.datafunction.configuration,  # TODO
+            data_function_uri=node.data_function.uri,
+            # data_function_config=node.data_function.configuration,  # TODO
             runtime_url=self.current_runtime.url,
             started_at=utcnow(),
         )
@@ -225,8 +217,8 @@ class ExecutionManager:
         self.ctx = ctx
         self.env = ctx.env
 
-    def select_runtime(self, node: FunctionNode) -> Runtime:
-        compatible_runtimes = node.datafunction.compatible_runtime_classes
+    def select_runtime(self, node: Node) -> Runtime:
+        compatible_runtimes = node.data_function.compatible_runtime_classes
         for runtime in self.ctx.runtimes:
             if (
                 runtime.runtime_class in compatible_runtimes
@@ -237,25 +229,14 @@ class ExecutionManager:
         )
 
     def get_bound_data_function_interface(
-        self, node: FunctionNode
+        self, node: Node
     ) -> ResolvedFunctionInterface:
-        dfi_mgr = FunctionNodeInterfaceManager(self.ctx, node)
+        dfi_mgr = NodeInterfaceManager(self.ctx, node)
         return dfi_mgr.get_bound_interface()
 
-    def run_composite(
-        self, node: CompositeFunctionNode, to_exhaustion: bool = False
-    ) -> Optional[ManagedDataBlock]:
-        output: Optional[ManagedDataBlock] = None
-        for child in node.get_nodes():
-            output = self.run(child, to_exhaustion=to_exhaustion)
-        return output
-
-    def run(
-        self, node: FunctionNode, to_exhaustion: bool = False
-    ) -> Optional[DataBlock]:
+    def run(self, node: Node, to_exhaustion: bool = False) -> Optional[DataBlock]:
         if node.is_composite():
-            node = cast(CompositeFunctionNode, node)
-            return self.run_composite(node, to_exhaustion=to_exhaustion)
+            raise NotImplementedError
         runtime = self.select_runtime(node)
         run_ctx = self.ctx.clone(current_runtime=runtime)
         worker = Worker(run_ctx)
@@ -263,7 +244,7 @@ class ExecutionManager:
 
         # Setup for run
         base_msg = (
-            f"Running node: {cf.green(node.name)} {cf.dimmed(node.datafunction.name)}"
+            f"Running node: {cf.green(node.name)} {cf.dimmed(node.data_function.name)}"
         )
         spinner = get_spinner()
         spinner.start(base_msg)
@@ -273,17 +254,17 @@ class ExecutionManager:
         try:
             while True:
                 dfi = self.get_bound_data_function_interface(node)
-                df = node.datafunction.get_definition(runtime.runtime_class)
+                df = node.data_function.get_definition(runtime.runtime_class)
                 if df is None:
                     raise NotImplementedError(
-                        f"No function definition found for {node.datafunction.name} and runtime {runtime.runtime_class}"
+                        f"No function definition found for {node.data_function.name} and runtime {runtime.runtime_class}"
                     )
                 runnable = Runnable(
                     function_node_name=node.name,
-                    compiled_datafunction=CompiledDataFunction(
+                    compiled_data_function=CompiledDataFunction(
                         name=node.name, function=df,
                     ),
-                    datafunction_interface=dfi,
+                    data_function_interface=dfi,
                     configuration=node.config,
                 )
                 last_output = worker.run(runnable)
@@ -318,7 +299,7 @@ class ExecutionManager:
             return None
         new_session = self.env.get_new_metadata_session()
         last_output = new_session.merge(last_output)
-        return last_output.as_managed_data_block(self.ctx,)  # type: ignore  # Doesn't understand merge
+        return last_output.as_managed_data_block(self.ctx,)
 
     #
     # def produce(
@@ -342,9 +323,11 @@ class Worker:
         output_block: Optional[DataBlockMetadata] = None
         node = self.env.get_node(runnable.function_node_name)
         with self.ctx.start_data_function_run(node) as run_session:
-            output = self.execute_datafunction(runnable)
+            output = self.execute_data_function(runnable)
             if output is not None:
-                assert runnable.datafunction_interface.resolved_output_otype is not None
+                assert (
+                    runnable.data_function_interface.resolved_output_otype is not None
+                )
                 assert (
                     self.ctx.target_storage is not None
                 ), "Must specify target storage for output"
@@ -353,31 +336,31 @@ class Worker:
                 if output_block is not None:
                     run_session.log_output(output_block)
 
-            for input in runnable.datafunction_interface.inputs:
+            for input in runnable.data_function_interface.inputs:
                 assert input.bound_data_block is not None, input
                 run_session.log_input(input.bound_data_block)
         return output_block
 
-    def execute_datafunction(self, runnable: Runnable) -> DataInterfaceType:
+    def execute_data_function(self, runnable: Runnable) -> DataInterfaceType:
         args = []
-        if runnable.datafunction_interface.requires_data_function_context:
+        if runnable.data_function_interface.requires_data_function_context:
             dfc = DataFunctionContext(
                 self.ctx,
                 worker=self,
                 runnable=runnable,
-                inputs=runnable.datafunction_interface.inputs,
-                resolved_output_otype=runnable.datafunction_interface.resolved_output_otype,
-                realized_output_otype=runnable.datafunction_interface.realized_output_otype,
+                inputs=runnable.data_function_interface.inputs,
+                resolved_output_otype=runnable.data_function_interface.resolved_output_otype,
+                realized_output_otype=runnable.data_function_interface.realized_output_otype,
             )
             args.append(dfc)
-        inputs = runnable.datafunction_interface.as_kwargs()
+        inputs = runnable.data_function_interface.as_kwargs()
         mgd_inputs = {
             n: self.get_managed_data_block(block) for n, block in inputs.items()
         }
         assert (
-            runnable.compiled_datafunction.function.function_callable is not None
-        ), f"Attempting to execute composite function directly {runnable.compiled_datafunction.function}"
-        return runnable.compiled_datafunction.function.function_callable(
+            runnable.compiled_data_function.function.function_callable is not None
+        ), f"Attempting to execute composite function directly {runnable.compiled_data_function.function}"
+        return runnable.compiled_data_function.function.function_callable(
             *args, **mgd_inputs
         )
 
@@ -387,8 +370,8 @@ class Worker:
     def conform_output(
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
     ) -> Optional[DataBlockMetadata]:
-        assert runnable.datafunction_interface.output is not None
-        assert runnable.datafunction_interface.resolved_output_otype is not None
+        assert runnable.data_function_interface.output is not None
+        assert runnable.data_function_interface.resolved_output_otype is not None
         assert self.ctx.target_storage is not None
         # TODO: check if these Metadata objects have been added to session!
         #   also figure out what merge actually does
@@ -404,12 +387,12 @@ class Worker:
 
         if isinstance(output, abc.Generator):
             if (
-                runnable.datafunction_interface.output.data_format_class
+                runnable.data_function_interface.output.data_format_class
                 == "DataFrameGenerator"
             ):
                 output = DataFrameGenerator(output)
             elif (
-                runnable.datafunction_interface.output.data_format_class
+                runnable.data_function_interface.output.data_format_class
                 == "RecordsListGenerator"
             ):
                 output = RecordsListGenerator(output)
@@ -424,11 +407,11 @@ class Worker:
             self.ctx.metadata_session,
             self.ctx.local_memory_storage,
             output,
-            expected_otype=runnable.datafunction_interface.resolved_output_otype,
+            expected_otype=runnable.data_function_interface.resolved_output_otype,
         )
         # ldr = LocalMemoryDataRecords.from_records_object(output)
         # block = DataBlockMetadata(
-        #     otype_uri=runnable.datafunction_interface.output_otype.uri
+        #     otype_uri=runnable.data_function_interface.output_otype.uri
         # )
         # sdb = StoredDataBlockMetadata(  # type: ignore
         #     data_block=block,

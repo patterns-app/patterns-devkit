@@ -29,13 +29,14 @@ if TYPE_CHECKING:
     from basis.core.data_function import (
         DataFunctionLike,
         DataFunction,
-        ensure_datafunction_definition,
+        make_data_function_definition,
     )
     from basis.core.external import ConfiguredExternalResource, ExternalResource
-    from basis.core.function_node import FunctionNode, function_node_factory
+    from basis.core.node import Node, function_node_factory
     from basis.core.data_function_interface import FunctionGraphResolver
     from basis.core.runnable import ExecutionContext
     from basis.core.data_block import DataBlock
+    from basis.core.graph import Graph
 
 
 class Environment:
@@ -58,6 +59,7 @@ class Environment:
         from basis.core.runtime import RuntimeEngine
         from basis.core.storage.storage import Storage
         from basis.modules import core
+        from basis.core.graph import Graph
 
         self.name = name
         if metadata_storage is None and create_metadata_storage:
@@ -74,8 +76,9 @@ class Environment:
         self.initialize_metadata_database()
         self._local_module = DEFAULT_LOCAL_MODULE  #     BasisModule(name=f"_env")
         self.library = ComponentLibrary(default_module=self._local_module)
-        self._added_nodes: Dict[str, FunctionNode] = {}
-        self._flattened_nodes: Dict[str, FunctionNode] = {}
+        self._graph = Graph()
+        # self._added_nodes: Dict[str, Node] = {}
+        # self._flattened_nodes: Dict[str, Node] = {}
         self.storages = []
         self.runtimes = []
         self._metadata_sessions: List[Session] = []
@@ -176,22 +179,12 @@ class Environment:
 
     def add_node(
         self, name: str, function: Union[DataFunctionLike, str], **kwargs: Any
-    ) -> FunctionNode:
-        from basis.core.function_node import function_node_factory
-
+    ) -> Node:
         if isinstance(function, str):
             function = self.get_function(function)
-        node = function_node_factory(self, name, function, **kwargs)
-        self._added_nodes[node.name] = node
-        self.register_node(node)
+        node = Node(self, name, function, **kwargs)
+        self._graph.add_node(node)
         return node
-
-    def register_node(self, node: FunctionNode):
-        if node.is_composite():
-            for sub_node in node.get_nodes():
-                self.register_node(sub_node)
-        else:
-            self._flattened_nodes[node.name] = node
 
     def add_external_source_node(
         self,
@@ -199,9 +192,7 @@ class Environment:
         external_resource: Union[ExternalResource, str],
         config: Dict,
         **kwargs: Any,
-    ) -> FunctionNode:
-        from basis.core.function_node import function_node_factory
-        from basis.core.external import ConfiguredExternalResource
+    ) -> Node:
 
         if isinstance(external_resource, str):
             external_resource = self.library.get_external_resource(external_resource)
@@ -213,58 +204,58 @@ class Environment:
         )
         return self.add_node(name, r.extractor, **kwargs)
 
-    def add_dataset_node(
-        self,
-        name: str,
-        dataset_name: str = None,
-        upstream: Any = None,
-        **stream_kwargs: Any,
-    ) -> FunctionNode:
-        from basis.core.streams import DataBlockStream
+    # def add_dataset_node(
+    #     self,
+    #     name: str,
+    #     dataset_name: str = None,
+    #     upstream: Any = None,
+    #     **stream_kwargs: Any,
+    # ) -> Node:
+    #     from basis.core.streams import DataBlockStream
+    #
+    #     if dataset_name is None:
+    #         dataset_name = name
+    #     if upstream is None:
+    #         upstream = DataBlockStream(**stream_kwargs)
+    #     return self.add_node(
+    #         name,
+    #         "core.accumulate_as_dataset",
+    #         config={"dataset_name": dataset_name},
+    #         upstream=upstream,
+    #     )
 
-        if dataset_name is None:
-            dataset_name = name
-        if upstream is None:
-            upstream = DataBlockStream(**stream_kwargs)
-        return self.add_node(
-            name,
-            "core.accumulate_as_dataset",
-            config={"dataset_name": dataset_name},
-            upstream=upstream,
-        )
+    def all_added_nodes(self) -> List[Node]:
+        return list(self._graph.nodes())
 
-    def all_added_nodes(self) -> List[FunctionNode]:
-        return list(self._added_nodes.values())
+    def all_flattened_nodes(self) -> List[Node]:
+        # TODO: cache?
+        return list(self._flattened_graph().nodes())
 
-    def all_flattened_nodes(self) -> List[FunctionNode]:
-        return list(self._flattened_nodes.values())
+    def _flattened_graph(self) -> Graph:
+        return self._graph.add_dataset_nodes().flatten()
 
-    def get_node(self, node_like: Union[FunctionNode, str]) -> FunctionNode:
-        from basis.core.function_node import FunctionNode
+    def get_node(self, node_like: Union[Node, str]) -> Node:
+        from basis.core.node import Node
 
-        if isinstance(node_like, FunctionNode):
+        if isinstance(node_like, Node):
             return node_like
         try:
-            return self._added_nodes[node_like]
+            return self._graph.get_node(node_like)
         except KeyError:  # TODO: do we want to get flattened (sub) nodes too? Probably
-            return self._flattened_nodes[node_like]
+            return self._flattened_graph().get_node(node_like)
 
-    def get_function_graph_resolver(self) -> FunctionGraphResolver:
-        from basis.core.data_function_interface import FunctionGraphResolver
-
-        return FunctionGraphResolver(self)
-
-    def set_upstream(
-        self, node_like: Union[FunctionNode, str], upstream: FunctionNodeRawInput
-    ):
-        n = self.get_node(node_like)
-        n.set_upstream(upstream)
-
-    def add_upstream(
-        self, node_like: Union[FunctionNode, str], upstream: FunctionNodeRawInput
-    ):
-        n = self.get_node(node_like)
-        n.add_upstream(upstream)
+    # def get_function_graph_resolver(self) -> FunctionGraphResolver:
+    #     from basis.core.data_function_interface import FunctionGraphResolver
+    #
+    #     return FunctionGraphResolver(self)
+    #
+    # def set_upstream(self, node_like: Union[Node, str], upstream: FunctionNodeRawInput):
+    #     n = self.get_node(node_like)
+    #     n.set_inputs(upstream)
+    #
+    # def add_upstream(self, node_like: Union[Node, str], upstream: FunctionNodeRawInput):
+    #     n = self.get_node(node_like)
+    #     n.add_upstream(upstream)
 
     def add_module(self, module: BasisModule):
         self.library.add_module(module)
@@ -328,51 +319,52 @@ class Environment:
 
     def produce(
         self,
-        node_like: Union[FunctionNode, str],
+        node_like: Union[Node, str],
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> Optional[DataBlock]:
-        from basis.core.function_node import FunctionNode
+        from basis.core.node import Node
 
-        fgr = self.get_function_graph_resolver()
+        node = node_like
+        if isinstance(node, str):
+            node = self.get_node(node_like)
+        assert isinstance(node, Node)
+        raise NotImplementedError(
+            "No mapping between declared node and flattened graph"
+        )
+        # output_node = node.get_output_node()  # Handle composite functions
+        # dependencies = fgr.get_all_upstream_dependencies_in_execution_order(output_node)
+        # output = None
+        # for dep in dependencies:
+        #     with self.execution(**execution_kwargs) as em:
+        #         output = em.run(dep, to_exhaustion=to_exhaustion)
+        # return output
 
-        if isinstance(node_like, str):
-            node_like = self.get_node(node_like)
-        assert isinstance(node_like, FunctionNode)
-        output_node = node_like.get_output_node()  # Handle composite functions
-        dependencies = fgr.get_all_upstream_dependencies_in_execution_order(output_node)
-        output = None
-        for dep in dependencies:
-            with self.execution(**execution_kwargs) as em:
-                output = em.run(dep, to_exhaustion=to_exhaustion)
-        return output
-
-    def update(
+    def run_node(
         self,
-        node_like: Union[FunctionNode, str],
+        node_like: Union[Node, str],
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> Optional[DataBlock]:
-        from basis.core.function_node import FunctionNode
+        from basis.core.node import Node
 
         if isinstance(node_like, str):
             node_like = self.get_node(node_like)
-        assert isinstance(node_like, FunctionNode)
+        assert isinstance(node_like, Node)
 
         with self.execution(**execution_kwargs) as em:
             return em.run(node_like, to_exhaustion=to_exhaustion)
 
-    def update_all(self, to_exhaustion: bool = True, **execution_kwargs: Any):
-        fgr = self.get_function_graph_resolver()
-        nodes = fgr.get_all_nodes_in_execution_order()
+    def run_all(self, to_exhaustion: bool = True, **execution_kwargs: Any):
+        nodes = self._flattened_graph().get_all_nodes_in_execution_order()
         for node in nodes:
             with self.execution(**execution_kwargs) as em:
                 em.run(node, to_exhaustion=to_exhaustion)
 
-    def get_latest_output(self, node: FunctionNode) -> Optional[DataBlock]:
-        session = self.get_new_metadata_session()  # TODO: hanging session
-        ctx = self.get_execution_context(session)
-        return node.get_latest_output(ctx)
+    # def get_latest_output(self, node: Node) -> Optional[DataBlock]:
+    #     session = self.get_new_metadata_session()  # TODO: hanging session
+    #     ctx = self.get_execution_context(session)
+    #     return node.get_latest_output(ctx)
 
     def add_storage(
         self, storage_like: Union[Storage, str], add_runtime=True

@@ -24,7 +24,7 @@ if TYPE_CHECKING:
         InputExhaustedException,
         DataFunctionCallable,
     )
-    from basis.core.function_node import FunctionNode
+    from basis.core.node import Node, Node, RawNodeInputs, NodeLike
     from basis.core.storage.storage import Storage
     from basis.core.runnable import ExecutionContext
     from basis.core.streams import (
@@ -64,13 +64,16 @@ class DataFunctionAnnotation:
     data_format_class: str
     otype_like: ObjectTypeLike
     name: Optional[str] = None
-    connected_stream: Optional[DataBlockStream] = None
     # is_iterable: bool = False  # TODO: what is state of iterable support?
     is_variadic: bool = False  # TODO: what is state of variadic support?
     is_generic: bool = False
     is_optional: bool = False
     is_self_ref: bool = False
     original_annotation: Optional[str] = None
+
+    @property
+    def is_dataset(self) -> bool:
+        return self.data_format_class == "DataSet"
 
     @classmethod
     def create(cls, **kwargs) -> DataFunctionAnnotation:
@@ -135,12 +138,12 @@ class ResolvedFunctionNodeInput:
     is_optional: bool
     is_self_ref: bool
     connected_stream: DataBlockStream
-    parent_nodes: List[FunctionNode]
-    potential_parent_nodes: List[FunctionNode]
+    parent_nodes: List[Node]
+    potential_parent_nodes: List[Node]
     # otype: ObjectType
     declared_otype_like: ObjectTypeLike
     resolved_otype: ObjectType
-    realized_otype: Optional[ObjectType] = None
+    bound_otype: Optional[ObjectType] = None
     bound_data_block: Optional[DataBlockMetadata] = None
 
     def __post_init__(self):
@@ -150,11 +153,11 @@ class ResolvedFunctionNodeInput:
         assert self.declared_otype_like is not None
         assert self.resolved_otype is not None
         assert not is_generic(self.resolved_otype)
-        if self.realized_otype is not None:
-            assert not is_generic(self.realized_otype)
-            assert not is_any(self.realized_otype)
+        if self.bound_otype is not None:
+            assert not is_generic(self.bound_otype)
+            assert not is_any(self.bound_otype)
         if self.bound_data_block is not None:
-            assert self.realized_otype is not None
+            assert self.bound_otype is not None
 
 
 @dataclass
@@ -217,10 +220,10 @@ class DataFunctionInterface:
     inputs: List[DataFunctionAnnotation]
     output: Optional[DataFunctionAnnotation]
     requires_data_function_context: bool = True
-    is_connected: bool = False
+    # is_connected: bool = False
 
     @classmethod
-    def from_datafunction_definition(
+    def from_data_function_definition(
         cls, df: DataFunctionCallable
     ) -> DataFunctionInterface:
         requires_context = False
@@ -281,301 +284,31 @@ class DataFunctionInterface:
                     )
                 data_block_seen = True
 
-    def connect_upstream(self, this: FunctionNode, upstream: InputStreams):
-        from basis.core.streams import DataBlockStream, ensure_data_stream
-
-        if self.is_connected:
-            raise Exception("Already connected")
-        if isinstance(upstream, DataBlockStream):
+    def assign_inputs(self, inputs: RawNodeInputs) -> Dict[str, NodeLike]:
+        if not isinstance(inputs, dict):
             assert (
                 len(self.get_non_recursive_inputs()) == 1
-            ), f"Wrong number of inputs. (Variadic inputs not supported yet) {upstream}"
-            self.get_non_recursive_inputs()[0].connected_stream = upstream
-        if isinstance(upstream, dict):
-            for name, node in upstream.items():
-                self.get_input(name).connected_stream = node
-        for input in self.inputs:
-            if input.is_self_ref:
-                input.connected_stream = ensure_data_stream(this)
-        self.is_connected = True
-
-
-class FunctionGraphCycleError(Exception):
-    pass
-
-
-class FunctionGraphResolver:
-    """
-    Oof, a beast. Goal is to resolve function dependency graph statically. Easy when
-    upstream is just other functions. But DataBlockStream inputs allow arbitrary otype dependency
-    (among others), to do that statically requires:
-        1 first resolve all output types for all nodes, this is trivial currently (generics are
-            resolved by input types)
-        2 build "maximal" graph, adding explicit function dependencies and tracking all POTENTIAL otype
-            dependencies. some potential otype deps may be downstream of function and create cycles tho, so
-        3 incrementally add potential otype deps one by one in arbitrary order,
-            keeping them only if they DO NOT create a cycle in the graph. Naive approach, there is likely a more
-            efficient way to find a "maximal non-cyclical sub-graph" of a cyclical graph? TODO
-    """
-
-    def __init__(self, env: Environment, nodes: Optional[List[FunctionNode]] = None):
-        self.env = env
-        self._nodes = nodes or env.all_flattened_nodes()
-        self._resolved_output_types: Dict[FunctionNode, ObjectType] = {}
-        self._resolved_inputs: Dict[FunctionNode, List[ResolvedFunctionNodeInput]] = {}
-        self._resolved = False
-
-    def resolve(self):
-        if self._resolved:
-            return
-        self.resolve_output_types()
-        self.resolve_dependencies()
-        self._resolved = True
-
-    def resolve_dependencies(self):
-        for node in self._nodes:
-            self._resolve_node_dependencies(node)
-        g = self._as_networkx_graph()
-        cycles = list(nx.simple_cycles(g))
-        if cycles:
-            raise FunctionGraphCycleError(cycles)
-        self._resolve_potential_parents()
-
-    def _resolve_potential_parents(self):
-        # TODO: when does the order in which we try potential parents matter? Is it ok if that is non-deterministic?
-        #   ie how do we choose between maximal non-cyclical subgraphs if there are multiple?
-        for node, inputs in self._resolved_inputs.items():
-            for input in inputs:
-                if input.potential_parent_nodes:
-                    for p in input.potential_parent_nodes:
-                        # Add potential edge
-                        input.parent_nodes.append(p)
-                        # Check for new cycle in graph
-                        g = self._as_networkx_graph()
-                        cycles = list(nx.simple_cycles(g))
-                        if cycles:
-                            # printd(f"{node.key} - {p.key} - {cycles}")
-                            # Keep it in parents only if no cycle
-                            input.parent_nodes.remove(p)
-                input.potential_parent_nodes = []
-
-    def _as_networkx_graph(
-        self,
-        resolved_inputs: Dict[FunctionNode, List[ResolvedFunctionNodeInput]] = None,
-    ) -> nx.DiGraph:
-        if not resolved_inputs:
-            resolved_inputs = self._resolved_inputs
-        g = nx.DiGraph()
-        for node in self._nodes:
-            g.add_node(node)
-            for input in resolved_inputs.get(node, []):
-                for p in input.parent_nodes:
-                    g.add_node(p)
-                    g.add_edge(p, node)
-        return g
-
-    def as_networkx_graph(self) -> nx.DiGraph:
-        if not self._resolved:
-            self.resolve()
-        return self._as_networkx_graph()
-
-    def _resolve_node_dependencies(
-        self, node: FunctionNode, visited: Set[FunctionNode] = None
-    ) -> List[ResolvedFunctionNodeInput]:
-        if node in self._resolved_inputs:
-            return self._resolved_inputs[node]
-        if visited is None:
-            visited = set([])
-        if node in visited:
-            raise FunctionGraphCycleError
-        visited.add(node)
-        dfi = node.get_interface()
-        resolved_inputs = []
-        for input in dfi.get_non_recursive_inputs():
-            if not input.connected_stream:
-                raise Exception(f"no input connected {input} for node {node.name}")
-            if input.is_self_ref:
-                parents = [node]
-                potential_parents: List[FunctionNode] = []
-            else:
-                parents, potential_parents = self.resolve_stream_dependencies(
-                    node, input.connected_stream, visited
-                )
-            if input.is_generic:
-                if not parents and not potential_parents:
-                    if input.connected_stream is not None:
-                        resolved_otype = self.resolve_stream_output_type(
-                            input.connected_stream, set()
-                        )
-                    else:
-                        raise Exception(f"No parents {node} {input}")
-                else:
-                    sample_node = parents[0] if parents else potential_parents[0]
-                    resolved_otype = self._resolved_output_types[
-                        sample_node
-                    ]  # TODO: check that all parents are the same otype
-            else:
-                resolved_otype = self.env.get_otype(input.otype_like)
-            i = ResolvedFunctionNodeInput(
-                name=input.name,
-                data_format_class=input.data_format_class,
-                original_annotation=input,
-                is_optional=input.is_optional,
-                is_self_ref=input.is_self_ref,
-                declared_otype_like=input.otype_like,
-                resolved_otype=self.env.get_otype(resolved_otype),
-                connected_stream=input.connected_stream,
-                parent_nodes=parents,
-                potential_parent_nodes=potential_parents,
-            )
-            resolved_inputs.append(i)
-        self._resolved_inputs[node] = resolved_inputs
-        return resolved_inputs
-
-    def resolve_stream_dependencies(
-        self, node: FunctionNode, stream: DataBlockStream, visited: Set[FunctionNode]
-    ) -> Tuple[List[FunctionNode], List[FunctionNode]]:
-        upstream_nodes = stream.get_upstream(self.env)
-        if upstream_nodes:
-            return upstream_nodes, []
-        otypes = stream.get_otypes(self.env)
-        if otypes:
-            if len(otypes) > 1:
-                raise NotImplementedError("Mixed otype streams not supported atm")
-            otype = otypes[0]
-            potential_parents = []
-            for other_node, output_type in self._resolved_output_types.items():
-                if other_node == node:
-                    continue
-                if output_type == otype:
-                    potential_parents.append(other_node)
-            return [], potential_parents
-        # if stream.raw_records_object is not None:
-        #     return [], []
-        raise NotImplementedError
-
-    def resolve_output_types(self):
-        for node in self._nodes:
-            self.resolve_output_type(node)
-
-    def resolve_output_type(
-        self, node: FunctionNode, visited: Set[FunctionNode] = None
-    ) -> Optional[ObjectType]:
-        if node in self._resolved_output_types:
-            return self._resolved_output_types[node]
-        if visited is None:
-            visited = set([])
-        if node in visited:
-            raise FunctionGraphCycleError
-        visited.add(node)
-        dfi = node.get_interface()
-        if not dfi.output:
-            return None
-        if not dfi.output.is_generic:
-            output_otype = self.env.get_otype(dfi.output.otype_like)
-        else:
-            resolved_generics: Dict[str, ObjectTypeLike] = {}
-            for input in dfi.get_non_recursive_inputs():
-                if not input.is_generic:
-                    continue
-                generic_otype = cast(str, input.otype_like)
-                if not input.connected_stream:
-                    raise Exception(
-                        f"no input connected {input} for node {node.name}, {node.get_upstream()}"
-                    )
-                otype = self.resolve_stream_output_type(input.connected_stream, visited)
-                resolved_generics[generic_otype] = otype
-            generic_output_otype = cast(str, dfi.output.otype_like)
-            output_otype = self.env.get_otype(resolved_generics[generic_output_otype])
-        self._resolved_output_types[node] = output_otype
-        return output_otype
-
-    def resolve_stream_output_type(
-        self, stream: DataBlockStream, visited: Set[FunctionNode]
-    ) -> ObjectType:
-        if stream.upstream:
-            nodes = stream.get_upstream(self.env)
-            otypes: List[ObjectType] = []
-            for n in nodes:
-                ot = self.resolve_output_type(n, visited)
-                assert ot, f"Upstream has no output {n}"
-                otypes.append(ot)
-            if len(set(o.name for o in otypes)) != 1:
-                raise Exception("Mixed otype streams not suppported atm")
-            return otypes[0]
-        elif stream.otypes:
-            if len(stream.otypes) > 1:
-                raise NotImplementedError("Mixed otype streams not supported atm")
-            return stream.get_otypes(self.env)[0]
-        # elif stream.raw_records_object is not None:
-        #     if not stream.raw_records_otype:
-        #         raise ValueError("No otype set for raw records")
-        #     return stream.raw_records_otype
-        raise NotImplementedError
-
-    def get_resolved_interface(self, node: FunctionNode) -> ResolvedFunctionInterface:
-        self.resolve()
-        resolved_otype = self._resolved_output_types.get(node)
-        if resolved_otype is not None:
-            resolved_otype = self.env.get_otype(resolved_otype)
-        dfi = node.get_interface()
-        return ResolvedFunctionInterface(
-            inputs=self._resolved_inputs.get(node, []),
-            resolved_output_otype=resolved_otype,
-            realized_output_otype=None,
-            output=dfi.output,
-            requires_data_function_context=dfi.requires_data_function_context,
+            ), f"Wrong number of inputs. (Variadic inputs not supported yet) {inputs}"
+            return {self.get_non_recursive_inputs()[0].name: inputs}
+        assert set(inputs.keys()) == set(
+            i.name for i in self.get_non_recursive_inputs()
         )
-
-    def get_all_upstream_dependencies_in_execution_order(
-        self, node: FunctionNode
-    ) -> List[FunctionNode]:
-        self.resolve()
-        # self.print_resolution()
-        all_ = []
-        for dep in self._resolved_inputs[node]:
-            for parent in dep.parent_nodes:
-                deps = self.get_all_upstream_dependencies_in_execution_order(parent)
-                all_.extend(deps)
-        all_.append(node)
-        return all_
-
-    def get_all_nodes_in_execution_order(
-        self, as_equivalence_sets: bool = False
-    ) -> List[FunctionNode]:
-        self.resolve()
-        if as_equivalence_sets:
-            raise NotImplementedError
-        g = self.as_networkx_graph()
-        return list(nx.topological_sort(g))
-
-    # def print_resolution(self):
-    #     pprint({k.key: v.key for k, v in self._resolved_output_types.items()})
-    #     for node in self._nodes:
-    #         print(node.key)
-    #         print("  output:", self._resolved_output_types.get(node).key)
-    #         print("  inputs")
-    #         for i in self._resolved_inputs.get(node, []):
-    #             print("    ", i.name, [n.key for n in i.parent_nodes])
+        return inputs
 
 
-class FunctionNodeInterfaceManager:
+class NodeInterfaceManager:
     """
     Responsible for finding and preparing DataBlocks for input to a
-    FunctionNode.
+    Node.
     """
 
     def __init__(
-        self, ctx: ExecutionContext, node: FunctionNode,
+        self, ctx: ExecutionContext, node: Node,
     ):
         self.env = ctx.env
         self.ctx = ctx
         self.node = node
-        self.graph_resolver = self.env.get_function_graph_resolver()
         self.dfi = self.node.get_interface()
-
-    def get_resolved_interface(self) -> ResolvedFunctionInterface:
-        return self.graph_resolver.get_resolved_interface(self.node)
 
     def get_bound_interface(
         self, input_data_blocks: Optional[InputBlocks] = None

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from basis.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
-from basis.core.function_node import DataBlockLog, DataFunctionLog, Direction
+from basis.core.node import DataBlockLog, DataFunctionLog, Direction
 from basis.core.streams import DataBlockStream
 from tests.utils import (
     TestType1,
@@ -50,7 +50,7 @@ class TestStreams:
     def test_stream_unprocessed_eligible(self):
         dfl = DataFunctionLog(
             function_node_name=self.node_source.name,
-            data_function_uri=self.node_source.datafunction.uri,
+            data_function_uri=self.node_source.data_function.uri,
             runtime_url="test",
         )
         drl = DataBlockLog(
@@ -65,7 +65,7 @@ class TestStreams:
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = DataFunctionLog(
             function_node_name=self.node_source.name,
-            data_function_uri=self.node_source.datafunction.uri,
+            data_function_uri=self.node_source.data_function.uri,
             runtime_url="test",
         )
         drl = DataBlockLog(
@@ -73,7 +73,7 @@ class TestStreams:
         )
         dfl2 = DataFunctionLog(
             function_node_name=self.node1.name,
-            data_function_uri=self.node1.datafunction.uri,
+            data_function_uri=self.node1.data_function.uri,
             runtime_url="test",
         )
         drl2 = DataBlockLog(
@@ -92,7 +92,7 @@ class TestStreams:
         """
         dfl = DataFunctionLog(
             function_node_name=self.node_source.name,
-            data_function_uri=self.node_source.datafunction.uri,
+            data_function_uri=self.node_source.data_function.uri,
             runtime_url="test",
         )
         drl = DataBlockLog(
@@ -100,7 +100,7 @@ class TestStreams:
         )
         dfl2 = DataFunctionLog(
             function_node_name=self.node1.name,
-            data_function_uri=self.node1.datafunction.uri,
+            data_function_uri=self.node1.data_function.uri,
             runtime_url="test",
         )
         drl2 = DataBlockLog(
@@ -119,7 +119,7 @@ class TestStreams:
     def test_stream_unprocessed_eligible_otype(self):
         dfl = DataFunctionLog(
             function_node_name=self.node_source.name,
-            data_function_uri=self.node_source.datafunction.uri,
+            data_function_uri=self.node_source.data_function.uri,
             runtime_url="test",
         )
         drl = DataBlockLog(

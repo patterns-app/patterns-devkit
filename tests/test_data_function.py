@@ -11,21 +11,17 @@ from basis.core.data_function import (
     DataFunction,
     DataFunctionInterface,
     DataFunctionLike,
-    datafunction,
-    datafunction_chain,
+    data_function,
+    data_function_chain,
 )
 from basis.core.data_function_interface import (
     DataFunctionAnnotation,
     FunctionGraphResolver,
 )
-from basis.core.function_node import (
-    FunctionNode,
-    FunctionNodeChain,
-    function_node_factory,
-)
+from basis.core.node import FunctionNodeChain, Node, function_node_factory
 from basis.core.runnable import DataFunctionContext
 from basis.core.runtime import RuntimeClass
-from basis.core.sql.data_function import sql_datafunction
+from basis.core.sql.data_function import sql_data_function
 from basis.core.streams import DataBlockStream
 from basis.modules import core
 from basis.modules.core.functions.accumulate_as_dataset import accumulate_as_dataset
@@ -100,7 +96,7 @@ def df_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
     pass
 
 
-df_chain = datafunction_chain("df_chain", [df_t1_to_t2, df_generic])
+df_chain = data_function_chain("df_chain", [df_t1_to_t2, df_generic])
 
 
 @pytest.mark.parametrize(
@@ -252,7 +248,7 @@ def test_data_function_interface(
 ):
     env = make_test_env()
     if isinstance(function, Callable):
-        val = DataFunctionInterface.from_datafunction_definition(function)
+        val = DataFunctionInterface.from_data_function_definition(function)
         assert val == expected
     node = function_node_factory(env, "_test", function)
     assert node._get_interface() == expected
@@ -321,7 +317,7 @@ def test_data_function_interface(
 # def test_concrete_data_function_interface(
 #     function: Callable, expected: DataFunctionInterface
 # ):
-#     dfi = DataFunctionInterface.from_datafunction_definition(function)
+#     dfi = DataFunctionInterface.from_data_function_definition(function)
 #     dfi.connect_upstream(upstream)
 #     dfi.resolve_otypes(env)
 #     assert dfi == expected
@@ -354,13 +350,13 @@ def test_stream_input():
 
 
 def test_python_data_function():
-    df = datafunction(df_t1_sink)
+    df = data_function(df_t1_sink)
     assert (
         df.name == df_t1_sink.__name__
     )  # TODO: do we really want this implicit name? As long as we error on duplicate should be ok
 
     k = "name1"
-    df = datafunction(df_t1_sink, name=k)
+    df = data_function(df_t1_sink, name=k)
     assert df.name == k
 
     dfi = df.get_interface()
@@ -371,7 +367,7 @@ def test_sql_data_function():
     env = make_test_env()
     sql = "select:T 1 from t:T"
     k = "k1"
-    df = sql_datafunction(k, sql)
+    df = sql_data_function(k, sql)
     assert df.name == k
 
     dfi = df.get_interface()
@@ -386,7 +382,7 @@ def test_sql_data_function():
 
 def test_sql_data_function2():
     sql = "select:T 1 from from t1:U join t2:Optional[T]"
-    df = sql_datafunction("s1", sql)
+    df = sql_data_function("s1", sql)
     dfi = df.get_interface()
     assert dfi is not None
 
@@ -401,7 +397,7 @@ def test_sql_data_function2():
 
 def test_sql_data_function_no_types():
     sql = "select 1 from from t1 join t2 on t1.a = t2.b left join t3 on"
-    df = sql_datafunction("s1", sql)
+    df = sql_data_function("s1", sql)
     dfi = df.get_interface()
     assert dfi is not None
 
@@ -417,7 +413,7 @@ def test_sql_data_function_no_types():
     from -- comment inbetween
     t1
     join t2 on t1.a = t2.b"""
-    df = sql_datafunction("s1", sql)
+    df = sql_data_function("s1", sql)
     dfi = df.get_interface()
     assert dfi is not None
     assert len(dfi.inputs) == 2
@@ -425,18 +421,18 @@ def test_sql_data_function_no_types():
     sql = """select 1, 'not a commment -- nope'
     from -- comment inbetween
     t1, t2 on t1.a = t2.b"""
-    df = sql_datafunction("s1", sql)
+    df = sql_data_function("s1", sql)
     dfi = df.get_interface()
     assert dfi is not None
     assert len(dfi.inputs) == 2
 
 
-@datafunction("k1", compatible_runtimes="python")
+@data_function("k1", compatible_runtimes="python")
 def df1():
     pass
 
 
-@datafunction("k1", compatible_runtimes="mysql")
+@data_function("k1", compatible_runtimes="mysql")
 def df2():
     pass
 
@@ -483,8 +479,8 @@ def test_data_function_set():
 
 def test_function_node_no_inputs():
     env = make_test_env()
-    df = datafunction(df_t1_source)
-    node1 = FunctionNode(env, "node1", df)
+    df = data_function(df_t1_source)
+    node1 = Node(env, "node1", df)
     assert {node1: node1}[node1] is node1  # Test hash
     dfi = node1.get_interface()
     assert dfi.inputs == []
@@ -496,13 +492,13 @@ def test_function_node_no_inputs():
 
 def test_function_node_inputs():
     env = make_test_env()
-    df = datafunction(df_t1_source)
-    node = FunctionNode(env, "node", df)
-    df = datafunction(df_t1_sink)
+    df = data_function(df_t1_source)
+    node = Node(env, "node", df)
+    df = data_function(df_t1_sink)
     with pytest.raises(Exception):
         # Bad input
-        FunctionNode(env, "node_fail", df, input="Turname")  # type: ignore
-    node1 = FunctionNode(env, "node1", df, upstream=node)
+        Node(env, "node_fail", df, input="Turname")  # type: ignore
+    node1 = Node(env, "node1", df, upstream=node)
     dfi = node1.get_interface()
     dfi = node1.get_interface()
     assert len(dfi.inputs) == 1
@@ -526,8 +522,8 @@ def test_function_node_config():
 
 def test_function_node_chain():
     env = make_test_env()
-    df = datafunction(df_t1_source)
-    node = FunctionNode(env, "node", df)
+    df = data_function(df_t1_source)
+    node = Node(env, "node", df)
     node1 = FunctionNodeChain(env, "node1", df_chain, upstream=node)
     dfi = node1.get_interface()
     assert len(dfi.inputs) == 1
@@ -589,7 +585,7 @@ def test_any_otype_interface():
     def df_any(input: DataBlock) -> DataFrame:
         pass
 
-    df = datafunction(df_any)
+    df = data_function(df_any)
     dfi = df.get_interface()
     assert dfi.inputs[0].otype_like == "Any"
     assert dfi.output.otype_like == "Any"

@@ -10,7 +10,7 @@ from sqlalchemy import func
 
 from basis.core.data_block import DataBlockMetadata, DataSetMetadata
 from basis.core.environment import Environment, current_env
-from basis.core.function_node import DataFunctionLog
+from basis.core.node import DataFunctionLog
 from basis.core.typing.inference import dict_to_rough_otype
 from basis.core.typing.object_type import otype_to_yaml
 from basis.project.project import BASIS_PROJECT_FILE_NAME, init_project_in_dir

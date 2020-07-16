@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from basis.core.data_formats import RecordsList
-from basis.core.data_function_interface import FunctionNodeInterfaceManager
+from basis.core.data_function_interface import NodeInterfaceManager
 from basis.core.runnable import CompiledDataFunction, Runnable, RunSession, Worker
 from tests.utils import (
     TestType1,
@@ -33,12 +33,12 @@ def test_worker():
     ec = env.get_execution_context(sess, current_runtime=rt)
     node = env.add_node("node", df_t1_source)
     w = Worker(ec)
-    dfi_mgr = FunctionNodeInterfaceManager(ec, node)
+    dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
         node.name,
         CompiledDataFunction(
-            node.datafunction.name, node.datafunction.get_definition(rt.runtime_class)
+            node.data_function.name, node.data_function.get_definition(rt.runtime_class)
         ),
         bdfi,
     )
@@ -56,16 +56,16 @@ def test_worker_output():
     )
     node = env.add_node("node", df_dl_source)
     w = Worker(ec)
-    dfi_mgr = FunctionNodeInterfaceManager(ec, node)
+    dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
         node.name,
         CompiledDataFunction(
-            node.datafunction.name, node.datafunction.get_definition(rt.runtime_class)
+            node.data_function.name, node.data_function.get_definition(rt.runtime_class)
         ),
         bdfi,
     )
-    output = w.execute_datafunction(r)
+    output = w.execute_data_function(r)
     assert output == mock_dl_output
     ws = RunSession(None, sess)
     outputblock = w.conform_output(ws, output, r)

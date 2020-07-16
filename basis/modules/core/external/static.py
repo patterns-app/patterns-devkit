@@ -5,7 +5,7 @@ import pandas as pd
 from pandas import DataFrame
 
 from basis.core.data_formats import RecordsList
-from basis.core.data_function import datafunction
+from basis.core.data_function import data_function
 from basis.core.external import (
     ConfiguredExternalProvider,
     ConfiguredExternalResource,

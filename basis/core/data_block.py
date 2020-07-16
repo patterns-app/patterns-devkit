@@ -140,9 +140,9 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         )
 
     def created_by(self, sess: Session) -> Optional[str]:
-        from basis.core.function_node import DataBlockLog
-        from basis.core.function_node import DataFunctionLog
-        from basis.core.function_node import Direction
+        from basis.core.node import DataBlockLog
+        from basis.core.node import DataFunctionLog
+        from basis.core.node import Direction
 
         result = (
             sess.query(DataFunctionLog.function_node_name)

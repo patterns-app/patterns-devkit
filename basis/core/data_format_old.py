@@ -289,7 +289,7 @@
 #
 #
 # # def conform_generator_format(g: Generator) -> ReusableGenerator:
-# #     if runnable.datafunction_interface.output.data_format_class == "DataFrameGenerator":
+# #     if runnable.data_function_interface.output.data_format_class == "DataFrameGenerator":
 # #         output = DataFrameGenerator(output)
-# #     if runnable.datafunction_interface.output.data_format_class == "RecordsListGenerator":
+# #     if runnable.data_function_interface.output.data_format_class == "RecordsListGenerator":
 # #         output = RecordsListGenerator(output)

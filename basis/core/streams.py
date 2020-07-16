@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from loguru import logger
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 
 from sqlalchemy import and_, not_
@@ -14,17 +13,12 @@ from basis.core.data_block import (
     create_data_block_from_records,
 )
 from basis.core.environment import Environment
-from basis.core.function_node import (
-    DataBlockLog,
-    DataFunctionLog,
-    Direction,
-    FunctionNode,
-)
+from basis.core.node import DataBlockLog, DataFunctionLog, Direction, Node
 from basis.core.storage.storage import Storage
 from basis.core.typing.inference import infer_otype_from_records_list
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike, otype_like_to_uri
 from basis.utils.common import ensure_list
-
+from loguru import logger
 
 if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext
@@ -36,12 +30,12 @@ class DataBlockStream:
 
     def __init__(
         self,
-        upstream: Union[FunctionNode, List[FunctionNode]] = None,
+        upstream: Union[Node, List[Node]] = None,
         otypes: List[ObjectTypeLike] = None,
         storages: List[Storage] = None,
         otype: ObjectTypeLike = None,
         storage: Storage = None,
-        unprocessed_by: FunctionNode = None,
+        unprocessed_by: Node = None,
         data_sets: List[str] = None,
         data_sets_only: bool = False,
         data_block: Union[DataBlockMetadata, DataBlock, str] = None,
@@ -114,7 +108,7 @@ class DataBlockStream:
         return DataBlockStream(**args)  # type: ignore
 
     def filter_unprocessed(
-        self, unprocessed_by: FunctionNode, allow_cycle=False
+        self, unprocessed_by: Node, allow_cycle=False
     ) -> DataBlockStream:
         return self.clone(unprocessed_by=unprocessed_by, allow_cycle=allow_cycle,)
 
@@ -141,15 +135,13 @@ class DataBlockStream:
         )
         return query.filter(not_(DataBlockMetadata.id.in_(already_processed_drs)))
 
-    def get_upstream(self, env: Environment) -> List[FunctionNode]:
+    def get_upstream(self, env: Environment) -> List[Node]:
         nodes = ensure_list(self.upstream)
         if not nodes:
             return []
         return [env.get_node(c) for c in nodes]
 
-    def filter_upstream(
-        self, upstream: Union[FunctionNode, List[FunctionNode]]
-    ) -> DataBlockStream:
+    def filter_upstream(self, upstream: Union[Node, List[Node]]) -> DataBlockStream:
         return self.clone(upstream=ensure_list(upstream),)
 
     def _filter_upstream(self, ctx: ExecutionContext, query: Query,) -> Query:
@@ -256,7 +248,7 @@ class DataBlockStream:
     #     return query.filter(DataBlockMetadata.id == block.id)
 
     def is_unprocessed(
-        self, ctx: ExecutionContext, block: DataBlockMetadata, node: FunctionNode,
+        self, ctx: ExecutionContext, block: DataBlockMetadata, node: Node,
     ) -> bool:
         drs = self.filter_unprocessed(node)
         q = drs.get_query(ctx)
@@ -282,7 +274,7 @@ class DataBlockStream:
         return self.get_query(ctx).all()
 
 
-DataBlockStreamable = Union[DataBlockStream, FunctionNode]
+DataBlockStreamable = Union[DataBlockStream, Node]
 DataBlockStreamLike = Union[DataBlockStreamable, str]
 FunctionNodeRawInput = Any  # Union[DataBlockStreamLike, Dict[str, DataBlockStreamLike]] + records object formats # TODO
 FunctionNodeInput = Union[DataBlockStreamable, Dict[str, DataBlockStreamable]]

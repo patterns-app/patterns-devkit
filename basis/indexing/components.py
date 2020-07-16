@@ -7,11 +7,11 @@
 #
 # from basis.core.data_function import (
 #     DataFunctionDefinition,
-#     ensure_datafunction_definition,
+#     ensure_data_function_definition,
 # )
 # from basis.core.environment import Environment
 # from basis.core.external import ExternalProvider, ExternalResource
-# from basis.core.function_node import Direction
+# from basis.core.node import Direction
 # from basis.core.module import BasisModule
 # from basis.core.typing.object_type import ObjectType, ObjectTypeUri
 #
@@ -83,7 +83,7 @@
 #         env.add_module(m)
 #
 #         relations = []
-#         df = ensure_datafunction_definition(df)
+#         df = ensure_data_function_definition(df)
 #         dfi = df.get_interface()
 #         for input in dfi.inputs:
 #             dtr = ObjectTypeRelation(

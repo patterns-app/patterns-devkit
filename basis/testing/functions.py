@@ -173,7 +173,7 @@ class DataFunctionTest:
                                 config={"dataframe": test_df, "otype": test_otype},
                             )
                             inputs[input.name] = n
-                        test_node.set_upstream(inputs)
+                        test_node.set_inputs(inputs)
                         output = env.produce(test_node, to_exhaustion=False)
                         if "output" in test_data:
                             assert (

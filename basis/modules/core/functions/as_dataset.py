@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from basis.core.data_block import DataBlock, DataSet, DataSetMetadata
-from basis.core.data_function import datafunction
+from basis.core.data_function import data_function
 from basis.core.runnable import DataFunctionContext
 from basis.utils.typing import T
 
 
-@datafunction("as_dataset", compatible_runtimes="database")
+@data_function("as_dataset", compatible_runtimes="database")
 def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
     name = ctx.config("dataset_name")
     ds = (

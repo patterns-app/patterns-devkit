@@ -11,9 +11,9 @@ from typing import (
     List,
     Optional,
     Sequence,
+    TextIO,
     Type,
     Union,
-    TextIO,
 )
 
 from basis.core.component import (
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from basis.core.data_function import (
         DataFunctionLike,
         DataFunction,
-        ensure_datafunction_definition,
+        make_data_function_definition,
         DataFunctionDefinition,
     )
     from basis.core.external import ExternalProvider
@@ -100,7 +100,7 @@ class BasisModule:
     ) -> DataFunction:
         from basis.core.data_function import (
             DataFunction,
-            ensure_datafunction_definition,
+            make_data_function_definition,
         )
 
         if isinstance(df_like, DataFunction):
@@ -151,10 +151,10 @@ class BasisModule:
     def process_function(self, df_like: Union[DataFunctionLike, str]) -> DataFunction:
         from basis.core.data_function import (
             DataFunctionDefinition,
-            ensure_datafunction_definition,
+            make_data_function_definition,
             DataFunction,
         )
-        from basis.core.sql.data_function import sql_datafunction
+        from basis.core.sql.data_function import sql_data_function
 
         if isinstance(df_like, DataFunction):
             df = df_like
@@ -163,7 +163,7 @@ class BasisModule:
             if isinstance(df_like, DataFunctionDefinition):
                 dfd = df_like
             elif callable(df_like):
-                dfd = ensure_datafunction_definition(df_like, module_name=self.name)
+                dfd = make_data_function_definition(df_like, module_name=self.name)
             elif isinstance(df_like, str) and df_like.endswith(".sql"):
                 if not self.py_module_path:
                     raise Exception(
@@ -173,7 +173,7 @@ class BasisModule:
                 with open(sql_file_path) as f:
                     sql = f.read()
                 file_name = os.path.basename(df_like)[:-4]
-                dfd = sql_datafunction(
+                dfd = sql_data_function(
                     name=file_name, sql=sql, module_name=self.name
                 )  # TODO: versions, runtimes, etc for sql (someway to specify in a .sql file)
             else:
