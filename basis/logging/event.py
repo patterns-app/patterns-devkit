@@ -36,7 +36,7 @@ class Event:
     event_details: Dict[str, Any]
     level: EventLevel
     occurred_at: datetime
-    function_node_name: Optional[str] = None
+    node_name: Optional[str] = None
     data_function_name: Optional[str] = None
     external_resource_name: Optional[str] = None
     environment_name: Optional[str] = None

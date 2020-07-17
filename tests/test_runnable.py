@@ -5,6 +5,7 @@ import pytest
 from basis.core.data_formats import RecordsList
 from basis.core.data_function_interface import NodeInterfaceManager
 from basis.core.runnable import CompiledDataFunction, Runnable, RunSession, Worker
+from basis.modules import core
 from tests.utils import (
     TestType1,
     df_generic,
@@ -48,6 +49,7 @@ def test_worker():
 
 def test_worker_output():
     env = make_test_env()
+    env.add_module(core)
     sess = env.get_new_metadata_session()
     env.add_storage("memory://test")
     rt = env.runtimes[0]

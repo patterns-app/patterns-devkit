@@ -15,6 +15,7 @@ from basis.core.data_function import (
 )
 from basis.core.data_function_interface import DataFunctionAnnotation, re_type_hint
 from basis.core.runnable import DataFunctionContext
+
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from basis.core.runtime import RuntimeClass
 from basis.utils.common import md5_hash
@@ -126,8 +127,8 @@ class SqlDataFunctionWrapper:
             if not isinstance(i, DataBlock):
                 raise NotImplementedError(f"Unsupported input type {i}")
         sql = self.get_compiled_sql(ctx, inputs)
-        if ctx.resolved_output_otype is None:
-            raise Exception("SQL function should always produce output!")
+        # if ctx.resolved_output_otype is None:
+        #     raise Exception("SQL function should always produce output!")
 
         # TODO: oof this is doozy, will get fixed as part of runtime re-think
         db_api = ctx.execution_context.current_runtime.get_database_api(
@@ -136,7 +137,7 @@ class SqlDataFunctionWrapper:
         block, sdb = db_api.create_data_block_from_sql(
             ctx.execution_context.metadata_session,
             sql,
-            expected_otype=ctx.resolved_output_otype,
+            # expected_otype=ctx.resolved_output_otype,
         )
 
         return sdb
@@ -163,7 +164,7 @@ class SqlDataFunctionWrapper:
             worker=ctx.worker,
             runnable=ctx.runnable,
             inputs={i.name: i for i in ctx.inputs},
-            output_otype=ctx.resolved_output_otype,
+            # output_otype=ctx.resolved_output_otype,
             # output_otype=ctx.realized_output_otype,
         )
         # sql_ctx.update(inputs) # TODO: decide what is in the sql jinja ctx. usability is key

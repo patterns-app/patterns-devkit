@@ -14,11 +14,8 @@ from basis.core.data_function import (
     data_function,
     data_function_chain,
 )
-from basis.core.data_function_interface import (
-    DataFunctionAnnotation,
-    FunctionGraphResolver,
-)
-from basis.core.node import FunctionNodeChain, Node, function_node_factory
+from basis.core.data_function_interface import DataFunctionAnnotation
+from basis.core.node import Node
 from basis.core.runnable import DataFunctionContext
 from basis.core.runtime import RuntimeClass
 from basis.core.sql.data_function import sql_data_function
@@ -250,7 +247,7 @@ def test_data_function_interface(
     if isinstance(function, Callable):
         val = DataFunctionInterface.from_data_function_definition(function)
         assert val == expected
-    node = function_node_factory(env, "_test", function)
+    node = Node(env, "_test", function)
     assert node._get_interface() == expected
 
 
@@ -323,30 +320,30 @@ def test_data_function_interface(
 #     assert dfi == expected
 
 
-def test_upstream():
+def test_inputs():
     env = make_test_env()
     n1 = env.add_node("node1", df_t1_source)
-    n2 = env.add_node("node2", df_t1_to_t2, upstream={"input": "node1"})
+    n2 = env.add_node("node2", df_t1_to_t2, inputs={"input": "node1"})
     dfi = n2.get_interface()
     assert dfi is not None
-    n3 = env.add_node("node3", df_chain, upstream="node1")
+    n3 = env.add_node("node3", df_chain, inputs="node1")
     dfi = n3.get_interface()
     assert dfi is not None
 
 
-def test_stream_input():
-    env = make_test_env()
-    env.add_module(core)
-    n1 = env.add_node("node1", df_t1_source)
-    n2 = env.add_node("node2", df_t1_source)
-    n3 = env.add_node("node3", df_chain, upstream="node1")
-    ds1 = env.add_node(
-        "ds1",
-        accumulate_as_dataset,
-        config=dict(dataset_name="type1"),
-        upstream=DataBlockStream(otype="TestType1"),
-    )
-    dfi = ds1.get_interface()
+# def test_stream_input():
+#     env = make_test_env()
+#     env.add_module(core)
+#     n1 = env.add_node("node1", df_t1_source)
+#     n2 = env.add_node("node2", df_t1_source)
+#     n3 = env.add_node("node3", df_chain, inputs="node1")
+#     ds1 = env.add_node(
+#         "ds1",
+#         accumulate_as_dataset,
+#         config=dict(dataset_name="type1"),
+#         upstream=DataBlockStream(otype="TestType1"),
+#     )
+#     dfi = ds1.get_interface()
 
 
 def test_python_data_function():
@@ -395,36 +392,37 @@ def test_sql_data_function2():
     assert dfi.inputs[1].is_optional
 
 
-def test_sql_data_function_no_types():
-    sql = "select 1 from from t1 join t2 on t1.a = t2.b left join t3 on"
-    df = sql_data_function("s1", sql)
-    dfi = df.get_interface()
-    assert dfi is not None
-
-    assert len(dfi.inputs) == 3
-    assert dfi.inputs[0].otype_like == "Any"
-    assert dfi.inputs[0].name == "t1"
-    assert dfi.inputs[1].otype_like == "Any"
-    assert dfi.inputs[1].name == "t2"
-    assert dfi.inputs[2].otype_like == "Any"
-    assert dfi.inputs[2].name == "t3"
-
-    sql = """select 1 from
-    from -- comment inbetween
-    t1
-    join t2 on t1.a = t2.b"""
-    df = sql_data_function("s1", sql)
-    dfi = df.get_interface()
-    assert dfi is not None
-    assert len(dfi.inputs) == 2
-
-    sql = """select 1, 'not a commment -- nope'
-    from -- comment inbetween
-    t1, t2 on t1.a = t2.b"""
-    df = sql_data_function("s1", sql)
-    dfi = df.get_interface()
-    assert dfi is not None
-    assert len(dfi.inputs) == 2
+# TODO: no types sql? Leave this to app layer?
+# def test_sql_data_function_no_types():
+#     sql = "select 1 from from t1 join t2 on t1.a = t2.b left join t3 on"
+#     df = sql_data_function("s1", sql)
+#     dfi = df.get_interface()
+#     assert dfi is not None
+#
+#     assert len(dfi.inputs) == 3
+#     assert dfi.inputs[0].otype_like == "Any"
+#     assert dfi.inputs[0].name == "t1"
+#     assert dfi.inputs[1].otype_like == "Any"
+#     assert dfi.inputs[1].name == "t2"
+#     assert dfi.inputs[2].otype_like == "Any"
+#     assert dfi.inputs[2].name == "t3"
+#
+#     sql = """select 1 from
+#     from -- comment inbetween
+#     t1
+#     join t2 on t1.a = t2.b"""
+#     df = sql_data_function("s1", sql)
+#     dfi = df.get_interface()
+#     assert dfi is not None
+#     assert len(dfi.inputs) == 2
+#
+#     sql = """select 1, 'not a commment -- nope'
+#     from -- comment inbetween
+#     t1, t2 on t1.a = t2.b"""
+#     df = sql_data_function("s1", sql)
+#     dfi = df.get_interface()
+#     assert dfi is not None
+#     assert len(dfi.inputs) == 2
 
 
 @data_function("k1", compatible_runtimes="python")
@@ -477,7 +475,7 @@ def test_data_function_set():
 #     assert r.get("k1").runtime_data_functions[RuntimeClass.DATABASE] is df2
 
 
-def test_function_node_no_inputs():
+def test_node_no_inputs():
     env = make_test_env()
     df = data_function(df_t1_source)
     node1 = Node(env, "node1", df)
@@ -485,12 +483,11 @@ def test_function_node_no_inputs():
     dfi = node1.get_interface()
     assert dfi.inputs == []
     assert dfi.output is not None
-    assert node1.get_inputs() == {}
-    assert node1.get_output_node() is node1
+    assert node1.get_raw_inputs() == {}
     assert not node1.is_composite()
 
 
-def test_function_node_inputs():
+def test_node_inputs():
     env = make_test_env()
     df = data_function(df_t1_source)
     node = Node(env, "node", df)
@@ -498,16 +495,16 @@ def test_function_node_inputs():
     with pytest.raises(Exception):
         # Bad input
         Node(env, "node_fail", df, input="Turname")  # type: ignore
-    node1 = Node(env, "node1", df, upstream=node)
+    node1 = Node(env, "node1", df, inputs=node)
     dfi = node1.get_interface()
     dfi = node1.get_interface()
     assert len(dfi.inputs) == 1
     assert dfi.output is None
-    assert list(node1.get_inputs().keys()) == ["input"]
-    assert node1.get_input("input").get_upstream(env)[0] is node
+    assert list(node1.get_raw_inputs().keys()) == ["input"]
+    # assert node1.get_input("input").get_upstream(env)[0] is node
 
 
-def test_function_node_config():
+def test_node_config():
     env = make_test_env()
     config_vals = []
 
@@ -520,62 +517,62 @@ def test_function_node_config():
     assert config_vals == [1]
 
 
-def test_function_node_chain():
-    env = make_test_env()
-    df = data_function(df_t1_source)
-    node = Node(env, "node", df)
-    node1 = FunctionNodeChain(env, "node1", df_chain, upstream=node)
-    dfi = node1.get_interface()
-    assert len(dfi.inputs) == 1
-    assert dfi.output is not None
-    assert list(node1.get_inputs().keys()) == ["input"]
-    assert node1.get_input("input").get_upstream(env)[0] is node
-    # Output NODE
-    output_node = node1.get_output_node()
-    assert output_node is not node1
-    assert node1.name in output_node.name
-    out_dfi = output_node.get_interface()
-    assert len(out_dfi.inputs) == 1
-    assert out_dfi.output is not None
-    # Children
-    assert len(node1.get_nodes()) == 2
+# def test_node_chain():
+#     env = make_test_env()
+#     df = data_function(df_t1_source)
+#     node = Node(env, "node", df)
+#     node1 = FunctionNodeChain(env, "node1", df_chain, upstream=node)
+#     dfi = node1.get_interface()
+#     assert len(dfi.inputs) == 1
+#     assert dfi.output is not None
+#     assert list(node1.get_inputs().keys()) == ["input"]
+#     assert node1.get_input("input").get_upstream(env)[0] is node
+#     # Output NODE
+#     output_node = node1.get_output_node()
+#     assert output_node is not node1
+#     assert node1.name in output_node.name
+#     out_dfi = output_node.get_interface()
+#     assert len(out_dfi.inputs) == 1
+#     assert out_dfi.output is not None
+#     # Children
+#     assert len(node1.get_nodes()) == 2
 
 
-def test_graph_resolution():
-    env = make_test_env()
-    n1 = env.add_node("node1", df_t1_source)
-    n2 = env.add_node("node2", df_t1_source)
-    n3 = env.add_node("node3", df_chain, upstream="node1")
-    n4 = env.add_node("node4", df_t1_to_t2, upstream="node2")
-    n5 = env.add_node("node5", df_generic, upstream="node4")
-    n6 = env.add_node("node6", df_self, upstream="node4")
-    fgr = FunctionGraphResolver(env)
-    # Resolve types
-    assert fgr.resolve_output_type(n4) is TestType2
-    assert fgr.resolve_output_type(n5) is TestType2
-    assert fgr.resolve_output_type(n6) is TestType2
-    fgr.resolve_output_types()
-    last = n3.get_nodes()[-1]
-    assert fgr._resolved_output_types[last] is TestType2
-    # Resolve deps
-    assert fgr._resolve_node_dependencies(n4)[0].parent_nodes == [n2]
-    assert fgr._resolve_node_dependencies(n5)[0].parent_nodes == [n4]
-    fgr.resolve_dependencies()
-    # Otype resolution
-    n7 = env.add_node("node7", df_self, upstream=DataBlockStream(otype="TestType2"))
-    n8 = env.add_node("node8", df_self, upstream=n7)
-    fgr = env.get_function_graph_resolver()
-    fgr.resolve()
-    parent_keys = set(
-        p.name for p in fgr.get_resolved_interface(n7).inputs[0].parent_nodes
-    )
-    assert parent_keys == {
-        "node3__df_t1_to_t2",
-        "node3__df_generic",
-        "node4",
-        "node5",
-        "node6",
-    }
+# def test_graph_resolution():
+#     env = make_test_env()
+#     n1 = env.add_node("node1", df_t1_source)
+#     n2 = env.add_node("node2", df_t1_source)
+#     n3 = env.add_node("node3", df_chain, upstream="node1")
+#     n4 = env.add_node("node4", df_t1_to_t2, upstream="node2")
+#     n5 = env.add_node("node5", df_generic, upstream="node4")
+#     n6 = env.add_node("node6", df_self, upstream="node4")
+#     fgr = FunctionGraphResolver(env)
+#     # Resolve types
+#     assert fgr.resolve_output_type(n4) is TestType2
+#     assert fgr.resolve_output_type(n5) is TestType2
+#     assert fgr.resolve_output_type(n6) is TestType2
+#     fgr.resolve_output_types()
+#     last = n3.get_nodes()[-1]
+#     assert fgr._resolved_output_types[last] is TestType2
+#     # Resolve deps
+#     assert fgr._resolve_node_dependencies(n4)[0].parent_nodes == [n2]
+#     assert fgr._resolve_node_dependencies(n5)[0].parent_nodes == [n4]
+#     fgr.resolve_dependencies()
+#     # Otype resolution
+#     n7 = env.add_node("node7", df_self, upstream=DataBlockStream(otype="TestType2"))
+#     n8 = env.add_node("node8", df_self, upstream=n7)
+#     fgr = env.get_function_graph_resolver()
+#     fgr.resolve()
+#     parent_keys = set(
+#         p.name for p in fgr.get_resolved_interface(n7).inputs[0].parent_nodes
+#     )
+#     assert parent_keys == {
+#         "node3__df_t1_to_t2",
+#         "node3__df_generic",
+#         "node4",
+#         "node5",
+#         "node6",
+#     }
 
 
 def test_any_otype_interface():

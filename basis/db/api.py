@@ -96,6 +96,7 @@ class DatabaseAPI:
     def execute_sql(self, sql: str) -> ResultProxy:
         logger.debug("Executing SQL:")
         logger.debug(sql)
+        print(sql)
         with self.connection() as conn:
             return conn.execute(sql)
 
@@ -132,7 +133,7 @@ class DatabaseAPI:
     def create_data_block_from_sql(
         self, sess: Session, sql: str, expected_otype: ObjectType = None
     ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
-        tmp_name = f"_tmp_{rand_str(10)}"
+        tmp_name = f"_tmp_{rand_str(10)}".lower()
         create_sql = f"""
         create table {tmp_name} as
         select

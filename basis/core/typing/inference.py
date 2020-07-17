@@ -219,13 +219,15 @@ def sqlalchemy_type_to_pandas_type(satype: str) -> str:
         return "float64"
     if ft.startswith("numeric"):
         return "float64"  # TODO: Does np/pd support Decimal?
+    if ft.startswith("double"):
+        return "float64"
     # TODO: numpy integers cannot express null/na, so we have to use float64 in general case?
     #   (is there an alternative?)
     #   Issue with using floats THOUGH is case where string column is mistaken for ints, then cast to
     #   float here, then back to str as "1.0" instead of "1"
     if ft.startswith("integer"):
         return "int32"  # See note above
-    if ft.startswith("biginteger"):
+    if ft.startswith("bigint"):
         return "int64"  # See note above
     if ft.startswith("boolean"):
         return "boolean"

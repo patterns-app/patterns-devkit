@@ -33,10 +33,10 @@ from basis.core.data_function import (
     InputExhaustedException,
 )
 from basis.core.data_function_interface import (
+    BoundFunctionInterface,
     DataFunctionAnnotation,
+    NodeInput,
     NodeInterfaceManager,
-    ResolvedFunctionInterface,
-    ResolvedFunctionNodeInput,
 )
 from basis.core.environment import Environment
 from basis.core.metadata.orm import BaseModel
@@ -91,10 +91,10 @@ class RuntimeSpecification:
 
 @dataclass(frozen=True)
 class Runnable:
-    function_node_name: str
+    node_name: str
     compiled_data_function: CompiledDataFunction
     # runtime_specification: RuntimeSpecification # TODO: support this
-    data_function_interface: ResolvedFunctionInterface
+    data_function_interface: BoundFunctionInterface
     configuration: Dict = field(default_factory=dict)
 
 
@@ -148,7 +148,7 @@ class ExecutionContext:
     def start_data_function_run(self, node: Node) -> Generator[RunSession, None, None]:
         assert self.current_runtime is not None, "Runtime not set"
         dfl = DataFunctionLog(  # type: ignore
-            function_node_name=node.name,
+            node_name=node.name,
             data_function_uri=node.data_function.uri,
             # data_function_config=node.data_function.configuration,  # TODO
             runtime_url=self.current_runtime.url,
@@ -204,9 +204,9 @@ class DataFunctionContext:
     execution_context: ExecutionContext
     worker: Worker
     runnable: Runnable
-    inputs: List[ResolvedFunctionNodeInput]
-    resolved_output_otype: Optional[ObjectType]
-    realized_output_otype: Optional[ObjectType]
+    inputs: List[NodeInput]
+    # resolved_output_otype: Optional[ObjectType]
+    # realized_output_otype: Optional[ObjectType]
 
     def config(self, key: str) -> Any:
         return self.runnable.configuration.get(key)
@@ -228,9 +228,7 @@ class ExecutionManager:
             f"No compatible runtime available for {node} (runtime class {compatible_runtimes} required)"
         )
 
-    def get_bound_data_function_interface(
-        self, node: Node
-    ) -> ResolvedFunctionInterface:
+    def get_bound_data_function_interface(self, node: Node) -> BoundFunctionInterface:
         dfi_mgr = NodeInterfaceManager(self.ctx, node)
         return dfi_mgr.get_bound_interface()
 
@@ -247,7 +245,7 @@ class ExecutionManager:
             f"Running node: {cf.green(node.name)} {cf.dimmed(node.data_function.name)}"
         )
         spinner = get_spinner()
-        spinner.start(base_msg)
+        # spinner.start(base_msg)
         start = time.time()
         n_outputs = 0
         n_runs = 0
@@ -260,7 +258,7 @@ class ExecutionManager:
                         f"No function definition found for {node.data_function.name} and runtime {runtime.runtime_class}"
                     )
                 runnable = Runnable(
-                    function_node_name=node.name,
+                    node_name=node.name,
                     compiled_data_function=CompiledDataFunction(
                         name=node.name, function=df,
                     ),
@@ -275,8 +273,8 @@ class ExecutionManager:
                     not to_exhaustion or not dfi.inputs
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     break
-                spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataBlocks output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
-            spinner.stop_and_persist(symbol=cf.success(success_symbol))
+            #     spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataBlocks output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
+            # spinner.stop_and_persist(symbol=cf.success(success_symbol))
         except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
             logger.debug(cf.warning("    Input Exhausted"))
             if e.args:
@@ -287,12 +285,13 @@ class ExecutionManager:
                     text=f"{base_msg}: {cf.dimmed_bold}No unprocessed inputs{cf.reset}",
                 )
             else:
-                spinner.stop_and_persist(symbol=cf.success(success_symbol))
+                # spinner.stop_and_persist(symbol=cf.success(success_symbol))
+                pass
         except Exception as e:
-            spinner.stop_and_persist(
-                symbol=cf.error(error_symbol),
-                text=f"{base_msg}: {cf.error('Error')} {cf.dimmed_red(e)}",
-            )
+            # spinner.stop_and_persist(
+            #     symbol=cf.error(error_symbol),
+            #     text=f"{base_msg}: {cf.error('Error')} {cf.dimmed_red(e)}",
+            # )
             raise e
 
         if last_output is None:
@@ -321,13 +320,14 @@ class Worker:
 
     def run(self, runnable: Runnable) -> Optional[DataBlockMetadata]:
         output_block: Optional[DataBlockMetadata] = None
-        node = self.env.get_node(runnable.function_node_name)
+        node = self.env.get_node(runnable.node_name)
         with self.ctx.start_data_function_run(node) as run_session:
             output = self.execute_data_function(runnable)
+            print("output", output)
             if output is not None:
-                assert (
-                    runnable.data_function_interface.resolved_output_otype is not None
-                )
+                # assert (
+                #     runnable.data_function_interface.resolved_output_otype is not None
+                # )
                 assert (
                     self.ctx.target_storage is not None
                 ), "Must specify target storage for output"
@@ -337,8 +337,9 @@ class Worker:
                     run_session.log_output(output_block)
 
             for input in runnable.data_function_interface.inputs:
-                assert input.bound_data_block is not None, input
-                run_session.log_input(input.bound_data_block)
+                # assert input.bound_data_block is not None, input
+                if input.bound_data_block is not None:
+                    run_session.log_input(input.bound_data_block)
         return output_block
 
     def execute_data_function(self, runnable: Runnable) -> DataInterfaceType:
@@ -349,8 +350,8 @@ class Worker:
                 worker=self,
                 runnable=runnable,
                 inputs=runnable.data_function_interface.inputs,
-                resolved_output_otype=runnable.data_function_interface.resolved_output_otype,
-                realized_output_otype=runnable.data_function_interface.realized_output_otype,
+                # resolved_output_otype=runnable.data_function_interface.resolved_output_otype,
+                # realized_output_otype=runnable.data_function_interface.realized_output_otype,
             )
             args.append(dfc)
         inputs = runnable.data_function_interface.as_kwargs()
@@ -371,7 +372,7 @@ class Worker:
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
     ) -> Optional[DataBlockMetadata]:
         assert runnable.data_function_interface.output is not None
-        assert runnable.data_function_interface.resolved_output_otype is not None
+        # assert runnable.data_function_interface.resolved_output_otype is not None
         assert self.ctx.target_storage is not None
         # TODO: check if these Metadata objects have been added to session!
         #   also figure out what merge actually does
@@ -407,7 +408,7 @@ class Worker:
             self.ctx.metadata_session,
             self.ctx.local_memory_storage,
             output,
-            expected_otype=runnable.data_function_interface.resolved_output_otype,
+            # expected_otype=runnable.data_function_interface.resolved_output_otype,
         )
         # ldr = LocalMemoryDataRecords.from_records_object(output)
         # block = DataBlockMetadata(

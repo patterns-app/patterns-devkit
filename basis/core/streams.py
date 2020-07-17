@@ -119,14 +119,12 @@ class DataBlockStream:
             # Only exclude DRs processed as INPUT
             filter_clause = and_(
                 DataBlockLog.direction == Direction.INPUT,
-                DataFunctionLog.function_node_name == self.unprocessed_by.name,
+                DataFunctionLog.node_name == self.unprocessed_by.name,
             )
         else:
             # No DB cycles allowed
             # Exclude DRs processed as INPUT and DRs outputted
-            filter_clause = (
-                DataFunctionLog.function_node_name == self.unprocessed_by.name
-            )
+            filter_clause = DataFunctionLog.node_name == self.unprocessed_by.name
         already_processed_drs = (
             Query(DataBlockLog.data_block_id)
             .join(DataFunctionLog)
@@ -152,7 +150,7 @@ class DataBlockStream:
             .join(DataFunctionLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                DataFunctionLog.function_node_name.in_(
+                DataFunctionLog.node_name.in_(
                     [c.name for c in self.get_upstream(ctx.env)]
                 ),
             )

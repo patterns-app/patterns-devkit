@@ -145,7 +145,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         from basis.core.node import Direction
 
         result = (
-            sess.query(DataFunctionLog.function_node_name)
+            sess.query(DataFunctionLog.node_name)
             .join(DataBlockLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,

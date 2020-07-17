@@ -143,7 +143,12 @@ class DataFunctionDefinition(ComponentUri):
     def get_interface(self) -> Optional[DataFunctionInterface]:
         if self.function_callable is None:
             assert self.is_composite
-            return None
+            input_interface = self.sub_graph[0].get_interface()
+            return DataFunctionInterface(
+                inputs=input_interface.inputs,
+                output=self.sub_graph[-1].get_interface().output,
+                requires_data_function_context=input_interface.requires_data_function_context,
+            )
         if hasattr(self.function_callable, "get_interface"):
             return self.function_callable.get_interface()
         return DataFunctionInterface.from_data_function_definition(
@@ -155,7 +160,7 @@ class DataFunctionDefinition(ComponentUri):
         if self.sub_graph:
             for sub in self.sub_graph:
                 new_subs.append(sub.associate_with_module(module))
-        return self.clone(module_name=module.name, sub_functions=new_subs)
+        return self.clone(module_name=module.name, sub_graph=new_subs)
 
     def as_data_function(self) -> DataFunction:
         df = DataFunction(
@@ -238,7 +243,7 @@ def data_function_chain(
             raise TypeError(f"Invalid function uri in chain {fn}")
         sub_funcs.append(uri)
     return data_function_definition_factory(
-        None, name=name, sub_functions=sub_funcs, is_composite=True, **kwargs
+        None, name=name, sub_graph=sub_funcs, is_composite=True, **kwargs
     )
 
 

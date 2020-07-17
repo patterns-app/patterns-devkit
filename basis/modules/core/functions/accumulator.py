@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pandas import DataFrame
 
-from basis.core.data_block import DataBlock
+from basis.core.data_block import DataBlock, DataSet
 from basis.core.data_function import data_function
 from basis.core.sql.data_function import sql_data_function
 from basis.testing.functions import DataFunctionTest
@@ -136,6 +136,7 @@ def dataframe_accumulator(
     if this is not None:
         previous = this.as_dataframe()
         records = previous.append(records)
+    print("records", records)
     return records
 
 
@@ -143,7 +144,7 @@ sql_accumulator = sql_data_function(
     name="accumulator",
     sql="""
     select:T * from input:T
-    {% if inputs.this %}
+    {% if inputs.this.bound_data_block %}
     union all
     select * from this:Optional[T]
     {% endif %}

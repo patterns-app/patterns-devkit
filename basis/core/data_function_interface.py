@@ -70,6 +70,8 @@ class DataFunctionAnnotation:
     is_optional: bool = False
     is_self_ref: bool = False
     original_annotation: Optional[str] = None
+    input_node: Optional[Node] = None
+    bound_data_block: Optional[DataBlockMetadata] = None
 
     @property
     def is_dataset(self) -> bool:
@@ -131,88 +133,91 @@ class DataFunctionAnnotation:
 
 
 @dataclass
-class ResolvedFunctionNodeInput:
+class NodeInput:
     name: str
-    data_format_class: str
     original_annotation: DataFunctionAnnotation
-    is_optional: bool
-    is_self_ref: bool
-    connected_stream: DataBlockStream
-    parent_nodes: List[Node]
-    potential_parent_nodes: List[Node]
-    # otype: ObjectType
-    declared_otype_like: ObjectTypeLike
-    resolved_otype: ObjectType
-    bound_otype: Optional[ObjectType] = None
+    input_node: Optional[Node] = None
     bound_data_block: Optional[DataBlockMetadata] = None
-
-    def __post_init__(self):
-        self.validate()
-
-    def validate(self):
-        assert self.declared_otype_like is not None
-        assert self.resolved_otype is not None
-        assert not is_generic(self.resolved_otype)
-        if self.bound_otype is not None:
-            assert not is_generic(self.bound_otype)
-            assert not is_any(self.bound_otype)
-        if self.bound_data_block is not None:
-            assert self.bound_otype is not None
 
 
 @dataclass
-class ResolvedFunctionInterface:
-    inputs: List[ResolvedFunctionNodeInput]
-    resolved_output_otype: Optional[ObjectType]
-    realized_output_otype: Optional[ObjectType]
+class BoundFunctionInterface:
+    inputs: List[NodeInput]
     output: Optional[DataFunctionAnnotation]
     requires_data_function_context: bool = True
-    is_bound: bool = False
 
-    def __post_init__(self):
-        self.validate()
-
-    def validate(self):
-        if self.output is not None:
-            assert self.resolved_output_otype is not None
-        if self.resolved_output_otype is not None:
-            assert not is_generic(self.resolved_output_otype)
-        if self.realized_output_otype is not None:
-            assert not is_generic(self.realized_output_otype)
-            assert not is_any(self.realized_output_otype)
-
-    def get_input(self, name: str) -> ResolvedFunctionNodeInput:
+    def get_input(self, name: str) -> NodeInput:
         for input in self.inputs:
             if input.name == name:
                 return input
         raise KeyError(name)
 
-    def bind_and_specify_otypes(self, env: Environment, input_blocks: InputBlocks):
-        if self.is_bound:
-            raise Exception("Already bound")
-        realized_generics: Dict[str, ObjectType] = {}
+    def connect(self, input_nodes: Dict[str, Node]):
+        for name, input_node in input_nodes.items():
+            i = self.get_input(name)
+            i.input_node = input_node
+
+    def bind(self, input_blocks: Dict[str, DataBlockMetadata]):
         for name, input_block in input_blocks.items():
             i = self.get_input(name)
             i.bound_data_block = input_block
-            i.realized_otype = env.get_otype(input_block.realized_otype_uri)
-            if i.original_annotation.is_generic:
-                assert isinstance(i.original_annotation.otype_like, str)
-                realized_generics[i.original_annotation.otype_like] = i.realized_otype
-        if (
-            self.output is not None
-            and is_any(self.resolved_output_otype)
-            and self.output.is_generic
-        ):
-            # Further specify resolved type now that we have something concrete for Any
-            # TODO: man this is too complex. how do we simplify different type levels
-            assert isinstance(self.output.otype_like, str)
-            self.resolved_output_otype = realized_generics[self.output.otype_like]
-        self.is_bound = True
+
+    @classmethod
+    def from_dfi(cls, dfi: DataFunctionInterface) -> BoundFunctionInterface:
+        return BoundFunctionInterface(
+            inputs=[NodeInput(name=a.name, original_annotation=a) for a in dfi.inputs],
+            output=dfi.output,
+            requires_data_function_context=dfi.requires_data_function_context,
+        )
 
     def as_kwargs(self):
-        if not self.is_bound:
-            raise Exception("Interface not bound")
-        return {i.name: i.bound_data_block for i in self.inputs}
+        return {
+            i.name: i.bound_data_block
+            for i in self.inputs
+            if i.bound_data_block is not None
+        }
+
+
+#
+#     def bind_and_specify_otypes(self, env: Environment, input_blocks: InputBlocks):
+#         if self.is_bound:
+#             raise Exception("Already bound")
+#         realized_generics: Dict[str, ObjectType] = {}
+#         for name, input_block in input_blocks.items():
+#             i = self.get_input(name)
+#             i.bound_data_block = input_block
+#             i.realized_otype = env.get_otype(input_block.realized_otype_uri)
+#             if i.original_annotation.is_generic:
+#                 assert isinstance(i.original_annotation.otype_like, str)
+#                 realized_generics[i.original_annotation.otype_like] = i.realized_otype
+#         if (
+#             self.output is not None
+#             and is_any(self.resolved_output_otype)
+#             and self.output.is_generic
+#         ):
+#             # Further specify resolved type now that we have something concrete for Any
+#             # TODO: man this is too complex. how do we simplify different type levels
+#             assert isinstance(self.output.otype_like, str)
+#             self.resolved_output_otype = realized_generics[self.output.otype_like]
+#         self.is_bound = True
+#
+#     def as_kwargs(self):
+#         if not self.is_bound:
+#             raise Exception("Interface not bound")
+#         return {i.name: i.bound_data_block for i in self.inputs}
+
+# @classmethod
+# def from_data_function_inteface(cls, dfi: DataFunctionInterface, input_blocks: InputBlocks) -> BoundFunctionInterface:
+#     inputs = []
+#     for name, input in input_blocks.items():
+#         i = dfi.get_input(name)
+#
+#
+#     return BoundFunctionInterface(
+#         inputs=inputs,
+#         output=dfi.output,
+#         requires_data_function_context=dfi.requires_data_function_context,
+#     )
 
 
 @dataclass
@@ -220,7 +225,7 @@ class DataFunctionInterface:
     inputs: List[DataFunctionAnnotation]
     output: Optional[DataFunctionAnnotation]
     requires_data_function_context: bool = True
-    # is_connected: bool = False
+    # is_bound: bool = False
 
     @classmethod
     def from_data_function_definition(
@@ -290,9 +295,9 @@ class DataFunctionInterface:
                 len(self.get_non_recursive_inputs()) == 1
             ), f"Wrong number of inputs. (Variadic inputs not supported yet) {inputs}"
             return {self.get_non_recursive_inputs()[0].name: inputs}
-        assert set(inputs.keys()) == set(
+        assert (set(inputs.keys()) - {"this"}) == set(
             i.name for i in self.get_non_recursive_inputs()
-        )
+        ), f"{inputs}  {self.get_non_recursive_inputs()}"
         return inputs
 
 
@@ -312,11 +317,21 @@ class NodeInterfaceManager:
 
     def get_bound_interface(
         self, input_data_blocks: Optional[InputBlocks] = None
-    ) -> ResolvedFunctionInterface:
-        i = self.get_resolved_interface()
+    ) -> BoundFunctionInterface:
+        i = BoundFunctionInterface.from_dfi(self.dfi)
+        i.connect(self.dfi.assign_inputs(self.node.get_raw_inputs()))
         if input_data_blocks is None:
             input_data_blocks = self.get_input_data_blocks()
-        i.bind_and_specify_otypes(self.env, input_data_blocks)
+        i.bind(input_data_blocks)
+        return i
+
+    def get_connected_interface(self) -> BoundFunctionInterface:
+        i = BoundFunctionInterface.from_dfi(self.dfi)
+        inputs = self.node.get_inputs(self.env)
+        for input in i.inputs:
+            if input.original_annotation.is_self_ref:
+                inputs["this"] = self.node
+        i.connect(inputs)
         return i
 
     def is_input_required(self, annotation: DataFunctionAnnotation) -> bool:
@@ -331,8 +346,8 @@ class NodeInterfaceManager:
 
         input_data_blocks: InputBlocks = {}
         any_unprocessed = False
-        for input in self.get_resolved_interface().inputs:
-            stream = input.connected_stream
+        for input in self.get_connected_interface().inputs:
+            stream = input.input_node
             logger.debug(f"Getting {input.name} for {stream}")
             stream = ensure_data_stream(stream)
             block: Optional[DataBlockMetadata] = self.get_input_data_block(
@@ -352,16 +367,16 @@ class NodeInterfaceManager:
                 logger.debug(
                     f"Couldnt find eligible DataBlocks for input `{input.name}` from {stream}"
                 )
-                if not input.is_optional:
+                if not input.original_annotation.is_optional:
                     # print(actual_input_node, annotation, storages)
                     raise InputExhaustedException(
                         f"    Required input '{input.name}'={stream} to DataFunction '{self.node.name}' is empty"
                     )
             else:
                 input_data_blocks[input.name] = block
-            if input.data_format_class == "DataBlock":
+            if input.original_annotation.data_format_class == "DataBlock":
                 any_unprocessed = True
-            elif input.data_format_class == "DataSet":
+            elif input.original_annotation.data_format_class == "DataSet":
                 if block is not None:
                     any_unprocessed = any_unprocessed or stream.is_unprocessed(
                         self.ctx, block, self.node
@@ -375,26 +390,25 @@ class NodeInterfaceManager:
         return input_data_blocks
 
     def get_input_data_block(
-        self,
-        stream: DataBlockStream,
-        input: ResolvedFunctionNodeInput,
-        storages: List[Storage] = None,
+        self, stream: DataBlockStream, input: NodeInput, storages: List[Storage] = None,
     ) -> Optional[DataBlockMetadata]:
         # TODO: Is it necessary to filter otype? We're already filtered on the `upstream` stream
         # if not input.is_generic:
         #     stream = stream.filter_otype(input.otype_like)
         if storages:
             stream = stream.filter_storages(storages)
-        # TODO: where do we do this parent node filtering? Such hidden, so magic.
-        #   There's the *delcared* input DBS and then this actual one, maybe a bit surprising to
-        #   end user that they differ
-        if input.parent_nodes:
-            stream = stream.filter_upstream(input.parent_nodes)
+        # # TODO: where do we do this parent node filtering? Such hidden, so magic.
+        # #   There's the *delcared* input DBS and then this actual one, maybe a bit surprising to
+        # #   end user that they differ
+        # if input.parent_nodes:
+        #     stream = stream.filter_upstream(input.parent_nodes)
         block: Optional[DataBlockMetadata]
-        if input.data_format_class in ("DataBlock",):
-            stream = stream.filter_unprocessed(self.node, allow_cycle=input.is_self_ref)
+        if input.original_annotation.data_format_class in ("DataBlock",):
+            stream = stream.filter_unprocessed(
+                self.node, allow_cycle=input.original_annotation.is_self_ref
+            )
             block = stream.get_next(self.ctx)
-        elif input.data_format_class == "DataSet":
+        elif input.original_annotation.data_format_class == "DataSet":
             stream = stream.filter_dataset()
             block = stream.get_most_recent(self.ctx)
             # TODO: someday probably pass in actual DataSet (not underlying DB) to function that asks

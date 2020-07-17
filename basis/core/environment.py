@@ -32,7 +32,7 @@ if TYPE_CHECKING:
         make_data_function_definition,
     )
     from basis.core.external import ConfiguredExternalResource, ExternalResource
-    from basis.core.node import Node, function_node_factory
+    from basis.core.node import Node
     from basis.core.data_function_interface import FunctionGraphResolver
     from basis.core.runnable import ExecutionContext
     from basis.core.data_block import DataBlock
@@ -180,6 +180,8 @@ class Environment:
     def add_node(
         self, name: str, function: Union[DataFunctionLike, str], **kwargs: Any
     ) -> Node:
+        from basis.core.node import Node
+
         if isinstance(function, str):
             function = self.get_function(function)
         node = Node(self, name, function, **kwargs)
@@ -329,16 +331,16 @@ class Environment:
         if isinstance(node, str):
             node = self.get_node(node_like)
         assert isinstance(node, Node)
-        raise NotImplementedError(
-            "No mapping between declared node and flattened graph"
+        g = self._flattened_graph().get_declared_node_subgraph(node.name)
+        any_flattened_node = list(g.nodes())[0]
+        dependencies = self._flattened_graph().get_all_upstream_dependencies_in_execution_order(
+            any_flattened_node.name
         )
-        # output_node = node.get_output_node()  # Handle composite functions
-        # dependencies = fgr.get_all_upstream_dependencies_in_execution_order(output_node)
-        # output = None
-        # for dep in dependencies:
-        #     with self.execution(**execution_kwargs) as em:
-        #         output = em.run(dep, to_exhaustion=to_exhaustion)
-        # return output
+        output = None
+        for dep in dependencies:
+            with self.execution(**execution_kwargs) as em:
+                output = em.run(dep, to_exhaustion=to_exhaustion)
+        return output
 
     def run_node(
         self,
