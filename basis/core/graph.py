@@ -79,8 +79,6 @@ class Graph:
         # One option, always a favorite, is to make frozen DC
         if not node.is_composite():
             return
-        print(f"=========== {node.name} ==========")
-        pprint(dict(self.get_compiled_networkx_graph().adj))
         # Add new child nodes
         for sub_n in node.get_sub_nodes():
             self.add_node(sub_n)
@@ -90,10 +88,8 @@ class Graph:
         output_node = node.get_output_node()
         for n in self.nodes():
             input_names = n.get_compiled_input_names()
-            print(f"input names for {n.name}, looking for {node.name}", input_names)
             for input_name, input_node_name in input_names.items():
                 if input_node_name == node.name:
-                    print("found")
                     inputs = n.get_compiled_input_nodes()
                     inputs[input_name] = output_node
                     n.set_compiled_inputs(inputs)
@@ -153,5 +149,4 @@ class Graph:
 
     def get_all_nodes_in_execution_order(self) -> List[Node]:
         g = self.as_networkx_graph()
-        print(g.adj)
         return [self.get_node(name) for name in nx.topological_sort(g)]

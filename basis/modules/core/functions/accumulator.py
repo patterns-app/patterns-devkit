@@ -136,7 +136,6 @@ def dataframe_accumulator(
     if this is not None:
         previous = this.as_dataframe()
         records = previous.append(records)
-    print("records", records)
     return records
 
 

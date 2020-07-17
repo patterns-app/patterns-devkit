@@ -323,7 +323,6 @@ class Worker:
         node = self.env.get_node(runnable.node_name)
         with self.ctx.start_data_function_run(node) as run_session:
             output = self.execute_data_function(runnable)
-            print("output", output)
             if output is not None:
                 # assert (
                 #     runnable.data_function_interface.resolved_output_otype is not None

@@ -56,35 +56,8 @@ def test_graph_resolution():
     assert g.get_all_upstream_dependencies_in_execution_order("node5") == [n2, n4, n5]
     dg = g.add_dataset_nodes()
     assert len(dg.nodes()) == 8
-    pprint(dict(dg.get_compiled_networkx_graph().adj))
+    # pprint(dict(dg.get_compiled_networkx_graph().adj))
     fg = dg.flatten()
     assert len(fg.nodes()) == 11
-    pprint(dict(fg.get_compiled_networkx_graph().adj))
+    # pprint(dict(fg.get_compiled_networkx_graph().adj))
     assert len(fg.get_all_upstream_dependencies_in_execution_order("node7")) == 9
-    return
-    # Resolve types
-    assert fgr.resolve_output_type(n4) is TestType2
-    assert fgr.resolve_output_type(n5) is TestType2
-    assert fgr.resolve_output_type(n6) is TestType2
-    fgr.resolve_output_types()
-    last = n3.get_nodes()[-1]
-    assert fgr._resolved_output_types[last] is TestType2
-    # Resolve deps
-    assert fgr._resolve_node_dependencies(n4)[0].parent_nodes == [n2]
-    assert fgr._resolve_node_dependencies(n5)[0].parent_nodes == [n4]
-    fgr.resolve_dependencies()
-    # Otype resolution
-    n7 = env.add_node("node7", df_self, upstream=DataBlockStream(otype="TestType2"))
-    n8 = env.add_node("node8", df_self, upstream=n7)
-    fgr = env.get_function_graph_resolver()
-    fgr.resolve()
-    parent_keys = set(
-        p.name for p in fgr.get_resolved_interface(n7).inputs[0].parent_nodes
-    )
-    assert parent_keys == {
-        "node3__df_t1_to_t2",
-        "node3__df_generic",
-        "node4",
-        "node5",
-        "node6",
-    }

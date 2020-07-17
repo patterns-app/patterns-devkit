@@ -387,7 +387,5 @@ def conform_dataframe_to_otype(df: DataFrame, otype: ObjectType) -> DataFrame:
             else:
                 df[field.name] = Series(dtype=pd_type)
         except Exception as e:
-            print(field.name)
-            print(df[field.name])
             raise e
     return df
