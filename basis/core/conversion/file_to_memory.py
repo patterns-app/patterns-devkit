@@ -11,10 +11,10 @@ from basis.core.conversion.converter import (
 from basis.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadata
 from basis.core.data_formats import (
     DataFormat,
-    RecordsListGenerator,
-    RecordsListFormat,
     DelimitedFileFormat,
     JsonListFileFormat,
+    RecordsListFormat,
+    RecordsListGenerator,
     RecordsListGeneratorFormat,
 )
 from basis.core.storage.file_system import FileSystemAPI

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from loguru import logger
 import os
 from datetime import datetime
 from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type, Union
@@ -9,6 +8,8 @@ from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type,
 import requests
 from ratelimit import limits, sleep_and_retry
 from requests import Response
+
+from loguru import logger
 
 
 class JsonHttpApiConnection:

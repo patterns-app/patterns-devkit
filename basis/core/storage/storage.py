@@ -8,17 +8,17 @@ from urllib.parse import urlparse
 
 from basis.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadata
 from basis.core.data_formats import (
-    DataFormat,
-    RecordsListFormat,
-    DelimitedFileFormat,
-    DataFrameFormat,
-    DatabaseTableRefFormat,
     DatabaseCursorFormat,
+    DatabaseTableFormat,
+    DatabaseTableRefFormat,
+    DataFormat,
+    DataFrameFormat,
+    DataFrameGeneratorFormat,
+    DelimitedFileFormat,
     DelimitedFilePointerFormat,
     JsonListFileFormat,
+    RecordsListFormat,
     RecordsListGeneratorFormat,
-    DataFrameGeneratorFormat,
-    DatabaseTableFormat,
 )
 from basis.core.environment import Environment
 from basis.utils.common import cf, printd, rand_str

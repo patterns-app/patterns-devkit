@@ -5,12 +5,13 @@ from copy import deepcopy
 from itertools import tee
 from typing import Any, Generic, Optional, Type
 
+from basis import ObjectType
 from basis.utils.typing import T
 
 
 class DataFormatBase(Generic[T]):
     def __init__(self):
-        raise NotImplementedError("No need to instantiate DataFormat classes")
+        raise NotImplementedError("Do not instantiate DataFormat classes")
 
     @classmethod
     def is_memory_format(cls) -> bool:
@@ -26,7 +27,7 @@ class DataFormatBase(Generic[T]):
 
     @classmethod
     def type_hint(cls) -> str:
-        return cls.__name__[:-6]  # Just trim "Format" from the class name
+        return cls.__name__[:-6]  # Just trim "Format" from the class name, as default
 
     @classmethod
     def maybe_instance(cls, obj: Any) -> bool:
@@ -42,6 +43,14 @@ class DataFormatBase(Generic[T]):
 
     @classmethod
     def copy_records(cls, obj: Any) -> Any:
+        raise NotImplementedError
+
+    @classmethod
+    def infer_otype_from_records(cls, records: T) -> ObjectType:
+        raise NotImplementedError
+
+    @classmethod
+    def conform_records_to_otype(cls, records: T) -> T:
         raise NotImplementedError
 
 

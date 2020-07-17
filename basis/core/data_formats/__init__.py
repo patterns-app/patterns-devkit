@@ -78,6 +78,11 @@ def get_data_format_of_object(obj: Any) -> Optional[DataFormat]:
         if not m.is_memory_format():
             continue
         assert issubclass(m, MemoryDataFormatBase)
+        try:
+            if m.definitely_instance(obj):
+                return m
+        except NotImplementedError:
+            pass
         if m.maybe_instance(obj):
             maybes.append(m)
     if len(maybes) == 1:
@@ -100,14 +105,16 @@ class DataFormatType(types.TypeDecorator):
 
 
 def get_records_list_sample(
-    obj: Union[pd.DataFrame, RecordsList, RecordsListGenerator, DataFrameGenerator]
+    obj: Union[pd.DataFrame, RecordsList, RecordsListGenerator, DataFrameGenerator],
+    max_sample: int = 1000,
 ) -> Optional[RecordsList]:
     """Helper for getting a small records list sample (poor mans converter?)"""
     # TODO: is this the right way/place to do this?
+    # TODO: implement max_sample everywhere...
     if isinstance(obj, list):
-        return obj
+        return obj[:max_sample]
     if isinstance(obj, pd.DataFrame):
-        return obj.to_dict(orient="records")
+        return obj.to_dict(orient="records")[:max_sample]
     if isinstance(obj, DataFrameGenerator):
         return get_records_list_sample(obj.get_one())
     if isinstance(obj, RecordsListGenerator):

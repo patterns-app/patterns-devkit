@@ -416,13 +416,6 @@ class DataBlockManager:
         return convert_sdb(self.ctx, in_sdb, conversion_path)
 
 
-# class DataBlockFactory:
-#     def __init__(self, env: Environment):
-#         self.env = env
-#
-#     def create_data_block_from_records(self, records: Any) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
-
-
 def create_data_block_from_records(
     env: Environment,
     sess: Session,
@@ -436,17 +429,20 @@ def create_data_block_from_records(
     if not expected_otype:
         expected_otype = env.get_otype("Any")
     expected_otype_uri = expected_otype.uri
+    ldr = LocalMemoryDataRecords.from_records_object(records)
     if not realized_otype:
         if is_any(expected_otype):
-            dl = get_records_list_sample(records)
-            if dl is None:
-                raise ValueError("Empty records object")
-            realized_otype = infer_otype_from_records_list(dl)
+            realized_otype = ldr.data_format.infer_otype_from_records(
+                ldr.records_object
+            )
+            # dl = get_records_list_sample(records)
+            # if dl is None:
+            #     raise ValueError("Empty records object")
+            # realized_otype = infer_otype_from_records_list(dl)
             env.add_new_otype(realized_otype)
         else:
             realized_otype = expected_otype
     realized_otype_uri = realized_otype.uri
-    ldr = LocalMemoryDataRecords.from_records_object(records)
     block = DataBlockMetadata(
         expected_otype_uri=expected_otype_uri, realized_otype_uri=realized_otype_uri
     )

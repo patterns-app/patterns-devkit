@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import inspect
-from loguru import logger
 from dataclasses import dataclass, field, fields
 from datetime import datetime
 from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type
@@ -17,6 +16,7 @@ from basis.core.runnable import DataFunctionContext, ExecutionContext
 from basis.core.typing.object_type import ObjectTypeLike
 from basis.utils.common import dataclass_kwargs, printd
 from basis.utils.typing import T
+from loguru import logger
 
 
 @dataclass(frozen=True)
