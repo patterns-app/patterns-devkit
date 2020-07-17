@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Generic, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from basis import ObjectType
-from basis.core.data_formats import get_records_list_sample
-from basis.core.data_formats.base import DataFormatBase, MemoryDataFormatBase
+from basis.core.data_formats.base import MemoryDataFormatBase
+
+if TYPE_CHECKING:
+    from basis import ObjectType
+
 
 RecordsList = List[Dict[str, Any]]
 
@@ -41,6 +43,7 @@ class RecordsListFormat(MemoryDataFormatBase):
     @classmethod
     def infer_otype_from_records(cls, records: RecordsList) -> ObjectType:
         from basis.core.typing.inference import infer_otype_from_records_list
+        from basis.core.data_formats import get_records_list_sample
 
         dl = get_records_list_sample(records)
         if dl is None:

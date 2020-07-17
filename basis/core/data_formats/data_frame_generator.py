@@ -1,18 +1,14 @@
 from __future__ import annotations
 
 from collections import abc
-from typing import Any, Type
+from typing import TYPE_CHECKING, Any, Optional, Type
 
 import pandas as pd
-from pandas import DataFrame
 
-from basis import ObjectType
-from basis.core.data_formats import get_records_list_sample
-from basis.core.data_formats.base import (
-    DataFormatBase,
-    MemoryDataFormatBase,
-    ReusableGenerator,
-)
+from basis.core.data_formats.base import MemoryDataFormatBase, ReusableGenerator
+
+if TYPE_CHECKING:
+    from basis import ObjectType
 
 
 class DataFrameGenerator(ReusableGenerator[pd.DataFrame]):
@@ -35,6 +31,7 @@ class DataFrameGeneratorFormat(MemoryDataFormatBase):
     @classmethod
     def infer_otype_from_records(cls, records: DataFrameGenerator) -> ObjectType:
         from basis.core.typing.inference import infer_otype_from_records_list
+        from basis.core.data_formats import get_records_list_sample
 
         dl = get_records_list_sample(records)
         if dl is None:

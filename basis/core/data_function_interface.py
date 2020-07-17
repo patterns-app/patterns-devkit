@@ -319,7 +319,7 @@ class NodeInterfaceManager:
         self, input_data_blocks: Optional[InputBlocks] = None
     ) -> BoundFunctionInterface:
         i = BoundFunctionInterface.from_dfi(self.dfi)
-        i.connect(self.dfi.assign_inputs(self.node.get_raw_inputs()))
+        i.connect(self.dfi.assign_inputs(self.node.get_declared_inputs()))
         if input_data_blocks is None:
             input_data_blocks = self.get_input_data_blocks()
         i.bind(input_data_blocks)
@@ -327,7 +327,7 @@ class NodeInterfaceManager:
 
     def get_connected_interface(self) -> BoundFunctionInterface:
         i = BoundFunctionInterface.from_dfi(self.dfi)
-        inputs = self.node.get_inputs(self.env)
+        inputs = self.node.get_compiled_inputs(self.env)
         for input in i.inputs:
             if input.original_annotation.is_self_ref:
                 inputs["this"] = self.node

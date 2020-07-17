@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from copy import copy
+from pprint import pprint
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -24,7 +26,7 @@ if TYPE_CHECKING:
 
 
 class Graph:
-    def __init__(self, nodes: List[Node] = None):
+    def __init__(self, nodes: Iterable[Node] = None):
         self._nodes: Dict[str, Node] = {}
         if nodes:
             for n in nodes:
@@ -33,11 +35,17 @@ class Graph:
     def add_node(self, node: Node):
         self._nodes[node.name] = node
 
+    def remove_node(self, node: Node):
+        del self._nodes[node.name]
+
     def get_node(self, node_name: str) -> Node:
         return self._nodes[node_name]
 
     def nodes(self) -> Iterable[Node]:
         return self._nodes.values()
+
+    def copy(self) -> Graph:
+        return Graph(self._nodes.values())
 
     def get_declared_node_subgraph(self, declared_node_name: str) -> Graph:
         if declared_node_name in self._nodes:
@@ -54,43 +62,77 @@ class Graph:
     def add_dataset_nodes(self) -> Graph:
         new_g = Graph()
         for n in self.nodes():
-            new_n = n.clone()
-            dfi = new_n.get_interface()
+            dfi = n.get_interface()
             for annotation in dfi.inputs:
                 if annotation.is_dataset:
-                    dsn = new_n.get_dataset_node()
+                    inputs = copy(n.get_declared_input_nodes())
+                    input_node = inputs[annotation.name]
+                    dsn = input_node.get_dataset_node()
                     new_g.add_node(dsn)
-                    new_n.get_raw_inputs()[annotation.name] = dsn
-            new_g.add_node(new_n)
+                    inputs[annotation.name] = dsn
+                    n.set_compiled_inputs(inputs)
+            new_g.add_node(n)
         return new_g
+
+    def flatten_composite_node(self, node: Node):
+        # TODO: this changes the _nodes'_ state, not ideal, need to make sure you are working with copy
+        # One option, always a favorite, is to make frozen DC
+        if not node.is_composite():
+            return
+        print(f"=========== {node.name} ==========")
+        pprint(dict(self.get_compiled_networkx_graph().adj))
+        # Add new child nodes
+        for sub_n in node.get_sub_nodes():
+            self.add_node(sub_n)
+        # Remove composite, we are done with it
+        self.remove_node(node)
+        # Replace any input references with new output node
+        output_node = node.get_output_node()
+        for n in self.nodes():
+            input_names = n.get_compiled_input_names()
+            print(f"input names for {n.name}, looking for {node.name}", input_names)
+            for input_name, input_node_name in input_names.items():
+                if input_node_name == node.name:
+                    print("found")
+                    inputs = n.get_compiled_input_nodes()
+                    inputs[input_name] = output_node
+                    n.set_compiled_inputs(inputs)
+                    break
+        # Finally, recurse
+        for sub_n in node.get_sub_nodes():
+            self.flatten_composite_node(sub_n)
 
     def flatten(self) -> Graph:
-        new_g = Graph()
-        for n in self.nodes():
-            if n.data_function.is_composite:
-                for sub_n in n.make_sub_nodes():
-                    new_g.add_node(sub_n)
-            else:
-                new_g.add_node(n)
+        new_g = self.copy()
+        for n in list(new_g.nodes()):
+            new_g.flatten_composite_node(n)
         return new_g
 
-    def as_networkx_graph(self) -> nx.DiGraph:
+    def as_networkx_graph(self, compiled: bool) -> nx.DiGraph:
         g = nx.DiGraph()
         for node in self.nodes():
             g.add_node(node.name)
-            for raw_input in node.get_raw_inputs().values():
-                if isinstance(raw_input, Node):
-                    raw_input = raw_input.name
-                if raw_input not in self._nodes:
+            if compiled:
+                inputs = node.get_compiled_input_nodes()
+            else:
+                inputs = node.get_declared_input_nodes()
+            for input_node in inputs.values():
+                if input_node.name not in self._nodes:
                     # Don't include nodes not in graph (could be a sub-graph)
                     continue
-                g.add_node(raw_input)
-                g.add_edge(raw_input, node.name)
+                g.add_node(input_node.name)
+                g.add_edge(input_node.name, node.name)
             # TODO: self ref edge?
         return g
 
+    def get_compiled_networkx_graph(self) -> nx.DiGraph:
+        return self.as_networkx_graph(compiled=True)
+
+    def get_declared_networkx_graph(self) -> nx.DiGraph:
+        return self.as_networkx_graph(compiled=False)
+
     def get_all_upstream_dependencies_in_execution_order(self, node: str) -> List[Node]:
-        g = self.as_networkx_graph()
+        g = self.get_compiled_networkx_graph()
         node_names = self._get_all_upstream_dependencies_in_execution_order(g, node)
         return [self.get_node(name) for name in node_names]
 
@@ -99,6 +141,9 @@ class Graph:
     ) -> List[str]:
         nodes = []
         for parent_node in g.predecessors(node):
+            if parent_node == node:
+                # No cycles
+                continue
             parent_deps = self._get_all_upstream_dependencies_in_execution_order(
                 g, parent_node
             )
@@ -110,90 +155,3 @@ class Graph:
         g = self.as_networkx_graph()
         print(g.adj)
         return [self.get_node(name) for name in nx.topological_sort(g)]
-
-
-# @dataclass(frozen=True)
-# class CompiledNodeInput:
-#     name: str
-#     input: CompiledNode
-
-
-# CompiledNodeInputs = Dict[str, "CompiledNode"]
-#
-#
-# @dataclass(frozen=True)
-# class CompiledNode:
-#     env: Environment
-#     name: str
-#     data_function: DataFunction
-#     inputs: Optional[CompiledNodeInputs]
-#
-#     def __hash__(self):
-#         return hash(self.name)
-
-
-# class CompiledGraph:
-#     def __init__(self, declared_graph: DeclaredGraph):
-#         self._declared_graph = declared_graph
-#         self._nx_graph = nx.DiGraph()
-#         self._compile()
-#         self._compiled_nodes = {}
-#         self._output_dataset_nodes = {}
-#         self._processed = set()
-#
-#     def _compile(self):
-#         for dn in self._declared_graph.nodes():
-#             self._compile_declared_node(dn)
-#
-#     def _compile_declared_node(self, dn: Node) -> CompiledNode:
-#         if dn in self._processed:
-#             return self._compiled_nodes[dn]
-#         self._processed.add(dn)
-#         if dn.data_function.is_composite:
-#             raise
-#         dfi = dn.data_function.get_interface()
-#         inputs = dfi.assign_inputs(dn.inputs)
-#         inputs = {k: dn.env.get_node(v) for k, v in inputs.items()}
-#         compiled_inputs: Dict[str, CompiledNode] = {}
-#         for annotation in dfi.get_non_recursive_inputs():
-#             assert annotation.name in inputs, f"Missing input {annotation}"
-#             input_dn = inputs[annotation.name]
-#             cn = self._as_compiled_input(annotation, input_dn)
-#             compiled_inputs[annotation.name] = cn
-#         this = CompiledNode(
-#             env=dn.env,
-#             name=dn.name,
-#             data_function=dn.data_function,
-#             inputs=compiled_inputs,
-#         )
-#         self._add_node(this)
-#         for input in dfi.inputs:
-#             if input.is_self_ref:
-#                 self._add_edge(this, this)
-#
-#         self._compiled_nodes[dn] = this
-#         return this
-#
-#     def _as_compiled_input(
-#         self, annotation: DataFunctionAnnotation, declared_input: Node
-#     ) -> CompiledNode:
-#         if annotation.data_format_class == "DataBlock":
-#             return self._compile_declared_node(declared_input)
-#         elif annotation.data_format_class == "DataSet":
-#             return self._get_compiled_output_dataset_node(declared_input)
-#         else:
-#             raise NotImplementedError(annotation.data_format_class)
-#
-#     def _compile_declared_node_as_dataset(self, dn: Node) -> CompiledNode:
-#         cn = self._compile_declared_node(dn)
-#
-#     def _get_compiled_output_node(self, dn: Node) -> CompiledNode:
-#         self._compile_declared_node(dn)
-#
-#     def _add_edge(self, source: CompiledNode, target: CompiledNode):
-#         self._nx_graph.add_edge(source, target)
-#
-#     def _add_node(self, node: CompiledNode):
-#         self._nx_graph.add_node(node)
-#         for name, input in node.inputs.items():
-#             self._add_edge(input, node)

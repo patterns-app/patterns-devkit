@@ -3,10 +3,12 @@ from __future__ import annotations
 import typing
 from copy import deepcopy
 from itertools import tee
-from typing import Any, Generic, Optional, Type
+from typing import Any, Generic, Optional, Type, TYPE_CHECKING
 
-from basis import ObjectType
 from basis.utils.typing import T
+
+if TYPE_CHECKING:
+    from basis import ObjectType
 
 
 class DataFormatBase(Generic[T]):

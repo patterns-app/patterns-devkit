@@ -157,7 +157,7 @@ class DataFunctionTest:
                     fn = env.get_function(self.function)
                 else:
                     fn = self.function
-                dfi = fn.get_interface()
+                dfi = fn.get_interface(env)
                 assert dfi is not None
                 test_node = env.add_node("_test_node", fn)
                 for i, test_data in enumerate(case.test_datas):

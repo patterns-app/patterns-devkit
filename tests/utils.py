@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from pandas import DataFrame
 
-from basis.core.data_block import DataBlock
+from basis.core.data_block import DataBlock, DataSet
+from basis.core.data_function import data_function_chain
 from basis.core.environment import Environment
 from basis.core.module import BasisModule
 from basis.core.runnable import DataFunctionContext, ExecutionContext, ExecutionManager
@@ -84,4 +85,17 @@ def df_generic(input: DataBlock[T]) -> DataFrame[T]:
 
 
 def df_t1_source(ctx: DataFunctionContext) -> DataFrame[TestType1]:
+    pass
+
+
+df_chain_t1_to_t2 = data_function_chain("df_chain_t1_to_t2", [df_t1_to_t2, df_generic])
+
+
+def df_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
+    pass
+
+
+def df_dataset(
+    input: DataBlock[T], other_t2: DataSet[TestType2] = None
+) -> DataFrame[T]:
     pass

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 import traceback
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
@@ -10,23 +10,15 @@ from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.schema import Column, ForeignKey
 from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
-from basis.core.component import ComponentUri
-from basis.core.data_block import (
-    DataBlock,
-    DataBlockMetadata,
-    create_data_block_from_records,
-)
+from basis.core.data_block import DataBlock, DataBlockMetadata
 from basis.core.data_function import (
     DataFunction,
-    DataFunctionDefinition,
     DataFunctionLike,
+    ensure_data_function,
     make_data_function,
     make_data_function_name,
 )
-from basis.core.data_function_interface import (
-    SELF_REF_PARAM_NAME,
-    DataFunctionInterface,
-)
+from basis.core.data_function_interface import DataFunctionInterface
 from basis.core.environment import Environment
 from basis.core.metadata.orm import BaseModel
 
@@ -38,18 +30,24 @@ if TYPE_CHECKING:
 NodeLike = Union[str, "Node"]
 
 
+def inputs_as_nodes(env: Environment, inputs: Dict[str, NodeLike]):
+    return {name: env.get_node(dnl) for name, dnl in inputs.items()}
+
+
 class Node:
     env: Environment
     name: str
     data_function: DataFunction
-    _raw_inputs: Dict[str, NodeLike]
-    declared_composite_node_name: Optional[str]
+    _declared_inputs: Dict[str, NodeLike]
+    _compiled_inputs: Dict[str, Node] = None
+    declared_composite_node_name: Optional[str] = None
+    _sub_nodes: List[Node] = None
 
     def __init__(
         self,
         env: Environment,
         name: str,
-        data_function: DataFunctionLike,
+        data_function: Union[DataFunctionLike, str],
         inputs: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,
         config: Dict[str, Any] = None,
         declared_composite_node_name: str = None,
@@ -57,12 +55,14 @@ class Node:
         self.config = config or {}
         self.env = env
         self.name = name
-        self.data_function = make_data_function(data_function)
+        self.data_function = self._clean_data_function(data_function)
         self.dfi = self.get_interface()
         self.declared_composite_node_name = declared_composite_node_name
-        self._raw_inputs = {}
+        self._declared_inputs = {}
         if inputs is not None:
-            self.set_inputs(inputs)
+            self._set_declared_inputs(inputs)
+        if self.is_composite():
+            self._sub_nodes = list(build_composite_nodes(self))
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(name={self.name}, data_function={self.data_function.name})>"
@@ -70,22 +70,39 @@ class Node:
     def __hash__(self):
         return hash(self.name)
 
-    def set_inputs(self, inputs: Union[NodeLike, Dict[str, NodeLike]]):
-        self._raw_inputs = self.dfi.assign_inputs(inputs)
+    def _clean_data_function(self, df: DataFunctionLike) -> DataFunction:
+        if isinstance(df, str):
+            return self.env.get_function(df)
+        return make_data_function(df)
 
-    def clone(self) -> Node:
-        return Node(
-            env=self.env,
-            name=self.name,
-            data_function=self.data_function,
-            config=self.config,
-            inputs=self.get_raw_inputs(),
-        )
+    def _set_declared_inputs(self, inputs: Union[NodeLike, Dict[str, NodeLike]]):
+        self._declared_inputs = self.dfi.assign_inputs(inputs)
+
+    def set_compiled_inputs(self, inputs: Dict[str, NodeLike]):
+        self._compiled_inputs = inputs_as_nodes(self.env, inputs)
+        if self.is_composite():
+            self.get_input_node().set_compiled_inputs(inputs)
+
+    # def clone(self, new_name: str, **kwargs) -> Node:
+    #     args = dict(
+    #         env=self.env,
+    #         name=new_name,
+    #         data_function=self.data_function,
+    #         config=self.config,
+    #         inputs=self.get_declared_inputs(),
+    #     )
+    #     args.update(kwargs)
+    #     return Node(**args)
 
     def get_dataset_node_name(self) -> str:
         return f"{self.name}__dataset"
 
     def get_dataset_node(self, node_name: str = None) -> Node:
+        try:
+            # Return if already created
+            return self.env.get_node(self.get_dataset_node_name())
+        except KeyError:
+            pass
         dfi = self.get_interface()
         if dfi.output is None:
             raise
@@ -102,7 +119,7 @@ class Node:
         )
 
     def _get_interface(self) -> Optional[DataFunctionInterface]:
-        return self.data_function.get_interface()
+        return self.data_function.get_interface(self.env)
 
     def get_interface(self) -> DataFunctionInterface:
         dfi = self._get_interface()
@@ -113,14 +130,36 @@ class Node:
         #     dfi.connect_upstream(self, up)
         return dfi
 
-    def get_inputs(self, env: Environment) -> Dict[str, Node]:
-        return {name: env.get_node(dnl) for name, dnl in self.get_raw_inputs().items()}
+    def get_compiled_input_nodes(self) -> Dict[str, Node]:
+        # TODO: mark compiled?
+        # if self._compiled_inputs is None:
+        #     raise Exception("Node has not been compiled")
+        return self._compiled_inputs or self.get_declared_input_nodes()
 
-    def get_raw_inputs(self) -> Dict[str, NodeLike]:
-        return self._raw_inputs or {}
+    def get_declared_input_nodes(self) -> Dict[str, Node]:
+        return inputs_as_nodes(self.env, self.get_declared_inputs())
 
-    def make_sub_nodes(self) -> Iterable[Node]:
-        return build_composite_nodes(self)
+    def get_declared_inputs(self) -> Dict[str, NodeLike]:
+        return self._declared_inputs or {}
+
+    def get_compiled_input_names(self) -> Dict[str, str]:
+        return {
+            n: i.name if isinstance(i, Node) else i
+            for n, i in self.get_compiled_input_nodes().items()
+        }
+
+    def get_sub_nodes(self) -> Iterable[Node]:
+        return self._sub_nodes
+
+    def get_output_node(self) -> Node:
+        if self.is_composite():
+            return self._sub_nodes[-1].get_output_node()
+        return self
+
+    def get_input_node(self) -> Node:
+        if self.is_composite():
+            return self._sub_nodes[0].get_input_node()
+        return self
 
     def is_composite(self) -> bool:
         return self.data_function.is_composite
@@ -147,37 +186,30 @@ class Node:
         return block.as_managed_data_block(ctx)
 
 
-def ensure_data_function(
-    self, env: Environment, df_like: Union[DataFunctionLike, str]
-) -> DataFunction:
-    if isinstance(df_like, DataFunction):
-        return df_like
-    if isinstance(df_like, DataFunctionDefinition):
-        return df_like.as_data_function()
-    if isinstance(df_like, str) or isinstance(df_like, ComponentUri):
-        return env.get_function(df_like)
-    return make_data_function(df_like)
-
-
 def build_composite_nodes(n: Node) -> Iterable[Node]:
     if not n.data_function.is_composite:
         raise
     nodes = []
     # TODO: just supports list for now
-    input_node = n
+    raw_inputs = list(n.get_declared_inputs().values())
+    assert len(raw_inputs) == 1, "Composite functions take one input"
+    input_node = raw_inputs[0]
     for fn in n.data_function.get_representative_definition().sub_graph:
         fn = ensure_data_function(n.env, fn)
         child_fn_name = make_data_function_name(fn)
         child_node_name = f"{n.name}__{child_fn_name}"
-        node = Node(
-            n.env,
-            child_node_name,
-            fn,
-            config=n.config,
-            inputs=input_node,
-            declared_composite_node_name=n.declared_composite_node_name
-            or n.name,  # Handle nested composite functions
-        )
+        try:
+            node = n.env.get_node(child_node_name)
+        except KeyError:
+            node = Node(
+                n.env,
+                child_node_name,
+                fn,
+                config=n.config,
+                inputs=input_node,
+                declared_composite_node_name=n.declared_composite_node_name
+                or n.name,  # Handle nested composite functions
+            )
         nodes.append(node)
         input_node = node
     return nodes

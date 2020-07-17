@@ -1,14 +1,15 @@
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import pandas as pd
 from pandas import DataFrame
 
-from basis import ObjectType
-from basis.core.data_formats import get_records_list_sample
 from basis.core.data_formats.base import MemoryDataFormatBase
 from basis.utils.typing import T
+
+if TYPE_CHECKING:
+    from basis import ObjectType
 
 
 class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
@@ -30,6 +31,7 @@ class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
     @classmethod
     def infer_otype_from_records(cls, records: DataFrame) -> ObjectType:
         from basis.core.typing.inference import infer_otype_from_records_list
+        from basis.core.data_formats import get_records_list_sample
 
         dl = get_records_list_sample(records)
         if dl is None:

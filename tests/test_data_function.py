@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable, Dict
+from typing import Callable
 
 import pytest
 from pandas import DataFrame
@@ -12,21 +12,19 @@ from basis.core.data_function import (
     DataFunctionInterface,
     DataFunctionLike,
     data_function,
-    data_function_chain,
 )
 from basis.core.data_function_interface import DataFunctionAnnotation
 from basis.core.node import Node
 from basis.core.runnable import DataFunctionContext
 from basis.core.runtime import RuntimeClass
 from basis.core.sql.data_function import sql_data_function
-from basis.core.streams import DataBlockStream
 from basis.modules import core
-from basis.modules.core.functions.accumulate_as_dataset import accumulate_as_dataset
 from basis.utils.typing import T, U
 from tests.utils import (
     TestType1,
-    TestType2,
+    df_chain_t1_to_t2,
     df_generic,
+    df_self,
     df_t1_sink,
     df_t1_source,
     df_t1_to_t2,
@@ -87,13 +85,6 @@ def df_notworking(_1: int, _2: str, input: DataBlock[TestType1]):
 
 def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
     pass
-
-
-def df_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
-    pass
-
-
-df_chain = data_function_chain("df_chain", [df_t1_to_t2, df_generic])
 
 
 @pytest.mark.parametrize(
@@ -212,7 +203,7 @@ df_chain = data_function_chain("df_chain", [df_t1_to_t2, df_generic])
             ),
         ),
         # (
-        #     df_chain,
+        #     df_chain_t1_to_t2,
         #     DataFunctionInterface(
         #         inputs=[
         #             DataFunctionAnnotation(
@@ -324,10 +315,10 @@ def test_inputs():
     env = make_test_env()
     n1 = env.add_node("node1", df_t1_source)
     n2 = env.add_node("node2", df_t1_to_t2, inputs={"input": "node1"})
-    dfi = n2.get_interface()
+    dfi = n2.get_interface(env)
     assert dfi is not None
-    n3 = env.add_node("node3", df_chain, inputs="node1")
-    dfi = n3.get_interface()
+    n3 = env.add_node("node3", df_chain_t1_to_t2, inputs="node1")
+    dfi = n3.get_interface(env)
     assert dfi is not None
 
 
@@ -336,7 +327,7 @@ def test_inputs():
 #     env.add_module(core)
 #     n1 = env.add_node("node1", df_t1_source)
 #     n2 = env.add_node("node2", df_t1_source)
-#     n3 = env.add_node("node3", df_chain, inputs="node1")
+#     n3 = env.add_node("node3", df_chain_t1_to_t2, inputs="node1")
 #     ds1 = env.add_node(
 #         "ds1",
 #         accumulate_as_dataset,
@@ -469,7 +460,7 @@ def test_data_function_set():
 #     r = DataFunctionRegistry()
 #     dfs = DataFunction(name="k1", module_name=DEFAULT_MODULE_NAME, version=None)
 #     dfs.add_definition(df1)
-#     r.process_and_register_all([df_t1_sink, df_chain, dfs, df2])
+#     r.process_and_register_all([df_t1_sink, df_chain_t1_to_t2, dfs, df2])
 #     assert r.get("k1") is dfs
 #     assert r.get("k1").runtime_data_functions[RuntimeClass.PYTHON] is df1
 #     assert r.get("k1").runtime_data_functions[RuntimeClass.DATABASE] is df2
@@ -483,7 +474,7 @@ def test_node_no_inputs():
     dfi = node1.get_interface()
     assert dfi.inputs == []
     assert dfi.output is not None
-    assert node1.get_raw_inputs() == {}
+    assert node1.get_declared_inputs() == {}
     assert not node1.is_composite()
 
 
@@ -500,7 +491,7 @@ def test_node_inputs():
     dfi = node1.get_interface()
     assert len(dfi.inputs) == 1
     assert dfi.output is None
-    assert list(node1.get_raw_inputs().keys()) == ["input"]
+    assert list(node1.get_declared_inputs().keys()) == ["input"]
     # assert node1.get_input("input").get_upstream(env)[0] is node
 
 
@@ -521,7 +512,7 @@ def test_node_config():
 #     env = make_test_env()
 #     df = data_function(df_t1_source)
 #     node = Node(env, "node", df)
-#     node1 = FunctionNodeChain(env, "node1", df_chain, upstream=node)
+#     node1 = FunctionNodeChain(env, "node1", df_chain_t1_to_t2, upstream=node)
 #     dfi = node1.get_interface()
 #     assert len(dfi.inputs) == 1
 #     assert dfi.output is not None
@@ -542,7 +533,7 @@ def test_node_config():
 #     env = make_test_env()
 #     n1 = env.add_node("node1", df_t1_source)
 #     n2 = env.add_node("node2", df_t1_source)
-#     n3 = env.add_node("node3", df_chain, upstream="node1")
+#     n3 = env.add_node("node3", df_chain_t1_to_t2, upstream="node1")
 #     n4 = env.add_node("node4", df_t1_to_t2, upstream="node2")
 #     n5 = env.add_node("node5", df_generic, upstream="node4")
 #     n6 = env.add_node("node6", df_self, upstream="node4")

@@ -76,7 +76,7 @@ class Environment:
         self.initialize_metadata_database()
         self._local_module = DEFAULT_LOCAL_MODULE  #     BasisModule(name=f"_env")
         self.library = ComponentLibrary(default_module=self._local_module)
-        self._graph = Graph()
+        self._declared_graph = Graph()
         # self._added_nodes: Dict[str, Node] = {}
         # self._flattened_nodes: Dict[str, Node] = {}
         self.storages = []
@@ -185,7 +185,7 @@ class Environment:
         if isinstance(function, str):
             function = self.get_function(function)
         node = Node(self, name, function, **kwargs)
-        self._graph.add_node(node)
+        self._declared_graph.add_node(node)
         return node
 
     def add_external_source_node(
@@ -227,24 +227,27 @@ class Environment:
     #     )
 
     def all_added_nodes(self) -> List[Node]:
-        return list(self._graph.nodes())
+        return list(self._declared_graph.nodes())
 
     def all_flattened_nodes(self) -> List[Node]:
         # TODO: cache?
         return list(self._flattened_graph().nodes())
 
     def _flattened_graph(self) -> Graph:
-        return self._graph.add_dataset_nodes().flatten()
+        return self._declared_graph.add_dataset_nodes().flatten()
+
+    def get_graph(self) -> Graph:
+        return self._declared_graph
 
     def get_node(self, node_like: Union[Node, str]) -> Node:
         from basis.core.node import Node
 
         if isinstance(node_like, Node):
             return node_like
-        try:
-            return self._graph.get_node(node_like)
-        except KeyError:  # TODO: do we want to get flattened (sub) nodes too? Probably
-            return self._flattened_graph().get_node(node_like)
+        # try:
+        return self._declared_graph.get_node(node_like)
+        # except KeyError:  # TODO: do we want to get flattened (sub) nodes too? Probably
+        # return self._flattened_graph().get_node(node_like)
 
     # def get_function_graph_resolver(self) -> FunctionGraphResolver:
     #     from basis.core.data_function_interface import FunctionGraphResolver

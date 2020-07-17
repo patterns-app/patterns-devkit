@@ -15,6 +15,7 @@ from basis.core.runtime import RuntimeClass
 
 if TYPE_CHECKING:
     from basis.core.runnable import DataFunctionContext
+    from basis import Environment
 
 
 class DataFunctionException(Exception):
@@ -84,11 +85,11 @@ class DataFunction(ComponentUri):
     def get_representative_definition(self) -> DataFunctionDefinition:
         return list(self.runtime_data_functions.values())[0]
 
-    def get_interface(self) -> Optional[DataFunctionInterface]:
+    def get_interface(self, env: Environment) -> Optional[DataFunctionInterface]:
         dfd = self.get_representative_definition()
         if not dfd:
             raise
-        return dfd.get_interface()
+        return dfd.get_interface(env)
 
     def add_definition(self, df: DataFunctionDefinition):
         for cls in df.compatible_runtime_classes:
@@ -140,13 +141,16 @@ class DataFunctionDefinition(ComponentUri):
             raise
         return self.function_callable(*args, **kwargs)
 
-    def get_interface(self) -> Optional[DataFunctionInterface]:
+    def get_interface(self, env: Environment) -> Optional[DataFunctionInterface]:
         if self.function_callable is None:
             assert self.is_composite
-            input_interface = self.sub_graph[0].get_interface()
+            # TODO: only supports chain
+            input = ensure_data_function(env, self.sub_graph[0])
+            output = ensure_data_function(env, self.sub_graph[-1])
+            input_interface = input.get_interface(env)
             return DataFunctionInterface(
                 inputs=input_interface.inputs,
-                output=self.sub_graph[-1].get_interface().output,
+                output=output.get_interface(env).output,
                 requires_data_function_context=input_interface.requires_data_function_context,
             )
         if hasattr(self.function_callable, "get_interface"):
@@ -262,3 +266,15 @@ def make_data_function(dfl: DataFunctionLike, **kwargs) -> DataFunction:
         return dfl
     dfd = make_data_function_definition(dfl, **kwargs)
     return dfd.as_data_function()
+
+
+def ensure_data_function(
+    env: Environment, df_like: Union[DataFunctionLike, str]
+) -> DataFunction:
+    if isinstance(df_like, DataFunction):
+        return df_like
+    if isinstance(df_like, DataFunctionDefinition):
+        return df_like.as_data_function()
+    if isinstance(df_like, str) or isinstance(df_like, ComponentUri):
+        return env.get_function(df_like)
+    return make_data_function(df_like)
