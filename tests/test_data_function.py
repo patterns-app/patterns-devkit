@@ -315,10 +315,10 @@ def test_inputs():
     env = make_test_env()
     n1 = env.add_node("node1", df_t1_source)
     n2 = env.add_node("node2", df_t1_to_t2, inputs={"input": "node1"})
-    dfi = n2.get_interface(env)
+    dfi = n2.get_interface()
     assert dfi is not None
     n3 = env.add_node("node3", df_chain_t1_to_t2, inputs="node1")
-    dfi = n3.get_interface(env)
+    dfi = n3.get_interface()
     assert dfi is not None
 
 
@@ -338,6 +338,7 @@ def test_inputs():
 
 
 def test_python_data_function():
+    env = make_test_env()
     df = data_function(df_t1_sink)
     assert (
         df.name == df_t1_sink.__name__
@@ -347,7 +348,7 @@ def test_python_data_function():
     df = data_function(df_t1_sink, name=k)
     assert df.name == k
 
-    dfi = df.get_interface()
+    dfi = df.get_interface(env)
     assert dfi is not None
 
 
@@ -358,7 +359,7 @@ def test_sql_data_function():
     df = sql_data_function(k, sql)
     assert df.name == k
 
-    dfi = df.get_interface()
+    dfi = df.get_interface(env)
     assert dfi is not None
 
     assert len(dfi.inputs) == 1
@@ -369,9 +370,10 @@ def test_sql_data_function():
 
 
 def test_sql_data_function2():
+    env = make_test_env()
     sql = "select:T 1 from from t1:U join t2:Optional[T]"
     df = sql_data_function("s1", sql)
-    dfi = df.get_interface()
+    dfi = df.get_interface(env)
     assert dfi is not None
 
     assert len(dfi.inputs) == 2
@@ -574,6 +576,6 @@ def test_any_otype_interface():
         pass
 
     df = data_function(df_any)
-    dfi = df.get_interface()
+    dfi = df.get_interface(env)
     assert dfi.inputs[0].otype_like == "Any"
     assert dfi.output.otype_like == "Any"

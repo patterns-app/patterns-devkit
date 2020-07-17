@@ -173,7 +173,9 @@ class DataFunctionTest:
                                 config={"dataframe": test_df, "otype": test_otype},
                             )
                             inputs[input.name] = n
-                        test_node.set_inputs(inputs)
+                        test_node._set_declared_inputs(
+                            inputs
+                        )  # Force, for testing. Normally want node to be immutable
                         output = env.produce(test_node, to_exhaustion=False)
                         if "output" in test_data:
                             assert (
