@@ -2,12 +2,17 @@
 
 ### Modern Data Pipelines
  
-BASIS is a framework for building end-to-end functional data pipelines from modular components, from
-API extraction to SQL transformation to loading into end applications. BASIS
-abstracts over underlying database, runtime, and storage resources with **functional,
-type-aware data graphs**. These graphs are composed of discrete `DataFunctions` written in python or
-SQL operating on streams of immutable `DataBlocks` -- sets of data records of uniform `ObjectType`.
+BASIS is a framework for building end-to-end functional data pipelines from modular components.
+BASIS abstracts over underlying database, runtime, and storage resources with **functional,
+type-aware data graphs**. These graphs are composed of discrete `DataFunctions` written in
+**python or SQL** that snap together both batch and streaming data flows to form end-to-end data
+ pipelines, from API data extraction to SQL transformation to machine learning models.
 
+BASIS `DataFunctions` optionally expose a type interface, called an `ObjectType`, that describes the
+ structure and semantics of the expected input and output data. These type interfaces
+ allow the BASIS community to build an ecosystem of components that anyone can reuse project to
+  project, across organizations and industries.
+ 
 BASIS brings the best practices learned over the last 60 years in software to the world of data,
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
 scale from laptop to AWS cluster.
@@ -15,25 +20,25 @@ scale from laptop to AWS cluster.
 ### Features:
 
  - **Reusable modules and components**  
-   There are hundreds of `DataFunctions`, `Sources`, and `Targets` ready to snap together in
-   the BASIS Repository [Coming soon].
+   There are hundreds of `DataFunctions`, types, and external data `Sources` and `Targets` ready to
+    snap together in the BASIS Repository [Coming soon].
    
     - Connect Stripe data to LTV models
     - Blend finance and macroeconomics data
     - Export SaaS metrics to Google Sheets, Tableau, or Looker
     
    and much more, instantly and out of the box.
-  
- - **Stateless data pipelines**  
-   `DataFunctions` operate statelessly on immutable `DataBlocks` for guaranteed reproducibility
-   and correctness in ETLs. Developing powerful new `DataFunctions` is simple with isolated code
-   and well-defined interfaces.  
      
  - **Testable components**  
    Modular `DataFunctions` allow individual steps in a data process to be independently tested and
    QA'd with the same rigor as software. All components available in the BASIS Repository are
    automatically tested against sample data sets of the appropriate `ObjectType`.
      
+ - **Batch or streaming**
+   Basis exposes both batch and streaming data outputs from all DataFunctions, allowing chains of
+   incremental and batch work to exist naturally with strong guarantees on accuracy and
+    completeness.
+   
  - **Global interoperability**  
    Reuse best-in-class ETLs, models, and analysis built by developers and analysts from around
    the world. No need to reinvent the wheel.
@@ -42,12 +47,11 @@ scale from laptop to AWS cluster.
    BASIS makes its type and immutability guarantees at the abstraction level, so those
    guarantees can be compiled away at execution time for high performance. This lets developers and
    analysts work with clean mental models without incurring performance costs at runtime. The
-   BASIS compiler also allows for modeling relative runtime and storage operation costs -- e.g. a
+   BASIS compiler also optimizes across databases, runtimes, and storages -- e.g. a
    query on BigQuery vs Redshift, data copy on S3 vs in-memory -- and can optimize entire pipelines
    for the resources at hand, leading to overall performance gains when adopting BASIS.
   
-BASIS is 0.1.0 **alpha** software, and has only existed a few months. Expect breaking changes to
-core APIs. 
+NB: BASIS is 0.1.1 **ALPHA** software. Expect breaking changes to core APIs. 
 
 
 ### Getting started
@@ -66,16 +70,16 @@ Build your pipeline (you'll need to add the `stripe` and `bi` modules to your pr
 from basis import current_env
 from basis_modules import stripe, bi
 
-env = current_env()
-env.add_external_source_node(
+graph = Graph(current_env)
+graph.add_external_source_node(
     name="stripe_txs",
     external_source=stripe.StripeTransactionsResource,
     config={"api_key":"xxxxxxxx"},
 )
-env.add_node(
+graph.add_node(
     name="ltv_model",
     function=bi.TransactionLTVModel,
-    upstream="stripe_txs",
+    inputs="stripe_txs",
 )
 ```
 
@@ -107,6 +111,10 @@ select
 from txs
 group by customer_id
 ```
+
+Functions can operate on *incremental* or *batch* inputs, and generate incremental or batch output.
+In Basis, incremental data is processed as *DataBlock*s and batch data is processed as
+ *DataSet*s. These are discussed in more detail below.
 
 #### ObjectType
 
@@ -198,52 +206,44 @@ output. More precisely, `DataBlock`s are a reference to an abstract ideal of the
   CSV on the local file, a JSON string in memory, or a
 table in a Postgres database, for example. To the extent possible, Basis maintains the 
 same data and byte representation of these records across formats and storages. For some formats and
-data types this is simply not possible, so it is good to keep in mind that the DataBlock as an
-immutable set of perfectly preserved records is an abstract _ideal_, one not always achievable in
-practice.
+data types this is simply not possible, and Basis tries to emit warnings in these cases. 
  
  
 #### DataSet
 
 `DataBlock`s are the basic data unit of Basis -- their discrete, immutable properties make them
-ideal for building industrial grade pipelines and complex ecosystems of `DataFunction`s. They
-are, however, cumbersome to use as an end user. They act as a "stream" of data, and may be
- split across many distinct objects (many different database tables, for instance), have long
-  programmatic names, and not
-be easily queried or worked with as a cohesive unit. `DataSet`s fill this gap -- they "accumulate"
+ideal for building industrial grade pipelines and complex ecosystems of `DataFunction`s. But
+ often you it is necessarily or just simpler to work with entire datasets in batch, not as
+  incremental chunks. Basis `DataSet`s serve this purpose -- they "accumulate"
 DataBlocks of a uniform ObjectType, deduping and merging records according to desired logic, and
  provide a clean, nicely named, end set of data records (a single `customers` table, for instance).
  
-`DataSet`s can be added to a pipeline as follows:
+Every `DataFunction` in Basis automatically outputs both an incremental `DataBlock` stream and a
+batch accumulated `DataSet`. Downstream functions can connect to either the DataBlock stream or
+the DataSet by specify in their python or sql type signature which mode of input and output
+they expect.
+
+For example:
  
 ```python
-env.add_dataset_node(
-    name="customers",
-    upstream="normalize_customers",
-)
+# Incrementally process each `emails` DataBlock as it comes, joining with the customers `DataSet`
+def add_name(emails: DataBlock, customers: DataSet) -> DataBlock:
+    emails_df = emails.as_dataframe()
+    customers_df = customers.as_dataframe()
+    emails_df["name"] = emails_df.join(customers_df, on="customer_id")["name"]
+    return emails_df
+
+# Or batch process every time
+def add_name_batch(emails: DataSet, customers: DataSet) -> DataSet:
+    emails_df = emails.as_dataframe()
+    customers_df = customers.as_dataframe()
+    emails_df["name"] = emails_df.join(customers_df, on="customer_id")["name"]
+    return emails_df
 ```
 
-It's also possible for to specify a DataSet that accumulates DataBlocks that meet certain criteria,
-like all DataBlocks of a specific ObjectType:
+Note that since we want to join emails on all possible customers, we used a `DataSet` input in both
+cases and only processed the emails incrementally in the first scenario.
 
-```python
-env.add_dataset_node(
-    name="customers",
-    otype="Customer",
-)
-```
-
-This is a shortcut for the more explicit:
-
-```python
-env.add_node(
-    name="customers_dataset",
-    function="core.accumulate_as_dataset",
-    config={"dataset_name": "customers"},
-    upstream=DataBlockStream(otype="Customer"),
-    # Or: upstream="normalize_customers"
-)
-```
 
 #### ExternalResource
 
