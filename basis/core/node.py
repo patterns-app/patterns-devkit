@@ -40,6 +40,7 @@ class Node:
     data_function: DataFunction
     _declared_inputs: Dict[str, NodeLike]
     _compiled_inputs: Dict[str, Node] = None
+    _dataset_name: Optional[str] = None
     declared_composite_node_name: Optional[str] = None
     _sub_nodes: List[Node] = None
 
@@ -49,12 +50,14 @@ class Node:
         name: str,
         data_function: Union[DataFunctionLike, str],
         inputs: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,
+        dataset_name: Optional[str] = None,
         config: Dict[str, Any] = None,
         declared_composite_node_name: str = None,
     ):
         self.config = config or {}
         self.env = env
         self.name = name
+        self._dataset_name = dataset_name
         self.data_function = self._clean_data_function(data_function)
         self.dfi = self.get_interface()
         self.declared_composite_node_name = declared_composite_node_name
@@ -103,6 +106,9 @@ class Node:
     def get_dataset_node_name(self) -> str:
         return f"{self.name}__dataset"
 
+    def get_dataset_name(self) -> str:
+        return self._dataset_name or self.name
+
     def get_dataset_node(self, node_name: str = None) -> Node:
         try:
             # Return if already created
@@ -120,7 +126,7 @@ class Node:
             env=self.env,
             name=node_name or self.get_dataset_node_name(),
             data_function=df,
-            config={"dataset_name": self.get_dataset_node_name()},
+            config={"dataset_name": self.get_dataset_name()},
             inputs=self,
         )
 
