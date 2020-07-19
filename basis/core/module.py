@@ -31,7 +31,6 @@ if TYPE_CHECKING:
         make_data_function_definition,
         DataFunctionDefinition,
     )
-    from basis.core.external import ExternalProvider
     from basis.testing.functions import DataFunctionTest
 
 
@@ -50,7 +49,6 @@ class BasisModule:
         py_module_name: Optional[str] = None,
         otypes: Optional[Sequence[ObjectTypeLike]] = None,
         functions: Optional[Sequence[Union[DataFunctionLike, str]]] = None,
-        providers: Optional[Sequence[ExternalProvider]] = None,
         tests: Optional[Sequence[DataFunctionTest]] = None,
         dependencies: List[
             BasisModule
@@ -69,8 +67,6 @@ class BasisModule:
             self.add_otype(otype)
         for fn in functions or []:
             self.add_function(fn)
-        for p in providers or []:
-            self.add_provider(p)
         for t in tests or []:
             self.add_test(t)
         for d in dependencies or []:
@@ -122,10 +118,6 @@ class BasisModule:
     @property
     def functions(self) -> ComponentView[ObjectType]:
         return self.library.component_view(ctype=ComponentType.DataFunction)
-
-    @property
-    def external_resources(self) -> ComponentView[ObjectType]:
-        return self.library.component_view(ctype=ComponentType.External)
 
     def add_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
         otype = self.process_otype(otype_like)
@@ -180,16 +172,6 @@ class BasisModule:
                 raise Exception(f"Invalid DataFunction {df_like}")
             df = dfd.as_data_function()
         return df
-
-    def add_provider(self, provider: ExternalProvider) -> ExternalProvider:
-        p = self.process_provider(provider)
-        # self.library.add_component(p)  # TODO: just adding resources for now
-        for r in p.resources:
-            self.library.add_component(r)
-        return p
-
-    def process_provider(self, provider: ExternalProvider) -> ExternalProvider:
-        return provider
 
     def add_test(self, test_case: DataFunctionTest):
         test_case.module = self

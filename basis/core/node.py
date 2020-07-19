@@ -4,7 +4,7 @@ import enum
 import traceback
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.schema import Column, ForeignKey
@@ -82,6 +82,12 @@ class Node:
         self._compiled_inputs = inputs_as_nodes(self.env, inputs)
         if self.is_composite():
             self.get_input_node().set_compiled_inputs(inputs)
+
+    def get_state(self, sess: Session) -> Optional[Dict]:
+        state = sess.query(NodeState).filter(NodeState.node_name == self.name).first()
+        if state:
+            return state.state
+        return None
 
     # def clone(self, new_name: str, **kwargs) -> Node:
     #     args = dict(
@@ -219,9 +225,26 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
     #     return self.name  # TODO
 
 
+class NodeState(BaseModel):
+    node_name = Column(String, primary_key=True)
+    state = Column(JSON, nullable=True)
+
+    def __repr__(self):
+        return self._repr(node_name=self.node_name, state=self.state,)
+
+
+def get_state(sess: Session, node_name: str) -> Optional[Dict]:
+    state = sess.query(NodeState).filter(NodeState.node_name == node_name).first()
+    if state:
+        return state.state
+    return None
+
+
 class DataFunctionLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     node_name = Column(String, nullable=False)
+    node_start_state = Column(JSON, nullable=True)
+    node_end_state = Column(JSON, nullable=True)
     data_function_uri = Column(String, nullable=False)
     data_function_config = Column(JSON, nullable=True)
     runtime_url = Column(String, nullable=False)
@@ -252,6 +275,15 @@ class DataFunctionLog(BaseModel):
         tback = traceback.format_exc()
         # Traceback can be v large (like in max recursion), so we truncate to 5k chars
         self.error = {"error": str(e), "traceback": tback[:5000]}
+
+    def persist_state(self, sess: Session) -> NodeState:
+        state = (
+            sess.query(NodeState).filter(NodeState.node_name == self.node_name).first()
+        )
+        if state is None:
+            state = NodeState(node_name=self.node_name)
+        state.state = self.node_end_state
+        return sess.merge(state)
 
 
 class Direction(enum.Enum):

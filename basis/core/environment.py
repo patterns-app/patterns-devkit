@@ -31,7 +31,6 @@ if TYPE_CHECKING:
         DataFunction,
         make_data_function_definition,
     )
-    from basis.core.external import ConfiguredExternalResource, ExternalResource
     from basis.core.node import Node
     from basis.core.data_function_interface import FunctionGraphResolver
     from basis.core.runnable import ExecutionContext
@@ -169,14 +168,6 @@ class Environment:
     def all_functions(self) -> List[DataFunction]:
         return self.library.all_functions()
 
-    def get_external_resource(
-        self, ext_like: Union[ExternalResource, str]
-    ) -> ExternalResource:
-        return self.library.get_external_resource(ext_like)
-
-    def all_external_resources(self) -> List[ExternalResource]:
-        return self.library.all_external_resources()
-
     def add_node(
         self, name: str, function: Union[DataFunctionLike, str], **kwargs: Any
     ) -> Node:
@@ -187,24 +178,6 @@ class Environment:
         node = Node(self, name, function, **kwargs)
         self._declared_graph.add_node(node)
         return node
-
-    def add_external_source_node(
-        self,
-        name: str,
-        external_resource: Union[ExternalResource, str],
-        config: Dict,
-        **kwargs: Any,
-    ) -> Node:
-
-        if isinstance(external_resource, str):
-            external_resource = self.library.get_external_resource(external_resource)
-        provider = None
-        if external_resource.provider is not None:
-            provider = external_resource.provider(name=name + "_provider", **config)
-        r = external_resource(
-            name=name + "_resource", configured_provider=provider, **config
-        )
-        return self.add_node(name, r.extractor, **kwargs)
 
     # def add_dataset_node(
     #     self,

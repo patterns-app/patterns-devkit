@@ -3,7 +3,7 @@ from __future__ import annotations
 import typing
 from copy import deepcopy
 from itertools import tee
-from typing import Any, Generic, Optional, Type, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Generic, Optional, Type
 
 from basis.utils.typing import T
 

@@ -18,11 +18,6 @@ def test_module_init():
     sql_df = list(_test_module.functions)[0]
     assert sql_df.name == "test_sql"
     assert sql_df.module_name == "_test_module"
-    # External
-    assert len(_test_module.external_resources) == 1
-    r = list(_test_module.external_resources)[0]
-    assert r.name == "TestExtResource"
-    assert r.module_name == "_test_module"
 
 
 def test_core_modules():

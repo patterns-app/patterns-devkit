@@ -4,10 +4,10 @@ import json
 import time
 from collections import abc
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import MISSING, dataclass, field
 from enum import Enum
 from itertools import tee
-from typing import Any, Dict, Generator, List, Optional, Union, cast
+from typing import Any, Dict, Generator, Generic, List, Optional, Union, cast
 
 import sqlalchemy
 from sqlalchemy.engine import ResultProxy
@@ -40,7 +40,7 @@ from basis.core.data_function_interface import (
 )
 from basis.core.environment import Environment
 from basis.core.metadata.orm import BaseModel
-from basis.core.node import DataBlockLog, DataFunctionLog, Direction, Node
+from basis.core.node import DataBlockLog, DataFunctionLog, Direction, Node, get_state
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from basis.core.storage.storage import LocalMemoryStorageEngine, Storage
 from basis.core.typing.object_type import ObjectType
@@ -53,6 +53,7 @@ from basis.utils.common import (
     success_symbol,
     utcnow,
 )
+from basis.utils.typing import C, S
 from loguru import logger
 
 
@@ -65,6 +66,22 @@ class LanguageDialect(Enum):
     CPYTHON = (Language.PYTHON, "cpython")
     POSTGRES = (Language.SQL, "postgres")
     MYSQL = (Language.SQL, "mysql")
+
+
+#
+# @dataclass
+# class StateManager:
+#     """
+#     Track Node state, so we can rollback on failure
+#     """
+#
+#     state: Dict[str, Any]
+#
+#     def set(self, new_state: Dict[str, Any]):
+#         self.state = new_state
+#
+#     def get(self):
+#         return self.state
 
 
 @dataclass(frozen=True)
@@ -147,8 +164,11 @@ class ExecutionContext:
     @contextmanager
     def start_data_function_run(self, node: Node) -> Generator[RunSession, None, None]:
         assert self.current_runtime is not None, "Runtime not set"
+        node_state = node.get_state(self.metadata_session) or {}
         dfl = DataFunctionLog(  # type: ignore
             node_name=node.name,
+            node_start_state=node_state,
+            node_end_state=node_state,
             data_function_uri=node.data_function.uri,
             # data_function_config=node.data_function.configuration,  # TODO
             runtime_url=self.current_runtime.url,
@@ -156,6 +176,8 @@ class ExecutionContext:
         )
         try:
             yield RunSession(dfl, self.metadata_session)
+            # Only persist state on successful run
+            dfl.persist_state(self.metadata_session)
         except Exception as e:
             dfl.set_error(e)
             raise e
@@ -200,16 +222,29 @@ class ExecutionContext:
 
 
 @dataclass(frozen=True)
-class DataFunctionContext:
+class DataFunctionContext:  # TODO: (Generic[C, S]):
     execution_context: ExecutionContext
     worker: Worker
     runnable: Runnable
     inputs: List[NodeInput]
+    data_function_log: DataFunctionLog
+    # state: Dict = field(default_factory=dict)
+    # emitted_states: List[Dict] = field(default_factory=list)
     # resolved_output_otype: Optional[ObjectType]
     # realized_output_otype: Optional[ObjectType]
 
-    def config(self, key: str) -> Any:
-        return self.runnable.configuration.get(key)
+    def get_config(self, key: Optional[str] = None) -> Any:
+        if key is not None:
+            return self.runnable.configuration.get(key)
+        return self.runnable.configuration
+
+    def get_state(self, key: Optional[str] = None) -> Any:
+        if key is not None:
+            return self.data_function_log.node_end_state.get(key)
+        return self.data_function_log.node_end_state
+
+    def emit_state(self, new_state: Dict):
+        self.data_function_log.node_end_state = new_state
 
 
 class ExecutionManager:
@@ -322,7 +357,7 @@ class Worker:
         output_block: Optional[DataBlockMetadata] = None
         node = self.env.get_node(runnable.node_name)
         with self.ctx.start_data_function_run(node) as run_session:
-            output = self.execute_data_function(runnable)
+            output = self.execute_data_function(runnable, run_session)
             if output is not None:
                 # assert (
                 #     runnable.data_function_interface.resolved_output_otype is not None
@@ -341,7 +376,9 @@ class Worker:
                     run_session.log_input(input.bound_data_block)
         return output_block
 
-    def execute_data_function(self, runnable: Runnable) -> DataInterfaceType:
+    def execute_data_function(
+        self, runnable: Runnable, run_session: RunSession
+    ) -> DataInterfaceType:
         args = []
         if runnable.data_function_interface.requires_data_function_context:
             dfc = DataFunctionContext(
@@ -349,6 +386,7 @@ class Worker:
                 worker=self,
                 runnable=runnable,
                 inputs=runnable.data_function_interface.inputs,
+                data_function_log=run_session.data_function_log,
                 # resolved_output_otype=runnable.data_function_interface.resolved_output_otype,
                 # realized_output_otype=runnable.data_function_interface.realized_output_otype,
             )

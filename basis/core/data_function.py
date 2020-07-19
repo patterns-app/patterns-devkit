@@ -125,7 +125,8 @@ class DataFunctionDefinition(ComponentUri):
     ]  # Optional since Composite DFs don't have a Callable
     compatible_runtime_classes: List[RuntimeClass]
     is_composite: bool = False
-    configuration_class: Optional[Type] = None
+    config_class: Optional[Type] = None
+    state_class: Optional[Type] = None
     sub_graph: List[ComponentUri] = field(
         default_factory=list
     )  # TODO: support proper graphs
@@ -213,6 +214,8 @@ def data_function(
     version: str = None,
     compatible_runtimes: str = None,
     module_name: str = None,
+    config_class: Optional[Type] = None,
+    state_class: Optional[Type] = None,
     # test_data: DataFunctionTestCaseLike = None,
 ) -> Union[Callable, DataFunctionDefinition]:
     if isinstance(df_or_name, str) or df_or_name is None:
@@ -222,6 +225,8 @@ def data_function(
             version=version,
             compatible_runtimes=compatible_runtimes,
             module_name=module_name,
+            config_class=config_class,
+            state_class=state_class,
         )
     return data_function_definition_factory(
         df_or_name,
@@ -229,6 +234,8 @@ def data_function(
         version=version,
         compatible_runtimes=compatible_runtimes,
         module_name=module_name,
+        config_class=config_class,
+        state_class=state_class,
     )
 
 

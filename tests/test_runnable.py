@@ -67,10 +67,7 @@ def test_worker_output():
         ),
         bdfi,
     )
-    output = w.execute_data_function(r)
-    assert output == mock_dl_output
-    ws = RunSession(None, sess)
-    outputblock = w.conform_output(ws, output, r)
+    outputblock = w.run(r)
     assert outputblock is not None
     block = outputblock.as_managed_data_block(ec)
     assert block.as_records_list() == mock_dl_output

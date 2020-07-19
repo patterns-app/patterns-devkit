@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     )
     from basis.core.module import BasisModule, DEFAULT_LOCAL_MODULE
     from basis.core.typing.object_type import ObjectTypeLike, ObjectType
-    from basis.core.external import ExternalProvider, ExternalResource
 
 VERSIONED_URIS = (
     False  # TODO: think about when we would want to use versioned URIs (never?)
@@ -350,20 +349,6 @@ class ComponentLibrary:
             raise KeyError(df_like)
         return cast(DataFunction, fn)
 
-    def get_external_resource(
-        self, ext_like: Union[ExternalResource, str]
-    ) -> ExternalResource:
-        from basis.core.external import ExternalResource
-
-        ext = self.registry.get(
-            ext_like,
-            module_precedence=self.module_precedence,
-            component_type=ComponentType.External,
-        )
-        if ext is None:
-            raise KeyError(ext_like)
-        return cast(ExternalResource, ext)
-
     def all_otypes(self) -> List[ObjectType]:
         from basis.core.typing.object_type import ObjectType
 
@@ -380,15 +365,6 @@ class ComponentLibrary:
             cast(DataFunction, c)
             for c in self.registry.all()
             if c.component_type == ComponentType.DataFunction
-        ]
-
-    def all_external_resources(self) -> List[ExternalResource]:
-        from basis.core.external import ExternalResource
-
-        return [
-            cast(ExternalResource, c)
-            for c in self.registry.all()
-            if c.component_type == ComponentType.External
         ]
 
     def all(self) -> Iterable[ComponentUri]:

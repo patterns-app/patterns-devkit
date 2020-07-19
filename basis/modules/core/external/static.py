@@ -1,101 +1,58 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Any, Iterator
+from typing import Any, Iterator, Optional
 
 import pandas as pd
 from pandas import DataFrame
 
-from basis.core.data_formats import RecordsList
+from basis.core.data_formats import RecordsList, RecordsListGenerator
 from basis.core.data_function import data_function
-from basis.core.external import (
-    ConfiguredExternalProvider,
-    ConfiguredExternalResource,
-    ConfiguredExternalResourceState,
-    ExternalDataProvider,
-    ExternalDataResource,
-    ExtractorResult,
-)
 from basis.core.runnable import DataFunctionContext
 from basis.core.typing.object_type import ObjectTypeLike
 from basis.utils.common import utcnow
 from basis.utils.data import read_csv
 
-local_memory_provider = ExternalDataProvider(
-    name="LocalMemoryProvider",
-    verbose_name="Local memory provider",
-    description="Dummy provider for local memory external objects (DataFrames, etc)",
-    requires_authentication=False,
-)
 
-
-def extract_dataframe(
-    configured_provider: ConfiguredExternalProvider,
-    configured_resource: ConfiguredExternalResource,
-    configured_resource_state: ConfiguredExternalResourceState,
-) -> Iterator[ExtractorResult[DataFrame]]:
-    if configured_resource_state.high_water_mark is not None:
-        # Just emit once
-        return
-    yield ExtractorResult(
-        records=configured_resource.get_config_value("dataframe"),
-        new_high_water_mark=utcnow(),
-    )
+@dataclass
+class LocalResourceState:
+    extracted: bool
 
 
 @dataclass
-class DataFrameResourceConfiguration:
+class DataFrameResourceConfig:
     dataframe: DataFrame
     otype: ObjectTypeLike
 
 
-ExternalDataResource(
-    name="DataFrameResource",
-    provider=local_memory_provider,
-    otype="Any",  # TODO
-    verbose_name=f"Static DataFrame External Resource",
-    description=f"Use a DataFrame external to Basis as a node input",
-    default_extractor=extract_dataframe,
-    configuration_class=DataFrameResourceConfiguration,
-)
-
-local_file_provider = ExternalDataProvider(
-    name="LocalFileProvider",
-    verbose_name="Local file provider",
-    description="Dummy provider for local file external objects (CSVs, etc)",
-    requires_authentication=False,
-)
-
-
-def extract_csv(
-    configured_provider: ConfiguredExternalProvider,
-    configured_resource: ConfiguredExternalResource,
-    configured_resource_state: ConfiguredExternalResourceState,
-) -> Iterator[ExtractorResult[RecordsList]]:
-    if configured_resource_state.high_water_mark is not None:
+@data_function(config_class=DataFrameResourceConfig, state_class=LocalResourceState)
+def extract_dataframe(ctx: DataFunctionContext,) -> DataFrame:
+    extracted = ctx.get_state("extracted")
+    if extracted:
         # Just emit once
         return
-    path = configured_resource.get_config_value("path")
-    with open(path) as f:
-        records = read_csv(f.readlines())
-    yield ExtractorResult(
-        records=records, new_high_water_mark=utcnow(),
-    )
+    ctx.emit_state({"extracted": True})
+    return ctx.get_config("dataframe")
 
 
 @dataclass
-class LocalCSVResourceConfiguration:
+class LocalCSVResourceConfig:
     path: str
     otype: ObjectTypeLike
 
 
-ExternalDataResource(
-    name="LocalCSVResource",
-    provider=local_file_provider,
-    otype="Any",  # TODO
-    verbose_name=f"Static CSV External Resource",
-    description=f"Use a CSV external to Basis as a node input",
-    default_extractor=extract_csv,
-    configuration_class=LocalCSVResourceConfiguration,
-)
+@data_function(config_class=LocalCSVResourceConfig, state_class=LocalResourceState)
+def extract_csv(ctx: DataFunctionContext,) -> RecordsList:
+    extracted = ctx.get_state("extracted")
+    if extracted:
+        # Static resource, if already emitted, return
+        return
+    path = ctx.get_config("path")
+    with open(path) as f:
+        records = read_csv(f.readlines())
+    ctx.emit_state({"extracted": True})
+    return records
+
 
 # def source_dataframe(ctx: DataFunctionContext) -> DataFrame[Any]:
 #     return ctx.config

@@ -167,9 +167,9 @@ class DataFunctionTest:
                             assert input.name is not None
                             test_df = test_data[input.name].data_frame
                             test_otype = test_data[input.name].otype_like
-                            n = env.add_external_source_node(
+                            n = env.add_node(
                                 f"_test_source_node_{input.name}_{i}",
-                                "DataFrameResource",
+                                "extract_dataframe",
                                 config={"dataframe": test_df, "otype": test_otype},
                             )
                             inputs[input.name] = n

@@ -502,7 +502,7 @@ def test_node_config():
     config_vals = []
 
     def df_ctx(ctx: DataFunctionContext):
-        config_vals.append(ctx.config("test"))
+        config_vals.append(ctx.get_config("test"))
 
     ctx = env.add_node("ctx", df_ctx, config={"test": 1, "extra_arg": 2})
     with env.execution() as exe:

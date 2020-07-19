@@ -2,7 +2,7 @@ from basis.core.module import BasisModule
 
 from ...core.component import ComponentType
 from ...core.typing.object_type import ConflictBehavior, ObjectType
-from .external.static import local_file_provider, local_memory_provider
+from .external.static import extract_csv, extract_dataframe
 from .functions.accumulate_as_dataset import accumulate_as_dataset
 from .functions.accumulator import (
     accumulator_test,
@@ -34,8 +34,9 @@ module = BasisModule(
         dedupe_unique_keep_newest_row,
         sql_accumulator,
         dataframe_accumulator,
+        extract_dataframe,
+        extract_csv,
     ],
-    providers=[local_memory_provider, local_file_provider],
     tests=[accumulator_test, dedupe_test],
 )
 module.export()
