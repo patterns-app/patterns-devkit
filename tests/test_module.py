@@ -14,10 +14,10 @@ def test_module_init():
     assert testtype.name == "TestType"
     assert testtype.module_name == "_test_module"
     # Functions
-    assert len(_test_module.functions) == 1
-    sql_df = list(_test_module.functions)[0]
-    assert sql_df.name == "test_sql"
-    assert sql_df.module_name == "_test_module"
+    assert len(_test_module.functions) == 2
+    assert set(f.name for f in _test_module.functions) == {"test_sql", "df1"}
+    for f in _test_module.functions:
+        assert f.module_name == "_test_module"
 
 
 def test_core_modules():

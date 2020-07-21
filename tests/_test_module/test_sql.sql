@@ -1,3 +1,5 @@
-select:TestType
+select
 *
-from input:TestType
+from orders -- DataBlock[Any]
+join customers -- DataSet[Any]
+on id

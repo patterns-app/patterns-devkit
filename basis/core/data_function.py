@@ -9,7 +9,10 @@ from pandas import DataFrame
 from basis.core.component import ComponentType, ComponentUri
 from basis.core.data_block import DataBlockMetadata, DataSetMetadata
 from basis.core.data_formats import DatabaseTableRef, RecordsList
-from basis.core.data_function_interface import DataFunctionInterface
+from basis.core.data_function_interface import (
+    DataFunctionAnnotation,
+    DataFunctionInterface,
+)
 from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
 from basis.core.runtime import RuntimeClass
 
@@ -127,9 +130,12 @@ class DataFunctionDefinition(ComponentUri):
     is_composite: bool = False
     config_class: Optional[Type] = None
     state_class: Optional[Type] = None
+    declared_inputs: Optional[Dict[str, str]] = None
+    declared_output: Optional[str] = None
     sub_graph: List[ComponentUri] = field(
         default_factory=list
     )  # TODO: support proper graphs
+
     # TODO: runtime engine eg "mysql>=8.0", "python==3.7.4"  ???
     # TODO: runtime dependencies
 
@@ -143,6 +149,36 @@ class DataFunctionDefinition(ComponentUri):
         return self.function_callable(*args, **kwargs)
 
     def get_interface(self, env: Environment) -> Optional[DataFunctionInterface]:
+        """
+        """
+        found_dfi = self._get_function_interface(env)
+        declared_dfi = self._get_declared_interface()
+        declared_dfi.requires_data_function_context = (
+            found_dfi.requires_data_function_context
+        )  # TODO: or require explicit?
+        # Override any found annotations with declared ones
+        # for input in declared_dfi.inputs:
+        #     try:
+        #         found_input = found_dfi.get_input(input.name)
+        #         found_input.data_format_class = input.data_format_class
+        #         found_input.otype_like = input.otype_like
+        #     except KeyError:
+        #         found_dfi.inputs.append(input)
+        # if declared_dfi.output:
+        #     if found_dfi.output:
+        #         found_dfi.output.data_format_class = (
+        #             declared_dfi.output.data_format_class
+        #         )
+        #         found_dfi.output.otype_like = declared_dfi.output.otype_like
+        #     else:
+        #         found_dfi.output = declared_dfi.output
+        if self.declared_output is not None or self.declared_inputs is not None:
+            return declared_dfi
+        return found_dfi
+
+    def _get_function_interface(
+        self, env: Environment
+    ) -> Optional[DataFunctionInterface]:
         if self.function_callable is None:
             assert self.is_composite
             # TODO: only supports chain
@@ -159,6 +195,18 @@ class DataFunctionDefinition(ComponentUri):
         return DataFunctionInterface.from_data_function_definition(
             self.function_callable
         )
+
+    def _get_declared_interface(self) -> DataFunctionInterface:
+        inputs = []
+        if self.declared_inputs:
+            for name, annotation in self.declared_inputs.items():
+                inputs.append(
+                    DataFunctionAnnotation.from_type_annotation(annotation, name=name)
+                )
+        output = None
+        if self.declared_output:
+            output = DataFunctionAnnotation.from_type_annotation(self.declared_output)
+        return DataFunctionInterface(inputs=inputs, output=output,)
 
     def associate_with_module(self, module: BasisModule) -> ComponentUri:
         new_subs = []
@@ -190,6 +238,8 @@ def data_function_definition_factory(
     version: str = None,
     compatible_runtimes: str = None,
     module_name: str = None,
+    inputs: Optional[Dict[str, str]] = None,
+    output: Optional[str] = None,
     **kwargs: Any,
 ) -> DataFunctionDefinition:
     if name is None:
@@ -204,6 +254,8 @@ def data_function_definition_factory(
         version=version,
         function_callable=function_callable,
         compatible_runtime_classes=[runtime_class],
+        declared_inputs=inputs,
+        declared_output=output,
         **kwargs,
     )
 
@@ -216,6 +268,8 @@ def data_function(
     module_name: str = None,
     config_class: Optional[Type] = None,
     state_class: Optional[Type] = None,
+    inputs: Optional[Dict[str, str]] = None,
+    output: Optional[str] = None,
     # test_data: DataFunctionTestCaseLike = None,
 ) -> Union[Callable, DataFunctionDefinition]:
     if isinstance(df_or_name, str) or df_or_name is None:
@@ -227,6 +281,8 @@ def data_function(
             module_name=module_name,
             config_class=config_class,
             state_class=state_class,
+            inputs=inputs,
+            output=output,
         )
     return data_function_definition_factory(
         df_or_name,
@@ -236,6 +292,8 @@ def data_function(
         module_name=module_name,
         config_class=config_class,
         state_class=state_class,
+        inputs=inputs,
+        output=output,
     )
 
 

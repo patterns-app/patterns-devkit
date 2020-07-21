@@ -59,6 +59,10 @@ VALID_DATA_INTERFACE_TYPES = [
 SELF_REF_PARAM_NAME = "this"
 
 
+class BadAnnotationException(Exception):
+    pass
+
+
 @dataclass
 class DataFunctionAnnotation:
     data_format_class: str
@@ -79,7 +83,7 @@ class DataFunctionAnnotation:
 
     @classmethod
     def create(cls, **kwargs) -> DataFunctionAnnotation:
-        if not kwargs["otype_like"]:
+        if not kwargs.get("otype_like"):
             kwargs["otype_like"] = "Any"
         name = kwargs.get("name")
         if name:
@@ -111,9 +115,13 @@ class DataFunctionAnnotation:
         """
         Annotation of form `DataBlock[T]` for example
         """
-        m = re_type_hint.match(annotation)
+        m = re_type_hint.match(
+            annotation
+        )  # TODO: get more strict with matches (for sql comment annotations)
         if m is None:
-            raise Exception(f"Invalid DataFunction annotation '{annotation}'")
+            raise BadAnnotationException(
+                f"Invalid DataFunction annotation '{annotation}'"
+            )
         is_optional = bool(m.groupdict()["optional"])
         data_format_class = m.groupdict()["origin"]
         otype_name = m.groupdict()["arg"]
@@ -293,7 +301,7 @@ class DataFunctionInterface:
         if not isinstance(inputs, dict):
             assert (
                 len(self.get_non_recursive_inputs()) == 1
-            ), f"Wrong number of inputs. (Variadic inputs not supported yet) {inputs}"
+            ), f"Wrong number of inputs. (Variadic inputs not supported yet) {inputs} {self.get_non_recursive_inputs()}"
             return {self.get_non_recursive_inputs()[0].name: inputs}
         assert (set(inputs.keys()) - {"this"}) == set(
             i.name for i in self.get_non_recursive_inputs()

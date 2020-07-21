@@ -128,6 +128,8 @@ accumulator_test = DataFunctionTest(
 )
 
 
+# Note this function is special case where cannot specify dataset as output (even tho practically it is)
+# Since it IS part of a dataset creation
 @data_function(name="accumulator")  # , test_data="test_accumulator.yml")
 def dataframe_accumulator(
     input: DataBlock[T], this: DataBlock[T] = None,
@@ -142,10 +144,11 @@ def dataframe_accumulator(
 sql_accumulator = sql_data_function(
     name="accumulator",
     sql="""
-    select:T * from input:T
+    select -- DataBlock[T]
+    * from input -- DataBlock[T]
     {% if inputs.this.bound_data_block %}
     union all
-    select * from this:Optional[T]
+    select * from this -- Optional[DataBlock[T]]
     {% endif %}
     """,
 )

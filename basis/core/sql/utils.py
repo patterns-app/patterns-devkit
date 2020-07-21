@@ -4,7 +4,9 @@ from typing import Dict, List, Sequence
 
 import jinja2
 import sqlalchemy as sa
-from sqlalchemy import Column, MetaData, Table, dialects
+from jinja2 import nodes
+from jinja2.ext import Extension
+from sqlalchemy import Column, MetaData, Table
 from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.engine import Dialect
 from sqlalchemy.sql.ddl import CreateTable
@@ -49,13 +51,16 @@ def compile_jinja_sql_template(template, template_ctx=None):
     return sql
 
 
-def strip_comments(sql: str) -> str:
-    return re_comment.sub("", sql)
-
-
-def find_all_tables(sql: str) -> List[str]:
-    # TODO: this is a hack. Need dialect-specific parsers?
-    raise NotImplementedError
+# class ConfigExtension(Extension):
+#     # a set of names that trigger the extension.
+#     tags = {"config"}
+#
+#     def parse(self, parser):
+#         # now we parse the body of the config block up to `endconfig` and
+#         # drop the needle (which would always be `endconfig` in that case)
+#         body = parser.parse_statements(["name:endconfig"], drop_needle=True)
+#         self.environment.template_config = body
+#         return nodes.Const("")
 
 
 class ObjectTypeFieldMapper:

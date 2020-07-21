@@ -57,7 +57,7 @@ dedupe_unique_keep_newest_row = sql_data_function(
     name="dedupe_unique_keep_newest_row",
     compatible_runtimes="postgres",
     sql="""
-        select:T
+        select -- DataBlock[T]
         {% if inputs.input.realized_otype.unique_on %}
             distinct on (
                 {% for col in inputs.input.realized_otype.unique_on %}
@@ -71,7 +71,7 @@ dedupe_unique_keep_newest_row = sql_data_function(
                 {%- if not loop.last %},{% endif %}
             {% endfor %}
 
-        from input:T
+        from input -- DataBlock[T]
         {% if inputs.input.resolved_otype.updated_at_field %}
         order by
             {% for col in inputs.input.realized_otype.unique_on %}

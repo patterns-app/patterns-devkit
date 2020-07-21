@@ -9,6 +9,7 @@ from basis.core.component import ComponentType
 from basis.core.data_block import DataBlock
 from basis.core.data_function import (
     DataFunction,
+    DataFunctionDefinition,
     DataFunctionInterface,
     DataFunctionLike,
     data_function,
@@ -202,43 +203,45 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                 requires_data_function_context=False,
             ),
         ),
-        # (
-        #     df_chain_t1_to_t2,
-        #     DataFunctionInterface(
-        #         inputs=[
-        #             DataFunctionAnnotation(
-        #                 data_format_class="DataBlock",
-        #                 otype_like="TestType1",
-        #                 name="input",
-        #                 # is_iterable=False,
-        #                 is_generic=False,
-        #                 is_optional=False,
-        #                 is_variadic=False,
-        #                 original_annotation="DataBlock[TestType1]",
-        #             )
-        #         ],
-        #         output=DataFunctionAnnotation(
-        #             data_format_class="DataFrame",
-        #             otype_like="T",
-        #             # is_iterable=False,
-        #             is_generic=True,
-        #             is_optional=False,
-        #             is_variadic=False,
-        #             original_annotation="DataFrame[T]",
-        #         ),
-        #         requires_data_function_context=False,
-        #     ),
-        # ),
+        (
+            df_chain_t1_to_t2,
+            DataFunctionInterface(
+                inputs=[
+                    DataFunctionAnnotation(
+                        data_format_class="DataBlock",
+                        otype_like="TestType1",
+                        name="input",
+                        # is_iterable=False,
+                        is_generic=False,
+                        is_optional=False,
+                        is_variadic=False,
+                        original_annotation="DataBlock[TestType1]",
+                    )
+                ],
+                output=DataFunctionAnnotation(
+                    data_format_class="DataFrame",
+                    otype_like="T",
+                    # is_iterable=False,
+                    is_generic=True,
+                    is_optional=False,
+                    is_variadic=False,
+                    original_annotation="DataFrame[T]",
+                ),
+                requires_data_function_context=False,
+            ),
+        ),
     ],
 )
 def test_data_function_interface(
     function: DataFunctionLike, expected: DataFunctionInterface
 ):
     env = make_test_env()
-    if isinstance(function, Callable):
+    if isinstance(function, DataFunctionDefinition):
+        val = function.get_interface(env)
+    elif isinstance(function, Callable):
         val = DataFunctionInterface.from_data_function_definition(function)
-        assert val == expected
-    node = Node(env, "_test", function)
+    assert val == expected
+    node = Node(env, "_test", function, inputs="mock")
     assert node._get_interface() == expected
 
 
@@ -352,70 +355,146 @@ def test_python_data_function():
     assert dfi is not None
 
 
-def test_sql_data_function():
+# def test_sql_data_function():
+#     env = make_test_env()
+#     sql = "select:T 1 from t:T"
+#     k = "k1"
+#     df = sql_data_function(k, sql)
+#     assert df.name == k
+#
+#     dfi = df.get_interface(env)
+#     assert dfi is not None
+#
+#     assert len(dfi.inputs) == 1
+#     assert dfi.inputs[0].otype_like == "T"
+#     assert dfi.inputs[0].name == "t"
+#     assert dfi.output is not None
+#     assert dfi.output.otype_like == "T"
+#
+#
+# def test_sql_data_function2():
+#     env = make_test_env()
+#     sql = "select:T 1 from from t1:U join t2:Optional[T]"
+#     df = sql_data_function("s1", sql)
+#     dfi = df.get_interface(env)
+#     assert dfi is not None
+#
+#     assert len(dfi.inputs) == 2
+#     assert dfi.inputs[0].otype_like == "U"
+#     assert dfi.inputs[0].name == "t1"
+#     assert not dfi.inputs[0].is_optional
+#     assert dfi.inputs[1].otype_like == "T"
+#     assert dfi.inputs[1].name == "t2"
+#     assert dfi.inputs[1].is_optional
+
+
+def test_sql_data_function_interface():
     env = make_test_env()
-    sql = "select:T 1 from t:T"
-    k = "k1"
-    df = sql_data_function(k, sql)
-    assert df.name == k
-
-    dfi = df.get_interface(env)
-    assert dfi is not None
-
-    assert len(dfi.inputs) == 1
-    assert dfi.inputs[0].otype_like == "T"
-    assert dfi.inputs[0].name == "t"
-    assert dfi.output is not None
-    assert dfi.output.otype_like == "T"
-
-
-def test_sql_data_function2():
-    env = make_test_env()
-    sql = "select:T 1 from from t1:U join t2:Optional[T]"
+    sql = """select 1 from from t1 -- DataBlock[T1]
+    join t2 on t1.a = t2.b left join t3 -- DataSet[T2]
+    on"""
     df = sql_data_function("s1", sql)
     dfi = df.get_interface(env)
     assert dfi is not None
 
-    assert len(dfi.inputs) == 2
-    assert dfi.inputs[0].otype_like == "U"
+    assert len(dfi.inputs) == 3
+    assert dfi.inputs[0].otype_like == "T1"
     assert dfi.inputs[0].name == "t1"
-    assert not dfi.inputs[0].is_optional
-    assert dfi.inputs[1].otype_like == "T"
+    assert dfi.inputs[0].data_format_class == "DataBlock"
+    assert dfi.inputs[1].otype_like == "Any"
     assert dfi.inputs[1].name == "t2"
-    assert dfi.inputs[1].is_optional
+    assert dfi.inputs[2].otype_like == "T2"
+    assert dfi.inputs[2].name == "t3"
+    assert dfi.inputs[2].data_format_class == "DataSet"
+    assert dfi.output is not None
+
+    sql = """select -- DataSet[T]
+    1 
+    from -- comment inbetween
+    input
+    join t2 on t1.a = t2.b"""
+    df = sql_data_function("s1", sql)
+    dfi = df.get_interface(env)
+    assert dfi is not None
+    assert len(dfi.inputs) == 2
+    assert dfi.output is not None
+    assert dfi.output.otype_like == "T"
+    assert dfi.output.data_format_class == "DataSet"
+
+    sql = """select 1, 'not a commment -- nope'
+    from -- comment inbetween
+    t1, t2 on t1.a = t2.b"""
+    df = sql_data_function("s1", sql)
+    dfi = df.get_interface(env)
+    assert dfi is not None
+    assert len(dfi.inputs) == 2
+
+    sql = """select 1, 'not a commment -- nope'
+    from {% jinja block %}
+    t1, t2 on t1.a = t2.b"""
+    df = sql_data_function("s1", sql)
+    dfi = df.get_interface(env)
+    assert dfi is not None
+    assert len(dfi.inputs) == 2
+
+    sql = """select 1, 'not a commment -- nope'
+    from {% jinja block %}
+    this"""
+    df = sql_data_function("s1", sql, inputs={"this": "Optional[DataBlock[T]]"})
+    dfi = df.get_interface(env)
+    assert dfi is not None
+    assert len(dfi.inputs) == 1
+    assert dfi.inputs[0].data_format_class == "DataBlock"
+    assert dfi.inputs[0].name == "this"
+    assert dfi.inputs[0].is_self_ref
+    assert dfi.inputs[0].is_optional
+    assert dfi.inputs[0].is_generic
+
+    sql = """
+            select -- DataBlock[T]
+            {% if inputs.input.realized_otype.unique_on %}
+                distinct on (
+                    {% for col in inputs.input.realized_otype.unique_on %}
+                        "{{ col }}"
+                        {%- if not loop.last %},{% endif %}
+                    {% endfor %}
+                    )
+            {% endif %}
+                {% for col in inputs.input.realized_otype.fields %}
+                    "{{ col.name }}"
+                    {%- if not loop.last %},{% endif %}
+                {% endfor %}
+
+            from input -- DataBlock[T]
+            {% if inputs.input.resolved_otype.updated_at_field %}
+            order by
+                {% for col in inputs.input.realized_otype.unique_on %}
+                    "{{ col }}",
+                {% endfor %}
+                "{{ inputs.input.resolved_otype.updated_at_field.name }}" desc
+            {% endif %}
+    """
+    df = sql_data_function("s1", sql)
+    dfi = df.get_interface(env)
+    assert dfi is not None
+    assert len(dfi.inputs) == 1
+    assert dfi.output is not None
 
 
-# TODO: no types sql? Leave this to app layer?
-# def test_sql_data_function_no_types():
-#     sql = "select 1 from from t1 join t2 on t1.a = t2.b left join t3 on"
-#     df = sql_data_function("s1", sql)
-#     dfi = df.get_interface()
-#     assert dfi is not None
+# def test_table_refs():
+#     s = """
+#     select *
+#     from (
+#     select * from a, b
+#     on a=b) s
+#     left join -- commment
+#     c
+#     where
+#     c = 'select * from nope';
+#     """
 #
-#     assert len(dfi.inputs) == 3
-#     assert dfi.inputs[0].otype_like == "Any"
-#     assert dfi.inputs[0].name == "t1"
-#     assert dfi.inputs[1].otype_like == "Any"
-#     assert dfi.inputs[1].name == "t2"
-#     assert dfi.inputs[2].otype_like == "Any"
-#     assert dfi.inputs[2].name == "t3"
-#
-#     sql = """select 1 from
-#     from -- comment inbetween
-#     t1
-#     join t2 on t1.a = t2.b"""
-#     df = sql_data_function("s1", sql)
-#     dfi = df.get_interface()
-#     assert dfi is not None
-#     assert len(dfi.inputs) == 2
-#
-#     sql = """select 1, 'not a commment -- nope'
-#     from -- comment inbetween
-#     t1, t2 on t1.a = t2.b"""
-#     df = sql_data_function("s1", sql)
-#     dfi = df.get_interface()
-#     assert dfi is not None
-#     assert len(dfi.inputs) == 2
+#     table_refs = find_all_table_references(s)[0]
+#     assert table_refs == ["a", "b", "c"]
 
 
 @data_function("k1", compatible_runtimes="python")

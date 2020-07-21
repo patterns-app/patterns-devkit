@@ -13,7 +13,9 @@ def test_env_init():
     env.add_module(_test_module)
     assert env.get_module_order() == [env.get_local_module().name, _test_module.name]
     assert env.get_otype("TestType") is _test_module.otypes.TestType
-    env.add_node("n1", _test_module.functions.test_sql, inputs="doesntexist")
+    env.add_node(
+        "n1", _test_module.functions.df1,
+    )
     assert len(env.all_added_nodes()) == 1
     assert len(env.all_flattened_nodes()) == 1
     n2 = env.add_node("n2", "test_sql")
