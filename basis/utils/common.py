@@ -60,12 +60,6 @@ class StringEnum(Enum):
 #         return
 
 
-class Trinary(Enum):
-    YES = "yes"
-    MAYBE = "maybe"
-    NO = "no"
-
-
 def title_to_snake_case(s: str) -> str:
     return re.sub(r"([a-z])([A-Z])", r"\1_\2", s).lower()
 
@@ -187,42 +181,14 @@ cf_palette = {
     "seaGreen": "#529B2F",
 }
 cf_semantic_palette = {
-    # "red": "#F92672",
-    # "error": "#FD971F",
     "error": "#D83925",
-    # "success": "#A6E22E",
     "info": "#66D9EF",
     "warning": "#FD971F",
-    # "error": "#F8F8F0",
     "success": "#F8F8F0",
 }
 colors = list(cf_palette)
 cf_palette.update(cf_semantic_palette)
 cf.update_palette(cf_palette)
-
-
-cycle_colors: Dict[str, str] = {}
-fifo: List[str] = []
-
-
-def reset_color_cycle():
-    cycle_colors.clear()
-
-
-def cycle_colors_unique(v: str) -> str:
-    clr = None
-    if v in cycle_colors:
-        clr = cycle_colors[v]
-    else:
-        fifo.append(v)
-        if len(fifo) >= len(colors):
-            old_v = fifo.pop(0)
-            if old_v in cycle_colors:
-                clr = cycle_colors.pop(old_v)
-    if clr is None:
-        clr = list(set(colors) - set(cycle_colors.values()))[0]
-    cycle_colors[v] = clr
-    return getattr(cf, cycle_colors[v])(v)
 
 
 def is_aware(d: Union[datetime, time]) -> bool:

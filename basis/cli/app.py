@@ -15,7 +15,7 @@ from basis.core.typing.inference import dict_to_rough_otype
 from basis.core.typing.object_type import otype_to_yaml
 from basis.project.project import BASIS_PROJECT_FILE_NAME, init_project_in_dir
 from basis.utils import common
-from basis.utils.common import cf, cycle_colors_unique
+from basis.utils.common import cf
 from loguru import logger
 
 REPO_SERVER_API = "http://localhost:8000/components/"  # TODO: configurable
@@ -206,7 +206,7 @@ def show_log(env: Environment):
                         dfl.started_at.strftime("%F %T"),
                         dfl.node_name,
                         drl.direction.display,
-                        cycle_colors_unique(drl.data_block_id),
+                        drl.data_block_id,
                     ]
                     drls.append(r)
             else:

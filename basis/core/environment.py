@@ -6,7 +6,7 @@ from dataclasses import asdict
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
 
 from basis.core.component import ComponentLibrary, ensure_uri
 from basis.core.metadata.orm import BaseModel
@@ -64,7 +64,7 @@ class Environment:
         if metadata_storage is None and create_metadata_storage:
             # TODO: kind of hidden. make configurable at least, and log/print to user
             metadata_storage = Storage.from_url("sqlite:///.basis_metadata.db")
-            logger.warn(
+            logger.warning(
                 f"No metadata storage specified, using local '.basis_metadata.db' sqlite db"
             )
         if isinstance(metadata_storage, str):
@@ -113,6 +113,12 @@ class Environment:
         sess = self.Session()
         self._metadata_sessions.append(sess)
         return sess
+
+    def clean_up_db_sessions(self):
+        from basis.db.api import dispose_all
+
+        close_all_sessions()
+        dispose_all()
 
     def close_sessions(self):
         for s in self._metadata_sessions:
@@ -307,10 +313,8 @@ class Environment:
         if isinstance(node, str):
             node = self.get_node(node_like)
         assert isinstance(node, Node)
-        g = self._flattened_graph().get_declared_node_subgraph(node.name)
-        any_flattened_node = list(g.nodes())[0]
         dependencies = self._flattened_graph().get_all_upstream_dependencies_in_execution_order(
-            any_flattened_node.name
+            node
         )
         output = None
         for dep in dependencies:
@@ -330,8 +334,12 @@ class Environment:
             node_like = self.get_node(node_like)
         assert isinstance(node_like, Node)
 
+        flattened_node = self._flattened_graph().get_flattened_root_node_for_declared_node(
+            node_like
+        )
+        logger.debug(f"Running: flattened node: {flattened_node} (from {node_like})")
         with self.execution(**execution_kwargs) as em:
-            return em.run(node_like, to_exhaustion=to_exhaustion)
+            return em.run(flattened_node, to_exhaustion=to_exhaustion)
 
     def run_all(self, to_exhaustion: bool = True, **execution_kwargs: Any):
         nodes = self._flattened_graph().get_all_nodes_in_execution_order()

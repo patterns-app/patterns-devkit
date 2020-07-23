@@ -95,7 +95,11 @@ def df_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
     pass
 
 
-def df_dataset(
-    input: DataBlock[T], other_t2: DataSet[TestType2] = None
+def df_dataset_input(
+    input: DataBlock[T], other_ds_t2: DataSet[TestType2] = None
 ) -> DataFrame[T]:
+    pass
+
+
+def df_dataset_output(input: DataBlock[T]) -> DataSet[T]:
     pass

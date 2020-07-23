@@ -6,6 +6,7 @@ from typing import Any, Iterator, Optional
 import pandas as pd
 from pandas import DataFrame
 
+from basis import DataSet
 from basis.core.data_formats import RecordsList, RecordsListGenerator
 from basis.core.data_function import data_function
 from basis.core.runnable import DataFunctionContext
@@ -26,7 +27,7 @@ class DataFrameResourceConfig:
 
 
 @data_function(config_class=DataFrameResourceConfig, state_class=LocalResourceState)
-def extract_dataframe(ctx: DataFunctionContext,) -> DataFrame:
+def extract_dataframe(ctx: DataFunctionContext,) -> DataSet:
     extracted = ctx.get_state("extracted")
     if extracted:
         # Just emit once
@@ -42,7 +43,7 @@ class LocalCSVResourceConfig:
 
 
 @data_function(config_class=LocalCSVResourceConfig, state_class=LocalResourceState)
-def extract_csv(ctx: DataFunctionContext,) -> RecordsList:
+def extract_csv(ctx: DataFunctionContext,) -> DataSet:
     extracted = ctx.get_state("extracted")
     if extracted:
         # Static resource, if already emitted, return

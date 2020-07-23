@@ -8,7 +8,7 @@ from basis.utils.typing import T
 
 @data_function("as_dataset", compatible_runtimes="database")
 def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
-    name = ctx.config("dataset_name")
+    name = ctx.get_config("dataset_name")
     ds = (
         ctx.execution_context.metadata_session.query(DataSetMetadata)
         .filter(DataSetMetadata.name == name)

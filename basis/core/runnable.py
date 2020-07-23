@@ -280,7 +280,7 @@ class ExecutionManager:
             f"Running node: {cf.green(node.name)} {cf.dimmed(node.data_function.name)}"
         )
         spinner = get_spinner()
-        # spinner.start(base_msg)
+        spinner.start(base_msg)
         start = time.time()
         n_outputs = 0
         n_runs = 0
@@ -308,8 +308,8 @@ class ExecutionManager:
                     not to_exhaustion or not dfi.inputs
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     break
-            #     spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataBlocks output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
-            # spinner.stop_and_persist(symbol=cf.success(success_symbol))
+                spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataBlocks output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
+            spinner.stop_and_persist(symbol=cf.success(success_symbol))
         except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
             logger.debug(cf.warning("    Input Exhausted"))
             if e.args:
@@ -320,13 +320,13 @@ class ExecutionManager:
                     text=f"{base_msg}: {cf.dimmed_bold}No unprocessed inputs{cf.reset}",
                 )
             else:
-                # spinner.stop_and_persist(symbol=cf.success(success_symbol))
+                spinner.stop_and_persist(symbol=cf.success(success_symbol))
                 pass
         except Exception as e:
-            # spinner.stop_and_persist(
-            #     symbol=cf.error(error_symbol),
-            #     text=f"{base_msg}: {cf.error('Error')} {cf.dimmed_red(e)}",
-            # )
+            spinner.stop_and_persist(
+                symbol=cf.error(error_symbol),
+                text=f"{base_msg}: {cf.error('Error')} {cf.dimmed_red(e)}",
+            )
             raise e
 
         if last_output is None:

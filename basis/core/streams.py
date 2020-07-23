@@ -59,10 +59,17 @@ class DataBlockStream:
         self.allow_cycle = allow_cycle
         self.most_recent_first = most_recent_first
 
-    # TODO
-    # def __str__(self):
-    #     otypes = [otype_like_to_uri(o).name for o in self.otypes or []]
-    #     upstream =
+    def __str__(self):
+        s = "Stream("
+        if self.upstream:
+            inputs = [
+                i if isinstance(i, str) else i.name for i in ensure_list(self.upstream)
+            ]
+            s += f"inputs={inputs}"
+        if self.data_sets:
+            s += " datasets={self.datasets}"
+        s += ")"
+        return s
 
     def _base_query(self) -> Query:
         return Query(DataBlockMetadata)
@@ -217,7 +224,7 @@ class DataBlockStream:
     ) -> bool:
         drs = self.filter_unprocessed(node)
         q = drs.get_query(ctx)
-        return q.filter(DataBlockMetadata.id == block.id).exists()
+        return q.filter(DataBlockMetadata.id == block.id).count() > 0
 
     def get_next(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:
         order_by = DataBlockMetadata.updated_at

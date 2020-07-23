@@ -21,6 +21,7 @@ from basis.core.data_function import (
 from basis.core.data_function_interface import DataFunctionInterface
 from basis.core.environment import Environment
 from basis.core.metadata.orm import BaseModel
+from loguru import logger
 
 if TYPE_CHECKING:
     from basis.core.runnable import ExecutionContext
@@ -109,7 +110,7 @@ class Node:
     def get_dataset_name(self) -> str:
         return self._dataset_name or self.name
 
-    def get_dataset_node(self, node_name: str = None) -> Node:
+    def get_or_create_dataset_node(self, node_name: str = None) -> Node:
         try:
             # Return if already created
             return self.env.get_node(self.get_dataset_node_name())
@@ -122,13 +123,14 @@ class Node:
             df = "core.as_dataset"
         else:
             df = "core.accumulate_as_dataset"
-        return Node(
-            env=self.env,
+        dsn = self.env.add_node(
             name=node_name or self.get_dataset_node_name(),
-            data_function=df,
+            function=df,
             config={"dataset_name": self.get_dataset_name()},
             inputs=self,
         )
+        logger.debug(f"Adding DataSet node {dsn}")
+        return dsn
 
     def _get_interface(self) -> Optional[DataFunctionInterface]:
         return self.data_function.get_interface(self.env)

@@ -416,12 +416,15 @@ class NodeInterfaceManager:
         # if input.parent_nodes:
         #     stream = stream.filter_upstream(input.parent_nodes)
         block: Optional[DataBlockMetadata]
+        logger.debug(f"Finding unprocessed input for: {stream}")
         if input.original_annotation.data_format_class in ("DataBlock",):
+            logger.debug(f"Finding DataBlock")
             stream = stream.filter_unprocessed(
                 self.node, allow_cycle=input.original_annotation.is_self_ref
             )
             block = stream.get_next(self.ctx)
         elif input.original_annotation.data_format_class == "DataSet":
+            logger.debug(f"Finding DataSet")
             stream = stream.filter_dataset()
             block = stream.get_most_recent(self.ctx)
             # TODO: someday probably pass in actual DataSet (not underlying DB) to function that asks

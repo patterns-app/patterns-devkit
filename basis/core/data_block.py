@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple
 
 import sqlalchemy as sa
 from pandas import DataFrame
-from sqlalchemy import Boolean, Column, ForeignKey, String, event, or_
+from sqlalchemy import Boolean, Column, ForeignKey, String, event, or_, Integer
 from sqlalchemy.orm import RelationshipProperty, Session, relationship
 
 from basis.core.data_formats import (
@@ -102,7 +102,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     # otype_is_validated = Column(Boolean, default=False) # TODO
     # references_are_resolved = Column(Boolean, default=False)
     # is_dataset = Column(Boolean, default=False)
-    # record_count = Column(Integer, nullable=True) # TODO: nahhh, this belongs on some DataBlockMetadata table (optional, computed lazily)
+    record_count = Column(Integer, nullable=True)
     # Other metadata? created_by_job? last_processed_at?
     deleted = Column(Boolean, default=False)
     data_sets: RelationshipProperty = relationship(
@@ -444,7 +444,9 @@ def create_data_block_from_records(
             realized_otype = expected_otype
     realized_otype_uri = realized_otype.uri
     block = DataBlockMetadata(
-        expected_otype_uri=expected_otype_uri, realized_otype_uri=realized_otype_uri
+        expected_otype_uri=expected_otype_uri,
+        realized_otype_uri=realized_otype_uri,
+        record_count=ldr.record_count,
     )
     sdb = StoredDataBlockMetadata(  # type: ignore
         data_block=block, storage_url=local_storage.url, data_format=ldr.data_format,

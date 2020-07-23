@@ -142,6 +142,7 @@ class DatabaseAPI:
         ) as __sub
         """
         self.execute_sql(create_sql)
+        cnt = self.count(tmp_name)
         # TODO: DRY this with other "create_data_block"
         if not expected_otype:
             expected_otype = self.env.get_otype("Any")
@@ -153,7 +154,9 @@ class DatabaseAPI:
             realized_otype = expected_otype
         realized_otype_uri = realized_otype.uri
         block = DataBlockMetadata(
-            expected_otype_uri=expected_otype_uri, realized_otype_uri=realized_otype_uri
+            expected_otype_uri=expected_otype_uri,
+            realized_otype_uri=realized_otype_uri,
+            record_count=cnt,
         )
         storage_url = self.resource.url
         sdb = StoredDataBlockMetadata(

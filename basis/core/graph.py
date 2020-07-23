@@ -26,7 +26,8 @@ if TYPE_CHECKING:
 
 
 class Graph:
-    def __init__(self, nodes: Iterable[Node] = None):
+    def __init__(self, nodes: Iterable[Node] = None, is_flattened: bool = False):
+        self.is_flattened = is_flattened
         self._nodes: Dict[str, Node] = {}
         if nodes:
             for n in nodes:
@@ -44,8 +45,8 @@ class Graph:
     def nodes(self) -> Iterable[Node]:
         return self._nodes.values()
 
-    def copy(self) -> Graph:
-        return Graph(self._nodes.values())
+    def copy(self, **kwargs) -> Graph:
+        return Graph(self._nodes.values(), **kwargs)
 
     def get_declared_node_subgraph(self, declared_node_name: str) -> Graph:
         if declared_node_name in self._nodes:
@@ -61,13 +62,13 @@ class Graph:
 
     def add_dataset_nodes(self) -> Graph:
         new_g = Graph()
-        for n in self.nodes():
+        for n in list(self.nodes()):
             dfi = n.get_interface()
             for annotation in dfi.inputs:
                 if annotation.is_dataset:
                     inputs = copy(n.get_declared_input_nodes())
                     input_node = inputs[annotation.name]
-                    dsn = input_node.get_dataset_node()
+                    dsn = input_node.get_or_create_dataset_node()
                     new_g.add_node(dsn)
                     inputs[annotation.name] = dsn
                     n.set_compiled_inputs(inputs)
@@ -75,7 +76,7 @@ class Graph:
         return new_g
 
     def flatten_composite_node(self, node: Node):
-        # TODO: this changes the _nodes'_ state, not ideal, need to make sure you are working with copy
+        # TODO: this changes the *nodes'* state, not ideal, need to make sure you are working with copy
         # One option, always a favorite, is to make frozen DC
         if not node.is_composite():
             return
@@ -99,7 +100,11 @@ class Graph:
             self.flatten_composite_node(sub_n)
 
     def flatten(self) -> Graph:
-        new_g = self.copy()
+        """
+        Note, this _modifies_ the existing declared Nodes (by setting their `compiled_inputs` attribute)
+        AND creates a new graph with extra / swapped sub-nodes from composite functions
+        """
+        new_g = self.copy(is_flattened=True)
         for n in list(new_g.nodes()):
             new_g.flatten_composite_node(n)
         return new_g
@@ -127,9 +132,23 @@ class Graph:
     def get_declared_networkx_graph(self) -> nx.DiGraph:
         return self.as_networkx_graph(compiled=False)
 
-    def get_all_upstream_dependencies_in_execution_order(self, node: str) -> List[Node]:
+    def get_flattened_root_node_for_declared_node(self, node: Node) -> Node:
+        if not self.is_flattened:
+            return node
+        sub_g = self.get_declared_node_subgraph(node.name)
+        node = sub_g.get_all_nodes_in_execution_order()[0]
+        return node
+
+    def get_all_upstream_dependencies_in_execution_order(
+        self, node: Node, is_declared_node: bool = True
+    ) -> List[Node]:
         g = self.get_compiled_networkx_graph()
-        node_names = self._get_all_upstream_dependencies_in_execution_order(g, node)
+        if is_declared_node and self.is_flattened:
+            # Translate declared node into root sub-node
+            node = self.get_flattened_root_node_for_declared_node(node)
+        node_names = self._get_all_upstream_dependencies_in_execution_order(
+            g, node.name
+        )
         return [self.get_node(name) for name in node_names]
 
     def _get_all_upstream_dependencies_in_execution_order(
@@ -138,7 +157,7 @@ class Graph:
         nodes = []
         for parent_node in g.predecessors(node):
             if parent_node == node:
-                # No cycles
+                # Ignore self-ref cycles
                 continue
             parent_deps = self._get_all_upstream_dependencies_in_execution_order(
                 g, parent_node
@@ -148,5 +167,5 @@ class Graph:
         return nodes
 
     def get_all_nodes_in_execution_order(self) -> List[Node]:
-        g = self.as_networkx_graph()
+        g = self.get_compiled_networkx_graph()
         return [self.get_node(name) for name in nx.topological_sort(g)]
