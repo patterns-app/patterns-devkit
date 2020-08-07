@@ -10,7 +10,7 @@ from sqlalchemy import func
 
 from basis.core.data_block import DataBlockMetadata, DataSetMetadata
 from basis.core.environment import Environment, current_env
-from basis.core.node import DataFunctionLog
+from basis.core.node import PipeLog
 from basis.core.typing.inference import dict_to_rough_otype
 from basis.core.typing.object_type import otype_to_yaml
 from basis.project.project import BASIS_PROJECT_FILE_NAME, init_project_in_dir
@@ -131,8 +131,8 @@ def list_component(env: Environment, component_type):
         list_data_blocks(env)
     elif component_type == "datasets":
         list_data_sets(env)
-    elif component_type == "functions":
-        list_data_functions(env)
+    elif component_type == "pipes":
+        list_pipes(env)
     else:
         click.echo(f"Unknown component type {component_type}")
 
@@ -172,15 +172,13 @@ def list_data_sets(env: Environment):
     echo_table(headers, rows)
 
 
-def list_data_functions(env: Environment):
+def list_pipes(env: Environment):
     with env.session_scope() as sess:
         query = (
             sess.query(
-                DataFunctionLog.node_name,
-                func.count(DataFunctionLog.id),
-                func.max(DataFunctionLog.started_at),
+                PipeLog.node_name, func.count(PipeLog.id), func.max(PipeLog.started_at),
             )
-            .group_by(DataFunctionLog.node_name)
+            .group_by(PipeLog.node_name)
             .all()
         )
         headers = [
@@ -195,9 +193,9 @@ def list_data_functions(env: Environment):
 @click.command("log")
 @click.pass_obj
 def show_log(env: Environment):
-    """Show log of DataFunctions on DataBlocks"""
+    """Show log of Pipes on DataBlocks"""
     with env.session_scope() as sess:
-        query = sess.query(DataFunctionLog).order_by(DataFunctionLog.updated_at.desc())
+        query = sess.query(PipeLog).order_by(PipeLog.updated_at.desc())
         drls = []
         for dfl in query:
             if dfl.data_block_logs:
@@ -220,7 +218,7 @@ def show_log(env: Environment):
                 )
         headers = [
             "Started",
-            "Function",
+            "Pipe",
             "Direction",
             "DataBlock",
         ]
@@ -242,8 +240,8 @@ def reset_metadata(env: Environment):
     # TODO
     raise NotImplementedError
     with env.session_scope() as sess:
-        sess.execute("drop table basis_data_function_log        cascade;")
-        sess.execute("drop table basis_data_function_log_id_seq cascade;")
+        sess.execute("drop table basis_pipe_log        cascade;")
+        sess.execute("drop table basis_pipe_log_id_seq cascade;")
         sess.execute("drop table basis_data_resource_log        cascade;")
         sess.execute("drop table basis_data_resource_log_id_seq cascade;")
         sess.execute("drop table basis_data_resource_metadata   cascade;")

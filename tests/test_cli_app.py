@@ -10,7 +10,7 @@ def test_app():
     runner = CliRunner()
     result = runner.invoke(app, ["log"])
     assert result.exit_code == 0
-    result = runner.invoke(app, ["list", "functions"])
+    result = runner.invoke(app, ["list", "pipes"])
     assert result.exit_code == 0
     with runner.isolated_filesystem():
         result = runner.invoke(app, ["init"])

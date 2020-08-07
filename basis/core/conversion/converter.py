@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class ConversionCostLevel(enum.Enum):
-    # TODO: make conversion a function of data size?
+    # TODO: make cost depend on data size?
     NO_OP = 0
     MEMORY = 10
     DISK = 100

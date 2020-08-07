@@ -37,7 +37,7 @@ class Event:
     level: EventLevel
     occurred_at: datetime
     node_name: Optional[str] = None
-    data_function_name: Optional[str] = None
+    pipe_name: Optional[str] = None
     external_resource_name: Optional[str] = None
     environment_name: Optional[str] = None
 

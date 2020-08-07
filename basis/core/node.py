@@ -11,14 +11,14 @@ from sqlalchemy.sql.schema import Column, ForeignKey
 from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
 from basis.core.data_block import DataBlock, DataBlockMetadata
-from basis.core.data_function import (
-    DataFunction,
-    DataFunctionLike,
-    ensure_data_function,
-    make_data_function,
-    make_data_function_name,
+from basis.core.pipe import (
+    Pipe,
+    PipeLike,
+    ensure_pipe,
+    make_pipe,
+    make_pipe_name,
 )
-from basis.core.data_function_interface import DataFunctionInterface
+from basis.core.pipe_interface import PipeInterface
 from basis.core.environment import Environment
 from basis.core.metadata.orm import BaseModel
 from loguru import logger
@@ -38,7 +38,7 @@ def inputs_as_nodes(env: Environment, inputs: Dict[str, NodeLike]):
 class Node:
     env: Environment
     name: str
-    data_function: DataFunction
+    pipe: Pipe
     _declared_inputs: Dict[str, NodeLike]
     _compiled_inputs: Dict[str, Node] = None
     _dataset_name: Optional[str] = None
@@ -49,7 +49,7 @@ class Node:
         self,
         env: Environment,
         name: str,
-        data_function: Union[DataFunctionLike, str],
+        pipe: Union[PipeLike, str],
         inputs: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,
         dataset_name: Optional[str] = None,
         config: Dict[str, Any] = None,
@@ -59,7 +59,7 @@ class Node:
         self.env = env
         self.name = name
         self._dataset_name = dataset_name
-        self.data_function = self._clean_data_function(data_function)
+        self.pipe = self._clean_pipe(pipe)
         self.dfi = self.get_interface()
         self.declared_composite_node_name = declared_composite_node_name
         self._declared_inputs = {}
@@ -69,15 +69,15 @@ class Node:
             self._sub_nodes = list(build_composite_nodes(self))
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}(name={self.name}, data_function={self.data_function.name})>"
+        return f"<{self.__class__.__name__}(name={self.name}, pipe={self.pipe.name})>"
 
     def __hash__(self):
         return hash(self.name)
 
-    def _clean_data_function(self, df: DataFunctionLike) -> DataFunction:
+    def _clean_pipe(self, df: PipeLike) -> Pipe:
         if isinstance(df, str):
-            return self.env.get_function(df)
-        return make_data_function(df)
+            return self.env.get_pipe(df)
+        return make_pipe(df)
 
     def _set_declared_inputs(self, inputs: Union[NodeLike, Dict[str, NodeLike]]):
         self._declared_inputs = self.dfi.assign_inputs(inputs)
@@ -97,7 +97,7 @@ class Node:
     #     args = dict(
     #         env=self.env,
     #         name=new_name,
-    #         data_function=self.data_function,
+    #         pipe=self.pipe,
     #         config=self.config,
     #         inputs=self.get_declared_inputs(),
     #     )
@@ -125,17 +125,17 @@ class Node:
             df = "core.accumulate_as_dataset"
         dsn = self.env.add_node(
             name=node_name or self.get_dataset_node_name(),
-            function=df,
+            pipe=df,
             config={"dataset_name": self.get_dataset_name()},
             inputs=self,
         )
         logger.debug(f"Adding DataSet node {dsn}")
         return dsn
 
-    def _get_interface(self) -> Optional[DataFunctionInterface]:
-        return self.data_function.get_interface(self.env)
+    def _get_interface(self) -> Optional[PipeInterface]:
+        return self.pipe.get_interface(self.env)
 
-    def get_interface(self) -> DataFunctionInterface:
+    def get_interface(self) -> PipeInterface:
         dfi = self._get_interface()
         if dfi is None:
             raise TypeError(f"DFI is none for {self}")
@@ -176,7 +176,7 @@ class Node:
         return self
 
     def is_composite(self) -> bool:
-        return self.data_function.is_composite
+        return self.pipe.is_composite
 
     def as_stream(self) -> DataBlockStream:
         from basis.core.streams import DataBlockStream
@@ -187,10 +187,10 @@ class Node:
         block = (
             ctx.metadata_session.query(DataBlockMetadata)
             .join(DataBlockLog)
-            .join(DataFunctionLog)
+            .join(PipeLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                DataFunctionLog.node_name == self.name,
+                PipeLog.node_name == self.name,
             )
             .order_by(DataBlockLog.created_at.desc())
             .first()
@@ -201,16 +201,16 @@ class Node:
 
 
 def build_composite_nodes(n: Node) -> Iterable[Node]:
-    if not n.data_function.is_composite:
+    if not n.pipe.is_composite:
         raise
     nodes = []
     # TODO: just supports list for now
     raw_inputs = list(n.get_declared_inputs().values())
-    assert len(raw_inputs) == 1, "Composite functions take one input"
+    assert len(raw_inputs) == 1, "Composite pipes take one input"
     input_node = raw_inputs[0]
-    for fn in n.data_function.get_representative_definition().sub_graph:
-        fn = ensure_data_function(n.env, fn)
-        child_fn_name = make_data_function_name(fn)
+    for fn in n.pipe.get_representative_definition().sub_graph:
+        fn = ensure_pipe(n.env, fn)
+        child_fn_name = make_pipe_name(fn)
         child_node_name = f"{n.name}__{child_fn_name}"
         try:
             node = n.env.get_node(child_node_name)
@@ -222,7 +222,7 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
                 config=n.config,
                 inputs=input_node,
                 declared_composite_node_name=n.declared_composite_node_name
-                or n.name,  # Handle nested composite functions
+                or n.name,  # Handle nested composite pipes
             )
         nodes.append(node)
         input_node = node
@@ -248,27 +248,27 @@ def get_state(sess: Session, node_name: str) -> Optional[Dict]:
     return None
 
 
-class DataFunctionLog(BaseModel):
+class PipeLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     node_name = Column(String, nullable=False)
     node_start_state = Column(JSON, nullable=True)
     node_end_state = Column(JSON, nullable=True)
-    data_function_uri = Column(String, nullable=False)
-    data_function_config = Column(JSON, nullable=True)
+    pipe_uri = Column(String, nullable=False)
+    pipe_config = Column(JSON, nullable=True)
     runtime_url = Column(String, nullable=False)
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     error = Column(JSON, nullable=True)
     data_block_logs: RelationshipProperty = relationship(
-        "DataBlockLog", backref="data_function_log"
+        "DataBlockLog", backref="pipe_log"
     )
 
     def __repr__(self):
         return self._repr(
             id=self.id,
             node_name=self.node_name,
-            data_function_uri=self.data_function_uri,
+            pipe_uri=self.pipe_uri,
             runtime_url=self.runtime_url,
             started_at=self.started_at,
         )
@@ -314,9 +314,7 @@ class Direction(enum.Enum):
 
 class DataBlockLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    data_function_log_id = Column(
-        Integer, ForeignKey(DataFunctionLog.id), nullable=False
-    )
+    pipe_log_id = Column(Integer, ForeignKey(PipeLog.id), nullable=False)
     data_block_id = Column(
         String, ForeignKey("basis_data_block_metadata.id"), nullable=False
     )  # TODO table name ref ugly here. We can parameterize with orm constant at least, or tablename("DataBlock.id")
@@ -324,12 +322,12 @@ class DataBlockLog(BaseModel):
     processed_at = Column(DateTime, default=func.now(), nullable=False)
     # Hints
     data_block: "DataBlockMetadata"
-    data_function_log: DataFunctionLog
+    pipe_log: PipeLog
 
     def __repr__(self):
         return self._repr(
             id=self.id,
-            data_function_log=self.data_function_log,
+            pipe_log=self.pipe_log,
             data_block=self.data_block,
             direction=self.direction,
             processed_at=self.processed_at,

@@ -9,27 +9,27 @@ from pandas import DataFrame
 from basis.core.component import ComponentType, ComponentUri
 from basis.core.data_block import DataBlockMetadata, DataSetMetadata
 from basis.core.data_formats import DatabaseTableRef, RecordsList
-from basis.core.data_function_interface import (
-    DataFunctionAnnotation,
-    DataFunctionInterface,
+from basis.core.pipe_interface import (
+    PipeAnnotation,
+    PipeInterface,
 )
 from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
 from basis.core.runtime import RuntimeClass
 
 if TYPE_CHECKING:
-    from basis.core.runnable import DataFunctionContext
+    from basis.core.runnable import PipeContext
     from basis import Environment
 
 
-class DataFunctionException(Exception):
+class PipeException(Exception):
     pass
 
 
-class InputExhaustedException(DataFunctionException):
+class InputExhaustedException(PipeException):
     pass
 
 
-DataFunctionCallable = Callable[..., Any]
+PipeCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
     DataFrame, RecordsList, DatabaseTableRef, DataBlockMetadata, DataSetMetadata
@@ -48,23 +48,21 @@ def get_runtime_class(runtime: Optional[str]) -> RuntimeClass:
     return RuntimeClass.PYTHON
 
 
-def make_data_function_name(data_function: DataFunctionCallable) -> str:
+def make_pipe_name(pipe: PipeCallable) -> str:
     # TODO: something more principled / explicit?
-    if hasattr(data_function, "name"):
-        return data_function.name  # type: ignore
-    if hasattr(data_function, "__name__"):
-        return data_function.__name__
-    if hasattr(data_function, "__class__"):
-        return data_function.__class__.__name__
-    raise Exception(f"Invalid DataFunction name {data_function}")
+    if hasattr(pipe, "name"):
+        return pipe.name  # type: ignore
+    if hasattr(pipe, "__name__"):
+        return pipe.__name__
+    if hasattr(pipe, "__class__"):
+        return pipe.__class__.__name__
+    raise Exception(f"Invalid Pipe name {pipe}")
 
 
 @dataclass(frozen=True)
-class DataFunction(ComponentUri):
-    # component_type = ComponentType.DataFunction
-    runtime_data_functions: Dict[RuntimeClass, DataFunctionDefinition] = field(
-        default_factory=dict
-    )
+class Pipe(ComponentUri):
+    # component_type = ComponentType.Pipe
+    runtime_pipes: Dict[RuntimeClass, PipeDefinition] = field(default_factory=dict)
 
     @property
     def is_composite(self) -> bool:
@@ -72,58 +70,56 @@ class DataFunction(ComponentUri):
 
     @property
     def compatible_runtime_classes(self) -> List[RuntimeClass]:
-        return list(self.runtime_data_functions.keys())
+        return list(self.runtime_pipes.keys())
 
     def __call__(
-        self, *args: DataFunctionContext, **kwargs: DataInterfaceType
+        self, *args: PipeContext, **kwargs: DataInterfaceType
     ) -> Optional[DataInterfaceType]:
         raise NotImplementedError
-        # # TODO: hack, but maybe useful to have actual DataFunction still act like a function
-        # for v in self.runtime_data_functions.values():
+        # # TODO: hack, but maybe useful to have actual Pipe still act like a pipe
+        # for v in self.runtime_pipes.values():
         #     try:
         #         return v(*args, **kwargs)
         #     except:
         #         pass
 
-    def get_representative_definition(self) -> DataFunctionDefinition:
-        return list(self.runtime_data_functions.values())[0]
+    def get_representative_definition(self) -> PipeDefinition:
+        return list(self.runtime_pipes.values())[0]
 
-    def get_interface(self, env: Environment) -> Optional[DataFunctionInterface]:
+    def get_interface(self, env: Environment) -> Optional[PipeInterface]:
         dfd = self.get_representative_definition()
         if not dfd:
             raise
         return dfd.get_interface(env)
 
-    def add_definition(self, df: DataFunctionDefinition):
+    def add_definition(self, df: PipeDefinition):
         for cls in df.compatible_runtime_classes:
-            self.runtime_data_functions[cls] = df
+            self.runtime_pipes[cls] = df
 
     def validate(self):
-        # TODO: check if all function signatures match
+        # TODO: check if all pipe signatures match
         pass
 
     def merge(self, other: ComponentUri, overwrite: bool = False):
-        other = cast(DataFunction, other)
-        for cls, df in other.runtime_data_functions.items():
-            if cls not in self.runtime_data_functions:
-                self.runtime_data_functions[cls] = df
+        other = cast(Pipe, other)
+        for cls, df in other.runtime_pipes.items():
+            if cls not in self.runtime_pipes:
+                self.runtime_pipes[cls] = df
 
-    def get_definition(
-        self, runtime_cls: RuntimeClass
-    ) -> Optional[DataFunctionDefinition]:
-        return self.runtime_data_functions.get(runtime_cls)
+    def get_definition(self, runtime_cls: RuntimeClass) -> Optional[PipeDefinition]:
+        return self.runtime_pipes.get(runtime_cls)
 
     def associate_with_module(self, module: BasisModule) -> ComponentUri:
-        dfds: Dict[RuntimeClass, DataFunctionDefinition] = {}
-        for cls, dfd in self.runtime_data_functions.items():
+        dfds: Dict[RuntimeClass, PipeDefinition] = {}
+        for cls, dfd in self.runtime_pipes.items():
             dfds[cls] = dfd.associate_with_module(module)
-        return self.clone(module_name=module.name, runtime_data_functions=dfds)
+        return self.clone(module_name=module.name, runtime_pipes=dfds)
 
 
 @dataclass(frozen=True)
-class DataFunctionDefinition(ComponentUri):
-    # component_type = ComponentType.DataFunction
-    function_callable: Optional[
+class PipeDefinition(ComponentUri):
+    # component_type = ComponentType.Pipe
+    pipe_callable: Optional[
         Callable
     ]  # Optional since Composite DFs don't have a Callable
     compatible_runtime_classes: List[RuntimeClass]
@@ -140,21 +136,21 @@ class DataFunctionDefinition(ComponentUri):
     # TODO: runtime dependencies
 
     def __call__(
-        self, *args: DataFunctionContext, **kwargs: DataInterfaceType
+        self, *args: PipeContext, **kwargs: DataInterfaceType
     ) -> Optional[DataInterfaceType]:
         if self.is_composite:
-            raise NotImplementedError(f"Cannot call a composite DataFunction {self}")
-        if self.function_callable is None:
+            raise NotImplementedError(f"Cannot call a composite Pipe {self}")
+        if self.pipe_callable is None:
             raise
-        return self.function_callable(*args, **kwargs)
+        return self.pipe_callable(*args, **kwargs)
 
-    def get_interface(self, env: Environment) -> Optional[DataFunctionInterface]:
+    def get_interface(self, env: Environment) -> Optional[PipeInterface]:
         """
         """
-        found_dfi = self._get_function_interface(env)
+        found_dfi = self._get_pipe_interface(env)
         declared_dfi = self._get_declared_interface()
-        declared_dfi.requires_data_function_context = (
-            found_dfi.requires_data_function_context
+        declared_dfi.requires_pipe_context = (
+            found_dfi.requires_pipe_context
         )  # TODO: or require explicit?
         # Override any found annotations with declared ones
         # for input in declared_dfi.inputs:
@@ -176,37 +172,33 @@ class DataFunctionDefinition(ComponentUri):
             return declared_dfi
         return found_dfi
 
-    def _get_function_interface(
-        self, env: Environment
-    ) -> Optional[DataFunctionInterface]:
-        if self.function_callable is None:
+    def _get_pipe_interface(self, env: Environment) -> Optional[PipeInterface]:
+        if self.pipe_callable is None:
             assert self.is_composite
             # TODO: only supports chain
-            input = ensure_data_function(env, self.sub_graph[0])
-            output = ensure_data_function(env, self.sub_graph[-1])
+            input = ensure_pipe(env, self.sub_graph[0])
+            output = ensure_pipe(env, self.sub_graph[-1])
             input_interface = input.get_interface(env)
-            return DataFunctionInterface(
+            return PipeInterface(
                 inputs=input_interface.inputs,
                 output=output.get_interface(env).output,
-                requires_data_function_context=input_interface.requires_data_function_context,
+                requires_pipe_context=input_interface.requires_pipe_context,
             )
-        if hasattr(self.function_callable, "get_interface"):
-            return self.function_callable.get_interface()
-        return DataFunctionInterface.from_data_function_definition(
-            self.function_callable
-        )
+        if hasattr(self.pipe_callable, "get_interface"):
+            return self.pipe_callable.get_interface()
+        return PipeInterface.from_pipe_definition(self.pipe_callable)
 
-    def _get_declared_interface(self) -> DataFunctionInterface:
+    def _get_declared_interface(self) -> PipeInterface:
         inputs = []
         if self.declared_inputs:
             for name, annotation in self.declared_inputs.items():
                 inputs.append(
-                    DataFunctionAnnotation.from_type_annotation(annotation, name=name)
+                    PipeAnnotation.from_type_annotation(annotation, name=name)
                 )
         output = None
         if self.declared_output:
-            output = DataFunctionAnnotation.from_type_annotation(self.declared_output)
-        return DataFunctionInterface(inputs=inputs, output=output,)
+            output = PipeAnnotation.from_type_annotation(self.declared_output)
+        return PipeInterface(inputs=inputs, output=output,)
 
     def associate_with_module(self, module: BasisModule) -> ComponentUri:
         new_subs = []
@@ -215,9 +207,9 @@ class DataFunctionDefinition(ComponentUri):
                 new_subs.append(sub.associate_with_module(module))
         return self.clone(module_name=module.name, sub_graph=new_subs)
 
-    def as_data_function(self) -> DataFunction:
-        df = DataFunction(
-            component_type=ComponentType.DataFunction,
+    def as_pipe(self) -> Pipe:
+        df = Pipe(
+            component_type=ComponentType.Pipe,
             name=self.name,
             module_name=self.module_name,
             version=self.version,
@@ -226,14 +218,12 @@ class DataFunctionDefinition(ComponentUri):
         return df
 
 
-DataFunctionDefinitionLike = Union[DataFunctionCallable, DataFunctionDefinition]
-DataFunctionLike = Union[DataFunctionCallable, DataFunctionDefinition, DataFunction]
+PipeDefinitionLike = Union[PipeCallable, PipeDefinition]
+PipeLike = Union[PipeCallable, PipeDefinition, Pipe]
 
 
-def data_function_definition_factory(
-    function_callable: Optional[
-        DataFunctionCallable
-    ],  # Composite DFs don't have a callable
+def pipe_definition_factory(
+    pipe_callable: Optional[PipeCallable],  # Composite DFs don't have a callable
     name: str = None,
     version: str = None,
     compatible_runtimes: str = None,
@@ -241,18 +231,18 @@ def data_function_definition_factory(
     inputs: Optional[Dict[str, str]] = None,
     output: Optional[str] = None,
     **kwargs: Any,
-) -> DataFunctionDefinition:
+) -> PipeDefinition:
     if name is None:
-        if function_callable is None:
+        if pipe_callable is None:
             raise
-        name = make_data_function_name(function_callable)
+        name = make_pipe_name(pipe_callable)
     runtime_class = get_runtime_class(compatible_runtimes)
-    return DataFunctionDefinition(
-        component_type=ComponentType.DataFunction,
+    return PipeDefinition(
+        component_type=ComponentType.Pipe,
         name=name,
         module_name=module_name,
         version=version,
-        function_callable=function_callable,
+        pipe_callable=pipe_callable,
         compatible_runtime_classes=[runtime_class],
         declared_inputs=inputs,
         declared_output=output,
@@ -260,8 +250,8 @@ def data_function_definition_factory(
     )
 
 
-def data_function(
-    df_or_name: Union[str, DataFunctionCallable] = None,
+def pipe(
+    df_or_name: Union[str, PipeCallable] = None,
     name: str = None,
     version: str = None,
     compatible_runtimes: str = None,
@@ -270,11 +260,11 @@ def data_function(
     state_class: Optional[Type] = None,
     inputs: Optional[Dict[str, str]] = None,
     output: Optional[str] = None,
-    # test_data: DataFunctionTestCaseLike = None,
-) -> Union[Callable, DataFunctionDefinition]:
+    # test_data: PipeTestCaseLike = None,
+) -> Union[Callable, PipeDefinition]:
     if isinstance(df_or_name, str) or df_or_name is None:
         return partial(
-            data_function,
+            pipe,
             name=df_or_name,
             version=version,
             compatible_runtimes=compatible_runtimes,
@@ -284,7 +274,7 @@ def data_function(
             inputs=inputs,
             output=output,
         )
-    return data_function_definition_factory(
+    return pipe_definition_factory(
         df_or_name,
         name=name,
         version=version,
@@ -297,49 +287,45 @@ def data_function(
     )
 
 
-def data_function_chain(
-    name: str, function_chain: List[Union[DataFunctionLike, str]], **kwargs
-) -> DataFunctionDefinition:
+def pipe_chain(
+    name: str, pipe_chain: List[Union[PipeLike, str]], **kwargs
+) -> PipeDefinition:
     sub_funcs = []
-    for fn in function_chain:
+    for fn in pipe_chain:
         if isinstance(fn, str):
-            uri = ComponentUri.from_str(fn, component_type=ComponentType.DataFunction)
+            uri = ComponentUri.from_str(fn, component_type=ComponentType.Pipe)
         elif isinstance(fn, ComponentUri):
             uri = fn
         elif callable(fn):
-            uri = make_data_function_definition(fn, **kwargs)
+            uri = make_pipe_definition(fn, **kwargs)
         else:
-            raise TypeError(f"Invalid function uri in chain {fn}")
+            raise TypeError(f"Invalid pipe uri in chain {fn}")
         sub_funcs.append(uri)
-    return data_function_definition_factory(
+    return pipe_definition_factory(
         None, name=name, sub_graph=sub_funcs, is_composite=True, **kwargs
     )
 
 
-def make_data_function_definition(
-    dfl: DataFunctionDefinitionLike, **kwargs
-) -> DataFunctionDefinition:
-    if isinstance(dfl, DataFunction):
-        raise TypeError(f"Already a DataFunction {dfl}")
-    if isinstance(dfl, DataFunctionDefinition):
+def make_pipe_definition(dfl: PipeDefinitionLike, **kwargs) -> PipeDefinition:
+    if isinstance(dfl, Pipe):
+        raise TypeError(f"Already a Pipe {dfl}")
+    if isinstance(dfl, PipeDefinition):
         return dfl
-    return data_function_definition_factory(dfl, **kwargs)
+    return pipe_definition_factory(dfl, **kwargs)
 
 
-def make_data_function(dfl: DataFunctionLike, **kwargs) -> DataFunction:
-    if isinstance(dfl, DataFunction):
+def make_pipe(dfl: PipeLike, **kwargs) -> Pipe:
+    if isinstance(dfl, Pipe):
         return dfl
-    dfd = make_data_function_definition(dfl, **kwargs)
-    return dfd.as_data_function()
+    dfd = make_pipe_definition(dfl, **kwargs)
+    return dfd.as_pipe()
 
 
-def ensure_data_function(
-    env: Environment, df_like: Union[DataFunctionLike, str]
-) -> DataFunction:
-    if isinstance(df_like, DataFunction):
+def ensure_pipe(env: Environment, df_like: Union[PipeLike, str]) -> Pipe:
+    if isinstance(df_like, Pipe):
         return df_like
-    if isinstance(df_like, DataFunctionDefinition):
-        return df_like.as_data_function()
+    if isinstance(df_like, PipeDefinition):
+        return df_like.as_pipe()
     if isinstance(df_like, str) or isinstance(df_like, ComponentUri):
-        return env.get_function(df_like)
-    return make_data_function(df_like)
+        return env.get_pipe(df_like)
+    return make_pipe(df_like)

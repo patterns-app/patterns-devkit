@@ -3,13 +3,13 @@ from __future__ import annotations
 from pandas import DataFrame
 
 from basis.core.data_block import DataBlock, DataSet
-from basis.core.data_function import data_function
-from basis.core.sql.data_function import sql_data_function
-from basis.testing.functions import DataFunctionTest
+from basis.core.pipe import pipe
+from basis.core.sql.pipe import sql_pipe
+from basis.testing.pipes import PipeTest
 from basis.utils.typing import T
 
-accumulator_test = DataFunctionTest(
-    function="accumulator",
+accumulator_test = PipeTest(
+    pipe="accumulator",
     tests=[
         {
             "name": "test_empty_this",
@@ -128,9 +128,9 @@ accumulator_test = DataFunctionTest(
 )
 
 
-# Note this function is special case where cannot specify dataset as output (even tho practically it is)
+# Note this pipe is special case where cannot specify dataset as output (even tho practically it is)
 # Since it IS part of a dataset creation
-@data_function(name="accumulator")  # , test_data="test_accumulator.yml")
+@pipe(name="accumulator")  # , test_data="test_accumulator.yml")
 def dataframe_accumulator(
     input: DataBlock[T], this: DataBlock[T] = None,
 ) -> DataFrame[T]:
@@ -141,7 +141,7 @@ def dataframe_accumulator(
     return records
 
 
-sql_accumulator = sql_data_function(
+sql_accumulator = sql_pipe(
     name="accumulator",
     sql="""
     select -- DataBlock[T]

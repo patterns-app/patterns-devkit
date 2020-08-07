@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, U
 from pandas import DataFrame
 from sqlalchemy.orm import close_all_sessions  # type: ignore
 
-from basis.core.data_function import DataFunctionLike
+from basis.core.pipe import PipeLike
 from basis.core.environment import Environment
 from basis.core.streams import InputBlocks
 from basis.core.typing.inference import (
@@ -36,16 +36,16 @@ class TestDataBlock:
     data_raw: Optional[str] = None
 
 
-class DataFunctionTestCase:
+class PipeTestCase:
     def __init__(
         self,
         name: str,
-        function: Union[DataFunctionLike, str],
+        pipe: Union[PipeLike, str],
         test_datas: List[Dict[str, TestDataBlock]],
         ignored_fields: List[str] = None,
     ):
         self.name = name
-        self.function = function
+        self.pipe = pipe
         self.test_datas = test_datas
         self.ignored_fields = ignored_fields or []
 
@@ -53,22 +53,19 @@ class DataFunctionTestCase:
         raise
 
 
-class DataFunctionTest:
+class PipeTest:
     def __init__(
-        self,
-        function: Union[DataFunctionLike, str],
-        tests: List[Dict],
-        module: BasisModule = None,
+        self, pipe: Union[PipeLike, str], tests: List[Dict], module: BasisModule = None,
     ):
-        self.function = function
+        self.pipe = pipe
         self.module = module
         self._raw_tests = tests
 
-    def get_tests(self) -> List[DataFunctionTestCase]:
+    def get_tests(self) -> List[PipeTestCase]:
         return self.process_raw_tests(self._raw_tests)
 
-    def process_raw_tests(self, test_cases: List[Dict]) -> List[DataFunctionTestCase]:
-        cases: List[DataFunctionTestCase] = []
+    def process_raw_tests(self, test_cases: List[Dict]) -> List[PipeTestCase]:
+        cases: List[PipeTestCase] = []
         for case in test_cases:
             test_name = case["name"]
             if isinstance(case["test_data"], list):
@@ -89,9 +86,9 @@ class DataFunctionTest:
                         otype_like=otype, data_frame=df, data_raw=data
                     )
                 processed_test_datas.append(test_data_blocks)
-            dfcase = DataFunctionTestCase(
+            dfcase = PipeTestCase(
                 name=test_name,
-                function=self.function,
+                pipe=self.pipe,
                 test_datas=processed_test_datas,
                 ignored_fields=case.get("ignored_fields", []),
             )
@@ -149,14 +146,14 @@ class DataFunctionTest:
             drop_db(conn_url, db_name)
 
     def run(self, **env_args: Any):
-        # TODO: clean this function up
+        # TODO: clean this pipe up
         for case in self.get_tests():
             print(f"{case.name}:")
             with self.test_env(**env_args) as env:
-                if isinstance(self.function, str):
-                    fn = env.get_function(self.function)
+                if isinstance(self.pipe, str):
+                    fn = env.get_pipe(self.pipe)
                 else:
-                    fn = self.function
+                    fn = self.pipe
                 dfi = fn.get_interface(env)
                 assert dfi is not None
                 test_node = env.add_node("_test_node", fn)
@@ -206,20 +203,20 @@ class DataFunctionTest:
                         raise e
 
 
-DataFunctionTestCaseLike = Union[DataFunctionTestCase, str]
+PipeTestCaseLike = Union[PipeTestCase, str]
 
 
-# def test_cases_from_yaml(yml: str, module: BasisModule) -> List[DataFunctionTestCase]:
+# def test_cases_from_yaml(yml: str, module: BasisModule) -> List[PipeTestCase]:
 #     d = strictyaml.load(yml).data
-#     fn = d.get("function")
-#     fn = module.get_function(fn)
+#     fn = d.get("pipe")
+#     fn = module.get_pipe(fn)
 #     tests = d.get("tests")
 #     cases = []
 #     for test_name, test_inputs in tests.items():
 #         test_data = {}
 #         for input_name, data in test_inputs.items():
 #             test_data[input_name] = pd.read_csv(StringIO(data.strip()))
-#         DataFunctionTestCase(
-#             name=test_name, function=fn, test_data=test_data,
+#         PipeTestCase(
+#             name=test_name, pipe=fn, test_data=test_data,
 #         )
 #     return cases

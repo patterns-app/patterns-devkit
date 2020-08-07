@@ -9,6 +9,6 @@ def getting_started_example(env: Environment):
         config={"api_key": "xxxxxxxx"},
     )
     env.add_node(
-        name="ltv_model", function="bi.TransactionLTVModel", upstream="stripe_txs",
+        name="ltv_model", pipe="bi.TransactionLTVModel", upstream="stripe_txs",
     )
     env.update_all()

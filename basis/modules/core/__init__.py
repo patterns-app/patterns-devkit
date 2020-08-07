@@ -3,14 +3,10 @@ from basis.core.module import BasisModule
 from ...core.component import ComponentType
 from ...core.typing.object_type import ConflictBehavior, ObjectType
 from .external.static import extract_csv, extract_dataframe
-from .functions.accumulate_as_dataset import accumulate_as_dataset
-from .functions.accumulator import (
-    accumulator_test,
-    dataframe_accumulator,
-    sql_accumulator,
-)
-from .functions.as_dataset import as_dataset
-from .functions.dedupe import dedupe_test, dedupe_unique_keep_newest_row
+from .pipes.accumulate_as_dataset import accumulate_as_dataset
+from .pipes.accumulator import accumulator_test, dataframe_accumulator, sql_accumulator
+from .pipes.as_dataset import as_dataset
+from .pipes.dedupe import dedupe_test, dedupe_unique_keep_newest_row
 
 AnyType = ObjectType(
     component_type=ComponentType.ObjectType,
@@ -28,7 +24,7 @@ module = BasisModule(
     py_module_path=__file__,
     py_module_name=__name__,
     otypes=[AnyType, "otypes/core_test_type.yml"],
-    functions=[
+    pipes=[
         accumulate_as_dataset,
         as_dataset,
         dedupe_unique_keep_newest_row,

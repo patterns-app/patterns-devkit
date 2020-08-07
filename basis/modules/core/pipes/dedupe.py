@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from basis.core.sql.data_function import sql_data_function
-from basis.testing.functions import DataFunctionTest
+from basis.core.sql.pipe import sql_pipe
+from basis.testing.pipes import PipeTest
 
-# dedupe_unique_keep_max_value = sql_data_function(
+# dedupe_unique_keep_max_value = sql_pipe(
 #     name="dedupe_unique_keep_max_value",
 #     sql="""
 # select:T
@@ -30,7 +30,7 @@ from basis.testing.functions import DataFunctionTest
 # )
 
 
-# dedupe_unique_keep_first_value = sql_data_function(
+# dedupe_unique_keep_first_value = sql_pipe(
 #     name="dedupe_unique_keep_first_value",
 #     compatible_runtimes="postgres",
 #     sql="""
@@ -53,7 +53,7 @@ from basis.testing.functions import DataFunctionTest
 
 # TODO: currently no-op when no unique columns specified, should probably be ALL columns
 #   but _very_ expensive. In general any deduping on non-indexed columns will be costly.
-dedupe_unique_keep_newest_row = sql_data_function(
+dedupe_unique_keep_newest_row = sql_pipe(
     name="dedupe_unique_keep_newest_row",
     compatible_runtimes="postgres",
     sql="""
@@ -83,8 +83,8 @@ dedupe_unique_keep_newest_row = sql_data_function(
 )
 
 
-dedupe_test = DataFunctionTest(
-    function="dedupe_unique_keep_newest_row",
+dedupe_test = PipeTest(
+    pipe="dedupe_unique_keep_newest_row",
     tests=[
         {
             "name": "test_dupe",

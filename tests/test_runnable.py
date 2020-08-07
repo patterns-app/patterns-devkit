@@ -3,8 +3,8 @@ from __future__ import annotations
 import pytest
 
 from basis.core.data_formats import RecordsList
-from basis.core.data_function_interface import NodeInterfaceManager
-from basis.core.runnable import CompiledDataFunction, Runnable, RunSession, Worker
+from basis.core.pipe_interface import NodeInterfaceManager
+from basis.core.runnable import CompiledPipe, Runnable, RunSession, Worker
 from basis.modules import core
 from tests.utils import (
     TestType1,
@@ -38,9 +38,7 @@ def test_worker():
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
         node.name,
-        CompiledDataFunction(
-            node.data_function.name, node.data_function.get_definition(rt.runtime_class)
-        ),
+        CompiledPipe(node.pipe.name, node.pipe.get_definition(rt.runtime_class)),
         bdfi,
     )
     output = w.run(r)
@@ -62,9 +60,7 @@ def test_worker_output():
     bdfi = dfi_mgr.get_bound_interface()
     r = Runnable(
         node.name,
-        CompiledDataFunction(
-            node.data_function.name, node.data_function.get_definition(rt.runtime_class)
-        ),
+        CompiledPipe(node.pipe.name, node.pipe.get_definition(rt.runtime_class)),
         bdfi,
     )
     outputblock = w.run(r)

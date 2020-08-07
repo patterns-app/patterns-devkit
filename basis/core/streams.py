@@ -13,7 +13,7 @@ from basis.core.data_block import (
     create_data_block_from_records,
 )
 from basis.core.environment import Environment
-from basis.core.node import DataBlockLog, DataFunctionLog, Direction, Node
+from basis.core.node import DataBlockLog, PipeLog, Direction, Node
 from basis.core.storage.storage import Storage
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike, otype_like_to_uri
 from basis.utils.common import ensure_list
@@ -116,15 +116,15 @@ class DataBlockStream:
             # Only exclude DRs processed as INPUT
             filter_clause = and_(
                 DataBlockLog.direction == Direction.INPUT,
-                DataFunctionLog.node_name == self.unprocessed_by.name,
+                PipeLog.node_name == self.unprocessed_by.name,
             )
         else:
             # No DB cycles allowed
             # Exclude DRs processed as INPUT and DRs outputted
-            filter_clause = DataFunctionLog.node_name == self.unprocessed_by.name
+            filter_clause = PipeLog.node_name == self.unprocessed_by.name
         already_processed_drs = (
             Query(DataBlockLog.data_block_id)
-            .join(DataFunctionLog)
+            .join(PipeLog)
             .filter(filter_clause)
             .distinct()
         )
@@ -144,12 +144,10 @@ class DataBlockStream:
             return query
         eligible_input_drs = (
             Query(DataBlockLog.data_block_id)
-            .join(DataFunctionLog)
+            .join(PipeLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                DataFunctionLog.node_name.in_(
-                    [c.name for c in self.get_upstream(ctx.env)]
-                ),
+                PipeLog.node_name.in_([c.name for c in self.get_upstream(ctx.env)]),
             )
             .distinct()
         )
@@ -248,8 +246,8 @@ class DataBlockStream:
 
 DataBlockStreamable = Union[DataBlockStream, Node]
 DataBlockStreamLike = Union[DataBlockStreamable, str]
-FunctionNodeRawInput = Any  # Union[DataBlockStreamLike, Dict[str, DataBlockStreamLike]] + records object formats # TODO
-FunctionNodeInput = Union[DataBlockStreamable, Dict[str, DataBlockStreamable]]
+PipeNodeRawInput = Any  # Union[DataBlockStreamLike, Dict[str, DataBlockStreamLike]] + records object formats # TODO
+PipeNodeInput = Union[DataBlockStreamable, Dict[str, DataBlockStreamable]]
 InputStreams = Union[DataBlockStream, Dict[str, DataBlockStream]]
 InputBlocks = Dict[str, DataBlockMetadata]
 

@@ -9,22 +9,16 @@ from pandas import DataFrame
 from basis import Environment
 from basis.core.component import ComponentType
 from basis.core.data_block import DataBlock
-from basis.core.data_function import (
-    DataFunction,
-    DataFunctionInterface,
-    DataFunctionLike,
-    data_function,
-    data_function_chain,
-)
-from basis.core.data_function_interface import DataFunctionAnnotation
 from basis.core.graph import Graph
 from basis.core.node import Node
-from basis.core.runnable import DataFunctionContext
+from basis.core.pipe import Pipe, PipeInterface, PipeLike, pipe, pipe_chain
+from basis.core.pipe_interface import PipeAnnotation
+from basis.core.runnable import PipeContext
 from basis.core.runtime import RuntimeClass
-from basis.core.sql.data_function import sql_data_function
+from basis.core.sql.pipe import sql_pipe
 from basis.core.streams import DataBlockStream
 from basis.modules import core
-from basis.modules.core.functions.accumulate_as_dataset import accumulate_as_dataset
+from basis.modules.core.pipes.accumulate_as_dataset import accumulate_as_dataset
 from basis.utils.typing import T, U
 from tests.utils import (
     TestType1,

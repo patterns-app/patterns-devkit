@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from basis.core.data_block import DataBlock, DataSet, DataSetMetadata
-from basis.core.data_function import data_function
-from basis.core.runnable import DataFunctionContext
+from basis.core.pipe import pipe
+from basis.core.runnable import PipeContext
 from basis.utils.typing import T
 
 
-@data_function("as_dataset", compatible_runtimes="database")
-def as_dataset(ctx: DataFunctionContext, input: DataBlock[T]) -> DataSet[T]:
+@pipe("as_dataset", compatible_runtimes="database")
+def as_dataset(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
     name = ctx.get_config("dataset_name")
     ds = (
         ctx.execution_context.metadata_session.query(DataSetMetadata)

@@ -2,7 +2,7 @@
 name = "basis"
 version = "0.1.1"
 license = "BSD-3-Clause"
-description = "Functional typed data pipelines"
+description = "Functional data pipelines"
 authors = ["Ken Van Haren <kenvanharen@gmail.com>"]
 
 [tool.poetry.dependencies]

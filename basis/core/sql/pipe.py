@@ -8,19 +8,18 @@ from typing import Any, Dict, List, Optional, Tuple
 import sqlparse
 from basis.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMetadata
 from basis.core.data_formats import DataFormat
-from basis.core.data_function import (
-    DataFunctionDefinition,
-    DataFunctionInterface,
+from basis.core.pipe import (
     DataInterfaceType,
-    data_function_definition_factory,
+    PipeDefinition,
+    PipeInterface,
+    pipe_definition_factory,
 )
-from basis.core.data_function_interface import (
+from basis.core.pipe_interface import (
     BadAnnotationException,
-    DataFunctionAnnotation,
+    PipeAnnotation,
     re_type_hint,
 )
-from basis.core.runnable import DataFunctionContext
-
+from basis.core.runnable import PipeContext
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from basis.core.runtime import RuntimeClass
 from basis.utils.common import md5_hash
@@ -56,16 +55,16 @@ from sqlparse import tokens
 @dataclass(frozen=True)
 class TypedSqlStatement:
     cleaned_sql: str
-    interface: DataFunctionInterface
+    interface: PipeInterface
 
 
-def annotation_from_comment_annotation(ann: str, **kwargs) -> DataFunctionAnnotation:
+def annotation_from_comment_annotation(ann: str, **kwargs) -> PipeAnnotation:
     ann = ann.strip().strip("-# ")
     # TODO: make this more explicit? So we don't have accidental annotation (any one word comment would pass...)
     # if not ann.startswith(":"):
     #     raise BadAnnotationException
     # ann = ann.strip(": ")
-    return DataFunctionAnnotation.from_type_annotation(ann, **kwargs)
+    return PipeAnnotation.from_type_annotation(ann, **kwargs)
 
 
 def extract_interface(
@@ -155,7 +154,7 @@ def extract_interface(
         except BadAnnotationException:
             pass
     if output is None:
-        output = DataFunctionAnnotation.create(data_format_class="DataSet")
+        output = PipeAnnotation.create(data_format_class="DataSet")
     inputs = []
     for name, ann in table_refs.items():
         # print("input:", name, ann)
@@ -165,18 +164,16 @@ def extract_interface(
                 continue
             except BadAnnotationException:
                 pass
-        inputs.append(
-            DataFunctionAnnotation.create(name=name, data_format_class="DataSet")
-        )
+        inputs.append(PipeAnnotation.create(name=name, data_format_class="DataSet"))
     return TypedSqlStatement(
         cleaned_sql="".join(new_sql),
-        interface=DataFunctionInterface(inputs=inputs, output=output),
+        interface=PipeInterface(inputs=inputs, output=output),
     )
 
 
 # def extract_and_replace_sql_input(
 #     sql: str, m: Match, input_table_names: Dict[str, str]
-# ) -> Tuple[str, DataFunctionAnnotation]:
+# ) -> Tuple[str, PipeAnnotation]:
 #     # TODO: strip sql comments
 #     groups: Dict[str, str] = m.groupdict()
 #     name = groups["table_name"]
@@ -185,7 +182,7 @@ def extract_interface(
 #     annotation = f"DataBlock[{otype}]"
 #     if is_optional:
 #         annotation = f"Optional[{annotation}]"
-#     tda = DataFunctionAnnotation.from_type_annotation(
+#     tda = PipeAnnotation.from_type_annotation(
 #         annotation, name=name  # TODO: DataSet
 #     )
 #     # By default, just replace with existing table statement and alias
@@ -208,10 +205,10 @@ def extract_interface(
 #     if m is not None:
 #         output_type = m.groupdict()["type"]
 #         sql = select_type_stmt.sub(r"\g<select>", sql, 1)
-#         # output = DataFunctionAnnotation(
+#         # output = PipeAnnotation(
 #         #     data_format_class="DataSet", otype_like=output_type
 #         # )
-#         output = DataFunctionAnnotation.from_type_annotation(
+#         output = PipeAnnotation.from_type_annotation(
 #             f"DataBlock[{output_type}]"
 #         )  # TODO: DataSet
 #     input_types = []
@@ -225,7 +222,7 @@ def extract_interface(
 #         input_types.append(tda)
 #     return TypedSqlStatement(
 #         cleaned_sql=sql,
-#         interface=DataFunctionInterface(inputs=input_types, output=output),
+#         interface=PipeInterface(inputs=input_types, output=output),
 #     )
 
 
@@ -237,12 +234,12 @@ def extract_types(
     return extract_interface(sql, input_table_names)
 
 
-class SqlDataFunctionWrapper:
+class SqlPipeWrapper:
     def __init__(self, sql: str):
         self.sql = sql
 
     def __call__(
-        self, *args: DataFunctionContext, **inputs: DataInterfaceType
+        self, *args: PipeContext, **inputs: DataInterfaceType
     ) -> StoredDataBlockMetadata:
         ctx = args[0]
         if ctx.execution_context.current_runtime is None:
@@ -257,7 +254,7 @@ class SqlDataFunctionWrapper:
                 raise NotImplementedError(f"Unsupported input type {i}")
         sql = self.get_compiled_sql(ctx, inputs)
         # if ctx.resolved_output_otype is None:
-        #     raise Exception("SQL function should always produce output!")
+        #     raise Exception("SQL pipe should always produce output!")
 
         # TODO: oof this is doozy, will get fixed as part of runtime re-think
         db_api = ctx.execution_context.current_runtime.get_database_api(
@@ -283,7 +280,7 @@ class SqlDataFunctionWrapper:
         return table_names
 
     def get_compiled_sql(
-        self, ctx: DataFunctionContext, inputs: Dict[str, DataBlock] = None,
+        self, ctx: PipeContext, inputs: Dict[str, DataBlock] = None,
     ):
         from basis.core.sql.utils import compile_jinja_sql
 
@@ -304,23 +301,23 @@ class SqlDataFunctionWrapper:
     ) -> TypedSqlStatement:
         return extract_types(self.sql, self.get_input_table_names(inputs))
 
-    def get_interface(self) -> DataFunctionInterface:
+    def get_interface(self) -> PipeInterface:
         stmt = self.get_typed_statement()
         return stmt.interface
 
 
-def sql_data_function_factory(
+def sql_pipe_factory(
     name: str,
     sql: str = None,
     version: str = None,
     compatible_runtimes: str = None,  # TODO: engine support
     module_name: str = None,
     **kwargs,  # TODO: explicit options
-) -> DataFunctionDefinition:
+) -> PipeDefinition:
     if not sql:
         raise ValueError("Must give sql")
-    return data_function_definition_factory(
-        SqlDataFunctionWrapper(sql),
+    return pipe_definition_factory(
+        SqlPipeWrapper(sql),
         name=name,
         module_name=module_name,
         version=version,
@@ -329,4 +326,4 @@ def sql_data_function_factory(
     )
 
 
-sql_data_function = sql_data_function_factory
+sql_pipe = sql_pipe_factory

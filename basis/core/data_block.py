@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple
 
 import sqlalchemy as sa
 from pandas import DataFrame
-from sqlalchemy import Boolean, Column, ForeignKey, String, event, or_, Integer
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, event, or_
 from sqlalchemy.orm import RelationshipProperty, Session, relationship
 
 from basis.core.data_formats import (
@@ -141,11 +141,11 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 
     def created_by(self, sess: Session) -> Optional[str]:
         from basis.core.node import DataBlockLog
-        from basis.core.node import DataFunctionLog
+        from basis.core.node import PipeLog
         from basis.core.node import Direction
 
         result = (
-            sess.query(DataFunctionLog.node_name)
+            sess.query(PipeLog.node_name)
             .join(DataBlockLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,

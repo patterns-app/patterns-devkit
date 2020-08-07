@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from basis.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
-from basis.core.node import DataBlockLog, DataFunctionLog, Direction
+from basis.core.node import DataBlockLog, PipeLog, Direction
 from basis.core.streams import DataBlockStream
 from tests.utils import (
     TestType1,
@@ -48,13 +48,13 @@ class TestStreams:
         assert s.get_next(self.ctx) is None
 
     def test_stream_unprocessed_eligible(self):
-        dfl = DataFunctionLog(
+        dfl = PipeLog(
             node_name=self.node_source.name,
-            data_function_uri=self.node_source.data_function.uri,
+            pipe_uri=self.node_source.pipe.uri,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl])
 
@@ -63,21 +63,19 @@ class TestStreams:
         assert s.get_next(self.ctx) == self.dr1t1
 
     def test_stream_unprocessed_ineligible_already_input(self):
-        dfl = DataFunctionLog(
+        dfl = PipeLog(
             node_name=self.node_source.name,
-            data_function_uri=self.node_source.data_function.uri,
+            pipe_uri=self.node_source.pipe.uri,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        dfl2 = DataFunctionLog(
-            node_name=self.node1.name,
-            data_function_uri=self.node1.data_function.uri,
-            runtime_url="test",
+        dfl2 = PipeLog(
+            node_name=self.node1.name, pipe_uri=self.node1.pipe.uri, runtime_url="test",
         )
         drl2 = DataBlockLog(
-            data_function_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
+            pipe_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
@@ -90,21 +88,19 @@ class TestStreams:
         By default we don't input a DB that has already been output by a DF, _even if that DB was never input_,
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
-        dfl = DataFunctionLog(
+        dfl = PipeLog(
             node_name=self.node_source.name,
-            data_function_uri=self.node_source.data_function.uri,
+            pipe_uri=self.node_source.pipe.uri,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        dfl2 = DataFunctionLog(
-            node_name=self.node1.name,
-            data_function_uri=self.node1.data_function.uri,
-            runtime_url="test",
+        dfl2 = PipeLog(
+            node_name=self.node1.name, pipe_uri=self.node1.pipe.uri, runtime_url="test",
         )
         drl2 = DataBlockLog(
-            data_function_log=dfl2, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            pipe_log=dfl2, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
@@ -117,13 +113,13 @@ class TestStreams:
         assert s2.get_next(self.ctx) == self.dr1t1
 
     def test_stream_unprocessed_eligible_otype(self):
-        dfl = DataFunctionLog(
+        dfl = PipeLog(
             node_name=self.node_source.name,
-            data_function_uri=self.node_source.data_function.uri,
+            pipe_uri=self.node_source.pipe.uri,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            data_function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl])
 

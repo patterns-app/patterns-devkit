@@ -26,21 +26,21 @@ from basis.core.data_block import (
 )
 from basis.core.data_formats import DataFrameGenerator, RecordsListGenerator
 from basis.core.data_formats.base import ReusableGenerator
-from basis.core.data_function import (
-    DataFunctionDefinition,
-    DataFunctionInterface,
+from basis.core.pipe import (
+    PipeDefinition,
+    PipeInterface,
     DataInterfaceType,
     InputExhaustedException,
 )
-from basis.core.data_function_interface import (
-    BoundFunctionInterface,
-    DataFunctionAnnotation,
+from basis.core.pipe_interface import (
+    BoundPipeInterface,
+    PipeAnnotation,
     NodeInput,
     NodeInterfaceManager,
 )
 from basis.core.environment import Environment
 from basis.core.metadata.orm import BaseModel
-from basis.core.node import DataBlockLog, DataFunctionLog, Direction, Node, get_state
+from basis.core.node import DataBlockLog, PipeLog, Direction, Node, get_state
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from basis.core.storage.storage import LocalMemoryStorageEngine, Storage
 from basis.core.typing.object_type import ObjectType
@@ -91,10 +91,10 @@ class LanguageDialectSupport:
 
 
 @dataclass(frozen=True)
-class CompiledDataFunction:  # TODO: this is unused currently, just a dumb wrapper on the df
+class CompiledPipe:  # TODO: this is unused currently, just a dumb wrapper on the df
     name: str
     # code: str
-    function: DataFunctionDefinition  # TODO: compile this to actual string code we can run aaannnnnnyyywhere
+    pipe: PipeDefinition  # TODO: compile this to actual string code we can run aaannnnnnyyywhere
     # language_support: Iterable[LanguageDialect] = None  # TODO
 
 
@@ -109,20 +109,20 @@ class RuntimeSpecification:
 @dataclass(frozen=True)
 class Runnable:
     node_name: str
-    compiled_data_function: CompiledDataFunction
+    compiled_pipe: CompiledPipe
     # runtime_specification: RuntimeSpecification # TODO: support this
-    data_function_interface: BoundFunctionInterface
+    pipe_interface: BoundPipeInterface
     configuration: Dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class RunSession:
-    data_function_log: DataFunctionLog
+    pipe_log: PipeLog
     metadata_session: Session  # Make this a URL or other jsonable and then runtime can connect
 
     def log(self, block: DataBlockMetadata, direction: Direction):
         drl = DataBlockLog(  # type: ignore
-            data_function_log=self.data_function_log,
+            pipe_log=self.pipe_log,
             data_block=block,
             direction=direction,
             processed_at=utcnow(),
@@ -162,15 +162,15 @@ class ExecutionContext:
         return ExecutionContext(**args)  # type: ignore
 
     @contextmanager
-    def start_data_function_run(self, node: Node) -> Generator[RunSession, None, None]:
+    def start_pipe_run(self, node: Node) -> Generator[RunSession, None, None]:
         assert self.current_runtime is not None, "Runtime not set"
         node_state = node.get_state(self.metadata_session) or {}
-        dfl = DataFunctionLog(  # type: ignore
+        dfl = PipeLog(  # type: ignore
             node_name=node.name,
             node_start_state=node_state,
             node_end_state=node_state,
-            data_function_uri=node.data_function.uri,
-            # data_function_config=node.data_function.configuration,  # TODO
+            pipe_uri=node.pipe.uri,
+            # pipe_config=node.pipe.configuration,  # TODO
             runtime_url=self.current_runtime.url,
             started_at=utcnow(),
         )
@@ -222,12 +222,12 @@ class ExecutionContext:
 
 
 @dataclass(frozen=True)
-class DataFunctionContext:  # TODO: (Generic[C, S]):
+class PipeContext:  # TODO: (Generic[C, S]):
     execution_context: ExecutionContext
     worker: Worker
     runnable: Runnable
     inputs: List[NodeInput]
-    data_function_log: DataFunctionLog
+    pipe_log: PipeLog
     # state: Dict = field(default_factory=dict)
     # emitted_states: List[Dict] = field(default_factory=list)
     # resolved_output_otype: Optional[ObjectType]
@@ -240,11 +240,11 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
 
     def get_state(self, key: Optional[str] = None) -> Any:
         if key is not None:
-            return self.data_function_log.node_end_state.get(key)
-        return self.data_function_log.node_end_state
+            return self.pipe_log.node_end_state.get(key)
+        return self.pipe_log.node_end_state
 
     def emit_state(self, new_state: Dict):
-        self.data_function_log.node_end_state = new_state
+        self.pipe_log.node_end_state = new_state
 
 
 class ExecutionManager:
@@ -253,7 +253,7 @@ class ExecutionManager:
         self.env = ctx.env
 
     def select_runtime(self, node: Node) -> Runtime:
-        compatible_runtimes = node.data_function.compatible_runtime_classes
+        compatible_runtimes = node.pipe.compatible_runtime_classes
         for runtime in self.ctx.runtimes:
             if (
                 runtime.runtime_class in compatible_runtimes
@@ -263,7 +263,7 @@ class ExecutionManager:
             f"No compatible runtime available for {node} (runtime class {compatible_runtimes} required)"
         )
 
-    def get_bound_data_function_interface(self, node: Node) -> BoundFunctionInterface:
+    def get_bound_pipe_interface(self, node: Node) -> BoundPipeInterface:
         dfi_mgr = NodeInterfaceManager(self.ctx, node)
         return dfi_mgr.get_bound_interface()
 
@@ -276,9 +276,7 @@ class ExecutionManager:
         last_output: Optional[DataBlockMetadata] = None
 
         # Setup for run
-        base_msg = (
-            f"Running node: {cf.green(node.name)} {cf.dimmed(node.data_function.name)}"
-        )
+        base_msg = f"Running node: {cf.green(node.name)} {cf.dimmed(node.pipe.name)}"
         spinner = get_spinner()
         spinner.start(base_msg)
         start = time.time()
@@ -286,18 +284,16 @@ class ExecutionManager:
         n_runs = 0
         try:
             while True:
-                dfi = self.get_bound_data_function_interface(node)
-                df = node.data_function.get_definition(runtime.runtime_class)
+                dfi = self.get_bound_pipe_interface(node)
+                df = node.pipe.get_definition(runtime.runtime_class)
                 if df is None:
                     raise NotImplementedError(
-                        f"No function definition found for {node.data_function.name} and runtime {runtime.runtime_class}"
+                        f"No pipe definition found for {node.pipe.name} and runtime {runtime.runtime_class}"
                     )
                 runnable = Runnable(
                     node_name=node.name,
-                    compiled_data_function=CompiledDataFunction(
-                        name=node.name, function=df,
-                    ),
-                    data_function_interface=dfi,
+                    compiled_pipe=CompiledPipe(name=node.name, pipe=df,),
+                    pipe_interface=dfi,
                     configuration=node.config,
                 )
                 last_output = worker.run(runnable)
@@ -337,11 +333,11 @@ class ExecutionManager:
 
     #
     # def produce(
-    #         self, node_like: Union[ConfiguredDataFunction, str]
+    #         self, node_like: Union[ConfiguredPipe, str]
     # ) -> Optional[DataBlock]:
     #     if isinstance(node_like, str):
     #         node_like = self.env.get_node(node_like)
-    #     assert isinstance(node_like, ConfiguredDataFunction)
+    #     assert isinstance(node_like, ConfiguredPipe)
     #     dependencies = get_all_upstream_dependencies_in_execution_order(self.env, node_like)
     #     for dep in dependencies:
     #         with self.env.execution() as em:
@@ -356,11 +352,11 @@ class Worker:
     def run(self, runnable: Runnable) -> Optional[DataBlockMetadata]:
         output_block: Optional[DataBlockMetadata] = None
         node = self.env.get_node(runnable.node_name)
-        with self.ctx.start_data_function_run(node) as run_session:
-            output = self.execute_data_function(runnable, run_session)
+        with self.ctx.start_pipe_run(node) as run_session:
+            output = self.execute_pipe(runnable, run_session)
             if output is not None:
                 # assert (
-                #     runnable.data_function_interface.resolved_output_otype is not None
+                #     runnable.pipe_interface.resolved_output_otype is not None
                 # )
                 assert (
                     self.ctx.target_storage is not None
@@ -370,37 +366,35 @@ class Worker:
                 if output_block is not None:
                     run_session.log_output(output_block)
 
-            for input in runnable.data_function_interface.inputs:
+            for input in runnable.pipe_interface.inputs:
                 # assert input.bound_data_block is not None, input
                 if input.bound_data_block is not None:
                     run_session.log_input(input.bound_data_block)
         return output_block
 
-    def execute_data_function(
+    def execute_pipe(
         self, runnable: Runnable, run_session: RunSession
     ) -> DataInterfaceType:
         args = []
-        if runnable.data_function_interface.requires_data_function_context:
-            dfc = DataFunctionContext(
+        if runnable.pipe_interface.requires_pipe_context:
+            dfc = PipeContext(
                 self.ctx,
                 worker=self,
                 runnable=runnable,
-                inputs=runnable.data_function_interface.inputs,
-                data_function_log=run_session.data_function_log,
-                # resolved_output_otype=runnable.data_function_interface.resolved_output_otype,
-                # realized_output_otype=runnable.data_function_interface.realized_output_otype,
+                inputs=runnable.pipe_interface.inputs,
+                pipe_log=run_session.pipe_log,
+                # resolved_output_otype=runnable.pipe_interface.resolved_output_otype,
+                # realized_output_otype=runnable.pipe_interface.realized_output_otype,
             )
             args.append(dfc)
-        inputs = runnable.data_function_interface.as_kwargs()
+        inputs = runnable.pipe_interface.as_kwargs()
         mgd_inputs = {
             n: self.get_managed_data_block(block) for n, block in inputs.items()
         }
         assert (
-            runnable.compiled_data_function.function.function_callable is not None
-        ), f"Attempting to execute composite function directly {runnable.compiled_data_function.function}"
-        return runnable.compiled_data_function.function.function_callable(
-            *args, **mgd_inputs
-        )
+            runnable.compiled_pipe.pipe.pipe_callable is not None
+        ), f"Attempting to execute composite pipe directly {runnable.compiled_pipe.pipe}"
+        return runnable.compiled_pipe.pipe.pipe_callable(*args, **mgd_inputs)
 
     def get_managed_data_block(self, block: DataBlockMetadata) -> ManagedDataBlock:
         return block.as_managed_data_block(self.ctx)
@@ -408,8 +402,8 @@ class Worker:
     def conform_output(
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
     ) -> Optional[DataBlockMetadata]:
-        assert runnable.data_function_interface.output is not None
-        # assert runnable.data_function_interface.resolved_output_otype is not None
+        assert runnable.pipe_interface.output is not None
+        # assert runnable.pipe_interface.resolved_output_otype is not None
         assert self.ctx.target_storage is not None
         # TODO: check if these Metadata objects have been added to session!
         #   also figure out what merge actually does
@@ -424,13 +418,10 @@ class Worker:
             return output.data_block
 
         if isinstance(output, abc.Generator):
-            if (
-                runnable.data_function_interface.output.data_format_class
-                == "DataFrameGenerator"
-            ):
+            if runnable.pipe_interface.output.data_format_class == "DataFrameGenerator":
                 output = DataFrameGenerator(output)
             elif (
-                runnable.data_function_interface.output.data_format_class
+                runnable.pipe_interface.output.data_format_class
                 == "RecordsListGenerator"
             ):
                 output = RecordsListGenerator(output)
@@ -445,11 +436,11 @@ class Worker:
             self.ctx.metadata_session,
             self.ctx.local_memory_storage,
             output,
-            # expected_otype=runnable.data_function_interface.resolved_output_otype,
+            # expected_otype=runnable.pipe_interface.resolved_output_otype,
         )
         # ldr = LocalMemoryDataRecords.from_records_object(output)
         # block = DataBlockMetadata(
-        #     otype_uri=runnable.data_function_interface.output_otype.uri
+        #     otype_uri=runnable.pipe_interface.output_otype.uri
         # )
         # sdb = StoredDataBlockMetadata(  # type: ignore
         #     data_block=block,

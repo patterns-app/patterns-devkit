@@ -102,7 +102,7 @@ class Graph:
     def flatten(self) -> Graph:
         """
         Note, this _modifies_ the existing declared Nodes (by setting their `compiled_inputs` attribute)
-        AND creates a new graph with extra / swapped sub-nodes from composite functions
+        AND creates a new graph with extra / swapped sub-nodes from composite pipes
         """
         new_g = self.copy(is_flattened=True)
         for n in list(new_g.nodes()):

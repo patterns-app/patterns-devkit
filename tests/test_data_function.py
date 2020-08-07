@@ -7,18 +7,18 @@ from pandas import DataFrame
 
 from basis.core.component import ComponentType
 from basis.core.data_block import DataBlock
-from basis.core.data_function import (
-    DataFunction,
-    DataFunctionDefinition,
-    DataFunctionInterface,
-    DataFunctionLike,
-    data_function,
+from basis.core.pipe import (
+    Pipe,
+    PipeDefinition,
+    PipeInterface,
+    PipeLike,
+    pipe,
 )
-from basis.core.data_function_interface import DataFunctionAnnotation
+from basis.core.pipe_interface import PipeAnnotation
 from basis.core.node import Node
-from basis.core.runnable import DataFunctionContext
+from basis.core.runnable import PipeContext
 from basis.core.runtime import RuntimeClass
-from basis.core.sql.data_function import sql_data_function
+from basis.core.sql.pipe import sql_pipe
 from basis.modules import core
 from basis.utils.typing import T, U
 from tests.utils import (
@@ -38,7 +38,7 @@ from tests.utils import (
     [
         (
             "DataBlock[Type]",
-            DataFunctionAnnotation(
+            PipeAnnotation(
                 data_format_class="DataBlock",
                 otype_like="Type",
                 # is_iterable=False,
@@ -50,7 +50,7 @@ from tests.utils import (
         ),
         (
             "DataSet[Type]",
-            DataFunctionAnnotation(
+            PipeAnnotation(
                 data_format_class="DataSet",
                 otype_like="Type",
                 # is_iterable=False,
@@ -62,7 +62,7 @@ from tests.utils import (
         ),
         (
             "DataBlock[T]",
-            DataFunctionAnnotation(
+            PipeAnnotation(
                 data_format_class="DataBlock",
                 otype_like="T",
                 # is_iterable=False,
@@ -74,8 +74,8 @@ from tests.utils import (
         ),
     ],
 )
-def test_typed_annotation(annotation: str, expected: DataFunctionAnnotation):
-    tda = DataFunctionAnnotation.from_type_annotation(annotation)
+def test_typed_annotation(annotation: str, expected: PipeAnnotation):
+    tda = PipeAnnotation.from_type_annotation(annotation)
     assert tda == expected
 
 
@@ -89,13 +89,13 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
 
 
 @pytest.mark.parametrize(
-    "function,expected",
+    "pipe,expected",
     [
         (
             df_t1_sink,
-            DataFunctionInterface(
+            PipeInterface(
                 inputs=[
-                    DataFunctionAnnotation(
+                    PipeAnnotation(
                         data_format_class="DataBlock",
                         otype_like="TestType1",
                         name="input",
@@ -107,14 +107,14 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                     )
                 ],
                 output=None,
-                requires_data_function_context=True,
+                requires_pipe_context=True,
             ),
         ),
         (
             df_t1_to_t2,
-            DataFunctionInterface(
+            PipeInterface(
                 inputs=[
-                    DataFunctionAnnotation(
+                    PipeAnnotation(
                         data_format_class="DataBlock",
                         otype_like="TestType1",
                         name="input",
@@ -125,7 +125,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                         original_annotation="DataBlock[TestType1]",
                     )
                 ],
-                output=DataFunctionAnnotation(
+                output=PipeAnnotation(
                     data_format_class="DataFrame",
                     otype_like="TestType2",
                     # is_iterable=False,
@@ -134,14 +134,14 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                     is_variadic=False,
                     original_annotation="DataFrame[TestType2]",
                 ),
-                requires_data_function_context=False,
+                requires_pipe_context=False,
             ),
         ),
         (
             df_generic,
-            DataFunctionInterface(
+            PipeInterface(
                 inputs=[
-                    DataFunctionAnnotation(
+                    PipeAnnotation(
                         data_format_class="DataBlock",
                         otype_like="T",
                         name="input",
@@ -152,7 +152,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                         original_annotation="DataBlock[T]",
                     )
                 ],
-                output=DataFunctionAnnotation(
+                output=PipeAnnotation(
                     data_format_class="DataFrame",
                     otype_like="T",
                     # is_iterable=False,
@@ -161,14 +161,14 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                     is_variadic=False,
                     original_annotation="DataFrame[T]",
                 ),
-                requires_data_function_context=False,
+                requires_pipe_context=False,
             ),
         ),
         (
             df_self,
-            DataFunctionInterface(
+            PipeInterface(
                 inputs=[
-                    DataFunctionAnnotation(
+                    PipeAnnotation(
                         data_format_class="DataBlock",
                         otype_like="T",
                         name="input",
@@ -179,7 +179,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                         is_self_ref=False,
                         original_annotation="DataBlock[T]",
                     ),
-                    DataFunctionAnnotation(
+                    PipeAnnotation(
                         data_format_class="DataBlock",
                         otype_like="T",
                         name="this",
@@ -191,7 +191,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                         original_annotation="DataBlock[T]",
                     ),
                 ],
-                output=DataFunctionAnnotation(
+                output=PipeAnnotation(
                     data_format_class="DataFrame",
                     otype_like="T",
                     # is_iterable=False,
@@ -200,14 +200,14 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                     is_variadic=False,
                     original_annotation="DataFrame[T]",
                 ),
-                requires_data_function_context=False,
+                requires_pipe_context=False,
             ),
         ),
         (
             df_chain_t1_to_t2,
-            DataFunctionInterface(
+            PipeInterface(
                 inputs=[
-                    DataFunctionAnnotation(
+                    PipeAnnotation(
                         data_format_class="DataBlock",
                         otype_like="TestType1",
                         name="input",
@@ -218,7 +218,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                         original_annotation="DataBlock[TestType1]",
                     )
                 ],
-                output=DataFunctionAnnotation(
+                output=PipeAnnotation(
                     data_format_class="DataFrame",
                     otype_like="T",
                     # is_iterable=False,
@@ -227,21 +227,19 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                     is_variadic=False,
                     original_annotation="DataFrame[T]",
                 ),
-                requires_data_function_context=False,
+                requires_pipe_context=False,
             ),
         ),
     ],
 )
-def test_data_function_interface(
-    function: DataFunctionLike, expected: DataFunctionInterface
-):
+def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
     env = make_test_env()
-    if isinstance(function, DataFunctionDefinition):
-        val = function.get_interface(env)
-    elif isinstance(function, Callable):
-        val = DataFunctionInterface.from_data_function_definition(function)
+    if isinstance(pipe, PipeDefinition):
+        val = pipe.get_interface(env)
+    elif isinstance(pipe, Callable):
+        val = PipeInterface.from_pipe_definition(pipe)
     assert val == expected
-    node = Node(env, "_test", function, inputs="mock")
+    node = Node(env, "_test", pipe, inputs="mock")
     assert node._get_interface() == expected
 
 
@@ -250,13 +248,13 @@ def test_data_function_interface(
 #
 #
 # @pytest.mark.parametrize(
-#     "function,expected",
+#     "pipe,expected",
 #     [
 #         (
 #             df_t1_sink,
-#             DataFunctionInterface(
+#             PipeInterface(
 #                 inputs=[
-#                     DataFunctionAnnotation(
+#                     PipeAnnotation(
 #                         data_format_class="DataBlock",
 #                         otype_like="TestType1",
 #                         resolved_otype=TestType1,
@@ -268,16 +266,16 @@ def test_data_function_interface(
 #                     )
 #                 ],
 #                 output=None,
-#                 requires_data_function_context=True,
+#                 requires_pipe_context=True,
 #                 is_connected=True,
 #                 is_resolved=True,
 #             ),
 #         ),
 #         (
 #             df_generic,
-#             DataFunctionInterface(
+#             PipeInterface(
 #                 inputs=[
-#                     DataFunctionAnnotation(
+#                     PipeAnnotation(
 #                         data_format_class="DataBlock",
 #                         otype_like="T",
 #                         resolved_otype=TestType1,
@@ -289,7 +287,7 @@ def test_data_function_interface(
 #                         original_annotation="DataBlock[T]",
 #                     )
 #                 ],
-#                 output=DataFunctionAnnotation(
+#                 output=PipeAnnotation(
 #                     data_format_class="DataFrame",
 #                     otype_like="T",
 #                     resolved_otype=TestType1,
@@ -298,17 +296,17 @@ def test_data_function_interface(
 #                     is_optional=False,
 #                     original_annotation="DataFrame[T]",
 #                 ),
-#                 requires_data_function_context=False,
+#                 requires_pipe_context=False,
 #                 is_connected=True,
 #                 is_resolved=True,
 #             ),
 #         ),
 #     ],
 # )
-# def test_concrete_data_function_interface(
-#     function: Callable, expected: DataFunctionInterface
+# def test_concrete_pipe_interface(
+#     pipe: Callable, expected: PipeInterface
 # ):
-#     dfi = DataFunctionInterface.from_data_function_definition(function)
+#     dfi = PipeInterface.from_pipe_definition(pipe)
 #     dfi.connect_upstream(upstream)
 #     dfi.resolve_otypes(env)
 #     assert dfi == expected
@@ -340,26 +338,26 @@ def test_inputs():
 #     dfi = ds1.get_interface()
 
 
-def test_python_data_function():
+def test_python_pipe():
     env = make_test_env()
-    df = data_function(df_t1_sink)
+    df = pipe(df_t1_sink)
     assert (
         df.name == df_t1_sink.__name__
     )  # TODO: do we really want this implicit name? As long as we error on duplicate should be ok
 
     k = "name1"
-    df = data_function(df_t1_sink, name=k)
+    df = pipe(df_t1_sink, name=k)
     assert df.name == k
 
     dfi = df.get_interface(env)
     assert dfi is not None
 
 
-# def test_sql_data_function():
+# def test_sql_pipe():
 #     env = make_test_env()
 #     sql = "select:T 1 from t:T"
 #     k = "k1"
-#     df = sql_data_function(k, sql)
+#     df = sql_pipe(k, sql)
 #     assert df.name == k
 #
 #     dfi = df.get_interface(env)
@@ -372,10 +370,10 @@ def test_python_data_function():
 #     assert dfi.output.otype_like == "T"
 #
 #
-# def test_sql_data_function2():
+# def test_sql_pipe2():
 #     env = make_test_env()
 #     sql = "select:T 1 from from t1:U join t2:Optional[T]"
-#     df = sql_data_function("s1", sql)
+#     df = sql_pipe("s1", sql)
 #     dfi = df.get_interface(env)
 #     assert dfi is not None
 #
@@ -388,12 +386,12 @@ def test_python_data_function():
 #     assert dfi.inputs[1].is_optional
 
 
-def test_sql_data_function_interface():
+def test_sql_pipe_interface():
     env = make_test_env()
     sql = """select 1 from from t1 -- DataBlock[T1]
     join t2 on t1.a = t2.b left join t3 -- DataSet[T2]
     on"""
-    df = sql_data_function("s1", sql)
+    df = sql_pipe("s1", sql)
     dfi = df.get_interface(env)
     assert dfi is not None
 
@@ -413,7 +411,7 @@ def test_sql_data_function_interface():
     from -- comment inbetween
     input
     join t2 on t1.a = t2.b"""
-    df = sql_data_function("s1", sql)
+    df = sql_pipe("s1", sql)
     dfi = df.get_interface(env)
     assert dfi is not None
     assert len(dfi.inputs) == 2
@@ -424,7 +422,7 @@ def test_sql_data_function_interface():
     sql = """select 1, 'not a commment -- nope'
     from -- comment inbetween
     t1, t2 on t1.a = t2.b"""
-    df = sql_data_function("s1", sql)
+    df = sql_pipe("s1", sql)
     dfi = df.get_interface(env)
     assert dfi is not None
     assert len(dfi.inputs) == 2
@@ -432,7 +430,7 @@ def test_sql_data_function_interface():
     sql = """select 1, 'not a commment -- nope'
     from {% jinja block %}
     t1, t2 on t1.a = t2.b"""
-    df = sql_data_function("s1", sql)
+    df = sql_pipe("s1", sql)
     dfi = df.get_interface(env)
     assert dfi is not None
     assert len(dfi.inputs) == 2
@@ -440,7 +438,7 @@ def test_sql_data_function_interface():
     sql = """select 1, 'not a commment -- nope'
     from {% jinja block %}
     this"""
-    df = sql_data_function("s1", sql, inputs={"this": "Optional[DataBlock[T]]"})
+    df = sql_pipe("s1", sql, inputs={"this": "Optional[DataBlock[T]]"})
     dfi = df.get_interface(env)
     assert dfi is not None
     assert len(dfi.inputs) == 1
@@ -474,7 +472,7 @@ def test_sql_data_function_interface():
                 "{{ inputs.input.resolved_otype.updated_at_field.name }}" desc
             {% endif %}
     """
-    df = sql_data_function("s1", sql)
+    df = sql_pipe("s1", sql)
     dfi = df.get_interface(env)
     assert dfi is not None
     assert len(dfi.inputs) == 1
@@ -497,59 +495,50 @@ def test_sql_data_function_interface():
 #     assert table_refs == ["a", "b", "c"]
 
 
-@data_function("k1", compatible_runtimes="python")
+@pipe("k1", compatible_runtimes="python")
 def df1():
     pass
 
 
-@data_function("k1", compatible_runtimes="mysql")
+@pipe("k1", compatible_runtimes="mysql")
 def df2():
     pass
 
 
-def test_data_function_set():
-    dfs = DataFunction(
-        name="k1",
-        component_type=ComponentType.DataFunction,
-        version=None,
-        module_name=None,
+def test_pipe_set():
+    dfs = Pipe(
+        name="k1", component_type=ComponentType.Pipe, version=None, module_name=None,
     )
     dfs.add_definition(df1)
-    assert dfs.runtime_data_functions[RuntimeClass.PYTHON] is df1
+    assert dfs.runtime_pipes[RuntimeClass.PYTHON] is df1
     dfs.add_definition(df2)
-    assert dfs.runtime_data_functions[RuntimeClass.DATABASE] is df2
-    dfs1 = DataFunction(
-        name="k1",
-        component_type=ComponentType.DataFunction,
-        version=None,
-        module_name=None,
+    assert dfs.runtime_pipes[RuntimeClass.DATABASE] is df2
+    dfs1 = Pipe(
+        name="k1", component_type=ComponentType.Pipe, version=None, module_name=None,
     )
     dfs1.add_definition(df1)
-    dfs2 = DataFunction(
-        name="k1",
-        component_type=ComponentType.DataFunction,
-        version=None,
-        module_name=None,
+    dfs2 = Pipe(
+        name="k1", component_type=ComponentType.Pipe, version=None, module_name=None,
     )
     dfs2.add_definition(df2)
     dfs1.merge(dfs2)
-    assert dfs1.runtime_data_functions[RuntimeClass.PYTHON] is df1
-    assert dfs1.runtime_data_functions[RuntimeClass.DATABASE] is df2
+    assert dfs1.runtime_pipes[RuntimeClass.PYTHON] is df1
+    assert dfs1.runtime_pipes[RuntimeClass.DATABASE] is df2
 
 
-# def test_data_function_registry():
-#     r = DataFunctionRegistry()
-#     dfs = DataFunction(name="k1", module_name=DEFAULT_MODULE_NAME, version=None)
+# def test_pipe_registry():
+#     r = PipeRegistry()
+#     dfs = Pipe(name="k1", module_name=DEFAULT_MODULE_NAME, version=None)
 #     dfs.add_definition(df1)
 #     r.process_and_register_all([df_t1_sink, df_chain_t1_to_t2, dfs, df2])
 #     assert r.get("k1") is dfs
-#     assert r.get("k1").runtime_data_functions[RuntimeClass.PYTHON] is df1
-#     assert r.get("k1").runtime_data_functions[RuntimeClass.DATABASE] is df2
+#     assert r.get("k1").runtime_pipes[RuntimeClass.PYTHON] is df1
+#     assert r.get("k1").runtime_pipes[RuntimeClass.DATABASE] is df2
 
 
 def test_node_no_inputs():
     env = make_test_env()
-    df = data_function(df_t1_source)
+    df = pipe(df_t1_source)
     node1 = Node(env, "node1", df)
     assert {node1: node1}[node1] is node1  # Test hash
     dfi = node1.get_interface()
@@ -561,9 +550,9 @@ def test_node_no_inputs():
 
 def test_node_inputs():
     env = make_test_env()
-    df = data_function(df_t1_source)
+    df = pipe(df_t1_source)
     node = Node(env, "node", df)
-    df = data_function(df_t1_sink)
+    df = pipe(df_t1_sink)
     with pytest.raises(Exception):
         # Bad input
         Node(env, "node_fail", df, input="Turname")  # type: ignore
@@ -580,7 +569,7 @@ def test_node_config():
     env = make_test_env()
     config_vals = []
 
-    def df_ctx(ctx: DataFunctionContext):
+    def df_ctx(ctx: PipeContext):
         config_vals.append(ctx.get_config("test"))
 
     ctx = env.add_node("ctx", df_ctx, config={"test": 1, "extra_arg": 2})
@@ -591,9 +580,9 @@ def test_node_config():
 
 # def test_node_chain():
 #     env = make_test_env()
-#     df = data_function(df_t1_source)
+#     df = pipe(df_t1_source)
 #     node = Node(env, "node", df)
-#     node1 = FunctionNodeChain(env, "node1", df_chain_t1_to_t2, upstream=node)
+#     node1 = PipeNodeChain(env, "node1", df_chain_t1_to_t2, upstream=node)
 #     dfi = node1.get_interface()
 #     assert len(dfi.inputs) == 1
 #     assert dfi.output is not None
@@ -618,7 +607,7 @@ def test_node_config():
 #     n4 = env.add_node("node4", df_t1_to_t2, upstream="node2")
 #     n5 = env.add_node("node5", df_generic, upstream="node4")
 #     n6 = env.add_node("node6", df_self, upstream="node4")
-#     fgr = FunctionGraphResolver(env)
+#     fgr = PipeGraphResolver(env)
 #     # Resolve types
 #     assert fgr.resolve_output_type(n4) is TestType2
 #     assert fgr.resolve_output_type(n5) is TestType2
@@ -633,7 +622,7 @@ def test_node_config():
 #     # Otype resolution
 #     n7 = env.add_node("node7", df_self, upstream=DataBlockStream(otype="TestType2"))
 #     n8 = env.add_node("node8", df_self, upstream=n7)
-#     fgr = env.get_function_graph_resolver()
+#     fgr = env.get_pipe_graph_resolver()
 #     fgr.resolve()
 #     parent_keys = set(
 #         p.name for p in fgr.get_resolved_interface(n7).inputs[0].parent_nodes
@@ -654,7 +643,7 @@ def test_any_otype_interface():
     def df_any(input: DataBlock) -> DataFrame:
         pass
 
-    df = data_function(df_any)
+    df = pipe(df_any)
     dfi = df.get_interface(env)
     assert dfi.inputs[0].otype_like == "Any"
     assert dfi.output.otype_like == "Any"

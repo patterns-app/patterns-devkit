@@ -4,11 +4,11 @@
  
 BASIS is a framework for building end-to-end functional data pipelines from modular components.
 BASIS abstracts over underlying database, runtime, and storage resources with **functional,
-type-aware data graphs**. These graphs are composed of discrete `DataFunctions` written in
+type-aware data graphs**. These graphs are composed of discrete `pipes` written in
 **python or SQL** that snap together both batch and streaming data flows to form end-to-end data
  pipelines, from API data extraction to SQL transformation to machine learning models.
 
-BASIS `DataFunctions` optionally expose a type interface, called an `ObjectType`, that describes the
+BASIS `pipes` optionally expose a type interface, called an `ObjectType`, that describes the
  structure and semantics of the expected input and output data. These type interfaces
  allow the BASIS community to build an ecosystem of components that anyone can reuse project to
   project, across organizations and industries.
@@ -20,7 +20,7 @@ scale from laptop to AWS cluster.
 ### Features:
 
  - **Reusable modules and components**  
-   There are hundreds of `DataFunctions`, types, and external data `Sources` and `Targets` ready to
+   There are hundreds of `pipes`, types, and external data `Sources` and `Targets` ready to
     snap together in the BASIS Repository [Coming soon].
    
     - Connect Stripe data to LTV models
@@ -30,12 +30,12 @@ scale from laptop to AWS cluster.
    and much more, instantly and out of the box.
      
  - **Testable components**  
-   Modular `DataFunctions` allow individual steps in a data process to be independently tested and
+   Modular `pipes` allow individual steps in a data process to be independently tested and
    QA'd with the same rigor as software. All components available in the BASIS Repository are
    automatically tested against sample data sets of the appropriate `ObjectType`.
      
  - **Batch or streaming**
-   Basis exposes both batch and streaming data outputs from all DataFunctions, allowing chains of
+   Basis exposes both batch and streaming data outputs from all pipes, allowing chains of
    incremental and batch work to exist naturally with strong guarantees on accuracy and
     completeness.
    
@@ -78,7 +78,7 @@ graph.add_external_source_node(
 )
 graph.add_node(
     name="ltv_model",
-    function=bi.TransactionLTVModel,
+    pipe=bi.TransactionLTVModel,
     inputs="stripe_txs",
 )
 ```
@@ -92,11 +92,11 @@ Then run it:
 
 The key elements of Basis:
 
-#### DataFunction
+#### pipe
 
-`DataFunction`s are the core computational unit of Basis. They are added as nodes to a function
+`pipe`s are the core computational unit of Basis. They are added as nodes to a pipe
  graph and then linked by connecting their inputs and outputs. They are written in python or sql and
- can be arbitrarily simple or complex. Below are two equivalent and valid (though untyped) DataFunctions:
+ can be arbitrarily simple or complex. Below are two equivalent and valid (though untyped) pipes:
  
 ```python
 def sales(txs: DataBlock) -> DataFrame:  
@@ -112,13 +112,13 @@ from txs
 group by customer_id
 ```
 
-Functions can operate on *incremental* or *batch* inputs, and generate incremental or batch output.
+Pipes can operate on *incremental* or *batch* inputs, and generate incremental or batch output.
 In Basis, incremental data is processed as *DataBlock*s and batch data is processed as
  *DataSet*s. These are discussed in more detail below.
 
 #### ObjectType
 
-`ObjectType`s define data schemas that let `DataFunction`s specify the data structure
+`ObjectType`s define data schemas that let `pipe`s specify the data structure
  they expect and allow them to inter-operate safely. They also
 provide a natural place for column descriptions, validation logic, deduplication
  behavior, and other metadata associated with
@@ -167,7 +167,7 @@ implementations:
     value: amount
 ```
 
-`DataFunction`s can then declare the ObjectTypes they expect, allowing them to specify the
+`pipe`s can then declare the ObjectTypes they expect, allowing them to specify the
  (minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
  
 ```python
@@ -187,7 +187,7 @@ group by customer_id
 ```
 
 A few things to note:
-    - typing is always optional, our original function definitions were valid with no ObjectTypes
+    - typing is always optional, our original pipe definitions were valid with no ObjectTypes
     - We've taken some liberties with Python's type hints (hence why Basis requires python 3.7+)
     - We've introduced a special syntax for typing SQL queries: `table:Type` for inputs and
      `select:Type` for output.
@@ -200,7 +200,7 @@ should be used when the value they provide out-weighs the friction they introduc
 #### DataBlock
 
 A `DataBlock` is an immutable set of data records of uniform `ObjectType`. `DataBlock`s are the
-basic data unit of Basis, the unit that `DataFunction`s take as input and ultimately produce as
+basic data unit of Basis, the unit that `pipe`s take as input and ultimately produce as
 output. More precisely, `DataBlock`s are a reference to an abstract ideal of these records. In
  practice, a DataBlock will be stored on one or more Storage mediums in one or more DataFormats -- a
   CSV on the local file, a JSON string in memory, or a
@@ -212,14 +212,14 @@ data types this is simply not possible, and Basis tries to emit warnings in thes
 #### DataSet
 
 `DataBlock`s are the basic data unit of Basis -- their discrete, immutable properties make them
-ideal for building industrial grade pipelines and complex ecosystems of `DataFunction`s. But
+ideal for building industrial grade pipelines and complex ecosystems of `pipe`s. But
  often you it is necessarily or just simpler to work with entire datasets in batch, not as
   incremental chunks. Basis `DataSet`s serve this purpose -- they "accumulate"
 DataBlocks of a uniform ObjectType, deduping and merging records according to desired logic, and
  provide a clean, nicely named, end set of data records (a single `customers` table, for instance).
  
-Every `DataFunction` in Basis automatically outputs both an incremental `DataBlock` stream and a
-batch accumulated `DataSet`. Downstream functions can connect to either the DataBlock stream or
+Every `pipe` in Basis automatically outputs both an incremental `DataBlock` stream and a
+batch accumulated `DataSet`. Downstream pipes can connect to either the DataBlock stream or
 the DataSet by specify in their python or sql type signature which mode of input and output
 they expect.
 
@@ -268,23 +268,23 @@ cfgd_provider = stripe.external.StripeProvider(api_key="xxxxxxx")
 cfgd_resource = cfgd_provider.StripTransactionsResource()
 env.add_node(
     name="stripe_txs",
-    function=cfgd_resource.extractor,
+    pipe=cfgd_resource.extractor,
 )
 ```
 
 `ExternalResource`s are **stateful** entities in Basis -- Basis must keep track of what it has
 extracted from the `ExternalResource` so far, and how it will extract more in the future. Every
 `ExternalResource` has an associated default `Extractor` (which is just a specific type of
-`DataFunction`) that updates and utilizes this `ExternalResource` state to fetch and stay in-sync
+`pipe`) that updates and utilizes this `ExternalResource` state to fetch and stay in-sync
 with the external data. Working with external systems is a complex and subtle topic (we often have 
 limited visibility into the state and changes of the external system). Read the docs on
 `ExternalResource`s and `Extractor`s for more details [Coming soon].
 
 #### Environment
-A Basis environment tracks the DataFunction graph, and acts as a registry for the `modules`,
-`runtimes`, and `storages` available to DataFunctions. It is associated one-to-one with a single
+A Basis environment tracks the pipe graph, and acts as a registry for the `modules`,
+`runtimes`, and `storages` available to pipes. It is associated one-to-one with a single
 `metadata database`.  The primary responsibility of the metadata database is to track which
-DataFunctions have processed which DataBlocks, and the state of ExternalResources. In this
+pipes have processed which DataBlocks, and the state of ExternalResources. In this
 sense, the environment and its associated metadata database contain all the "state" of a Basis
 project. If you delete the metadata database, you will have effectively "reset" your Basis
 project.
@@ -295,7 +295,7 @@ project.
 Developing new Basis components is straightforward and can be done as part of a Basis `module` or as
 a standalone component. We'll start with a simple standalone example.
 
-Say we want to use the DataFunction we developed in an earlier example in a data pipeline:
+Say we want to use the pipe we developed in an earlier example in a data pipeline:
 
 ```python
 def sales(txs: DataBlock[Transaction]) -> DataFrame[CustomerMetric]:  

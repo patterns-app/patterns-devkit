@@ -8,11 +8,11 @@
 # from sqlalchemy import Column, DateTime, String, JSON
 #
 # from basis.core.component import ComponentType, ComponentUri
-# from basis.core.data_function import DataFunctionInterface, DataInterfaceType
-# from basis.core.data_function_interface import DataFunctionAnnotation
+# from basis.core.pipe import PipeInterface, DataInterfaceType
+# from basis.core.pipe_interface import PipeAnnotation
 # from basis.core.metadata.orm import BaseModel
 # from basis.core.module import BasisModule
-# from basis.core.runnable import DataFunctionContext, ExecutionContext
+# from basis.core.runnable import PipeContext, ExecutionContext
 # from basis.core.typing.object_type import ObjectTypeLike
 # from basis.utils.common import dataclass_kwargs, printd
 # from basis.utils.typing import T
@@ -122,8 +122,8 @@
 # #         )  # TODO: bit hidden here...
 # #
 # #     @property
-# #     def extractor(self) -> ExtractorDataFunction:
-# #         return ExtractorDataFunction(
+# #     def extractor(self) -> ExtractorPipe:
+# #         return ExtractorPipe(
 # #             self.external_resource.default_extractor, self.configured_provider, self
 # #         )
 # #
@@ -247,16 +247,16 @@
 #     new_state: Optional[Dict] = None
 #
 #
-# class ExtractorDataFunction:
+# class ExtractorPipe:
 #     def __init__(
 #         self,
-#         extractor_function: ExtractorLike,
+#         extractor_pipe: ExtractorLike,
 #         configured_provider: ConfiguredExternalProvider,
 #         configured_external_resource: ConfiguredExternalResource,
 #         name: str = None,
 #     ):
-#         # super().__init__(extractor_function, name)
-#         self.extract_function = extractor_function
+#         # super().__init__(extractor_pipe, name)
+#         self.extract_pipe = extractor_pipe
 #         self.configured_provider = configured_provider
 #         self.configured_external_resource = configured_external_resource
 #
@@ -268,10 +268,10 @@
 #                 self.configured_external_resource.initial_high_water_mark
 #             )
 #             # if state.high_water_mark is None and hasattr(
-#             #     self.extract_function, "initial_high_water_mark"
+#             #     self.extract_pipe, "initial_high_water_mark"
 #             # ):
 #             #     state.high_water_mark = (
-#             #         self.extract_function.initial_high_water_mark
+#             #         self.extract_pipe.initial_high_water_mark
 #             #     )  # TODO: don't do this here?
 #         # TODO: handle arbitrary state blob
 #
@@ -284,20 +284,20 @@
 #         # TODO: handle arbitrary state blob
 #
 #     def __call__(
-#         self, *args: DataFunctionContext, **kwargs: DataInterfaceType
+#         self, *args: PipeContext, **kwargs: DataInterfaceType
 #     ) -> DataInterfaceType:
 #         ctx = args[0]
 #         state = self.configured_external_resource.get_state(ctx.execution_context)
 #         self.prepare_state(state)
-#         for extract_result in self.extract_function(
+#         for extract_result in self.extract_pipe(
 #             self.configured_provider, self.configured_external_resource, state,
 #         ):
 #             if extract_result.records is not None:
 #                 yield extract_result.records
 #             self.set_state(state, extract_result)
 #
-#     def get_interface(self) -> DataFunctionInterface:
-#         s = inspect.signature(self.extract_function)
+#     def get_interface(self) -> PipeInterface:
+#         s = inspect.signature(self.extract_pipe)
 #         ret = s.return_annotation
 #         fmt = "RecordsListGenerator"
 #         if ret is not inspect.Signature.empty:
@@ -306,15 +306,15 @@
 #                 fmt = "DataFrameGenerator"
 #             else:
 #                 fmt = "RecordsListGenerator"
-#         out_annotation = DataFunctionAnnotation.create(
+#         out_annotation = PipeAnnotation.create(
 #             data_format_class=fmt,
 #             otype_like=self.configured_external_resource.get_expected_otype(),
 #         )
 #         # logger.debug(
 #         #     f"Extractor {self.configured_external_resource.name} output: {out_annotation}"
 #         # )
-#         return DataFunctionInterface(
-#             inputs=[], output=out_annotation, requires_data_function_context=True
+#         return PipeInterface(
+#             inputs=[], output=out_annotation, requires_pipe_context=True
 #         )
 #
 #

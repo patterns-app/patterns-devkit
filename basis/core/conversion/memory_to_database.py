@@ -53,7 +53,7 @@ class MemoryToDatabaseConverter(Converter):
         if input_sdb.data_format == RecordsListGeneratorFormat:
             records_objects = records_objects.get_generator()
         output_api = output_sdb.storage.get_database_api(self.env)
-        # TODO: this loop is what is actually calling our Iterable DataFunction in RECORDS_LIST_GENERATOR case. Is that ok?
+        # TODO: this loop is what is actually calling our Iterable Pipe in RECORDS_LIST_GENERATOR case. Is that ok?
         #   seems a bit opaque. Why don't we just iterate this at the conform_output level? We decided this approach was
         #   better / necessary for some reason... don't remember why
         for records_object in records_objects:

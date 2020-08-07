@@ -1,25 +1,25 @@
 from __future__ import annotations
 
-from basis.core.data_function import DataFunction, data_function_chain
-from basis.modules.core.functions.as_dataset import as_dataset
-from basis.modules.core.functions.dedupe import dedupe_unique_keep_newest_row
-from basis.testing.functions import DataFunctionTest
+from basis.core.pipe import Pipe, pipe_chain
+from basis.modules.core.pipes.as_dataset import as_dataset
+from basis.modules.core.pipes.dedupe import dedupe_unique_keep_newest_row
+from basis.testing.pipes import PipeTest
 
-accumulate_as_dataset = data_function_chain(
+accumulate_as_dataset = pipe_chain(
     name=f"accumulate_as_dataset",
-    function_chain=["accumulator", dedupe_unique_keep_newest_row, as_dataset],
+    pipe_chain=["accumulator", dedupe_unique_keep_newest_row, as_dataset],
 )
 
 
-# def with_dataset(fn: DataFunction) -> DataFunction:
-#     return data_function_chain(
+# def with_dataset(fn: Pipe) -> Pipe:
+#     return pipe_chain(
 #         name=f"accumulate_{fn.name}_as_dataset",
-#         function_chain=[fn, "accumulator", dedupe_unique_keep_newest_row, as_dataset],
+#         pipe_chain=[fn, "accumulator", dedupe_unique_keep_newest_row, as_dataset],
 #     )
 
 
-accumulate_as_dataset_test = DataFunctionTest(
-    function="accumulate_as_dataset",
+accumulate_as_dataset_test = PipeTest(
+    pipe="accumulate_as_dataset",
     tests=[
         {
             "name": "test_dupe",

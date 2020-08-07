@@ -3,10 +3,10 @@ from __future__ import annotations
 from pandas import DataFrame
 
 from basis.core.data_block import DataBlock, DataSet
-from basis.core.data_function import data_function_chain
 from basis.core.environment import Environment
 from basis.core.module import BasisModule
-from basis.core.runnable import DataFunctionContext, ExecutionContext, ExecutionManager
+from basis.core.pipe import pipe_chain
+from basis.core.runnable import ExecutionContext, ExecutionManager, PipeContext
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from basis.core.storage.storage import Storage, StorageClass, StorageEngine
 from basis.core.typing.object_type import create_quick_otype
@@ -72,7 +72,7 @@ def make_test_execution_manager(**kwargs):
     return ExecutionManager(make_test_execution_context(**kwargs))
 
 
-def df_t1_sink(ctx: DataFunctionContext, input: DataBlock[TestType1]):
+def df_t1_sink(ctx: PipeContext, input: DataBlock[TestType1]):
     pass
 
 
@@ -84,11 +84,11 @@ def df_generic(input: DataBlock[T]) -> DataFrame[T]:
     pass
 
 
-def df_t1_source(ctx: DataFunctionContext) -> DataFrame[TestType1]:
+def df_t1_source(ctx: PipeContext) -> DataFrame[TestType1]:
     pass
 
 
-df_chain_t1_to_t2 = data_function_chain("df_chain_t1_to_t2", [df_t1_to_t2, df_generic])
+df_chain_t1_to_t2 = pipe_chain("df_chain_t1_to_t2", [df_t1_to_t2, df_generic])
 
 
 def df_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:

@@ -35,7 +35,7 @@ entry_points = {"console_scripts": ["dream = basis.cli:app"]}
 setup_kwargs = {
     "name": "basis",
     "version": "0.1.0",
-    "description": "Functional typed data pipelines",
+    "description": "Pipeal typed data pipelines",
     "long_description": None,
     "author": "Ken Van Haren",
     "author_email": "kenvanharen@gmail.com",

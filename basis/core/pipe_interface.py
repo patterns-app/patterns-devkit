@@ -20,9 +20,9 @@ from basis.utils.common import printd
 from loguru import logger
 
 if TYPE_CHECKING:
-    from basis.core.data_function import (
+    from basis.core.pipe import (
         InputExhaustedException,
-        DataFunctionCallable,
+        PipeCallable,
     )
     from basis.core.node import Node, Node, RawNodeInputs, NodeLike
     from basis.core.storage.storage import Storage
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
         InputBlocks,
         DataBlockStream,
         ensure_data_stream,
-        FunctionNodeInput,
+        PipeNodeInput,
         InputStreams,
     )
 
@@ -64,7 +64,7 @@ class BadAnnotationException(Exception):
 
 
 @dataclass
-class DataFunctionAnnotation:
+class PipeAnnotation:
     data_format_class: str
     otype_like: ObjectTypeLike
     name: Optional[str] = None
@@ -82,7 +82,7 @@ class DataFunctionAnnotation:
         return self.data_format_class == "DataSet"
 
     @classmethod
-    def create(cls, **kwargs) -> DataFunctionAnnotation:
+    def create(cls, **kwargs) -> PipeAnnotation:
         if not kwargs.get("otype_like"):
             kwargs["otype_like"] = "Any"
         name = kwargs.get("name")
@@ -95,10 +95,10 @@ class DataFunctionAnnotation:
             raise TypeError(
                 f"`{kwargs['data_format_class']}` is not a valid data input type"
             )
-        return DataFunctionAnnotation(**kwargs)
+        return PipeAnnotation(**kwargs)
 
     @classmethod
-    def from_parameter(cls, parameter: inspect.Parameter) -> DataFunctionAnnotation:
+    def from_parameter(cls, parameter: inspect.Parameter) -> PipeAnnotation:
         annotation = parameter.annotation
         is_optional = parameter.default != inspect.Parameter.empty
         is_variadic = parameter.kind == inspect.Parameter.VAR_POSITIONAL
@@ -111,7 +111,7 @@ class DataFunctionAnnotation:
         return tda
 
     @classmethod
-    def from_type_annotation(cls, annotation: str, **kwargs) -> DataFunctionAnnotation:
+    def from_type_annotation(cls, annotation: str, **kwargs) -> PipeAnnotation:
         """
         Annotation of form `DataBlock[T]` for example
         """
@@ -119,9 +119,7 @@ class DataFunctionAnnotation:
             annotation
         )  # TODO: get more strict with matches (for sql comment annotations)
         if m is None:
-            raise BadAnnotationException(
-                f"Invalid DataFunction annotation '{annotation}'"
-            )
+            raise BadAnnotationException(f"Invalid Pipe annotation '{annotation}'")
         is_optional = bool(m.groupdict()["optional"])
         data_format_class = m.groupdict()["origin"]
         otype_name = m.groupdict()["arg"]
@@ -132,7 +130,7 @@ class DataFunctionAnnotation:
             original_annotation=annotation,
         )
         args.update(**kwargs)
-        return DataFunctionAnnotation.create(**args)  # type: ignore
+        return PipeAnnotation.create(**args)  # type: ignore
 
     def otype_uri(self, env: Environment) -> ObjectTypeUri:
         if self.is_generic:
@@ -143,16 +141,16 @@ class DataFunctionAnnotation:
 @dataclass
 class NodeInput:
     name: str
-    original_annotation: DataFunctionAnnotation
+    original_annotation: PipeAnnotation
     input_node: Optional[Node] = None
     bound_data_block: Optional[DataBlockMetadata] = None
 
 
 @dataclass
-class BoundFunctionInterface:
+class BoundPipeInterface:
     inputs: List[NodeInput]
-    output: Optional[DataFunctionAnnotation]
-    requires_data_function_context: bool = True
+    output: Optional[PipeAnnotation]
+    requires_pipe_context: bool = True
 
     def get_input(self, name: str) -> NodeInput:
         for input in self.inputs:
@@ -171,11 +169,11 @@ class BoundFunctionInterface:
             i.bound_data_block = input_block
 
     @classmethod
-    def from_dfi(cls, dfi: DataFunctionInterface) -> BoundFunctionInterface:
-        return BoundFunctionInterface(
+    def from_dfi(cls, dfi: PipeInterface) -> BoundPipeInterface:
+        return BoundPipeInterface(
             inputs=[NodeInput(name=a.name, original_annotation=a) for a in dfi.inputs],
             output=dfi.output,
-            requires_data_function_context=dfi.requires_data_function_context,
+            requires_pipe_context=dfi.requires_pipe_context,
         )
 
     def as_kwargs(self):
@@ -215,30 +213,28 @@ class BoundFunctionInterface:
 #         return {i.name: i.bound_data_block for i in self.inputs}
 
 # @classmethod
-# def from_data_function_inteface(cls, dfi: DataFunctionInterface, input_blocks: InputBlocks) -> BoundFunctionInterface:
+# def from_pipe_inteface(cls, dfi: PipeInterface, input_blocks: InputBlocks) -> BoundPipeInterface:
 #     inputs = []
 #     for name, input in input_blocks.items():
 #         i = dfi.get_input(name)
 #
 #
-#     return BoundFunctionInterface(
+#     return BoundPipeInterface(
 #         inputs=inputs,
 #         output=dfi.output,
-#         requires_data_function_context=dfi.requires_data_function_context,
+#         requires_pipe_context=dfi.requires_pipe_context,
 #     )
 
 
 @dataclass
-class DataFunctionInterface:
-    inputs: List[DataFunctionAnnotation]
-    output: Optional[DataFunctionAnnotation]
-    requires_data_function_context: bool = True
+class PipeInterface:
+    inputs: List[PipeAnnotation]
+    output: Optional[PipeAnnotation]
+    requires_pipe_context: bool = True
     # is_bound: bool = False
 
     @classmethod
-    def from_data_function_definition(
-        cls, df: DataFunctionCallable
-    ) -> DataFunctionInterface:
+    def from_pipe_definition(cls, df: PipeCallable) -> PipeInterface:
         requires_context = False
         signature = inspect.signature(df)
         output = None
@@ -246,7 +242,7 @@ class DataFunctionInterface:
         if ret is not inspect.Signature.empty:
             if not isinstance(ret, str):
                 raise Exception("Return type annotation not a string")
-            output = DataFunctionAnnotation.from_type_annotation(ret)
+            output = PipeAnnotation.from_type_annotation(ret)
         inputs = []
         for name, param in signature.parameters.items():
             a = param.annotation
@@ -254,23 +250,21 @@ class DataFunctionInterface:
                 if not isinstance(a, str):
                     raise Exception("Parameter type annotation not a string")
             try:
-                a = DataFunctionAnnotation.from_parameter(param)
+                a = PipeAnnotation.from_parameter(param)
                 inputs.append(a)
             except TypeError:
                 # Not a DataBlock/Set
-                if param.annotation == "DataFunctionContext":
+                if param.annotation == "PipeContext":
                     requires_context = True
                 else:
-                    raise Exception(f"Invalid data function parameter {param}")
-        dfi = DataFunctionInterface(
-            inputs=inputs,
-            output=output,
-            requires_data_function_context=requires_context,
+                    raise Exception(f"Invalid data pipe parameter {param}")
+        dfi = PipeInterface(
+            inputs=inputs, output=output, requires_pipe_context=requires_context,
         )
         dfi.validate_inputs()  # TODO: let caller handle this?
         return dfi
 
-    def get_input(self, name: str) -> DataFunctionAnnotation:
+    def get_input(self, name: str) -> PipeAnnotation:
         for input in self.inputs:
             if input.name == name:
                 return input
@@ -279,7 +273,7 @@ class DataFunctionInterface:
     def get_non_recursive_inputs(self):
         return [i for i in self.inputs if not i.is_self_ref]
 
-    def get_inputs_dict(self) -> Dict[str, DataFunctionAnnotation]:
+    def get_inputs_dict(self) -> Dict[str, PipeAnnotation]:
         return {i.name: i for i in self.inputs if i.name}
 
     def validate_inputs(self):
@@ -292,7 +286,7 @@ class DataFunctionInterface:
             ):
                 if data_block_seen:
                     raise Exception(
-                        "Only one uncorrelated DataBlock input allowed to a DataFunction."
+                        "Only one uncorrelated DataBlock input allowed to a Pipe."
                         "Correlate the inputs or use a DataSet"
                     )
                 data_block_seen = True
@@ -325,8 +319,8 @@ class NodeInterfaceManager:
 
     def get_bound_interface(
         self, input_data_blocks: Optional[InputBlocks] = None
-    ) -> BoundFunctionInterface:
-        i = BoundFunctionInterface.from_dfi(self.dfi)
+    ) -> BoundPipeInterface:
+        i = BoundPipeInterface.from_dfi(self.dfi)
         # TODO: dry (see below)
         inputs = self.node.get_compiled_input_nodes()
         for input in i.inputs:
@@ -338,8 +332,8 @@ class NodeInterfaceManager:
         i.bind(input_data_blocks)
         return i
 
-    def get_connected_interface(self) -> BoundFunctionInterface:
-        i = BoundFunctionInterface.from_dfi(self.dfi)
+    def get_connected_interface(self) -> BoundPipeInterface:
+        i = BoundPipeInterface.from_dfi(self.dfi)
         inputs = self.node.get_compiled_input_nodes()
         for input in i.inputs:
             if input.original_annotation.is_self_ref:
@@ -347,7 +341,7 @@ class NodeInterfaceManager:
         i.connect(inputs)
         return i
 
-    def is_input_required(self, annotation: DataFunctionAnnotation) -> bool:
+    def is_input_required(self, annotation: PipeAnnotation) -> bool:
         if annotation.is_optional:
             return False
         # TODO: more complex logic? hmmmm
@@ -355,7 +349,7 @@ class NodeInterfaceManager:
 
     def get_input_data_blocks(self) -> InputBlocks:
         from basis.core.streams import ensure_data_stream
-        from basis.core.data_function import InputExhaustedException
+        from basis.core.pipe import InputExhaustedException
 
         input_data_blocks: InputBlocks = {}
         any_unprocessed = False
@@ -383,7 +377,7 @@ class NodeInterfaceManager:
                 if not input.original_annotation.is_optional:
                     # print(actual_input_node, annotation, storages)
                     raise InputExhaustedException(
-                        f"    Required input '{input.name}'={stream} to DataFunction '{self.node.name}' is empty"
+                        f"    Required input '{input.name}'={stream} to Pipe '{self.node.name}' is empty"
                     )
             else:
                 input_data_blocks[input.name] = block
@@ -427,7 +421,7 @@ class NodeInterfaceManager:
             logger.debug(f"Finding DataSet")
             stream = stream.filter_dataset()
             block = stream.get_most_recent(self.ctx)
-            # TODO: someday probably pass in actual DataSet (not underlying DB) to function that asks
+            # TODO: someday probably pass in actual DataSet (not underlying DB) to pipe that asks
             #   for it (might want to use `name`, for instance). and then just proxy
             #   through to underlying DB
         else:

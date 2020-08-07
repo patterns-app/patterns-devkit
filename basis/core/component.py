@@ -25,10 +25,10 @@ from typing import (
 from basis.utils.common import StringEnum
 
 if TYPE_CHECKING:
-    from basis.core.data_function import (
-        DataFunctionLike,
-        DataFunction,
-        DataFunctionDefinition,
+    from basis.core.pipe import (
+        PipeLike,
+        Pipe,
+        PipeDefinition,
     )
     from basis.core.module import BasisModule, DEFAULT_LOCAL_MODULE
     from basis.core.typing.object_type import ObjectTypeLike, ObjectType
@@ -47,7 +47,7 @@ class ComponentBase:
 
 
 class ComponentType(StringEnum):
-    DataFunction = "dfn"
+    Pipe = "dfn"
     ObjectType = "otype"
     External = "ext"
     # ExternalResource = "ext"
@@ -335,19 +335,17 @@ class ComponentLibrary:
             raise KeyError(otype_like)
         return cast(ObjectType, otype)
 
-    def get_function(
-        self, df_like: Union[DataFunction, DataFunctionDefinition, str]
-    ) -> DataFunction:
-        from basis.core.data_function import DataFunction
+    def get_pipe(self, df_like: Union[Pipe, PipeDefinition, str]) -> Pipe:
+        from basis.core.pipe import Pipe
 
         fn = self.registry.get(
             df_like,
             module_precedence=self.module_precedence,
-            component_type=ComponentType.DataFunction,
+            component_type=ComponentType.Pipe,
         )
         if fn is None:
             raise KeyError(df_like)
-        return cast(DataFunction, fn)
+        return cast(Pipe, fn)
 
     def all_otypes(self) -> List[ObjectType]:
         from basis.core.typing.object_type import ObjectType
@@ -358,13 +356,13 @@ class ComponentLibrary:
             if c.component_type == ComponentType.ObjectType
         ]
 
-    def all_functions(self) -> List[DataFunction]:
-        from basis.core.data_function import DataFunction
+    def all_pipes(self) -> List[Pipe]:
+        from basis.core.pipe import Pipe
 
         return [
-            cast(DataFunction, c)
+            cast(Pipe, c)
             for c in self.registry.all()
-            if c.component_type == ComponentType.DataFunction
+            if c.component_type == ComponentType.Pipe
         ]
 
     def all(self) -> Iterable[ComponentUri]:

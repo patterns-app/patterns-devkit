@@ -20,19 +20,19 @@ from basis.logging.event import Event, EventHandler, EventSubject, event_factory
 from loguru import logger
 
 if TYPE_CHECKING:
-    from basis.core.streams import FunctionNodeRawInput, DataBlockStream
+    from basis.core.streams import PipeNodeRawInput, DataBlockStream
     from basis.core.storage.storage import (
         Storage,
         new_local_memory_storage,
         StorageClass,
     )
-    from basis.core.data_function import (
-        DataFunctionLike,
-        DataFunction,
-        make_data_function_definition,
+    from basis.core.pipe import (
+        PipeLike,
+        Pipe,
+        make_pipe_definition,
     )
     from basis.core.node import Node
-    from basis.core.data_function_interface import FunctionGraphResolver
+    from basis.core.pipe_interface import PipeGraphResolver
     from basis.core.runnable import ExecutionContext
     from basis.core.data_block import DataBlock
     from basis.core.graph import Graph
@@ -165,23 +165,21 @@ class Environment:
     def all_otypes(self) -> List[ObjectType]:
         return self.library.all_otypes()
 
-    def get_function(self, df_like: str) -> DataFunction:
-        return self.library.get_function(df_like)
+    def get_pipe(self, df_like: str) -> Pipe:
+        return self.library.get_pipe(df_like)
 
-    def add_function(self, df: DataFunction):
+    def add_pipe(self, df: Pipe):
         self.library.add_component(df)
 
-    def all_functions(self) -> List[DataFunction]:
-        return self.library.all_functions()
+    def all_pipes(self) -> List[Pipe]:
+        return self.library.all_pipes()
 
-    def add_node(
-        self, name: str, function: Union[DataFunctionLike, str], **kwargs: Any
-    ) -> Node:
+    def add_node(self, name: str, pipe: Union[PipeLike, str], **kwargs: Any) -> Node:
         from basis.core.node import Node
 
-        if isinstance(function, str):
-            function = self.get_function(function)
-        node = Node(self, name, function, **kwargs)
+        if isinstance(pipe, str):
+            pipe = self.get_pipe(pipe)
+        node = Node(self, name, pipe, **kwargs)
         self._declared_graph.add_node(node)
         return node
 
@@ -228,16 +226,16 @@ class Environment:
         # except KeyError:  # TODO: do we want to get flattened (sub) nodes too? Probably
         # return self._flattened_graph().get_node(node_like)
 
-    # def get_function_graph_resolver(self) -> FunctionGraphResolver:
-    #     from basis.core.data_function_interface import FunctionGraphResolver
+    # def get_pipe_graph_resolver(self) -> PipeGraphResolver:
+    #     from basis.core.pipe_interface import PipeGraphResolver
     #
-    #     return FunctionGraphResolver(self)
+    #     return PipeGraphResolver(self)
     #
-    # def set_upstream(self, node_like: Union[Node, str], upstream: FunctionNodeRawInput):
+    # def set_upstream(self, node_like: Union[Node, str], upstream: PipeNodeRawInput):
     #     n = self.get_node(node_like)
     #     n.set_inputs(upstream)
     #
-    # def add_upstream(self, node_like: Union[Node, str], upstream: FunctionNodeRawInput):
+    # def add_upstream(self, node_like: Union[Node, str], upstream: PipeNodeRawInput):
     #     n = self.get_node(node_like)
     #     n.add_upstream(upstream)
 

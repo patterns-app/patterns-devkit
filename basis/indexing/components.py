@@ -5,9 +5,9 @@
 # from enum import Enum
 # from typing import Any, Dict, Iterable, List, Optional, Sequence, Type
 #
-# from basis.core.data_function import (
-#     DataFunctionDefinition,
-#     ensure_data_function_definition,
+# from basis.core.pipe import (
+#     PipeDefinition,
+#     ensure_pipe_definition,
 # )
 # from basis.core.environment import Environment
 # from basis.core.external import ExternalProvider, ExternalResource
@@ -20,7 +20,7 @@
 #
 # class ComponentType(Enum):
 #     ObjectType = "ObjectType"
-#     DataFunction = "DataFunction"
+#     Pipe = "Pipe"
 #     ExternalProvider = "Provider"
 #     ExternalResource = "ExternalResource"
 #
@@ -75,15 +75,15 @@
 #         )
 #
 #
-# class DataFunctionIndexer:
+# class PipeIndexer:
 #     def get_relations(
-#         self, df: DataFunctionDefinition, m: BasisModule
+#         self, df: PipeDefinition, m: BasisModule
 #     ) -> List[ObjectTypeRelation]:
 #         env = Environment(create_metadata_storage=False)
 #         env.add_module(m)
 #
 #         relations = []
-#         df = ensure_data_function_definition(df)
+#         df = ensure_pipe_definition(df)
 #         dfi = df.get_interface()
 #         for input in dfi.inputs:
 #             dtr = ObjectTypeRelation(
@@ -98,19 +98,19 @@
 #         return relations
 #
 #     def get_indexable_components(
-#         self, df: DataFunctionDefinition, m: BasisModule
+#         self, df: PipeDefinition, m: BasisModule
 #     ) -> Iterable[IndexableComponent]:
 #         relations = []
 #         try:
 #             relations = self.get_relations(df, m)
 #         except Exception as e:
 #             print(
-#                 f"Couldn't generate ObjectType relations for DataFunction {df}: {e}"
+#                 f"Couldn't generate ObjectType relations for Pipe {df}: {e}"
 #             )  # TODO
 #         yield IndexableComponent(
 #             key=df.key,
 #             module=m.key,
-#             component_type=ComponentType.DataFunction,
+#             component_type=ComponentType.Pipe,
 #             verbose_name=df.key,  # TODO?
 #             description=df.__doc__ or df.key,
 #             otype_relations=relations,
@@ -123,7 +123,7 @@
 #     def get_relations(
 #         self, sr: ExternalResource, m: BasisModule
 #     ) -> List[ObjectTypeRelation]:
-#         from basis.core.data_function import Direction
+#         from basis.core.pipe import Direction
 #
 #         env = Environment(create_metadata_storage=False)
 #         env.add_module(m)
@@ -200,13 +200,13 @@
 # #     def get_indexable_components(self) -> Iterable[IndexableComponent]:
 # #         dti = self.otype_indexer()
 # #         si = self.source_indexer()
-# #         dfi = self.data_function_indexer()
+# #         dfi = self.pipe_indexer()
 # #         for otype in self.otypes.all():
 # #             for ic in dti.get_indexable_components(otype, self):
 # #                 yield ic
 # #         for s in self.sources.all():
 # #             for ic in si.get_indexable_components(s, self):
 # #                 yield ic
-# #         for df in self.data_functions.all():
+# #         for df in self.pipes.all():
 # #             for ic in dfi.get_indexable_components(df, self):
 # #                 yield ic

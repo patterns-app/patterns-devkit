@@ -25,13 +25,13 @@ from basis.core.component import (
 from basis.core.typing.object_type import ObjectType, ObjectTypeLike, otype_from_yaml
 
 if TYPE_CHECKING:
-    from basis.core.data_function import (
-        DataFunctionLike,
-        DataFunction,
-        make_data_function_definition,
-        DataFunctionDefinition,
+    from basis.core.pipe import (
+        PipeLike,
+        Pipe,
+        make_pipe_definition,
+        PipeDefinition,
     )
-    from basis.testing.functions import DataFunctionTest
+    from basis.testing.pipes import PipeTest
 
 
 class BasisModule:
@@ -39,7 +39,7 @@ class BasisModule:
     py_module_path: Optional[str]
     py_module_name: Optional[str]
     library: ComponentLibrary
-    test_cases: List[DataFunctionTest]
+    test_cases: List[PipeTest]
     dependencies: List[BasisModule]
 
     def __init__(
@@ -48,8 +48,8 @@ class BasisModule:
         py_module_path: Optional[str] = None,
         py_module_name: Optional[str] = None,
         otypes: Optional[Sequence[ObjectTypeLike]] = None,
-        functions: Optional[Sequence[Union[DataFunctionLike, str]]] = None,
-        tests: Optional[Sequence[DataFunctionTest]] = None,
+        pipes: Optional[Sequence[Union[PipeLike, str]]] = None,
+        tests: Optional[Sequence[PipeTest]] = None,
         dependencies: List[
             BasisModule
         ] = None,  # TODO: support str references to external deps (will need repo hooks...)
@@ -65,8 +65,8 @@ class BasisModule:
         self.dependencies = []
         for otype in otypes or []:
             self.add_otype(otype)
-        for fn in functions or []:
-            self.add_function(fn)
+        for fn in pipes or []:
+            self.add_pipe(fn)
         for t in tests or []:
             self.add_test(t)
         for d in dependencies or []:
@@ -91,17 +91,15 @@ class BasisModule:
             return otype_like
         return self.library.get_otype(otype_like)
 
-    def get_function(
-        self, df_like: Union[DataFunction, DataFunctionDefinition, str]
-    ) -> DataFunction:
-        from basis.core.data_function import (
-            DataFunction,
-            make_data_function_definition,
+    def get_pipe(self, df_like: Union[Pipe, PipeDefinition, str]) -> Pipe:
+        from basis.core.pipe import (
+            Pipe,
+            make_pipe_definition,
         )
 
-        if isinstance(df_like, DataFunction):
+        if isinstance(df_like, Pipe):
             return df_like
-        return self.library.get_function(df_like)
+        return self.library.get_pipe(df_like)
 
     def export(self):
         if self.py_module_name is None:
@@ -116,8 +114,8 @@ class BasisModule:
         return self.library.component_view(ctype=ComponentType.ObjectType)
 
     @property
-    def functions(self) -> ComponentView[ObjectType]:
-        return self.library.component_view(ctype=ComponentType.DataFunction)
+    def pipes(self) -> ComponentView[ObjectType]:
+        return self.library.component_view(ctype=ComponentType.Pipe)
 
     def add_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
         otype = self.process_otype(otype_like)
@@ -135,27 +133,27 @@ class BasisModule:
             raise TypeError(otype_like)
         return otype
 
-    def add_function(self, df_like: Union[DataFunctionLike, str]) -> DataFunction:
-        fn = self.process_function(df_like)
+    def add_pipe(self, df_like: Union[PipeLike, str]) -> Pipe:
+        fn = self.process_pipe(df_like)
         self.library.add_component(fn)
         return fn
 
-    def process_function(self, df_like: Union[DataFunctionLike, str]) -> DataFunction:
-        from basis.core.data_function import (
-            DataFunctionDefinition,
-            make_data_function_definition,
-            DataFunction,
+    def process_pipe(self, df_like: Union[PipeLike, str]) -> Pipe:
+        from basis.core.pipe import (
+            PipeDefinition,
+            make_pipe_definition,
+            Pipe,
         )
-        from basis.core.sql.data_function import sql_data_function
+        from basis.core.sql.pipe import sql_pipe
 
-        if isinstance(df_like, DataFunction):
+        if isinstance(df_like, Pipe):
             df = df_like
         else:
             dfd = None
-            if isinstance(df_like, DataFunctionDefinition):
+            if isinstance(df_like, PipeDefinition):
                 dfd = df_like
             elif callable(df_like):
-                dfd = make_data_function_definition(df_like, module_name=self.name)
+                dfd = make_pipe_definition(df_like, module_name=self.name)
             elif isinstance(df_like, str) and df_like.endswith(".sql"):
                 if not self.py_module_path:
                     raise Exception(
@@ -165,22 +163,22 @@ class BasisModule:
                 with open(sql_file_path) as f:
                     sql = f.read()
                 file_name = os.path.basename(df_like)[:-4]
-                dfd = sql_data_function(
+                dfd = sql_pipe(
                     name=file_name, sql=sql, module_name=self.name
                 )  # TODO: versions, runtimes, etc for sql (someway to specify in a .sql file)
             else:
-                raise Exception(f"Invalid DataFunction {df_like}")
-            df = dfd.as_data_function()
+                raise Exception(f"Invalid Pipe {df_like}")
+            df = dfd.as_pipe()
         return df
 
-    def add_test(self, test_case: DataFunctionTest):
+    def add_test(self, test_case: PipeTest):
         test_case.module = self
         self.test_cases.append(test_case)
 
     def run_tests(self):
         print(f"Running tests for module {self.name}")
         for test in self.test_cases:
-            print(f"======= {test.function} =======")
+            print(f"======= {test.pipe} =======")
             try:
                 test.run(initial_modules=[self] + self.dependencies)
             except Exception as e:
@@ -192,20 +190,20 @@ class BasisModule:
         #     m = m.name
         self.dependencies.append(m)
 
-    # def add_test_case(self, test_case_like: DataFunctionTestCaseLike):
+    # def add_test_case(self, test_case_like: PipeTestCaseLike):
     #     test_case = self.process_test_case(test_case_like)
     #     self.test_cases.extend(test_case)
     #
     # def process_test_case(
-    #     self, test_case_like: DataFunctionTestCaseLike
-    # ) -> List[DataFunctionTestCase]:
-    #     from basis.testing.functions import (
-    #         DataFunctionTestCaseLike,
-    #         DataFunctionTestCase,
+    #     self, test_case_like: PipeTestCaseLike
+    # ) -> List[PipeTestCase]:
+    #     from basis.testing.pipes import (
+    #         PipeTestCaseLike,
+    #         PipeTestCase,
     #         test_cases_from_yaml,
     #     )
     #
-    #     if isinstance(test_case_like, DataFunctionTestCase):
+    #     if isinstance(test_case_like, PipeTestCase):
     #         test_cases = [test_case_like]
     #     elif isinstance(test_case_like, str):
     #         yml = self.read_module_file(test_case_like)
@@ -217,14 +215,14 @@ class BasisModule:
     # def get_indexable_components(self) -> Iterable[IndexableComponent]:
     #     dti = self.otype_indexer()
     #     si = self.provider_indexer()
-    #     dfi = self.data_function_indexer()
+    #     dfi = self.pipe_indexer()
     #     for otype in self.otypes.all():
     #         for ic in dti.get_indexable_components(otype, self):
     #             yield ic
     #     for s in self.providers.all():
     #         for ic in si.get_indexable_components(s, self):
     #             yield ic
-    #     for df in self.data_functions.all():
+    #     for df in self.pipes.all():
     #         for ic in dfi.get_indexable_components(df, self):
     #             yield ic
 
