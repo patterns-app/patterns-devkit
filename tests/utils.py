@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from pandas import DataFrame
 
-from basis.core.data_block import DataBlock, DataSet
-from basis.core.environment import Environment
-from basis.core.module import BasisModule
-from basis.core.pipe import pipe_chain
-from basis.core.runnable import ExecutionContext, ExecutionManager, PipeContext
-from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
-from basis.core.storage.storage import Storage, StorageClass, StorageEngine
-from basis.core.typing.object_type import create_quick_otype
-from basis.utils.common import rand_str
-from basis.utils.typing import T
+from dags.core.data_block import DataBlock, DataSet
+from dags.core.environment import Environment
+from dags.core.module import DagsModule
+from dags.core.pipe import pipe_chain
+from dags.core.runnable import ExecutionContext, ExecutionManager, PipeContext
+from dags.core.runtime import Runtime, RuntimeClass, RuntimeEngine
+from dags.core.storage.storage import Storage, StorageClass, StorageEngine
+from dags.core.typing.object_type import create_quick_otype
+from dags.utils.common import rand_str
+from dags.utils.typing import T
 
 TestType1 = create_quick_otype(
     "TestType1", [("f1", "Unicode(256)")], module_name="_test"
@@ -36,7 +36,7 @@ def make_test_env(**kwargs):
         metadata_storage = Storage.from_url(url)
         kwargs["metadata_storage"] = metadata_storage
     env = Environment(initial_modules=[], **kwargs)
-    test_module = BasisModule(
+    test_module = DagsModule(
         "_test", otypes=[TestType1, TestType2, TestType3, TestType4],
     )
     env.add_module(test_module)

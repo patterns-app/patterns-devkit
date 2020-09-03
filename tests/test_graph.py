@@ -6,20 +6,20 @@ from typing import Callable, Dict
 import pytest
 from pandas import DataFrame
 
-from basis import Environment
-from basis.core.component import ComponentType
-from basis.core.data_block import DataBlock
-from basis.core.graph import Graph
-from basis.core.node import Node
-from basis.core.pipe import Pipe, PipeInterface, PipeLike, pipe, pipe_chain
-from basis.core.pipe_interface import PipeAnnotation
-from basis.core.runnable import PipeContext
-from basis.core.runtime import RuntimeClass
-from basis.core.sql.pipe import sql_pipe
-from basis.core.streams import DataBlockStream
-from basis.modules import core
-from basis.modules.core.pipes.accumulate_as_dataset import accumulate_as_dataset
-from basis.utils.typing import T, U
+from dags import Environment
+from dags.core.component import ComponentType
+from dags.core.data_block import DataBlock
+from dags.core.graph import Graph
+from dags.core.node import Node
+from dags.core.pipe import Pipe, PipeInterface, PipeLike, pipe, pipe_chain
+from dags.core.pipe_interface import PipeAnnotation
+from dags.core.runnable import PipeContext
+from dags.core.runtime import RuntimeClass
+from dags.core.sql.pipe import sql_pipe
+from dags.core.streams import DataBlockStream
+from dags.modules import core
+from dags.modules.core.pipes.accumulate_as_dataset import accumulate_as_dataset
+from dags.utils.typing import T, U
 from tests.utils import (
     TestType1,
     TestType2,

@@ -2,8 +2,8 @@ import os
 
 from click.testing import CliRunner
 
-from basis.cli import app
-from basis.project.project import BASIS_PROJECT_FILE_NAME
+from dags.cli import app
+from dags.project.project import DAGS_PROJECT_FILE_NAME
 
 
 def test_app():
@@ -15,5 +15,5 @@ def test_app():
     with runner.isolated_filesystem():
         result = runner.invoke(app, ["init"])
         assert result.exit_code == 0
-        pth = os.path.join(os.getcwd(), BASIS_PROJECT_FILE_NAME)
+        pth = os.path.join(os.getcwd(), DAGS_PROJECT_FILE_NAME)
         assert os.path.exists(pth)

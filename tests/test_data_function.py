@@ -5,22 +5,16 @@ from typing import Callable
 import pytest
 from pandas import DataFrame
 
-from basis.core.component import ComponentType
-from basis.core.data_block import DataBlock
-from basis.core.pipe import (
-    Pipe,
-    PipeDefinition,
-    PipeInterface,
-    PipeLike,
-    pipe,
-)
-from basis.core.pipe_interface import PipeAnnotation
-from basis.core.node import Node
-from basis.core.runnable import PipeContext
-from basis.core.runtime import RuntimeClass
-from basis.core.sql.pipe import sql_pipe
-from basis.modules import core
-from basis.utils.typing import T, U
+from dags.core.component import ComponentType
+from dags.core.data_block import DataBlock
+from dags.core.node import Node
+from dags.core.pipe import Pipe, PipeDefinition, PipeInterface, PipeLike, pipe
+from dags.core.pipe_interface import PipeAnnotation
+from dags.core.runnable import PipeContext
+from dags.core.runtime import RuntimeClass
+from dags.core.sql.pipe import sql_pipe
+from dags.modules import core
+from dags.utils.typing import T, U
 from tests.utils import (
     TestType1,
     df_chain_t1_to_t2,

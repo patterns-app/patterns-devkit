@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from basis.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
-from basis.core.node import DataBlockLog, PipeLog, Direction
-from basis.core.streams import DataBlockStream
+from dags.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
+from dags.core.node import DataBlockLog, Direction, PipeLog
+from dags.core.streams import DataBlockStream
 from tests.utils import (
     TestType1,
     df_generic,

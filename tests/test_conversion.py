@@ -5,14 +5,14 @@ from typing import Optional
 
 import pytest
 
-from basis.core.conversion import (
+from dags.core.conversion import (
     StorageFormat,
     convert_lowest_cost,
     get_converter_lookup,
 )
-from basis.core.conversion.converter import Conversion, ConversionCostLevel
-from basis.core.data_block import DataBlockMetadata, create_data_block_from_records
-from basis.core.data_formats import (
+from dags.core.conversion.converter import Conversion, ConversionCostLevel
+from dags.core.data_block import DataBlockMetadata, create_data_block_from_records
+from dags.core.data_formats import (
     DatabaseCursorFormat,
     DatabaseTableFormat,
     DatabaseTableRefFormat,
@@ -22,7 +22,7 @@ from basis.core.data_formats import (
     RecordsListFormat,
     RecordsListGeneratorFormat,
 )
-from basis.core.storage.storage import StorageType, new_local_memory_storage
+from dags.core.storage.storage import StorageType, new_local_memory_storage
 from tests.utils import TestType4, make_test_env
 
 

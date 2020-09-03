@@ -2,19 +2,19 @@
 from setuptools import setup
 
 packages = [
-    "basis",
-    "basis.cli",
-    "basis.core",
-    "basis.core.conversion",
-    "basis.core.extraction",
-    "basis.core.metadata",
-    "basis.core.sql",
-    "basis.db",
-    "basis.indexing",
-    "basis.utils",
+    "dags",
+    "dags.cli",
+    "dags.core",
+    "dags.core.conversion",
+    "dags.core.extraction",
+    "dags.core.metadata",
+    "dags.core.sql",
+    "dags.db",
+    "dags.indexing",
+    "dags.utils",
 ]
 
-package_data = {"": ["*"], "basis.core.sql": ["templates/*"]}
+package_data = {"": ["*"], "dags.core.sql": ["templates/*"]}
 
 install_requires = [
     "click>=7.1.1,<8.0.0",
@@ -30,10 +30,10 @@ install_requires = [
     "strictyaml>=1.0.6,<2.0.0",
 ]
 
-entry_points = {"console_scripts": ["dream = basis.cli:app"]}
+entry_points = {"console_scripts": ["dream = dags.cli:app"]}
 
 setup_kwargs = {
-    "name": "basis",
+    "name": "dags",
     "version": "0.1.0",
     "description": "Pipeal typed data pipelines",
     "long_description": None,

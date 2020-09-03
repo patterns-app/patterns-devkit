@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from basis.core.environment import Environment
+from dags.core.environment import Environment
 
 
 def test_env_init():

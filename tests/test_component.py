@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from basis.core.component import (
+from dags.core.component import (
     ComponentRegistry,
     ComponentType,
     ComponentUri,

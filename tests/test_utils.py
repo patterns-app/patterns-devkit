@@ -7,15 +7,15 @@ import pytest
 from numpy import NaN
 from pandas import DataFrame
 
-from basis.utils.common import (
-    BasisJSONEncoder,
+from dags.utils.common import (
+    DagsJSONEncoder,
     StringEnum,
     is_datetime_str,
     snake_to_title_case,
     title_to_snake_case,
 )
-from basis.utils.data import is_nullish
-from basis.utils.pandas import (
+from dags.utils.data import is_nullish
+from dags.utils.pandas import (
     assert_dataframes_are_almost_equal,
     dataframe_to_records_list,
     empty_dataframe_for_otype,
@@ -68,7 +68,7 @@ def test_json_encoder():
         f=1 / 9,
         e=T.A,
     )
-    s = json.dumps(d, cls=BasisJSONEncoder)
+    s = json.dumps(d, cls=DagsJSONEncoder)
     print(s)
     assert (
         s.strip()

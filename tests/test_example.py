@@ -4,8 +4,8 @@ import pandas as pd
 import pytest
 from pandas._testing import assert_almost_equal
 
-from basis.core.environment import Environment
-from basis.modules import core
+from dags.core.environment import Environment
+from dags.modules import core
 
 
 def test_example():

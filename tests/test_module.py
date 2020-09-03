@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from basis.core.module import BasisModule
-from basis.modules import core
+from dags.core.module import DagsModule
+from dags.modules import core
 
 
 def test_module_init():
     from . import _test_module
 
-    assert isinstance(_test_module, BasisModule)
+    assert isinstance(_test_module, DagsModule)
     # Otypes
     assert len(_test_module.otypes) == 1
     testtype = list(_test_module.otypes)[0]

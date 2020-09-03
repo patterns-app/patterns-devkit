@@ -4,19 +4,19 @@ from dataclasses import asdict
 
 import pytest
 
-from basis.core.module import DEFAULT_LOCAL_MODULE
-from basis.core.typing.inference import (
+from dags.core.module import DEFAULT_LOCAL_MODULE
+from dags.core.typing.inference import (
     infer_otype_fields_from_records,
     infer_otype_from_records_list,
 )
-from basis.core.typing.object_type import (
+from dags.core.typing.object_type import (
     GeneratedObjectType,
     ObjectType,
     create_quick_otype,
     is_generic,
     otype_from_yaml,
 )
-from basis.modules import core
+from dags.modules import core
 from tests.utils import make_test_env
 
 test_type_yml = """

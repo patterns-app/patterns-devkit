@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import pytest
 
-from basis.core.data_formats import RecordsList
-from basis.core.pipe_interface import NodeInterfaceManager
-from basis.core.runnable import CompiledPipe, Runnable, RunSession, Worker
-from basis.modules import core
+from dags.core.data_formats import RecordsList
+from dags.core.pipe_interface import NodeInterfaceManager
+from dags.core.runnable import CompiledPipe, Runnable, RunSession, Worker
+from dags.modules import core
 from tests.utils import (
     TestType1,
     df_generic,

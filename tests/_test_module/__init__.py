@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-from basis.core.component import ComponentType
-from basis.core.data_block import DataBlock
-from basis.core.module import BasisModule
-from basis.core.runnable import PipeContext
-from basis.utils.typing import T
+from dags.core.component import ComponentType
+from dags.core.data_block import DataBlock
+from dags.core.module import DagsModule
+from dags.core.runnable import PipeContext
+from dags.utils.typing import T
 
 
 def df1(ctx: PipeContext) -> DataBlock[T]:
     pass
 
 
-module = BasisModule(
+module = DagsModule(
     "_test_module",
     py_module_path=__file__,
     py_module_name=__name__,
