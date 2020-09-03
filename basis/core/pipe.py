@@ -215,6 +215,14 @@ class PipeDefinition(ComponentUri):
         df.add_definition(self)
         return df
 
+    def source_code_language(self) -> str:
+        from basis.core.sql.pipe import SqlPipeWrapper
+
+        if self.pipe_callable is not None:
+            if isinstance(self.pipe_callable, SqlPipeWrapper):
+                return "sql"
+        return "python"
+
     def get_source_code(self) -> Optional[str]:
         from basis.core.sql.pipe import SqlPipeWrapper
 
