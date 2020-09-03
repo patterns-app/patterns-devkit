@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass, field
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
@@ -9,11 +10,8 @@ from pandas import DataFrame
 from basis.core.component import ComponentType, ComponentUri
 from basis.core.data_block import DataBlockMetadata, DataSetMetadata
 from basis.core.data_formats import DatabaseTableRef, RecordsList
-from basis.core.pipe_interface import (
-    PipeAnnotation,
-    PipeInterface,
-)
 from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
+from basis.core.pipe_interface import PipeAnnotation, PipeInterface
 from basis.core.runtime import RuntimeClass
 
 if TYPE_CHECKING:
@@ -216,6 +214,16 @@ class PipeDefinition(ComponentUri):
         )
         df.add_definition(self)
         return df
+
+    def get_source_code(self) -> Optional[str]:
+        from basis.core.sql.pipe import SqlPipeWrapper
+
+        # TODO: more principled approach (can define a "get_source_code" otherwise we inspect?)
+        if self.pipe_callable is not None:
+            if isinstance(self.pipe_callable, SqlPipeWrapper):
+                return self.pipe_callable.sql
+            return inspect.getsource(self.pipe_callable)
+        return None
 
 
 PipeDefinitionLike = Union[PipeCallable, PipeDefinition]
