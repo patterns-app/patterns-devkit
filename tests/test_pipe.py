@@ -16,13 +16,13 @@ from dags.modules import core
 from dags.utils.typing import T, U
 from tests.utils import (
     TestType1,
-    df_chain_t1_to_t2,
-    df_generic,
-    df_self,
-    df_t1_sink,
-    df_t1_source,
-    df_t1_to_t2,
     make_test_env,
+    pipe_chain_t1_to_t2,
+    pipe_generic,
+    pipe_self,
+    pipe_t1_sink,
+    pipe_t1_source,
+    pipe_t1_to_t2,
 )
 
 
@@ -72,7 +72,7 @@ def test_typed_annotation(annotation: str, expected: PipeAnnotation):
     assert tda == expected
 
 
-def df_notworking(_1: int, _2: str, input: DataBlock[TestType1]):
+def pipe_notworking(_1: int, _2: str, input: DataBlock[TestType1]):
     # Bad args
     pass
 
@@ -85,7 +85,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
     "pipe,expected",
     [
         (
-            df_t1_sink,
+            pipe_t1_sink,
             PipeInterface(
                 inputs=[
                     PipeAnnotation(
@@ -104,7 +104,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
             ),
         ),
         (
-            df_t1_to_t2,
+            pipe_t1_to_t2,
             PipeInterface(
                 inputs=[
                     PipeAnnotation(
@@ -131,7 +131,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
             ),
         ),
         (
-            df_generic,
+            pipe_generic,
             PipeInterface(
                 inputs=[
                     PipeAnnotation(
@@ -158,7 +158,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
             ),
         ),
         (
-            df_self,
+            pipe_self,
             PipeInterface(
                 inputs=[
                     PipeAnnotation(
@@ -197,7 +197,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
             ),
         ),
         (
-            df_chain_t1_to_t2,
+            pipe_chain_t1_to_t2,
             PipeInterface(
                 inputs=[
                     PipeAnnotation(
@@ -237,14 +237,14 @@ def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
 
 
 # env = make_test_env()
-# upstream = env.add_node("_test_df1", df_t1_source)
+# upstream = env.add_node("_test_df1", pipe_t1_source)
 #
 #
 # @pytest.mark.parametrize(
 #     "pipe,expected",
 #     [
 #         (
-#             df_t1_sink,
+#             pipe_t1_sink,
 #             PipeInterface(
 #                 inputs=[
 #                     PipeAnnotation(
@@ -265,7 +265,7 @@ def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
 #             ),
 #         ),
 #         (
-#             df_generic,
+#             pipe_generic,
 #             PipeInterface(
 #                 inputs=[
 #                     PipeAnnotation(
@@ -307,11 +307,11 @@ def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
 
 def test_inputs():
     env = make_test_env()
-    n1 = env.add_node("node1", df_t1_source)
-    n2 = env.add_node("node2", df_t1_to_t2, inputs={"input": "node1"})
+    n1 = env.add_node("node1", pipe_t1_source)
+    n2 = env.add_node("node2", pipe_t1_to_t2, inputs={"input": "node1"})
     dfi = n2.get_interface()
     assert dfi is not None
-    n3 = env.add_node("node3", df_chain_t1_to_t2, inputs="node1")
+    n3 = env.add_node("node3", pipe_chain_t1_to_t2, inputs="node1")
     dfi = n3.get_interface()
     assert dfi is not None
 
@@ -319,9 +319,9 @@ def test_inputs():
 # def test_stream_input():
 #     env = make_test_env()
 #     env.add_module(core)
-#     n1 = env.add_node("node1", df_t1_source)
-#     n2 = env.add_node("node2", df_t1_source)
-#     n3 = env.add_node("node3", df_chain_t1_to_t2, inputs="node1")
+#     n1 = env.add_node("node1", pipe_t1_source)
+#     n2 = env.add_node("node2", pipe_t1_source)
+#     n3 = env.add_node("node3", pipe_chain_t1_to_t2, inputs="node1")
 #     ds1 = env.add_node(
 #         "ds1",
 #         accumulate_as_dataset,
@@ -333,13 +333,13 @@ def test_inputs():
 
 def test_python_pipe():
     env = make_test_env()
-    df = pipe(df_t1_sink)
+    df = pipe(pipe_t1_sink)
     assert (
-        df.key == df_t1_sink.__name__
+        df.key == pipe_t1_sink.__name__
     )  # TODO: do we really want this implicit name? As long as we error on duplicate should be ok
 
     k = "name1"
-    df = pipe(df_t1_sink, key=k)
+    df = pipe(pipe_t1_sink, key=k)
     assert df.key == k
 
     dfi = df.get_interface(env)
@@ -502,7 +502,7 @@ def df2():
 #     r = PipeRegistry()
 #     dfs = Pipe(name="k1", module_key=DEFAULT_module_key, version=None)
 #     dfs.add_definition(df1)
-#     r.process_and_register_all([df_t1_sink, df_chain_t1_to_t2, dfs, df2])
+#     r.process_and_register_all([pipe_t1_sink, pipe_chain_t1_to_t2, dfs, df2])
 #     assert r.get("k1") is dfs
 #     assert r.get("k1").runtime_pipes[RuntimeClass.PYTHON] is df1
 #     assert r.get("k1").runtime_pipes[RuntimeClass.DATABASE] is df2
@@ -510,7 +510,7 @@ def df2():
 
 def test_node_no_inputs():
     env = make_test_env()
-    df = pipe(df_t1_source)
+    df = pipe(pipe_t1_source)
     node1 = Node(env, "node1", df)
     assert {node1: node1}[node1] is node1  # Test hash
     dfi = node1.get_interface()
@@ -522,9 +522,9 @@ def test_node_no_inputs():
 
 def test_node_inputs():
     env = make_test_env()
-    df = pipe(df_t1_source)
+    df = pipe(pipe_t1_source)
     node = Node(env, "node", df)
-    df = pipe(df_t1_sink)
+    df = pipe(pipe_t1_sink)
     with pytest.raises(Exception):
         # Bad input
         Node(env, "node_fail", df, input="Turname")  # type: ignore
@@ -541,10 +541,10 @@ def test_node_config():
     env = make_test_env()
     config_vals = []
 
-    def df_ctx(ctx: PipeContext):
+    def pipe_ctx(ctx: PipeContext):
         config_vals.append(ctx.get_config("test"))
 
-    ctx = env.add_node("ctx", df_ctx, config={"test": 1, "extra_arg": 2})
+    ctx = env.add_node("ctx", pipe_ctx, config={"test": 1, "extra_arg": 2})
     with env.execution() as exe:
         exe.run(ctx)
     assert config_vals == [1]
@@ -552,9 +552,9 @@ def test_node_config():
 
 # def test_node_chain():
 #     env = make_test_env()
-#     df = pipe(df_t1_source)
+#     df = pipe(pipe_t1_source)
 #     node = Node(env, "node", df)
-#     node1 = PipeNodeChain(env, "node1", df_chain_t1_to_t2, upstream=node)
+#     node1 = PipeNodeChain(env, "node1", pipe_chain_t1_to_t2, upstream=node)
 #     dfi = node1.get_interface()
 #     assert len(dfi.inputs) == 1
 #     assert dfi.output is not None
@@ -573,12 +573,12 @@ def test_node_config():
 
 # def test_graph_resolution():
 #     env = make_test_env()
-#     n1 = env.add_node("node1", df_t1_source)
-#     n2 = env.add_node("node2", df_t1_source)
-#     n3 = env.add_node("node3", df_chain_t1_to_t2, upstream="node1")
-#     n4 = env.add_node("node4", df_t1_to_t2, upstream="node2")
-#     n5 = env.add_node("node5", df_generic, upstream="node4")
-#     n6 = env.add_node("node6", df_self, upstream="node4")
+#     n1 = env.add_node("node1", pipe_t1_source)
+#     n2 = env.add_node("node2", pipe_t1_source)
+#     n3 = env.add_node("node3", pipe_chain_t1_to_t2, upstream="node1")
+#     n4 = env.add_node("node4", pipe_t1_to_t2, upstream="node2")
+#     n5 = env.add_node("node5", pipe_generic, upstream="node4")
+#     n6 = env.add_node("node6", pipe_self, upstream="node4")
 #     fgr = PipeGraphResolver(env)
 #     # Resolve types
 #     assert fgr.resolve_output_type(n4) is TestType2
@@ -592,16 +592,16 @@ def test_node_config():
 #     assert fgr._resolve_node_dependencies(n5)[0].parent_nodes == [n4]
 #     fgr.resolve_dependencies()
 #     # Otype resolution
-#     n7 = env.add_node("node7", df_self, upstream=DataBlockStream(otype="TestType2"))
-#     n8 = env.add_node("node8", df_self, upstream=n7)
+#     n7 = env.add_node("node7", pipe_self, upstream=DataBlockStream(otype="TestType2"))
+#     n8 = env.add_node("node8", pipe_self, upstream=n7)
 #     fgr = env.get_pipe_graph_resolver()
 #     fgr.resolve()
 #     parent_keys = set(
 #         p.name for p in fgr.get_resolved_interface(n7).inputs[0].parent_nodes
 #     )
 #     assert parent_keys == {
-#         "node3__df_t1_to_t2",
-#         "node3__df_generic",
+#         "node3__pipe_t1_to_t2",
+#         "node3__pipe_generic",
 #         "node4",
 #         "node5",
 #         "node6",
@@ -612,10 +612,10 @@ def test_any_otype_interface():
     env = make_test_env()
     env.add_module(core)
 
-    def df_any(input: DataBlock) -> DataFrame:
+    def pipe_any(input: DataBlock) -> DataFrame:
         pass
 
-    df = pipe(df_any)
+    df = pipe(pipe_any)
     dfi = df.get_interface(env)
     assert dfi.inputs[0].otype_like == "Any"
     assert dfi.output.otype_like == "Any"

@@ -8,23 +8,23 @@ from dags.core.runnable import CompiledPipe, Runnable, RunSession, Worker
 from dags.modules import core
 from tests.utils import (
     TestType1,
-    df_generic,
-    df_t1_sink,
-    df_t1_source,
-    df_t1_to_t2,
     make_test_env,
     make_test_execution_context,
+    pipe_generic,
+    pipe_t1_sink,
+    pipe_t1_source,
+    pipe_t1_to_t2,
 )
 
 mock_dl_output = [{1: 2}, {2: 3}]
 
 
-def df_dl_source() -> RecordsList[TestType1]:
+def pipe_dl_source() -> RecordsList[TestType1]:
     return mock_dl_output
 
 
-def df_error() -> RecordsList[TestType1]:
-    raise Exception("DF FAIL")
+def pipe_error() -> RecordsList[TestType1]:
+    raise Exception("pipe FAIL")
 
 
 def test_worker():
@@ -32,7 +32,7 @@ def test_worker():
     sess = env.get_new_metadata_session()
     rt = env.runtimes[0]
     ec = env.get_execution_context(sess, current_runtime=rt)
-    node = env.add_node("node", df_t1_source)
+    node = env.add_node("node", pipe_t1_source)
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
@@ -50,7 +50,7 @@ def test_worker_output():
     ec = env.get_execution_context(
         sess, current_runtime=rt, target_storage=env.storages[0]
     )
-    node = env.add_node("node", df_dl_source)
+    node = env.add_node("node", pipe_dl_source)
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()

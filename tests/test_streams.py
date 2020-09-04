@@ -7,11 +7,11 @@ from dags.core.node import DataBlockLog, Direction, PipeLog
 from dags.core.streams import DataBlockStream
 from tests.utils import (
     TestType1,
-    df_generic,
-    df_t1_sink,
-    df_t1_source,
-    df_t1_to_t2,
     make_test_execution_context,
+    pipe_generic,
+    pipe_t1_sink,
+    pipe_t1_source,
+    pipe_t1_to_t2,
 )
 
 
@@ -32,10 +32,10 @@ class TestStreams:
         self.dr2t2 = DataBlockMetadata(
             expected_otype_key="_test.TestType2", realized_otype_key="_test.TestType2"
         )
-        self.node_source = self.env.add_node("df_source", df_t1_source)
-        self.node1 = self.env.add_node("df1", df_t1_sink)
-        self.node2 = self.env.add_node("df2", df_t1_to_t2)
-        self.node3 = self.env.add_node("df3", df_generic)
+        self.node_source = self.env.add_node("pipe_source", pipe_t1_source)
+        self.node1 = self.env.add_node("pipe1", pipe_t1_sink)
+        self.node2 = self.env.add_node("pipe2", pipe_t1_to_t2)
+        self.node3 = self.env.add_node("pipe3", pipe_generic)
         self.sess = ctx.metadata_session
         self.dr1t1 = ctx.merge(self.dr1t1)
         self.dr2t1 = ctx.merge(self.dr2t1)

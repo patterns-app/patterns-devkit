@@ -184,7 +184,7 @@ def pipe_factory(
 
 
 def pipe(
-    df_or_name: Union[str, PipeCallable] = None,
+    pipe_or_name: Union[str, PipeCallable] = None,
     key: str = None,
     compatible_runtimes: str = None,
     config_class: Optional[Type] = None,
@@ -193,10 +193,10 @@ def pipe(
     output: Optional[str] = None,
     # test_data: PipeTestCaseLike = None,
 ) -> Union[Callable, Pipe]:
-    if isinstance(df_or_name, str) or df_or_name is None:
+    if isinstance(pipe_or_name, str) or pipe_or_name is None:
         return partial(
             pipe,
-            key=df_or_name,
+            key=pipe_or_name,
             compatible_runtimes=compatible_runtimes,
             config_class=config_class,
             state_class=state_class,
@@ -204,7 +204,7 @@ def pipe(
             output=output,
         )
     return pipe_factory(
-        df_or_name,
+        pipe_or_name,
         key=key,
         compatible_runtimes=compatible_runtimes,
         config_class=config_class,

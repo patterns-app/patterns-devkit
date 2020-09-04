@@ -21,33 +21,33 @@ from dags.utils.typing import T, U
 from tests.utils import (
     TestType1,
     TestType2,
-    df_chain_t1_to_t2,
-    df_dataset_input,
-    df_dataset_output,
-    df_generic,
-    df_self,
-    df_t1_sink,
-    df_t1_source,
-    df_t1_to_t2,
     make_test_env,
+    pipe_chain_t1_to_t2,
+    pipe_dataset_input,
+    pipe_dataset_output,
+    pipe_generic,
+    pipe_self,
+    pipe_t1_sink,
+    pipe_t1_source,
+    pipe_t1_to_t2,
 )
 
 
 def make_graph() -> Environment:
     env = make_test_env()
     env.add_module(core)
-    n1 = env.add_node("node1", df_t1_source)
-    n2 = env.add_node("node2", df_t1_source)
-    n3 = env.add_node("node3", df_chain_t1_to_t2, inputs="node1")
-    n4 = env.add_node("node4", df_t1_to_t2, inputs="node2")
-    n5 = env.add_node("node5", df_generic, inputs="node4")
-    n6 = env.add_node("node6", df_self, inputs="node4")
+    n1 = env.add_node("node1", pipe_t1_source)
+    n2 = env.add_node("node2", pipe_t1_source)
+    n3 = env.add_node("node3", pipe_chain_t1_to_t2, inputs="node1")
+    n4 = env.add_node("node4", pipe_t1_to_t2, inputs="node2")
+    n5 = env.add_node("node5", pipe_generic, inputs="node4")
+    n6 = env.add_node("node6", pipe_self, inputs="node4")
     n7 = env.add_node(
-        "node7", df_dataset_input, inputs={"input": "node4", "other_ds_t2": "node3"}
+        "node7", pipe_dataset_input, inputs={"input": "node4", "other_ds_t2": "node3"}
     )
-    n8 = env.add_node("node8", df_dataset_output, inputs={"input": "node3"})
+    n8 = env.add_node("node8", pipe_dataset_output, inputs={"input": "node3"})
     n9 = env.add_node(
-        "node9", df_dataset_input, inputs={"input": "node3", "other_ds_t2": "node8"}
+        "node9", pipe_dataset_input, inputs={"input": "node3", "other_ds_t2": "node8"}
     )
     return env
 
@@ -82,8 +82,8 @@ def test_flattened_graph():
         "node6",
         "node5",
         "node1",
-        "node3__df_t1_to_t2",
-        "node3__df_generic",
+        "node3__pipe_t1_to_t2",
+        "node3__pipe_generic",
         "node3__dataset__core.sql_accumulator",
         "node3__dataset__core.dedupe_unique_keep_newest_row",
         "node3__dataset__core.as_dataset",
@@ -105,8 +105,8 @@ def test_flattened_graph():
         "node6",
         "node5",
         "node1",
-        "node3__df_t1_to_t2",
-        "node3__df_generic",
+        "node3__pipe_t1_to_t2",
+        "node3__pipe_generic",
         "node3__dataset__core.sql_accumulator",
         "node3__dataset__core.dedupe_unique_keep_newest_row",
         "node3__dataset__core.as_dataset",
@@ -118,4 +118,6 @@ def test_flattened_graph():
     # TODO: topographical sort is not unique
     #  unclear under what conditions networkx version is stable
     assert [n.key for n in fg.get_all_nodes_in_execution_order()] == execution_order
-    assert fg.get_flattened_root_node_for_declared_node(n3).key == "node3__df_t1_to_t2"
+    assert (
+        fg.get_flattened_root_node_for_declared_node(n3).key == "node3__pipe_t1_to_t2"
+    )

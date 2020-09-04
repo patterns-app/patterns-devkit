@@ -72,34 +72,34 @@ def make_test_execution_manager(**kwargs):
     return ExecutionManager(make_test_execution_context(**kwargs))
 
 
-def df_t1_sink(ctx: PipeContext, input: DataBlock[TestType1]):
+def pipe_t1_sink(ctx: PipeContext, input: DataBlock[TestType1]):
     pass
 
 
-def df_t1_to_t2(input: DataBlock[TestType1]) -> DataFrame[TestType2]:
+def pipe_t1_to_t2(input: DataBlock[TestType1]) -> DataFrame[TestType2]:
     pass
 
 
-def df_generic(input: DataBlock[T]) -> DataFrame[T]:
+def pipe_generic(input: DataBlock[T]) -> DataFrame[T]:
     pass
 
 
-def df_t1_source(ctx: PipeContext) -> DataFrame[TestType1]:
+def pipe_t1_source(ctx: PipeContext) -> DataFrame[TestType1]:
     pass
 
 
-df_chain_t1_to_t2 = pipe_chain("df_chain_t1_to_t2", [df_t1_to_t2, df_generic])
+pipe_chain_t1_to_t2 = pipe_chain("pipe_chain_t1_to_t2", [pipe_t1_to_t2, pipe_generic])
 
 
-def df_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
+def pipe_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
     pass
 
 
-def df_dataset_input(
+def pipe_dataset_input(
     input: DataBlock[T], other_ds_t2: DataSet[TestType2] = None
 ) -> DataFrame[T]:
     pass
 
 
-def df_dataset_output(input: DataBlock[T]) -> DataSet[T]:
+def pipe_dataset_output(input: DataBlock[T]) -> DataSet[T]:
     pass
