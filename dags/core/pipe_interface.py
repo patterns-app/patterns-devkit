@@ -377,7 +377,7 @@ class NodeInterfaceManager:
                 if not input.original_annotation.is_optional:
                     # print(actual_input_node, annotation, storages)
                     raise InputExhaustedException(
-                        f"    Required input '{input.name}'={stream} to Pipe '{self.node.name}' is empty"
+                        f"    Required input '{input.name}'={stream} to Pipe '{self.node.key}' is empty"
                     )
             else:
                 input_data_blocks[input.name] = block

@@ -4,7 +4,6 @@ from dataclasses import asdict
 
 import pytest
 
-from dags.core.module import DEFAULT_LOCAL_MODULE
 from dags.core.typing.inference import (
     infer_otype_fields_from_records,
     infer_otype_from_records_list,
@@ -46,10 +45,10 @@ implementations:
 def test_otype_identifiers():
     t1 = create_quick_otype("T1", fields=[("f1", "Unicode"), ("f2", "Integer")])
     assert t1.name == "T1"
-    assert t1.key == f"{DEFAULT_LOCAL_MODULE.name}.T1"
+    assert t1.key == "T1"
 
     t2 = create_quick_otype(
-        "TestType", fields=[("f1", "Unicode"), ("f2", "Integer")], module_name="m1"
+        "TestType", fields=[("f1", "Unicode"), ("f2", "Integer")], module_key="m1"
     )
     assert t2.name == "TestType"
     assert t2.key == "m1.TestType"

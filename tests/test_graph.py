@@ -17,7 +17,6 @@ from dags.core.runtime import RuntimeClass
 from dags.core.sql.pipe import sql_pipe
 from dags.core.streams import DataBlockStream
 from dags.modules import core
-from dags.modules.core.pipes.accumulate_as_dataset import accumulate_as_dataset
 from dags.utils.typing import T, U
 from tests.utils import (
     TestType1,
@@ -85,21 +84,21 @@ def test_flattened_graph():
         "node1",
         "node3__df_t1_to_t2",
         "node3__df_generic",
-        "node3__dataset__accumulator",
-        "node3__dataset__dedupe_unique_keep_newest_row",
-        "node3__dataset__as_dataset",
+        "node3__dataset__core.sql_accumulator",
+        "node3__dataset__core.dedupe_unique_keep_newest_row",
+        "node3__dataset__core.as_dataset",
         "node7",
         "node8",
         "node8__dataset",
         "node9",
     }
-    assert set(n.name for n in fg.nodes()) == nodes
+    assert set(n.key for n in fg.nodes()) == nodes
     # pprint(dict(fg.get_compiled_networkx_graph().adj))
     n3 = env.get_node("node3")
     n7 = env.get_node("node7")
     assert len(fg.get_all_upstream_dependencies_in_execution_order(n7)) == 9
     assert len(fg.get_all_nodes_in_execution_order()) == 14
-    print([n.name for n in fg.get_all_nodes_in_execution_order()])
+    print([n.key for n in fg.get_all_nodes_in_execution_order()])
     execution_order = [
         "node2",
         "node4",
@@ -108,9 +107,9 @@ def test_flattened_graph():
         "node1",
         "node3__df_t1_to_t2",
         "node3__df_generic",
-        "node3__dataset__accumulator",
-        "node3__dataset__dedupe_unique_keep_newest_row",
-        "node3__dataset__as_dataset",
+        "node3__dataset__core.sql_accumulator",
+        "node3__dataset__core.dedupe_unique_keep_newest_row",
+        "node3__dataset__core.as_dataset",
         "node7",
         "node8",
         "node8__dataset",
@@ -118,5 +117,5 @@ def test_flattened_graph():
     ]
     # TODO: topographical sort is not unique
     #  unclear under what conditions networkx version is stable
-    assert [n.name for n in fg.get_all_nodes_in_execution_order()] == execution_order
-    assert fg.get_flattened_root_node_for_declared_node(n3).name == "node3__df_t1_to_t2"
+    assert [n.key for n in fg.get_all_nodes_in_execution_order()] == execution_order
+    assert fg.get_flattened_root_node_for_declared_node(n3).key == "node3__df_t1_to_t2"

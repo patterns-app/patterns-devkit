@@ -36,7 +36,7 @@ class Event:
     event_details: Dict[str, Any]
     level: EventLevel
     occurred_at: datetime
-    node_name: Optional[str] = None
+    node_key: Optional[str] = None
     pipe_name: Optional[str] = None
     external_resource_name: Optional[str] = None
     environment_name: Optional[str] = None

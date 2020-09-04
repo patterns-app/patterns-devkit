@@ -36,11 +36,7 @@ def test_worker():
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
-    r = Runnable(
-        node.name,
-        CompiledPipe(node.pipe.name, node.pipe.get_definition(rt.runtime_class)),
-        bdfi,
-    )
+    r = Runnable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
     output = w.run(r)
     assert output is None
 
@@ -58,11 +54,7 @@ def test_worker_output():
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
-    r = Runnable(
-        node.name,
-        CompiledPipe(node.pipe.name, node.pipe.get_definition(rt.runtime_class)),
-        bdfi,
-    )
+    r = Runnable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
     outputblock = w.run(r)
     assert outputblock is not None
     block = outputblock.as_managed_data_block(ec)

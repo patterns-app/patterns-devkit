@@ -8,19 +8,13 @@ from typing import Any, Dict, List, Optional, Tuple
 import sqlparse
 from dags.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.data_formats import DataFormat
-from dags.core.pipe import (
-    DataInterfaceType,
-    PipeInterface,
-    pipe_factory,
-    Pipe,
-)
+from dags.core.pipe import DataInterfaceType, Pipe, PipeInterface, pipe_factory
 from dags.core.pipe_interface import (
     BadAnnotationException,
     PipeAnnotation,
     re_type_hint,
 )
 from dags.core.runnable import PipeContext
-
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from dags.core.runtime import RuntimeClass
 from dags.utils.common import md5_hash
@@ -320,7 +314,7 @@ def sql_pipe_factory(
     sql: str = None,
     version: str = None,
     compatible_runtimes: str = None,  # TODO: engine support
-    module_name: str = None,
+    module_key: str = None,
     **kwargs,  # TODO: explicit options
 ) -> Pipe:
     if not sql:

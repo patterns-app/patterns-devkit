@@ -125,7 +125,7 @@ class Environment:
         return self._local_module
 
     def get_module_order(self) -> List[str]:
-        return self.library.module_precedence
+        return self.library.module_lookup_keys
 
     def get_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
         if isinstance(otype_like, ObjectType):
@@ -172,18 +172,18 @@ class Environment:
     def all_pipes(self) -> List[Pipe]:
         return self.library.all_pipes()
 
-    def add_node(self, name: str, pipe: Union[PipeLike, str], **kwargs: Any) -> Node:
+    def add_node(self, key: str, pipe: Union[PipeLike, str], **kwargs: Any) -> Node:
         from dags.core.node import Node
 
         if isinstance(pipe, str):
             pipe = self.get_pipe(pipe)
-        node = Node(self, name, pipe, **kwargs)
+        node = Node(self, key, pipe, **kwargs)
         self._declared_graph.add_node(node)
         return node
 
     # def add_dataset_node(
     #     self,
-    #     name: str,
+    #     key: str,
     #     dataset_name: str = None,
     #     upstream: Any = None,
     #     **stream_kwargs: Any,
@@ -431,8 +431,8 @@ class Environment:
 #     )
 #     for url in yml.get("storages"):
 #         env.add_storage(StorageResource.from_url(url))
-#     for module_name in yml.get("modules"):
-#         m = import_module(module_name)
+#     for module_key in yml.get("module_lookup_keys"):
+#         m = import_module(module_key)
 #         env.add_module(m)
 #     return env
 
@@ -446,8 +446,8 @@ def load_environment_from_project(project: Any) -> Environment:
     )
     for url in getattr(project, "storages", []):
         env.add_storage(Storage.from_url(url))
-    for module_name in getattr(project, "modules", []):
-        m = import_module(module_name)
+    for module_key in getattr(project, "module_lookup_keys", []):
+        m = import_module(module_key)
         env.add_module(m)  # type: ignore  # We hijack the module
     return env
 

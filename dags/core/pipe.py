@@ -68,7 +68,7 @@ class Pipe:
     state_class: Optional[Type] = None
     declared_inputs: Optional[Dict[str, str]] = None
     declared_output: Optional[str] = None
-    sub_graph: List[str] = field(default_factory=list)  # TODO: support proper graphs
+    sub_graph: List[Pipe] = field(default_factory=list)  # TODO: support proper graphs
 
     # TODO: runtime engine eg "mysql>=8.0", "python==3.7.4"  ???
     # TODO: runtime dependencies
@@ -171,7 +171,7 @@ def pipe_factory(
     if key is None:
         if pipe_callable is None:
             raise
-        name = make_pipe_key(pipe_callable)
+        key = make_pipe_key(pipe_callable)
     runtime_class = get_runtime_class(compatible_runtimes)
     return Pipe(
         key=key,
@@ -219,14 +219,14 @@ def pipe_chain(key: str, pipe_chain: List[Union[PipeLike, str]], **kwargs) -> Pi
     for fn in pipe_chain:
         if isinstance(fn, str):
             k = fn
+            raise NotImplementedError
         elif isinstance(fn, Pipe):
-            k = fn.key
+            p = fn
         elif callable(fn):
             p = make_pipe(fn, **kwargs)
-            k = p.key
         else:
             raise TypeError(f"Invalid pipe key in chain {fn}")
-        sub_funcs.append(k)
+        sub_funcs.append(p)
     return pipe_factory(None, key=key, sub_graph=sub_funcs, is_composite=True, **kwargs)
 
 

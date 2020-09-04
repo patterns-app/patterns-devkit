@@ -1,13 +1,18 @@
 from __future__ import annotations
 
 from dags.core.pipe import Pipe, pipe_chain
+from dags.modules.core.pipes.accumulator import dataframe_accumulator, sql_accumulator
 from dags.modules.core.pipes.as_dataset import as_dataset
 from dags.modules.core.pipes.dedupe import dedupe_unique_keep_newest_row
 from dags.testing.pipes import PipeTest
 
-accumulate_as_dataset = pipe_chain(
-    key=f"core.accumulate_as_dataset",
-    pipe_chain=["accumulator", dedupe_unique_keep_newest_row, as_dataset],
+sql_accumulate_as_dataset = pipe_chain(
+    key=f"core.sql_accumulate_as_dataset",
+    pipe_chain=[sql_accumulator, dedupe_unique_keep_newest_row, as_dataset],
+)
+dataframe_accumulate_as_dataset = pipe_chain(
+    key=f"core.dataframe_accumulate_as_dataset",
+    pipe_chain=[dataframe_accumulator, dedupe_unique_keep_newest_row, as_dataset],
 )
 
 
@@ -18,8 +23,8 @@ accumulate_as_dataset = pipe_chain(
 #     )
 
 
-accumulate_as_dataset_test = PipeTest(
-    pipe="core.accumulate_as_dataset",
+sql_accumulate_as_dataset_test = PipeTest(
+    pipe="core.sql_accumulate_as_dataset",
     tests=[
         {
             "name": "test_dupe",

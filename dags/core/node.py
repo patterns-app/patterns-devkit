@@ -31,31 +31,31 @@ def inputs_as_nodes(env: Environment, inputs: Dict[str, NodeLike]):
 
 class Node:
     env: Environment
-    name: str
+    key: str
     pipe: Pipe
     _declared_inputs: Dict[str, NodeLike]
     _compiled_inputs: Dict[str, Node] = None
     _dataset_name: Optional[str] = None
-    declared_composite_node_name: Optional[str] = None
+    declared_composite_node_key: Optional[str] = None
     _sub_nodes: List[Node] = None
 
     def __init__(
         self,
         env: Environment,
-        name: str,
+        key: str,
         pipe: Union[PipeLike, str],
         inputs: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,
         dataset_name: Optional[str] = None,
         config: Dict[str, Any] = None,
-        declared_composite_node_name: str = None,
+        declared_composite_node_key: str = None,
     ):
         self.config = config or {}
         self.env = env
-        self.name = name
+        self.key = key
         self._dataset_name = dataset_name
         self.pipe = self._clean_pipe(pipe)
         self.dfi = self.get_interface()
-        self.declared_composite_node_name = declared_composite_node_name
+        self.declared_composite_node_key = declared_composite_node_key
         self._declared_inputs = {}
         if inputs is not None:
             self._set_declared_inputs(inputs)
@@ -63,10 +63,10 @@ class Node:
             self._sub_nodes = list(build_composite_nodes(self))
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}(name={self.name}, pipe={self.pipe.name})>"
+        return f"<{self.__class__.__name__}(key={self.key}, pipe={self.pipe.key})>"
 
     def __hash__(self):
-        return hash(self.name)
+        return hash(self.key)
 
     def _clean_pipe(self, df: PipeLike) -> Pipe:
         if isinstance(df, str):
@@ -82,7 +82,7 @@ class Node:
             self.get_input_node().set_compiled_inputs(inputs)
 
     def get_state(self, sess: Session) -> Optional[Dict]:
-        state = sess.query(NodeState).filter(NodeState.node_name == self.name).first()
+        state = sess.query(NodeState).filter(NodeState.node_key == self.key).first()
         if state:
             return state.state
         return None
@@ -90,7 +90,7 @@ class Node:
     # def clone(self, new_name: str, **kwargs) -> Node:
     #     args = dict(
     #         env=self.env,
-    #         name=new_name,
+    #         key=new_name,
     #         pipe=self.pipe,
     #         config=self.config,
     #         inputs=self.get_declared_inputs(),
@@ -98,16 +98,16 @@ class Node:
     #     args.update(kwargs)
     #     return Node(**args)
 
-    def get_dataset_node_name(self) -> str:
-        return f"{self.name}__dataset"
+    def get_dataset_node_key(self) -> str:
+        return f"{self.key}__dataset"
 
     def get_dataset_name(self) -> str:
-        return self._dataset_name or self.name
+        return self._dataset_name or self.key
 
-    def get_or_create_dataset_node(self, node_name: str = None) -> Node:
+    def get_or_create_dataset_node(self, node_key: str = None) -> Node:
         try:
             # Return if already created
-            return self.env.get_node(self.get_dataset_node_name())
+            return self.env.get_node(self.get_dataset_node_key())
         except KeyError:
             pass
         dfi = self.get_interface()
@@ -116,9 +116,9 @@ class Node:
         if dfi.output.data_format_class == "DataSet":
             df = "core.as_dataset"
         else:
-            df = "core.accumulate_as_dataset"
+            df = "core.sql_accumulate_as_dataset"  # TODO: hmmmm
         dsn = self.env.add_node(
-            name=node_name or self.get_dataset_node_name(),
+            key=node_key or self.get_dataset_node_key(),
             pipe=df,
             config={"dataset_name": self.get_dataset_name()},
             inputs=self,
@@ -150,9 +150,9 @@ class Node:
     def get_declared_inputs(self) -> Dict[str, NodeLike]:
         return self._declared_inputs or {}
 
-    def get_compiled_input_names(self) -> Dict[str, str]:
+    def get_compiled_input_keys(self) -> Dict[str, str]:
         return {
-            n: i.name if isinstance(i, Node) else i
+            n: i.key if isinstance(i, Node) else i
             for n, i in self.get_compiled_input_nodes().items()
         }
 
@@ -184,7 +184,7 @@ class Node:
             .join(PipeLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                PipeLog.node_name == self.name,
+                PipeLog.node_key == self.key,
             )
             .order_by(DataBlockLog.created_at.desc())
             .first()
@@ -205,7 +205,7 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
     for fn in n.pipe.sub_graph:
         fn = ensure_pipe(n.env, fn)
         child_fn_key = make_pipe_key(fn)
-        child_node_key = f"{n.name}__{child_fn_key}"
+        child_node_key = f"{n.key}__{child_fn_key}"
         try:
             node = n.env.get_node(child_node_key)
         except KeyError:
@@ -215,8 +215,8 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
                 fn,
                 config=n.config,
                 inputs=input_node,
-                declared_composite_node_name=n.declared_composite_node_name
-                or n.name,  # Handle nested composite pipes
+                declared_composite_node_key=n.declared_composite_node_key
+                or n.key,  # Handle nested composite pipes
             )
         nodes.append(node)
         input_node = node
@@ -224,19 +224,19 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
 
     # @property
     # def key(self):
-    #     return self.name  # TODO
+    #     return self.key  # TODO
 
 
 class NodeState(BaseModel):
-    node_name = Column(String, primary_key=True)
+    node_key = Column(String, primary_key=True)
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(node_name=self.node_name, state=self.state,)
+        return self._repr(node_key=self.node_key, state=self.state,)
 
 
-def get_state(sess: Session, node_name: str) -> Optional[Dict]:
-    state = sess.query(NodeState).filter(NodeState.node_name == node_name).first()
+def get_state(sess: Session, node_key: str) -> Optional[Dict]:
+    state = sess.query(NodeState).filter(NodeState.node_key == node_key).first()
     if state:
         return state.state
     return None
@@ -244,7 +244,7 @@ def get_state(sess: Session, node_name: str) -> Optional[Dict]:
 
 class PipeLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    node_name = Column(String, nullable=False)
+    node_key = Column(String, nullable=False)
     node_start_state = Column(JSON, nullable=True)
     node_end_state = Column(JSON, nullable=True)
     pipe_key = Column(String, nullable=False)
@@ -261,7 +261,7 @@ class PipeLog(BaseModel):
     def __repr__(self):
         return self._repr(
             id=self.id,
-            node_name=self.node_name,
+            node_key=self.node_key,
             pipe_key=self.pipe_key,
             runtime_url=self.runtime_url,
             started_at=self.started_at,
@@ -280,10 +280,10 @@ class PipeLog(BaseModel):
 
     def persist_state(self, sess: Session) -> NodeState:
         state = (
-            sess.query(NodeState).filter(NodeState.node_name == self.node_name).first()
+            sess.query(NodeState).filter(NodeState.node_key == self.node_key).first()
         )
         if state is None:
-            state = NodeState(node_name=self.node_name)
+            state = NodeState(node_key=self.node_key)
         state.state = self.node_end_state
         return sess.merge(state)
 

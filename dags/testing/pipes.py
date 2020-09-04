@@ -166,7 +166,7 @@ class PipeTest:
                             test_otype = test_data[input.name].otype_like
                             n = env.add_node(
                                 f"_test_source_node_{input.name}_{i}",
-                                "extract_dataframe",
+                                "core.extract_dataframe",
                                 config={"dataframe": test_df, "otype": test_otype},
                             )
                             inputs[input.name] = n

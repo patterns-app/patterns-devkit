@@ -25,6 +25,11 @@ def printd(*o):
         print(*[cf.dimmed(i) for i in o])
 
 
+class AttrDict(dict):
+    __getattr__ = dict.__getitem__
+    __setattr__ = dict.__setitem__
+
+
 class StringEnum(Enum):
     def __str__(self):
         return self.value

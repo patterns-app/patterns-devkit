@@ -103,7 +103,7 @@ def otype_key_to_identifier(key: str) -> str:
 @dataclass(frozen=True)
 class ObjectType:
     name: str
-    module_name: Optional[str]
+    module_key: Optional[str]
     version: Optional[str]
     # type_class: ObjectTypeClass
     description: str
@@ -127,8 +127,8 @@ class ObjectType:
     @property
     def key(self) -> str:
         k = self.name
-        if self.module_name:
-            k = self.module_name + "." + k
+        if self.module_key:
+            k = self.module_key + "." + k
         return k
 
     def get_identifier(self) -> str:  # TODO: better name for this fn
@@ -225,8 +225,8 @@ def clean_raw_otype_defintion(raw_def: dict) -> dict:
     if isinstance(oc, str):
         raw_def["on_conflict"] = ConflictBehavior(oc)
     # raw_def["type_class"] = raw_def.pop("class", None)
-    if "module_name" not in raw_def:
-        raw_def["module_name"] = raw_def.pop("module", None)
+    if "module_key" not in raw_def:
+        raw_def["module_key"] = raw_def.pop("module", None)
     raw_def["version"] = int(raw_def["version"])
     return raw_def
 
@@ -288,7 +288,7 @@ def create_quick_field(name: str, field_type: str, **kwargs) -> Field:
 def create_quick_otype(name: str, fields: List[Tuple[str, str]], **kwargs):
     defaults = dict(
         name=name,
-        module_name=None,
+        module_key=None,
         # type_class="Observation",
         version="1.0",
         description="...",

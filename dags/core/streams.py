@@ -63,7 +63,7 @@ class DataBlockStream:
         s = "Stream("
         if self.upstream:
             inputs = [
-                i if isinstance(i, str) else i.name for i in ensure_list(self.upstream)
+                i if isinstance(i, str) else i.key for i in ensure_list(self.upstream)
             ]
             s += f"inputs={inputs}"
         if self.data_sets:
@@ -116,12 +116,12 @@ class DataBlockStream:
             # Only exclude DRs processed as INPUT
             filter_clause = and_(
                 DataBlockLog.direction == Direction.INPUT,
-                PipeLog.node_name == self.unprocessed_by.name,
+                PipeLog.node_key == self.unprocessed_by.key,
             )
         else:
             # No DB cycles allowed
             # Exclude DRs processed as INPUT and DRs outputted
-            filter_clause = PipeLog.node_name == self.unprocessed_by.name
+            filter_clause = PipeLog.node_key == self.unprocessed_by.key
         already_processed_drs = (
             Query(DataBlockLog.data_block_id)
             .join(PipeLog)
@@ -147,7 +147,7 @@ class DataBlockStream:
             .join(PipeLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                PipeLog.node_name.in_([c.name for c in self.get_upstream(ctx.env)]),
+                PipeLog.node_key.in_([c.key for c in self.get_upstream(ctx.env)]),
             )
             .distinct()
         )

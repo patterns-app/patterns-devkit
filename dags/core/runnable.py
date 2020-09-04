@@ -29,11 +29,7 @@ from dags.core.data_formats.base import ReusableGenerator
 from dags.core.environment import Environment
 from dags.core.metadata.orm import BaseModel
 from dags.core.node import DataBlockLog, Direction, Node, PipeLog, get_state
-from dags.core.pipe import (
-    DataInterfaceType,
-    InputExhaustedException,
-    PipeInterface,
-)
+from dags.core.pipe import DataInterfaceType, InputExhaustedException, PipeInterface
 from dags.core.pipe_interface import (
     BoundPipeInterface,
     NodeInput,
@@ -91,7 +87,7 @@ class LanguageDialectSupport:
 
 @dataclass(frozen=True)
 class CompiledPipe:  # TODO: this is unused currently, just a dumb wrapper on the df
-    name: str
+    key: str
     # code: str
     pipe: Pipe  # TODO: compile this to actual string code we can run aaannnnnnyyywhere
     # language_support: Iterable[LanguageDialect] = None  # TODO
@@ -107,7 +103,7 @@ class RuntimeSpecification:
 
 @dataclass(frozen=True)
 class Runnable:
-    node_name: str
+    node_key: str
     compiled_pipe: CompiledPipe
     # runtime_specification: RuntimeSpecification # TODO: support this
     pipe_interface: BoundPipeInterface
@@ -165,7 +161,7 @@ class ExecutionContext:
         assert self.current_runtime is not None, "Runtime not set"
         node_state = node.get_state(self.metadata_session) or {}
         dfl = PipeLog(  # type: ignore
-            node_name=node.name,
+            node_key=node.key,
             node_start_state=node_state,
             node_end_state=node_state,
             pipe_key=node.pipe.key,
@@ -275,7 +271,7 @@ class ExecutionManager:
         last_output: Optional[DataBlockMetadata] = None
 
         # Setup for run
-        base_msg = f"Running node: {cf.green(node.name)} {cf.dimmed(node.pipe.name)}"
+        base_msg = f"Running node: {cf.green(node.key)} {cf.dimmed(node.pipe.key)}"
         spinner = get_spinner()
         spinner.start(base_msg)
         start = time.time()
@@ -284,14 +280,14 @@ class ExecutionManager:
         try:
             while True:
                 dfi = self.get_bound_pipe_interface(node)
-                df = node.pipe.get_definition(runtime.runtime_class)
+                df = node.pipe
                 if df is None:
                     raise NotImplementedError(
-                        f"No pipe definition found for {node.pipe.name} and runtime {runtime.runtime_class}"
+                        f"No pipe definition found for {node.pipe.key} and runtime {runtime.runtime_class}"
                     )
                 runnable = Runnable(
-                    node_name=node.name,
-                    compiled_pipe=CompiledPipe(name=node.name, pipe=df,),
+                    node_key=node.key,
+                    compiled_pipe=CompiledPipe(key=node.key, pipe=df,),
                     pipe_interface=dfi,
                     configuration=node.config,
                 )
@@ -350,7 +346,7 @@ class Worker:
 
     def run(self, runnable: Runnable) -> Optional[DataBlockMetadata]:
         output_block: Optional[DataBlockMetadata] = None
-        node = self.env.get_node(runnable.node_name)
+        node = self.env.get_node(runnable.node_key)
         with self.ctx.start_pipe_run(node) as run_session:
             output = self.execute_pipe(runnable, run_session)
             if output is not None:

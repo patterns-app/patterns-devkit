@@ -12,12 +12,10 @@ def test_module_init():
     assert len(_test_module.otypes) == 1
     testtype = list(_test_module.otypes)[0]
     assert testtype.name == "TestType"
-    assert testtype.module_name == "_test_module"
+    assert testtype.module_key == "_test_module"
     # Pipes
     assert len(_test_module.pipes) == 2
-    assert set(f.name for f in _test_module.pipes) == {"test_sql", "df1"}
-    for f in _test_module.pipes:
-        assert f.module_name == "_test_module"
+    assert set(f.key for f in _test_module.pipes) == {"_test_module.test_sql", "df1"}
 
 
 def test_core_modules():

@@ -176,9 +176,9 @@ def list_pipes(env: Environment):
     with env.session_scope() as sess:
         query = (
             sess.query(
-                PipeLog.node_name, func.count(PipeLog.id), func.max(PipeLog.started_at),
+                PipeLog.node_key, func.count(PipeLog.id), func.max(PipeLog.started_at),
             )
-            .group_by(PipeLog.node_name)
+            .group_by(PipeLog.node_key)
             .all()
         )
         headers = [
@@ -202,7 +202,7 @@ def show_log(env: Environment):
                 for drl in dfl.data_block_logs:
                     r = [
                         dfl.started_at.strftime("%F %T"),
-                        dfl.node_name,
+                        dfl.node_key,
                         drl.direction.display,
                         drl.data_block_id,
                     ]
@@ -211,7 +211,7 @@ def show_log(env: Environment):
                 drls.append(
                     [
                         dfl.started_at.strftime("%F %t"),
-                        f"{dfl.node_name} nothing to do",
+                        f"{dfl.node_key} nothing to do",
                         "-",
                         "-",
                     ]

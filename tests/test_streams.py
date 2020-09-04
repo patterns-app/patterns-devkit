@@ -49,7 +49,7 @@ class TestStreams:
 
     def test_stream_unprocessed_eligible(self):
         dfl = PipeLog(
-            node_name=self.node_source.name,
+            node_key=self.node_source.key,
             pipe_key=self.node_source.pipe.key,
             runtime_url="test",
         )
@@ -64,7 +64,7 @@ class TestStreams:
 
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = PipeLog(
-            node_name=self.node_source.name,
+            node_key=self.node_source.key,
             pipe_key=self.node_source.pipe.key,
             runtime_url="test",
         )
@@ -72,7 +72,7 @@ class TestStreams:
             pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = PipeLog(
-            node_name=self.node1.name, pipe_key=self.node1.pipe.key, runtime_url="test",
+            node_key=self.node1.key, pipe_key=self.node1.pipe.key, runtime_url="test",
         )
         drl2 = DataBlockLog(
             pipe_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
@@ -89,7 +89,7 @@ class TestStreams:
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
         dfl = PipeLog(
-            node_name=self.node_source.name,
+            node_key=self.node_source.key,
             pipe_key=self.node_source.pipe.key,
             runtime_url="test",
         )
@@ -97,7 +97,7 @@ class TestStreams:
             pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = PipeLog(
-            node_name=self.node1.name, pipe_key=self.node1.pipe.key, runtime_url="test",
+            node_key=self.node1.key, pipe_key=self.node1.pipe.key, runtime_url="test",
         )
         drl2 = DataBlockLog(
             pipe_log=dfl2, data_block=self.dr1t1, direction=Direction.OUTPUT,
@@ -114,7 +114,7 @@ class TestStreams:
 
     def test_stream_unprocessed_eligible_otype(self):
         dfl = PipeLog(
-            node_name=self.node_source.name,
+            node_key=self.node_source.key,
             pipe_key=self.node_source.pipe.key,
             runtime_url="test",
         )

@@ -335,12 +335,12 @@ def test_python_pipe():
     env = make_test_env()
     df = pipe(df_t1_sink)
     assert (
-        df.name == df_t1_sink.__name__
+        df.key == df_t1_sink.__name__
     )  # TODO: do we really want this implicit name? As long as we error on duplicate should be ok
 
     k = "name1"
-    df = pipe(df_t1_sink, name=k)
-    assert df.name == k
+    df = pipe(df_t1_sink, key=k)
+    assert df.key == k
 
     dfi = df.get_interface(env)
     assert dfi is not None
@@ -500,7 +500,7 @@ def df2():
 
 # def test_pipe_registry():
 #     r = PipeRegistry()
-#     dfs = Pipe(name="k1", module_name=DEFAULT_MODULE_NAME, version=None)
+#     dfs = Pipe(name="k1", module_key=DEFAULT_module_key, version=None)
 #     dfs.add_definition(df1)
 #     r.process_and_register_all([df_t1_sink, df_chain_t1_to_t2, dfs, df2])
 #     assert r.get("k1") is dfs
@@ -563,7 +563,7 @@ def test_node_config():
 #     # Output NODE
 #     output_node = node1.get_output_node()
 #     assert output_node is not node1
-#     assert node1.name in output_node.name
+#     assert node1.name in output_node.key
 #     out_dfi = output_node.get_interface()
 #     assert len(out_dfi.inputs) == 1
 #     assert out_dfi.output is not None

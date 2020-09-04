@@ -145,7 +145,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         from dags.core.node import Direction
 
         result = (
-            sess.query(PipeLog.node_name)
+            sess.query(PipeLog.node_key)
             .join(DataBlockLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,

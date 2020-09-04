@@ -14,19 +14,19 @@ from dags.utils.common import rand_str
 from dags.utils.typing import T
 
 TestType1 = create_quick_otype(
-    "TestType1", [("f1", "Unicode(256)")], module_name="_test"
+    "TestType1", [("f1", "Unicode(256)")], module_key="_test"
 )
 TestType2 = create_quick_otype(
-    "TestType2", [("f1", "Unicode(256)")], module_name="_test"
+    "TestType2", [("f1", "Unicode(256)")], module_key="_test"
 )
 TestType3 = create_quick_otype(
-    "TestType3", [("f1", "Unicode(256)")], module_name="_test"
+    "TestType3", [("f1", "Unicode(256)")], module_key="_test"
 )
 TestType4 = create_quick_otype(
     "TestType4",
     [("f1", "Unicode(256)"), ("f2", "Integer")],
     unique_on=["f1"],
-    module_name="_test",
+    module_key="_test",
 )
 
 

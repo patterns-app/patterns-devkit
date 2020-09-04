@@ -73,7 +73,7 @@
 # #
 # # def external_resource_factory(**kwargs: Any) -> ExternalResource:
 # #     kwargs["component_type"] = ComponentType.External
-# #     kwargs["module_name"] = kwargs.get("module_name")
+# #     kwargs["module_key"] = kwargs.get("module_key")
 # #     kwargs["version"] = kwargs.get("version")
 # #     return ExternalResource(**kwargs)
 # #
@@ -206,12 +206,12 @@
 # #         resources: ExternalResourceList = ExternalResourceList()
 # #         for r in self.resources:
 # #             resources.append(r.associate_with_module(module))
-# #         return self.clone(module_name=module.name, resources=resources)
+# #         return self.clone(module_key=module.name, resources=resources)
 # #
 # #
 # # def external_provider_factory(**kwargs: Any) -> ExternalProvider:
 # #     kwargs["component_type"] = ComponentType.External
-# #     kwargs["module_name"] = kwargs.get("module_name")
+# #     kwargs["module_key"] = kwargs.get("module_key")
 # #     kwargs["version"] = kwargs.get("version")
 # #     return ExternalProvider(**kwargs)
 # #

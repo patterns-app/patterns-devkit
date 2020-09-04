@@ -106,7 +106,7 @@ def generate_auto_otype(fields, **kwargs) -> ObjectType:
     auto_name = "AutoType" + str(randint(1000, 9999))  # TODO
     args = dict(
         name=auto_name,
-        module_name=DEFAULT_LOCAL_MODULE.name,
+        module_key=DEFAULT_LOCAL_MODULE.key,
         version="0",
         description=f"Automatically inferred type",
         unique_on=[],

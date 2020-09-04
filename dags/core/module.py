@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from io import TextIOBase
 from typing import (
     TYPE_CHECKING,
+    Any,
     Generator,
     Iterable,
     List,
@@ -14,11 +15,11 @@ from typing import (
     TextIO,
     Type,
     Union,
-    Any,
 )
 
 from dags.core.component import ComponentLibrary
 from dags.core.typing.object_type import ObjectType, ObjectTypeLike, otype_from_yaml
+from dags.utils.common import AttrDict
 
 if TYPE_CHECKING:
     from dags.core.pipe import (
@@ -28,9 +29,11 @@ if TYPE_CHECKING:
     )
     from dags.testing.pipes import PipeTest
 
+DEFAULT_LOCAL_MODULE_KEY = "_local_"
+
 
 class DagsModule:
-    name: str
+    key: str
     py_module_path: Optional[str]
     py_module_name: Optional[str]
     library: ComponentLibrary
@@ -39,7 +42,7 @@ class DagsModule:
 
     def __init__(
         self,
-        name: str,
+        key: str,
         py_module_path: Optional[str] = None,
         py_module_name: Optional[str] = None,
         otypes: Optional[Sequence[ObjectTypeLike]] = None,
@@ -50,12 +53,12 @@ class DagsModule:
         ] = None,  # TODO: support str references to external deps (will need repo hooks...)
     ):
 
-        self.name = name
+        self.key = key
         if py_module_path:
             py_module_path = os.path.dirname(py_module_path)
         self.py_module_path = py_module_path
         self.py_module_name = py_module_name
-        self.library = ComponentLibrary()
+        self.library = ComponentLibrary(module_lookup_keys=[self.key])
         self.test_cases = []
         self.dependencies = []
         for otype in otypes or []:
@@ -95,20 +98,21 @@ class DagsModule:
 
     def export(self):
         if self.py_module_name is None:
-            raise Exception("Cannot export module, no module_name set")
-        sys.modules[self.py_module_name] = self  # type: ignore  # sys.modules wants a modulefinder.Module type and it's not gonna get it
+            raise Exception("Cannot export module, no module_key set")
+        sys.modules[self.py_module_name] = self  # type: ignore  # sys.module_lookup_keys wants a modulefinder.Module type and it's not gonna get it
 
     @property
-    def otypes(self) -> List[ObjectType]:
-        return self.library.all_otypes()
+    def otypes(self) -> AttrDict[str, ObjectType]:
+        return self.library.get_otypes_view()
 
     @property
-    def pipes(self) -> List[Pipe]:
-        return self.library.all_pipes()
+    def pipes(self) -> AttrDict[str, Pipe]:
+        return self.library.get_pipes_view()
 
     def validate_key(self, obj: Any):
-        if not obj.key.startswith(self.name + "."):
-            raise ValueError("Must prefix component key with module name")
+        pass  # TODO: make the key whatever you want? idk
+        # if not obj.key.startswith(self.key + "."):
+        #     raise ValueError("Must prefix component key with module key")
 
     def add_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
         otype = self.process_otype(otype_like)
@@ -122,7 +126,7 @@ class DagsModule:
         elif isinstance(otype_like, str):
             with self.open_module_file(otype_like) as f:
                 yml = f.read()
-                otype = otype_from_yaml(yml, module_name=self.name)
+                otype = otype_from_yaml(yml, module_key=self.key)
         else:
             raise TypeError(otype_like)
         return otype
@@ -156,7 +160,7 @@ class DagsModule:
                     sql = f.read()
                 file_name = os.path.basename(pipe_like)[:-4]
                 pipe = sql_pipe(
-                    key=f"{self.name}.{file_name}", sql=sql
+                    key=f"{self.key}.{file_name}", sql=sql
                 )  # TODO: versions, runtimes, etc for sql (someway to specify in a .sql file)
             else:
                 raise TypeError(pipe_like)
@@ -167,7 +171,7 @@ class DagsModule:
         self.test_cases.append(test_case)
 
     def run_tests(self):
-        print(f"Running tests for module {self.name}")
+        print(f"Running tests for module {self.key}")
         for test in self.test_cases:
             print(f"======= {test.pipe} =======")
             try:
@@ -178,7 +182,7 @@ class DagsModule:
 
     def add_dependency(self, m: DagsModule):
         # if isinstance(m, DagsModule):
-        #     m = m.name
+        #     m = m.key
         self.dependencies.append(m)
 
     # def add_test_case(self, test_case_like: PipeTestCaseLike):
@@ -218,4 +222,4 @@ class DagsModule:
     #             yield ic
 
 
-DEFAULT_LOCAL_MODULE = DagsModule("_local_")
+DEFAULT_LOCAL_MODULE = DagsModule(DEFAULT_LOCAL_MODULE_KEY)
