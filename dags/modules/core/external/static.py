@@ -26,7 +26,11 @@ class DataFrameResourceConfig:
     otype: ObjectTypeLike
 
 
-@pipe(config_class=DataFrameResourceConfig, state_class=LocalResourceState)
+@pipe(
+    "core.extract_dataframe",
+    config_class=DataFrameResourceConfig,
+    state_class=LocalResourceState,
+)
 def extract_dataframe(ctx: PipeContext,) -> DataSet:
     extracted = ctx.get_state("extracted")
     if extracted:
@@ -42,7 +46,11 @@ class LocalCSVResourceConfig:
     otype: ObjectTypeLike
 
 
-@pipe(config_class=LocalCSVResourceConfig, state_class=LocalResourceState)
+@pipe(
+    "core.extract_csv",
+    config_class=LocalCSVResourceConfig,
+    state_class=LocalResourceState,
+)
 def extract_csv(ctx: PipeContext,) -> DataSet:
     extracted = ctx.get_state("extracted")
     if extracted:

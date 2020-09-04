@@ -10,9 +10,9 @@ from dags.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMe
 from dags.core.data_formats import DataFormat
 from dags.core.pipe import (
     DataInterfaceType,
-    PipeDefinition,
     PipeInterface,
-    pipe_definition_factory,
+    pipe_factory,
+    Pipe,
 )
 from dags.core.pipe_interface import (
     BadAnnotationException,
@@ -75,7 +75,15 @@ def extract_interface(
     comment_annotations=True,
 ) -> TypedSqlStatement:
     # debug = print
-    # TODO: Say it with me: un - main - tain - able!
+    # TODO
+    # TODO
+    # TODO: Say it with me: UN - MAIN - TAIN - ABLE!
+    # TODO
+    # TODO
+    """
+    Get all table names in a sql statement, optionally sub them with new names.
+    Also extract comment-style ObjectType annotations if they exists.
+    """
     replace_with_names = replace_with_names or {}
     table_refs: Dict[str, Optional[str]] = {}
     output_annotation: Optional[str] = None
@@ -308,20 +316,18 @@ class SqlPipeWrapper:
 
 
 def sql_pipe_factory(
-    name: str,
+    key: str,
     sql: str = None,
     version: str = None,
     compatible_runtimes: str = None,  # TODO: engine support
     module_name: str = None,
     **kwargs,  # TODO: explicit options
-) -> PipeDefinition:
+) -> Pipe:
     if not sql:
         raise ValueError("Must give sql")
-    return pipe_definition_factory(
+    return pipe_factory(
         SqlPipeWrapper(sql),
-        name=name,
-        module_name=module_name,
-        version=version,
+        key=key,
         compatible_runtimes=compatible_runtimes or "database",
         **kwargs,
     )

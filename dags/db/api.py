@@ -146,16 +146,16 @@ class DatabaseAPI:
         # TODO: DRY this with other "create_data_block"
         if not expected_otype:
             expected_otype = self.env.get_otype("Any")
-        expected_otype_uri = expected_otype.uri
+        expected_otype_key = expected_otype.key
         if is_any(expected_otype):
             realized_otype = infer_otype_from_db_table(self, tmp_name)
             self.env.add_new_otype(realized_otype)
         else:
             realized_otype = expected_otype
-        realized_otype_uri = realized_otype.uri
+        realized_otype_key = realized_otype.key
         block = DataBlockMetadata(
-            expected_otype_uri=expected_otype_uri,
-            realized_otype_uri=realized_otype_uri,
+            expected_otype_key=expected_otype_key,
+            realized_otype_key=realized_otype_key,
             record_count=cnt,
         )
         storage_url = self.resource.url

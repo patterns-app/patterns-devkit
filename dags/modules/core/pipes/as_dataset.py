@@ -6,7 +6,7 @@ from dags.core.runnable import PipeContext
 from dags.utils.typing import T
 
 
-@pipe("as_dataset", compatible_runtimes="database")
+@pipe("core.as_dataset", compatible_runtimes="database")
 def as_dataset(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
     name = ctx.get_config("dataset_name")
     ds = (
@@ -17,8 +17,8 @@ def as_dataset(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
     if ds is None:
         ds = DataSetMetadata(
             name=name,
-            expected_otype_uri=input.expected_otype_uri,
-            realized_otype_uri=input.realized_otype_uri,
+            expected_otype_key=input.expected_otype_key,
+            realized_otype_key=input.realized_otype_key,
         )
     ds.data_block_id = input.data_block_id
     ctx.execution_context.add(ds)

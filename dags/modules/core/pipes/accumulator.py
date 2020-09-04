@@ -9,7 +9,7 @@ from dags.testing.pipes import PipeTest
 from dags.utils.typing import T
 
 accumulator_test = PipeTest(
-    pipe="accumulator",
+    pipe="core.sql_accumulator",
     tests=[
         {
             "name": "test_empty_this",
@@ -130,7 +130,7 @@ accumulator_test = PipeTest(
 
 # Note this pipe is special case where cannot specify dataset as output (even tho practically it is)
 # Since it IS part of a dataset creation
-@pipe(name="accumulator")  # , test_data="test_accumulator.yml")
+@pipe("core.dataframe_accumulator")
 def dataframe_accumulator(
     input: DataBlock[T], this: DataBlock[T] = None,
 ) -> DataFrame[T]:
@@ -142,7 +142,7 @@ def dataframe_accumulator(
 
 
 sql_accumulator = sql_pipe(
-    name="accumulator",
+    key="core.sql_accumulator",
     sql="""
     select -- DataBlock[T]
     * from input -- DataBlock[T]

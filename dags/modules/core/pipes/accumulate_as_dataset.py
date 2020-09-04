@@ -6,7 +6,7 @@ from dags.modules.core.pipes.dedupe import dedupe_unique_keep_newest_row
 from dags.testing.pipes import PipeTest
 
 accumulate_as_dataset = pipe_chain(
-    name=f"accumulate_as_dataset",
+    key=f"core.accumulate_as_dataset",
     pipe_chain=["accumulator", dedupe_unique_keep_newest_row, as_dataset],
 )
 
@@ -19,7 +19,7 @@ accumulate_as_dataset = pipe_chain(
 
 
 accumulate_as_dataset_test = PipeTest(
-    pipe="accumulate_as_dataset",
+    pipe="core.accumulate_as_dataset",
     tests=[
         {
             "name": "test_dupe",

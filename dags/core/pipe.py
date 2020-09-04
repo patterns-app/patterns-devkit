@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Uni
 
 from pandas import DataFrame
 
-from dags.core.component import ComponentType, ComponentUri
 from dags.core.data_block import DataBlockMetadata, DataSetMetadata
 from dags.core.data_formats import DatabaseTableRef, RecordsList
 from dags.core.module import DEFAULT_LOCAL_MODULE, DagsModule
@@ -46,77 +45,20 @@ def get_runtime_class(runtime: Optional[str]) -> RuntimeClass:
     return RuntimeClass.PYTHON
 
 
-def make_pipe_name(pipe: PipeCallable) -> str:
+def make_pipe_key(pipe: PipeCallable) -> str:
     # TODO: something more principled / explicit?
-    if hasattr(pipe, "name"):
-        return pipe.name  # type: ignore
+    if hasattr(pipe, "key"):
+        return pipe.key  # type: ignore
     if hasattr(pipe, "__name__"):
         return pipe.__name__
     if hasattr(pipe, "__class__"):
         return pipe.__class__.__name__
-    raise Exception(f"Invalid Pipe name {pipe}")
+    raise Exception(f"Invalid Pipe key {pipe}")
 
 
 @dataclass(frozen=True)
-class Pipe(ComponentUri):
-    # component_type = ComponentType.Pipe
-    runtime_pipes: Dict[RuntimeClass, PipeDefinition] = field(default_factory=dict)
-
-    @property
-    def is_composite(self) -> bool:
-        return self.get_representative_definition().is_composite
-
-    @property
-    def compatible_runtime_classes(self) -> List[RuntimeClass]:
-        return list(self.runtime_pipes.keys())
-
-    def __call__(
-        self, *args: PipeContext, **kwargs: DataInterfaceType
-    ) -> Optional[DataInterfaceType]:
-        raise NotImplementedError
-        # # TODO: hack, but maybe useful to have actual Pipe still act like a pipe
-        # for v in self.runtime_pipes.values():
-        #     try:
-        #         return v(*args, **kwargs)
-        #     except:
-        #         pass
-
-    def get_representative_definition(self) -> PipeDefinition:
-        return list(self.runtime_pipes.values())[0]
-
-    def get_interface(self, env: Environment) -> Optional[PipeInterface]:
-        dfd = self.get_representative_definition()
-        if not dfd:
-            raise
-        return dfd.get_interface(env)
-
-    def add_definition(self, df: PipeDefinition):
-        for cls in df.compatible_runtime_classes:
-            self.runtime_pipes[cls] = df
-
-    def validate(self):
-        # TODO: check if all pipe signatures match
-        pass
-
-    def merge(self, other: ComponentUri, overwrite: bool = False):
-        other = cast(Pipe, other)
-        for cls, df in other.runtime_pipes.items():
-            if cls not in self.runtime_pipes:
-                self.runtime_pipes[cls] = df
-
-    def get_definition(self, runtime_cls: RuntimeClass) -> Optional[PipeDefinition]:
-        return self.runtime_pipes.get(runtime_cls)
-
-    def associate_with_module(self, module: DagsModule) -> ComponentUri:
-        dfds: Dict[RuntimeClass, PipeDefinition] = {}
-        for cls, dfd in self.runtime_pipes.items():
-            dfds[cls] = dfd.associate_with_module(module)
-        return self.clone(module_name=module.name, runtime_pipes=dfds)
-
-
-@dataclass(frozen=True)
-class PipeDefinition(ComponentUri):
-    # component_type = ComponentType.Pipe
+class Pipe:
+    key: str
     pipe_callable: Optional[
         Callable
     ]  # Optional since Composite DFs don't have a Callable
@@ -126,9 +68,7 @@ class PipeDefinition(ComponentUri):
     state_class: Optional[Type] = None
     declared_inputs: Optional[Dict[str, str]] = None
     declared_output: Optional[str] = None
-    sub_graph: List[ComponentUri] = field(
-        default_factory=list
-    )  # TODO: support proper graphs
+    sub_graph: List[str] = field(default_factory=list)  # TODO: support proper graphs
 
     # TODO: runtime engine eg "mysql>=8.0", "python==3.7.4"  ???
     # TODO: runtime dependencies
@@ -198,23 +138,6 @@ class PipeDefinition(ComponentUri):
             output = PipeAnnotation.from_type_annotation(self.declared_output)
         return PipeInterface(inputs=inputs, output=output,)
 
-    def associate_with_module(self, module: DagsModule) -> ComponentUri:
-        new_subs = []
-        if self.sub_graph:
-            for sub in self.sub_graph:
-                new_subs.append(sub.associate_with_module(module))
-        return self.clone(module_name=module.name, sub_graph=new_subs)
-
-    def as_pipe(self) -> Pipe:
-        df = Pipe(
-            component_type=ComponentType.Pipe,
-            name=self.name,
-            module_name=self.module_name,
-            version=self.version,
-        )
-        df.add_definition(self)
-        return df
-
     def source_code_language(self) -> str:
         from dags.core.sql.pipe import SqlPipeWrapper
 
@@ -234,30 +157,24 @@ class PipeDefinition(ComponentUri):
         return None
 
 
-PipeDefinitionLike = Union[PipeCallable, PipeDefinition]
-PipeLike = Union[PipeCallable, PipeDefinition, Pipe]
+PipeLike = Union[PipeCallable, Pipe]
 
 
-def pipe_definition_factory(
+def pipe_factory(
     pipe_callable: Optional[PipeCallable],  # Composite DFs don't have a callable
-    name: str = None,
-    version: str = None,
+    key: str = None,
     compatible_runtimes: str = None,
-    module_name: str = None,
     inputs: Optional[Dict[str, str]] = None,
     output: Optional[str] = None,
     **kwargs: Any,
-) -> PipeDefinition:
-    if name is None:
+) -> Pipe:
+    if key is None:
         if pipe_callable is None:
             raise
-        name = make_pipe_name(pipe_callable)
+        name = make_pipe_key(pipe_callable)
     runtime_class = get_runtime_class(compatible_runtimes)
-    return PipeDefinition(
-        component_type=ComponentType.Pipe,
-        name=name,
-        module_name=module_name,
-        version=version,
+    return Pipe(
+        key=key,
         pipe_callable=pipe_callable,
         compatible_runtime_classes=[runtime_class],
         declared_inputs=inputs,
@@ -268,34 +185,28 @@ def pipe_definition_factory(
 
 def pipe(
     df_or_name: Union[str, PipeCallable] = None,
-    name: str = None,
-    version: str = None,
+    key: str = None,
     compatible_runtimes: str = None,
-    module_name: str = None,
     config_class: Optional[Type] = None,
     state_class: Optional[Type] = None,
     inputs: Optional[Dict[str, str]] = None,
     output: Optional[str] = None,
     # test_data: PipeTestCaseLike = None,
-) -> Union[Callable, PipeDefinition]:
+) -> Union[Callable, Pipe]:
     if isinstance(df_or_name, str) or df_or_name is None:
         return partial(
             pipe,
-            name=df_or_name,
-            version=version,
+            key=df_or_name,
             compatible_runtimes=compatible_runtimes,
-            module_name=module_name,
             config_class=config_class,
             state_class=state_class,
             inputs=inputs,
             output=output,
         )
-    return pipe_definition_factory(
+    return pipe_factory(
         df_or_name,
-        name=name,
-        version=version,
+        key=key,
         compatible_runtimes=compatible_runtimes,
-        module_name=module_name,
         config_class=config_class,
         state_class=state_class,
         inputs=inputs,
@@ -303,45 +214,31 @@ def pipe(
     )
 
 
-def pipe_chain(
-    name: str, pipe_chain: List[Union[PipeLike, str]], **kwargs
-) -> PipeDefinition:
+def pipe_chain(key: str, pipe_chain: List[Union[PipeLike, str]], **kwargs) -> Pipe:
     sub_funcs = []
     for fn in pipe_chain:
         if isinstance(fn, str):
-            uri = ComponentUri.from_str(fn, component_type=ComponentType.Pipe)
-        elif isinstance(fn, ComponentUri):
-            uri = fn
+            k = fn
+        elif isinstance(fn, Pipe):
+            k = fn.key
         elif callable(fn):
-            uri = make_pipe_definition(fn, **kwargs)
+            p = make_pipe(fn, **kwargs)
+            k = p.key
         else:
-            raise TypeError(f"Invalid pipe uri in chain {fn}")
-        sub_funcs.append(uri)
-    return pipe_definition_factory(
-        None, name=name, sub_graph=sub_funcs, is_composite=True, **kwargs
-    )
-
-
-def make_pipe_definition(dfl: PipeDefinitionLike, **kwargs) -> PipeDefinition:
-    if isinstance(dfl, Pipe):
-        raise TypeError(f"Already a Pipe {dfl}")
-    if isinstance(dfl, PipeDefinition):
-        return dfl
-    return pipe_definition_factory(dfl, **kwargs)
+            raise TypeError(f"Invalid pipe key in chain {fn}")
+        sub_funcs.append(k)
+    return pipe_factory(None, key=key, sub_graph=sub_funcs, is_composite=True, **kwargs)
 
 
 def make_pipe(dfl: PipeLike, **kwargs) -> Pipe:
     if isinstance(dfl, Pipe):
         return dfl
-    dfd = make_pipe_definition(dfl, **kwargs)
-    return dfd.as_pipe()
+    return pipe_factory(dfl, **kwargs)
 
 
-def ensure_pipe(env: Environment, df_like: Union[PipeLike, str]) -> Pipe:
-    if isinstance(df_like, Pipe):
-        return df_like
-    if isinstance(df_like, PipeDefinition):
-        return df_like.as_pipe()
-    if isinstance(df_like, str) or isinstance(df_like, ComponentUri):
-        return env.get_pipe(df_like)
-    return make_pipe(df_like)
+def ensure_pipe(env: Environment, pipe_like: Union[PipeLike, str]) -> Pipe:
+    if isinstance(pipe_like, Pipe):
+        return pipe_like
+    if isinstance(pipe_like, str):
+        return env.get_pipe(pipe_like)
+    return make_pipe(pipe_like)

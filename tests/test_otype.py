@@ -46,13 +46,13 @@ implementations:
 def test_otype_identifiers():
     t1 = create_quick_otype("T1", fields=[("f1", "Unicode"), ("f2", "Integer")])
     assert t1.name == "T1"
-    assert t1.uri == f"{DEFAULT_LOCAL_MODULE.name}.T1"
+    assert t1.key == f"{DEFAULT_LOCAL_MODULE.name}.T1"
 
     t2 = create_quick_otype(
         "TestType", fields=[("f1", "Unicode"), ("f2", "Integer")], module_name="m1"
     )
     assert t2.name == "TestType"
-    assert t2.uri == "m1.TestType"
+    assert t2.key == "m1.TestType"
     assert t2.get_identifier() == "m1_test_type"
     assert t2.get_field("f1").name == "f1"
     with pytest.raises(NameError):

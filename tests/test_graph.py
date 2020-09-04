@@ -7,7 +7,6 @@ import pytest
 from pandas import DataFrame
 
 from dags import Environment
-from dags.core.component import ComponentType
 from dags.core.data_block import DataBlock
 from dags.core.graph import Graph
 from dags.core.node import Node

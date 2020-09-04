@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import strictyaml
 from sqlalchemy import JSON, Column, String
 
-from dags.core.component import ComponentType, ComponentUri
 from dags.core.metadata.orm import BaseModel
 from dags.utils.common import StringEnum, title_to_snake_case
 from loguru import logger
@@ -53,7 +52,7 @@ class Validator:
     pass
 
 
-ObjectTypeUri = str
+ObjectTypeKey = str
 ObjectTypeName = str
 
 
@@ -71,13 +70,13 @@ ObjectTypeName = str
 @dataclass(frozen=True)
 class Relationship:
     name: str
-    type: ObjectTypeUri
+    type: ObjectTypeKey
     fields: Dict[str, str]
 
 
 @dataclass(frozen=True)
 class Implementation:
-    type: ObjectTypeUri
+    type: ObjectTypeKey
     fields: Dict[str, str]
 
 
@@ -96,21 +95,24 @@ class ObjectTypeClass(StringEnum):
     Observation = "Observation"
 
 
-def otype_uri_to_identifier(uri: str) -> str:
-    uri = uri.replace(".", "_")
-    return title_to_snake_case(uri)
+def otype_key_to_identifier(key: str) -> str:
+    key = key.replace(".", "_")
+    return title_to_snake_case(key)
 
 
 @dataclass(frozen=True)
-class ObjectType(ComponentUri):
+class ObjectType:
+    name: str
+    module_name: Optional[str]
+    version: Optional[str]
     # type_class: ObjectTypeClass
     description: str
     unique_on: List[str]
     on_conflict: ConflictBehavior
     fields: List[Field]
     relationships: List[Relationship] = field(default_factory=list)
-    implementations: List[ObjectTypeUri] = field(default_factory=list)
-    extends: Optional[ObjectTypeUri] = None  # TODO
+    implementations: List[ObjectTypeKey] = field(default_factory=list)
+    extends: Optional[ObjectTypeKey] = None  # TODO
     raw_definition: Optional[str] = None
     updated_at_field_name: Optional[str] = None  # TODO
     # parameterized_by: Sequence[str] = field(default_factory=list) # This is like GPV use case in CountryIndicator
@@ -118,12 +120,19 @@ class ObjectType(ComponentUri):
     # unregistered: bool = False
     # Data set order of magnitude / expected cardinality ? 1e2, country = 1e2, EcommOrder = 1e6 (Optional for sure, and overridable as "compiler hint")
     #       How often is this a property of the type, and how often a property of the SourceResource? SR probably better place for it
-    # curing window? data records are supposed to be stateless (are they?? what about Product name), but often not possible. Curing window sets the duration of statefulness for a record
+    # ckeyng window? data records are supposed to be stateless (are they?? what about Product name), but often not possible. Ckeyng window sets the duration of statefulness for a record
     # late arriving?
     # statefulness?
 
+    @property
+    def key(self) -> str:
+        k = self.name
+        if self.module_name:
+            k = self.module_name + "." + k
+        return k
+
     def get_identifier(self) -> str:  # TODO: better name for this fn
-        return otype_uri_to_identifier(self.uri)
+        return otype_key_to_identifier(self.key)
 
     def get_field(self, field_name: str) -> Field:
         for f in self.fields:
@@ -146,7 +155,6 @@ class ObjectType(ComponentUri):
         oc = d["on_conflict"]
         if isinstance(oc, str):
             d["on_conflict"] = ConflictBehavior(oc)
-        d["component_type"] = ComponentType.ObjectType
         fields = []
         for f in d["fields"]:
             fields.append(build_field_type_from_dict(f))
@@ -154,7 +162,7 @@ class ObjectType(ComponentUri):
         return ObjectType(**d)
 
 
-ObjectTypeLike = Union[ObjectType, ObjectTypeUri, ObjectTypeName]
+ObjectTypeLike = Union[ObjectType, ObjectTypeKey, ObjectTypeName]
 
 
 class GeneratedObjectType(BaseModel):
@@ -170,20 +178,20 @@ class GeneratedObjectType(BaseModel):
 
 
 def is_generic(otype_like: ObjectTypeLike) -> bool:
-    uri = otype_like_to_uri(otype_like)
-    return len(uri.name) == 1
+    name = otype_like_to_name(otype_like)
+    return len(name) == 1
 
 
 def is_any(otype_like: ObjectTypeLike) -> bool:
-    uri = otype_like_to_uri(otype_like)
-    return uri.name == "Any"
+    name = otype_like_to_name(otype_like)
+    return name == "Any"
 
 
-def otype_like_to_uri(d: ObjectTypeLike) -> ComponentUri:
+def otype_like_to_name(d: ObjectTypeLike) -> str:
     if isinstance(d, ObjectType):
-        return d
+        return d.name
     if isinstance(d, str):
-        return ComponentUri.from_str(d)
+        return d.split(".")[-1]
     raise TypeError(d)
 
 
@@ -227,7 +235,6 @@ def build_otype_from_dict(d: dict, **overrides: Any) -> ObjectType:
     fields = [build_field_type_from_dict(f) for f in d.pop("fields", [])]
     d["fields"] = fields
     d.update(**overrides)
-    d["component_type"] = ComponentType.ObjectType
     otype = ObjectType(**d)
     return otype
 
@@ -288,7 +295,6 @@ def create_quick_otype(name: str, fields: List[Tuple[str, str]], **kwargs):
         unique_on=[],
         implementations=[],
         on_conflict="ReplaceWithNewer",
-        component_type=ComponentType.ObjectType,
     )
     defaults.update(kwargs)
     defaults["fields"] = [create_quick_field(f[0], f[1]) for f in fields]

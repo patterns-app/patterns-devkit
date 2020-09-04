@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
 
-from dags.core.component import ComponentLibrary, ensure_uri
+from dags.core.component import ComponentLibrary
 from dags.core.metadata.orm import BaseModel
 from dags.core.module import DEFAULT_LOCAL_MODULE, DagsModule
 from dags.core.typing.object_type import GeneratedObjectType, ObjectType, ObjectTypeLike
@@ -70,7 +70,7 @@ class Environment:
         self.metadata_storage = metadata_storage
         self.initialize_metadata_database()
         self._local_module = DEFAULT_LOCAL_MODULE  #     DagsModule(name=f"_env")
-        self.library = ComponentLibrary(default_module=self._local_module)
+        self.library = ComponentLibrary()
         self._declared_graph = Graph()
         # self._added_nodes: Dict[str, Node] = {}
         # self._flattened_nodes: Dict[str, Node] = {}
@@ -139,33 +139,35 @@ class Environment:
             return otype
 
     def get_generated_otype(self, otype_like: ObjectTypeLike) -> Optional[ObjectType]:
-        c = ensure_uri(otype_like)
-        if c.module_name:
-            if not c.module_name == DEFAULT_LOCAL_MODULE.name:
-                return None
+        if isinstance(otype_like, str):
+            key = otype_like
+        elif isinstance(otype_like, ObjectType):
+            key = otype_like.key
+        else:
+            raise TypeError(otype_like)
         with self.session_scope() as sess:
-            got = sess.query(GeneratedObjectType).get(c.name)
+            got = sess.query(GeneratedObjectType).get(key)
             if got is None:
                 return None
             return got.as_otype()
 
     def add_new_otype(self, otype: ObjectType):
-        if self.library.get_component(otype):
+        if otype.key in self.library.otypes:
             # Already exists
             return
         got = GeneratedObjectType(name=otype.name, definition=asdict(otype))
         with self.session_scope() as sess:
             sess.add(got)
-        self.library.add_component(otype)
+        self.library.add_otype(otype)
 
     def all_otypes(self) -> List[ObjectType]:
         return self.library.all_otypes()
 
-    def get_pipe(self, df_like: str) -> Pipe:
-        return self.library.get_pipe(df_like)
+    def get_pipe(self, pipe_like: str) -> Pipe:
+        return self.library.get_pipe(pipe_like)
 
-    def add_pipe(self, df: Pipe):
-        self.library.add_component(df)
+    def add_pipe(self, pipe: Pipe):
+        self.library.add_pipe(pipe)
 
     def all_pipes(self) -> List[Pipe]:
         return self.library.all_pipes()
@@ -388,7 +390,7 @@ class Environment:
             for block in sess.query(DataBlockMetadata).filter(
                 ~DataBlockMetadata.stored_data_blocks.any()
             ):
-                print(f"#{block.id} {block.expected_otype_uri} is orphaned! SAD")
+                print(f"#{block.id} {block.expected_otype_key} is orphaned! SAD")
             if delete_intermediate:
                 # TODO: does no checking if they are unprocessed or not...
                 if not force:

@@ -14,22 +14,17 @@ from typing import (
     TextIO,
     Type,
     Union,
+    Any,
 )
 
-from dags.core.component import (
-    ComponentLibrary,
-    ComponentType,
-    ComponentUri,
-    ComponentView,
-)
+from dags.core.component import ComponentLibrary
 from dags.core.typing.object_type import ObjectType, ObjectTypeLike, otype_from_yaml
 
 if TYPE_CHECKING:
     from dags.core.pipe import (
         PipeLike,
         Pipe,
-        make_pipe_definition,
-        PipeDefinition,
+        make_pipe,
     )
     from dags.testing.pipes import PipeTest
 
@@ -60,7 +55,7 @@ class DagsModule:
             py_module_path = os.path.dirname(py_module_path)
         self.py_module_path = py_module_path
         self.py_module_name = py_module_name
-        self.library = ComponentLibrary(default_module=self)
+        self.library = ComponentLibrary()
         self.test_cases = []
         self.dependencies = []
         for otype in otypes or []:
@@ -91,35 +86,34 @@ class DagsModule:
             return otype_like
         return self.library.get_otype(otype_like)
 
-    def get_pipe(self, df_like: Union[Pipe, PipeDefinition, str]) -> Pipe:
-        from dags.core.pipe import (
-            Pipe,
-            make_pipe_definition,
-        )
+    def get_pipe(self, pipe_like: Union[Pipe, str]) -> Pipe:
+        from dags.core.pipe import Pipe
 
-        if isinstance(df_like, Pipe):
-            return df_like
-        return self.library.get_pipe(df_like)
+        if isinstance(pipe_like, Pipe):
+            return pipe_like
+        return self.library.get_pipe(pipe_like)
 
     def export(self):
         if self.py_module_name is None:
             raise Exception("Cannot export module, no module_name set")
         sys.modules[self.py_module_name] = self  # type: ignore  # sys.modules wants a modulefinder.Module type and it's not gonna get it
 
-    def validate_component(self, component: ComponentUri):
-        assert component.module_name == self.name
+    @property
+    def otypes(self) -> List[ObjectType]:
+        return self.library.all_otypes()
 
     @property
-    def otypes(self) -> ComponentView[ObjectType]:
-        return self.library.component_view(ctype=ComponentType.ObjectType)
+    def pipes(self) -> List[Pipe]:
+        return self.library.all_pipes()
 
-    @property
-    def pipes(self) -> ComponentView[ObjectType]:
-        return self.library.component_view(ctype=ComponentType.Pipe)
+    def validate_key(self, obj: Any):
+        if not obj.key.startswith(self.name + "."):
+            raise ValueError("Must prefix component key with module name")
 
     def add_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
         otype = self.process_otype(otype_like)
-        self.library.add_component(otype)
+        self.validate_key(otype)
+        self.library.add_otype(otype)
         return otype
 
     def process_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
@@ -133,43 +127,40 @@ class DagsModule:
             raise TypeError(otype_like)
         return otype
 
-    def add_pipe(self, df_like: Union[PipeLike, str]) -> Pipe:
-        fn = self.process_pipe(df_like)
-        self.library.add_component(fn)
-        return fn
+    def add_pipe(self, pipe_like: Union[PipeLike, str]) -> Pipe:
+        p = self.process_pipe(pipe_like)
+        self.validate_key(p)
+        self.library.add_pipe(p)
+        return p
 
-    def process_pipe(self, df_like: Union[PipeLike, str]) -> Pipe:
+    def process_pipe(self, pipe_like: Union[PipeLike, str]) -> Pipe:
         from dags.core.pipe import (
-            PipeDefinition,
-            make_pipe_definition,
+            Pipe,
+            make_pipe,
             Pipe,
         )
         from dags.core.sql.pipe import sql_pipe
 
-        if isinstance(df_like, Pipe):
-            df = df_like
+        if isinstance(pipe_like, Pipe):
+            pipe = pipe_like
         else:
-            dfd = None
-            if isinstance(df_like, PipeDefinition):
-                dfd = df_like
-            elif callable(df_like):
-                dfd = make_pipe_definition(df_like, module_name=self.name)
-            elif isinstance(df_like, str) and df_like.endswith(".sql"):
+            if callable(pipe_like):
+                pipe = make_pipe(pipe_like)
+            elif isinstance(pipe_like, str) and pipe_like.endswith(".sql"):
                 if not self.py_module_path:
                     raise Exception(
-                        f"Module path not set, cannot read sql definition {df_like}"
+                        f"Module path not set, cannot read sql definition {pipe_like}"
                     )
-                sql_file_path = os.path.join(self.py_module_path, df_like)
+                sql_file_path = os.path.join(self.py_module_path, pipe_like)
                 with open(sql_file_path) as f:
                     sql = f.read()
-                file_name = os.path.basename(df_like)[:-4]
-                dfd = sql_pipe(
-                    name=file_name, sql=sql, module_name=self.name
+                file_name = os.path.basename(pipe_like)[:-4]
+                pipe = sql_pipe(
+                    key=f"{self.name}.{file_name}", sql=sql
                 )  # TODO: versions, runtimes, etc for sql (someway to specify in a .sql file)
             else:
-                raise Exception(f"Invalid Pipe {df_like}")
-            df = dfd.as_pipe()
-        return df
+                raise TypeError(pipe_like)
+        return pipe
 
     def add_test(self, test_case: PipeTest):
         test_case.module = self

@@ -12,7 +12,7 @@ def add_persisting_sdb_listener(session_maker: sessionmaker):
 
         # if isinstance(instance, StoredDataBlockMetadata):
         #     logger.debug(
-        #         f"Persisted StoredDataBlock SDB#{cf.bold(instance.id)} DB#{cf.bold(instance.data_block.id)} {cf.magenta(instance.data_block.expected_otype_uri)} {cf.dimmed_magenta(instance.data_format)}"
+        #         f"Persisted StoredDataBlock SDB#{cf.bold(instance.id)} DB#{cf.bold(instance.data_block.id)} {cf.magenta(instance.data_block.expected_otype_key)} {cf.dimmed_magenta(instance.data_format)}"
         #     )
 
 

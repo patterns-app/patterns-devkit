@@ -32,7 +32,6 @@ from dags.core.node import DataBlockLog, Direction, Node, PipeLog, get_state
 from dags.core.pipe import (
     DataInterfaceType,
     InputExhaustedException,
-    PipeDefinition,
     PipeInterface,
 )
 from dags.core.pipe_interface import (
@@ -94,7 +93,7 @@ class LanguageDialectSupport:
 class CompiledPipe:  # TODO: this is unused currently, just a dumb wrapper on the df
     name: str
     # code: str
-    pipe: PipeDefinition  # TODO: compile this to actual string code we can run aaannnnnnyyywhere
+    pipe: Pipe  # TODO: compile this to actual string code we can run aaannnnnnyyywhere
     # language_support: Iterable[LanguageDialect] = None  # TODO
 
 
@@ -169,7 +168,7 @@ class ExecutionContext:
             node_name=node.name,
             node_start_state=node_state,
             node_end_state=node_state,
-            pipe_uri=node.pipe.uri,
+            pipe_key=node.pipe.key,
             # pipe_config=node.pipe.configuration,  # TODO
             runtime_url=self.current_runtime.url,
             started_at=utcnow(),
@@ -440,7 +439,7 @@ class Worker:
         )
         # ldr = LocalMemoryDataRecords.from_records_object(output)
         # block = DataBlockMetadata(
-        #     otype_uri=runnable.pipe_interface.output_otype.uri
+        #     otype_key=runnable.pipe_interface.output_otype.key
         # )
         # sdb = StoredDataBlockMetadata(  # type: ignore
         #     data_block=block,

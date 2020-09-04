@@ -9,7 +9,6 @@ import pandas as pd
 from pandas import DataFrame, Series
 from sqlalchemy import Table
 
-from dags.core.component import ComponentType
 from dags.core.data_formats import RecordsList
 from dags.core.module import DEFAULT_LOCAL_MODULE
 from dags.core.typing.object_type import (
@@ -106,7 +105,6 @@ def infer_otype_from_records_list(records: RecordsList, **kwargs) -> ObjectType:
 def generate_auto_otype(fields, **kwargs) -> ObjectType:
     auto_name = "AutoType" + str(randint(1000, 9999))  # TODO
     args = dict(
-        component_type=ComponentType.ObjectType,
         name=auto_name,
         module_name=DEFAULT_LOCAL_MODULE.name,
         version="0",

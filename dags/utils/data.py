@@ -105,7 +105,7 @@ def conform_records_for_insert(
         row = []
         for c in columns:
             o = r.get(c)
-            # TODO: this is some magic buried down here. no bueno
+            # TODO: this is some magic bkeyed down here. no bueno
             if adapt_objects_to_json and (isinstance(o, list) or isinstance(o, dict)):
                 o = json.dumps(o, cls=DagsJSONEncoder)
             row.append(o)

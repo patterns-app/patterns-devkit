@@ -1,6 +1,5 @@
 from dags.core.module import DagsModule
 
-from ...core.component import ComponentType
 from ...core.typing.object_type import ConflictBehavior, ObjectType
 from .external.static import extract_csv, extract_dataframe
 from .pipes.accumulate_as_dataset import accumulate_as_dataset
@@ -9,7 +8,6 @@ from .pipes.as_dataset import as_dataset
 from .pipes.dedupe import dedupe_test, dedupe_unique_keep_newest_row
 
 AnyType = ObjectType(
-    component_type=ComponentType.ObjectType,
     name="Any",
     module_name="core",
     version="0",

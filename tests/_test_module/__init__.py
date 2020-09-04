@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dags.core.component import ComponentType
 from dags.core.data_block import DataBlock
 from dags.core.module import DagsModule
 from dags.core.runnable import PipeContext

@@ -11,8 +11,8 @@ from dags.core.data_block import DataBlock, DataBlockMetadata, DataSetMetadata
 from dags.core.environment import Environment
 from dags.core.typing.object_type import (
     ObjectType,
+    ObjectTypeKey,
     ObjectTypeLike,
-    ObjectTypeUri,
     is_any,
     is_generic,
 )
@@ -132,10 +132,10 @@ class PipeAnnotation:
         args.update(**kwargs)
         return PipeAnnotation.create(**args)  # type: ignore
 
-    def otype_uri(self, env: Environment) -> ObjectTypeUri:
+    def otype_key(self, env: Environment) -> ObjectTypeKey:
         if self.is_generic:
-            raise  # TODO: ?? is this really an error? What is the URI of a generic otype?
-        return env.get_otype(self.otype_like).uri
+            raise  # TODO: ?? is this really an error? What is the KEY of a generic otype?
+        return env.get_otype(self.otype_like).key
 
 
 @dataclass
@@ -192,7 +192,7 @@ class BoundPipeInterface:
 #         for name, input_block in input_blocks.items():
 #             i = self.get_input(name)
 #             i.bound_data_block = input_block
-#             i.realized_otype = env.get_otype(input_block.realized_otype_uri)
+#             i.realized_otype = env.get_otype(input_block.realized_otype_key)
 #             if i.original_annotation.is_generic:
 #                 assert isinstance(i.original_annotation.otype_like, str)
 #                 realized_generics[i.original_annotation.otype_like] = i.realized_otype

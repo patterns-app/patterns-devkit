@@ -7,7 +7,7 @@
 #
 # from sqlalchemy import Column, DateTime, String, JSON
 #
-# from dags.core.component import ComponentType, ComponentUri
+# from dags.core.component import ComponentType, ComponentKey
 # from dags.core.pipe import PipeInterface, DataInterfaceType
 # from dags.core.pipe_interface import PipeAnnotation
 # from dags.core.metadata.orm import BaseModel
@@ -20,7 +20,7 @@
 #
 #
 # # @dataclass(frozen=True)
-# # class ExternalResource(ComponentUri):
+# # class ExternalResource(ComponentKey):
 # #     provider: Optional[ExternalProvider]
 # #     verbose_name: str
 # #     description: str
@@ -148,7 +148,7 @@
 # #
 # #
 # # @dataclass(frozen=True)
-# # class ExternalProvider(ComponentUri):
+# # class ExternalProvider(ComponentKey):
 # #     name: str
 # #     verbose_name: str
 # #     description: str
@@ -202,7 +202,7 @@
 # #         d = super().__dir__()
 # #         return list(set(d) | set([r.name for r in self.resources]))
 # #
-# #     def associate_with_module(self, module: DagsModule) -> ComponentUri:
+# #     def associate_with_module(self, module: DagsModule) -> ComponentKey:
 # #         resources: ExternalResourceList = ExternalResourceList()
 # #         for r in self.resources:
 # #             resources.append(r.associate_with_module(module))

@@ -5,10 +5,9 @@ from typing import Callable
 import pytest
 from pandas import DataFrame
 
-from dags.core.component import ComponentType
 from dags.core.data_block import DataBlock
 from dags.core.node import Node
-from dags.core.pipe import Pipe, PipeDefinition, PipeInterface, PipeLike, pipe
+from dags.core.pipe import Pipe, PipeInterface, PipeLike, pipe
 from dags.core.pipe_interface import PipeAnnotation
 from dags.core.runnable import PipeContext
 from dags.core.runtime import RuntimeClass
@@ -228,7 +227,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
 )
 def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
     env = make_test_env()
-    if isinstance(pipe, PipeDefinition):
+    if isinstance(pipe, Pipe):
         val = pipe.get_interface(env)
     elif isinstance(pipe, Callable):
         val = PipeInterface.from_pipe_definition(pipe)
@@ -497,27 +496,6 @@ def df1():
 @pipe("k1", compatible_runtimes="mysql")
 def df2():
     pass
-
-
-def test_pipe_set():
-    dfs = Pipe(
-        name="k1", component_type=ComponentType.Pipe, version=None, module_name=None,
-    )
-    dfs.add_definition(df1)
-    assert dfs.runtime_pipes[RuntimeClass.PYTHON] is df1
-    dfs.add_definition(df2)
-    assert dfs.runtime_pipes[RuntimeClass.DATABASE] is df2
-    dfs1 = Pipe(
-        name="k1", component_type=ComponentType.Pipe, version=None, module_name=None,
-    )
-    dfs1.add_definition(df1)
-    dfs2 = Pipe(
-        name="k1", component_type=ComponentType.Pipe, version=None, module_name=None,
-    )
-    dfs2.add_definition(df2)
-    dfs1.merge(dfs2)
-    assert dfs1.runtime_pipes[RuntimeClass.PYTHON] is df1
-    assert dfs1.runtime_pipes[RuntimeClass.DATABASE] is df2
 
 
 # def test_pipe_registry():

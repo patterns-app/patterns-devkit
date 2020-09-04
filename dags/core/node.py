@@ -13,7 +13,7 @@ from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 from dags.core.data_block import DataBlock, DataBlockMetadata
 from dags.core.environment import Environment
 from dags.core.metadata.orm import BaseModel
-from dags.core.pipe import Pipe, PipeLike, ensure_pipe, make_pipe, make_pipe_name
+from dags.core.pipe import Pipe, PipeLike, ensure_pipe, make_pipe, make_pipe_key
 from dags.core.pipe_interface import PipeInterface
 from loguru import logger
 
@@ -202,16 +202,16 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
     raw_inputs = list(n.get_declared_inputs().values())
     assert len(raw_inputs) == 1, "Composite pipes take one input"
     input_node = raw_inputs[0]
-    for fn in n.pipe.get_representative_definition().sub_graph:
+    for fn in n.pipe.sub_graph:
         fn = ensure_pipe(n.env, fn)
-        child_fn_name = make_pipe_name(fn)
-        child_node_name = f"{n.name}__{child_fn_name}"
+        child_fn_key = make_pipe_key(fn)
+        child_node_key = f"{n.name}__{child_fn_key}"
         try:
-            node = n.env.get_node(child_node_name)
+            node = n.env.get_node(child_node_key)
         except KeyError:
             node = Node(
                 n.env,
-                child_node_name,
+                child_node_key,
                 fn,
                 config=n.config,
                 inputs=input_node,
@@ -223,7 +223,7 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
     return nodes
 
     # @property
-    # def uri(self):
+    # def key(self):
     #     return self.name  # TODO
 
 
@@ -247,7 +247,7 @@ class PipeLog(BaseModel):
     node_name = Column(String, nullable=False)
     node_start_state = Column(JSON, nullable=True)
     node_end_state = Column(JSON, nullable=True)
-    pipe_uri = Column(String, nullable=False)
+    pipe_key = Column(String, nullable=False)
     pipe_config = Column(JSON, nullable=True)
     runtime_url = Column(String, nullable=False)
     queued_at = Column(DateTime, nullable=True)
@@ -262,7 +262,7 @@ class PipeLog(BaseModel):
         return self._repr(
             id=self.id,
             node_name=self.node_name,
-            pipe_uri=self.pipe_uri,
+            pipe_key=self.pipe_key,
             runtime_url=self.runtime_url,
             started_at=self.started_at,
         )

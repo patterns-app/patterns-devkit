@@ -21,16 +21,16 @@ class TestStreams:
         self.ctx = ctx
         self.env = ctx.env
         self.dr1t1 = DataBlockMetadata(
-            expected_otype_uri="_test.TestType1", realized_otype_uri="_test.TestType1"
+            expected_otype_key="_test.TestType1", realized_otype_key="_test.TestType1"
         )
         self.dr2t1 = DataBlockMetadata(
-            expected_otype_uri="_test.TestType1", realized_otype_uri="_test.TestType1"
+            expected_otype_key="_test.TestType1", realized_otype_key="_test.TestType1"
         )
         self.dr1t2 = DataBlockMetadata(
-            expected_otype_uri="_test.TestType2", realized_otype_uri="_test.TestType2"
+            expected_otype_key="_test.TestType2", realized_otype_key="_test.TestType2"
         )
         self.dr2t2 = DataBlockMetadata(
-            expected_otype_uri="_test.TestType2", realized_otype_uri="_test.TestType2"
+            expected_otype_key="_test.TestType2", realized_otype_key="_test.TestType2"
         )
         self.node_source = self.env.add_node("df_source", df_t1_source)
         self.node1 = self.env.add_node("df1", df_t1_sink)
@@ -50,7 +50,7 @@ class TestStreams:
     def test_stream_unprocessed_eligible(self):
         dfl = PipeLog(
             node_name=self.node_source.name,
-            pipe_uri=self.node_source.pipe.uri,
+            pipe_key=self.node_source.pipe.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
@@ -65,14 +65,14 @@ class TestStreams:
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = PipeLog(
             node_name=self.node_source.name,
-            pipe_uri=self.node_source.pipe.uri,
+            pipe_key=self.node_source.pipe.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
             pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = PipeLog(
-            node_name=self.node1.name, pipe_uri=self.node1.pipe.uri, runtime_url="test",
+            node_name=self.node1.name, pipe_key=self.node1.pipe.key, runtime_url="test",
         )
         drl2 = DataBlockLog(
             pipe_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
@@ -90,14 +90,14 @@ class TestStreams:
         """
         dfl = PipeLog(
             node_name=self.node_source.name,
-            pipe_uri=self.node_source.pipe.uri,
+            pipe_key=self.node_source.pipe.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
             pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = PipeLog(
-            node_name=self.node1.name, pipe_uri=self.node1.pipe.uri, runtime_url="test",
+            node_name=self.node1.name, pipe_key=self.node1.pipe.key, runtime_url="test",
         )
         drl2 = DataBlockLog(
             pipe_log=dfl2, data_block=self.dr1t1, direction=Direction.OUTPUT,
@@ -115,7 +115,7 @@ class TestStreams:
     def test_stream_unprocessed_eligible_otype(self):
         dfl = PipeLog(
             node_name=self.node_source.name,
-            pipe_uri=self.node_source.pipe.uri,
+            pipe_key=self.node_source.pipe.key,
             runtime_url="test",
         )
         drl = DataBlockLog(

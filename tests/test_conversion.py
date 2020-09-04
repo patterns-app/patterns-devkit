@@ -163,7 +163,7 @@ class TestConversions:
         self.fs = self.env.add_storage(f"file://{dir}")
         # self.pg = self.env.add_storage("sqlite://")
         self.db = DataBlockMetadata(
-            expected_otype_uri="_test.TestType4", realized_otype_uri="_test.TestType4"
+            expected_otype_key="_test.TestType4", realized_otype_key="_test.TestType4"
         )
         self.records = [
             {"f1": "hi", "f2": 2},

@@ -94,7 +94,7 @@ class ObjectTypeFieldMapper:
         ft_class = self.get_field_type_class(field_type)
         if ft_class not in local_vars:
             raise NotImplementedError(field.field_type)
-        # TODO / FIXME / DISASTROUS SECURITY HOLE: don't eval user input?
+        # TODO / FIXME / DISASTROUS SECKEYTY HOLE: don't eval user input?
         sa_data_type = eval(field_type, {"__builtins__": None}, local_vars)
         return Column(field.name, sa_data_type)
 

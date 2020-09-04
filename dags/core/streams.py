@@ -15,7 +15,7 @@ from dags.core.data_block import (
 from dags.core.environment import Environment
 from dags.core.node import DataBlockLog, Direction, Node, PipeLog
 from dags.core.storage.storage import Storage
-from dags.core.typing.object_type import ObjectType, ObjectTypeLike, otype_like_to_uri
+from dags.core.typing.object_type import ObjectType, ObjectTypeLike
 from dags.utils.common import ensure_list
 from loguru import logger
 
@@ -165,7 +165,7 @@ class DataBlockStream:
             return query
         # otype_names = []  # TODO: Fully qualified otype keys?
         return query.filter(
-            DataBlockMetadata.expected_otype_uri.in_([d.uri for d in self.get_otypes(ctx.env)])  # type: ignore
+            DataBlockMetadata.expected_otype_key.in_([d.key for d in self.get_otypes(ctx.env)])  # type: ignore
         )
 
     def filter_otype(self, otype: ObjectTypeLike) -> DataBlockStream:

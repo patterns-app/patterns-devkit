@@ -26,7 +26,7 @@ from dags.core.environment import Environment
 from dags.core.metadata.listeners import immutability_update_listener
 from dags.core.metadata.orm import BaseModel, timestamp_rand_key
 from dags.core.typing.inference import infer_otype_from_records_list
-from dags.core.typing.object_type import ObjectType, ObjectTypeUri, is_any
+from dags.core.typing.object_type import ObjectType, ObjectTypeKey, is_any
 from dags.utils.typing import T
 
 if TYPE_CHECKING:
@@ -95,9 +95,9 @@ class LocalMemoryDataRecords:
 class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     # name = Column(String) ????
-    # otype_uri: ObjectTypeUri = Column(String, nullable=False)  # type: ignore
-    expected_otype_uri: ObjectTypeUri = Column(String, nullable=True)  # type: ignore
-    realized_otype_uri: ObjectTypeUri = Column(String, nullable=True)  # type: ignore
+    # otype_key: ObjectTypeKey = Column(String, nullable=False)  # type: ignore
+    expected_otype_key: ObjectTypeKey = Column(String, nullable=True)  # type: ignore
+    realized_otype_key: ObjectTypeKey = Column(String, nullable=True)  # type: ignore
     # metadata_is_set = Column(Boolean, default=False)
     # otype_is_validated = Column(Boolean, default=False) # TODO
     # references_are_resolved = Column(Boolean, default=False)
@@ -118,24 +118,24 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     def __repr__(self):
         return self._repr(
             id=self.id,
-            expected_otype_uri=self.expected_otype_uri,
-            realized_otype_uri=self.realized_otype_uri,
+            expected_otype_key=self.expected_otype_key,
+            realized_otype_key=self.realized_otype_key,
         )
 
     @property
-    def most_real_otype_uri(self) -> ObjectTypeUri:
-        return self.realized_otype_uri or self.expected_otype_uri
+    def most_real_otype_key(self) -> ObjectTypeKey:
+        return self.realized_otype_key or self.expected_otype_key
 
     @property
-    def most_abstract_otype_uri(self) -> ObjectTypeUri:
-        return self.expected_otype_uri or self.realized_otype_uri
+    def most_abstract_otype_key(self) -> ObjectTypeKey:
+        return self.expected_otype_key or self.realized_otype_key
 
     def as_managed_data_block(self, ctx: ExecutionContext):
         mgr = DataBlockManager(ctx, self,)
         return ManagedDataBlock(
             data_block_id=self.id,
-            expected_otype_uri=self.expected_otype_uri,
-            realized_otype_uri=self.realized_otype_uri,
+            expected_otype_key=self.expected_otype_key,
+            realized_otype_key=self.realized_otype_key,
             manager=mgr,
         )
 
@@ -161,8 +161,8 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 @dataclass(frozen=True)
 class ManagedDataBlock(Generic[T]):
     data_block_id: str
-    expected_otype_uri: ObjectTypeUri
-    realized_otype_uri: ObjectTypeUri
+    expected_otype_key: ObjectTypeKey
+    realized_otype_key: ObjectTypeKey
     # otype_is_validated: bool
     manager: DataBlockManager
 
@@ -209,14 +209,14 @@ class StoredDataBlockMetadata(BaseModel):
         )
 
     def get_realized_otype(self, env: Environment) -> ObjectType:
-        if self.data_block.realized_otype_uri is None:
+        if self.data_block.realized_otype_key is None:
             return None
-        return env.get_otype(self.data_block.realized_otype_uri)
+        return env.get_otype(self.data_block.realized_otype_key)
 
     def get_expected_otype(self, env: Environment) -> ObjectType:
-        if self.data_block.expected_otype_uri is None:
+        if self.data_block.expected_otype_key is None:
             return None
-        return env.get_otype(self.data_block.expected_otype_uri)
+        return env.get_otype(self.data_block.expected_otype_key)
 
     @property
     def storage(self) -> Storage:
@@ -229,7 +229,7 @@ class StoredDataBlockMetadata(BaseModel):
             raise Exception(
                 "Trying to get SDB name, but IDs not set yet"
             )  # TODO, better exceptions
-        otype = env.get_otype(self.data_block.most_real_otype_uri)
+        otype = env.get_otype(self.data_block.most_real_otype_key)
         return f"_{otype.get_identifier()[:40]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
 
     def get_storage_format(self) -> StorageFormat:
@@ -250,8 +250,8 @@ event.listen(StoredDataBlockMetadata, "before_update", immutability_update_liste
 class DataSetMetadata(BaseModel):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     name = Column(String, nullable=False)
-    expected_otype_uri: ObjectTypeUri = Column(String, nullable=True)  # type: ignore
-    realized_otype_uri: ObjectTypeUri = Column(String, nullable=False)  # type: ignore
+    expected_otype_key: ObjectTypeKey = Column(String, nullable=True)  # type: ignore
+    realized_otype_key: ObjectTypeKey = Column(String, nullable=False)  # type: ignore
     data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
     # Hints
     data_block: "DataBlockMetadata"
@@ -264,8 +264,8 @@ class DataSetMetadata(BaseModel):
         return self._repr(
             id=self.id,
             name=self.name,
-            expected_otype_uri=self.expected_otype_uri,
-            realized_otype_uri=self.realized_otype_uri,
+            expected_otype_key=self.expected_otype_key,
+            realized_otype_key=self.realized_otype_key,
             data_block=self.data_block,
         )
 
@@ -275,8 +275,8 @@ class DataSetMetadata(BaseModel):
             data_set_id=self.id,
             data_set_name=self.name,
             data_block_id=self.data_block_id,
-            expected_otype_uri=self.expected_otype_uri,
-            realized_otype_uri=self.realized_otype_uri,
+            expected_otype_key=self.expected_otype_key,
+            realized_otype_key=self.realized_otype_key,
             manager=mgr,
         )
 
@@ -286,8 +286,8 @@ class ManagedDataSet(Generic[T]):
     data_set_id: str
     data_set_name: str
     data_block_id: str
-    expected_otype_uri: ObjectTypeUri
-    realized_otype_uri: ObjectTypeUri
+    expected_otype_key: ObjectTypeKey
+    realized_otype_key: ObjectTypeKey
     # otype_is_validated: bool
     manager: DataBlockManager
 
@@ -327,14 +327,14 @@ class DataBlockManager:
         return f"DRM: {self.data_block}, Local: {self.ctx.local_memory_storage}, rest: {self.ctx.storages}"
 
     def get_realized_otype(self) -> Optional[ObjectType]:
-        if self.data_block.realized_otype_uri is None:
+        if self.data_block.realized_otype_key is None:
             return None
-        return self.ctx.env.get_otype(self.data_block.realized_otype_uri)
+        return self.ctx.env.get_otype(self.data_block.realized_otype_key)
 
     def get_expected_otype(self) -> Optional[ObjectType]:
-        if self.data_block.expected_otype_uri is None:
+        if self.data_block.expected_otype_key is None:
             return None
-        return self.ctx.env.get_otype(self.data_block.expected_otype_uri)
+        return self.ctx.env.get_otype(self.data_block.expected_otype_key)
 
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFrameFormat)
@@ -428,7 +428,7 @@ def create_data_block_from_records(
 
     if not expected_otype:
         expected_otype = env.get_otype("Any")
-    expected_otype_uri = expected_otype.uri
+    expected_otype_key = expected_otype.key
     ldr = LocalMemoryDataRecords.from_records_object(records)
     if not realized_otype:
         if is_any(expected_otype):
@@ -442,10 +442,10 @@ def create_data_block_from_records(
             env.add_new_otype(realized_otype)
         else:
             realized_otype = expected_otype
-    realized_otype_uri = realized_otype.uri
+    realized_otype_key = realized_otype.key
     block = DataBlockMetadata(
-        expected_otype_uri=expected_otype_uri,
-        realized_otype_uri=realized_otype_uri,
+        expected_otype_key=expected_otype_key,
+        realized_otype_key=realized_otype_key,
         record_count=ldr.record_count,
     )
     sdb = StoredDataBlockMetadata(  # type: ignore

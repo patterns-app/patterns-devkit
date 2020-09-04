@@ -10,7 +10,6 @@ packages = [
     "dags.core.metadata",
     "dags.core.sql",
     "dags.db",
-    "dags.indexing",
     "dags.utils",
 ]
 
