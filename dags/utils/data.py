@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import csv
 import json
+from datetime import datetime
 from io import IOBase
 from typing import Any, Dict, Iterable, List, Union
 
 from dags.core.data_formats import RecordsList
 from dags.utils.common import DagsJSONEncoder
-from pandas import isnull
+from pandas import Timestamp, isnull
 
 
 def records_list_as_dict_of_lists(dl: List[Dict]) -> Dict[str, List]:
@@ -98,7 +99,10 @@ def read_json(j: str) -> Union[Dict, List]:
 
 
 def conform_records_for_insert(
-    records: RecordsList, columns: List[str], adapt_objects_to_json: bool = True,
+    records: RecordsList,
+    columns: List[str],
+    adapt_objects_to_json: bool = True,
+    conform_datetimes: bool = True,
 ):
     rows = []
     for r in records:
@@ -108,6 +112,9 @@ def conform_records_for_insert(
             # TODO: this is some magic bkeyed down here. no bueno
             if adapt_objects_to_json and (isinstance(o, list) or isinstance(o, dict)):
                 o = json.dumps(o, cls=DagsJSONEncoder)
+            if conform_datetimes:
+                if isinstance(o, Timestamp):
+                    o = o.to_pydatetime()
             row.append(o)
         rows.append(row)
     return rows
