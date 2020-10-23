@@ -100,6 +100,13 @@ class DatabaseAPI:
         with self.connection() as conn:
             return conn.execute(sql)
 
+    @contextmanager
+    def execute_sql_result(self, sql: str) -> ResultProxy:
+        logger.debug("Executing SQL:")
+        logger.debug(sql)
+        with self.connection() as conn:
+            yield conn.execute(sql)
+
     def ensure_table(self, sdb: StoredDataBlockMetadata) -> str:
         name = sdb.get_name(self.env)
         if self.exists(name):
@@ -215,8 +222,8 @@ class DatabaseAPI:
             raise x
 
     def count(self, table_name: str) -> int:
-        res = self.execute_sql(f"select count(*) from {table_name}")
-        row = res.fetchone()
+        with self.execute_sql_result(f"select count(*) from {table_name}") as res:
+            row = res.fetchone()
         if not row:
             raise
         return row[0]
