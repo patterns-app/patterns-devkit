@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from pandas import DataFrame
 
 from dags.core.data_block import DataBlock, DataSet
@@ -130,12 +132,14 @@ accumulator_test = PipeTest(
 
 # Note this pipe is special case where cannot specify dataset as output (even tho practically it is)
 # Since it IS part of a dataset creation
+# (TODO: this seems like a revealing bug? need tighter definition of DataSet vs other aggregates)
 @pipe("core.dataframe_accumulator")
 def dataframe_accumulator(
-    input: DataBlock[T], this: DataBlock[T] = None,
+    input: DataBlock[T], this: Optional[DataBlock[T]] = None,
 ) -> DataFrame[T]:
     records = input.as_dataframe()
     if this is not None:
+        print("THISSSS")
         previous = this.as_dataframe()
         records = previous.append(records)
     return records

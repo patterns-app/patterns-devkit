@@ -13,6 +13,7 @@ from dags.core.data_block import (
     create_data_block_from_records,
 )
 from dags.core.environment import Environment
+from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, Node, PipeLog
 from dags.core.storage.storage import Storage
 from dags.core.typing.object_type import ObjectType, ObjectTypeLike
@@ -130,11 +131,11 @@ class DataBlockStream:
         )
         return query.filter(not_(DataBlockMetadata.id.in_(already_processed_drs)))
 
-    def get_upstream(self, env: Environment) -> List[Node]:
+    def get_upstream(self, g: Graph) -> List[Node]:
         nodes = ensure_list(self.upstream)
         if not nodes:
             return []
-        return [env.get_node(c) for c in nodes]
+        return [g.get_any_node(c) for c in nodes]
 
     def filter_upstream(self, upstream: Union[Node, List[Node]]) -> DataBlockStream:
         return self.clone(upstream=ensure_list(upstream),)
@@ -147,7 +148,7 @@ class DataBlockStream:
             .join(PipeLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                PipeLog.node_key.in_([c.key for c in self.get_upstream(ctx.env)]),
+                PipeLog.node_key.in_([c.key for c in self.get_upstream(ctx.graph)]),
             )
             .distinct()
         )
@@ -230,11 +231,14 @@ class DataBlockStream:
             order_by = order_by.desc()
         return (
             self.get_query(ctx).order_by(order_by).first()
-        )  # TODO: should it be ordered by processed at? Also, DRs AREN'T updated LOL. That's the whole point
+        )  # TODO: should it be ordered by processed at? Also, DBs AREN'T updated LOL. That's the whole point
 
     def get_most_recent(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:
         return (
-            self.get_query(ctx).order_by(DataBlockMetadata.updated_at.desc()).first()
+            # self.get_query(ctx).order_by(DataBlockMetadata.updated_at.desc()).first()
+            self.get_query(ctx)
+            .order_by(DataBlockMetadata.id.desc())
+            .first()  # We use auto-inc ID instead of timestamp since timestamps can collide
         )  # TODO: should it be ordered by processed at?
 
     def get_count(self, ctx: ExecutionContext) -> int:

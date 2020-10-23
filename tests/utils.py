@@ -4,6 +4,7 @@ from pandas import DataFrame
 
 from dags.core.data_block import DataBlock, DataSet
 from dags.core.environment import Environment
+from dags.core.graph import Graph
 from dags.core.module import DagsModule
 from dags.core.pipe import pipe_chain
 from dags.core.runnable import ExecutionContext, ExecutionManager, PipeContext
@@ -50,7 +51,9 @@ def make_test_execution_context(**kwargs):
         storage_engine=StorageEngine.DICT,
     )
     env = make_test_env()
+    g = Graph(env)
     args = dict(
+        graph=g,
         env=env,
         runtimes=[
             Runtime(

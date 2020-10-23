@@ -9,6 +9,7 @@ from pandas import DataFrame
 from sqlalchemy.orm import close_all_sessions  # type: ignore
 
 from dags.core.environment import Environment
+from dags.core.graph import Graph
 from dags.core.pipe import PipeLike, ensure_pipe
 from dags.core.streams import InputBlocks
 from dags.core.typing.inference import (
@@ -160,24 +161,27 @@ class PipeTest:
                 fn = ensure_pipe(env, self.pipe)
                 dfi = fn.get_interface(env)
                 assert dfi is not None
-                test_node = env.add_node("_test_node", fn, config=case.pipe_config)
                 for i, test_data in enumerate(case.test_datas):
+                    g = Graph(env)
                     try:
                         inputs = {}
                         for input in dfi.inputs:
                             assert input.name is not None
                             test_df = test_data[input.name].data_frame
                             test_otype = test_data[input.name].otype_like
-                            n = env.add_node(
+                            n = g.add_node(
                                 f"_test_source_node_{input.name}_{i}",
                                 "core.extract_dataframe",
                                 config={"dataframe": test_df, "otype": test_otype},
                             )
                             inputs[input.name] = n
-                        test_node._set_declared_inputs(
-                            inputs
-                        )  # Force, for testing. Normally want node to be immutable
-                        output = env.produce(test_node, to_exhaustion=False)
+                        test_node = g.add_node(
+                            "_test_node", fn, config=case.pipe_config, inputs=inputs
+                        )
+                        # test_node._set_declared_inputs(
+                        #     inputs
+                        # )  # Force, for testing. Normally want node to be immutable
+                        output = env.produce(g, test_node, to_exhaustion=False)
                         if "output" in test_data:
                             assert (
                                 output is not None

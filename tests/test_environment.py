@@ -1,27 +1,21 @@
 from __future__ import annotations
 
 from dags.core.environment import Environment
+from dags.core.graph import Graph
 
 
 def test_env_init():
     from . import _test_module
 
+    # Test module / components
     env = Environment("_test", metadata_storage="sqlite://", initial_modules=[])
     assert len(env.get_module_order()) == 1
-    assert len(env.all_added_nodes()) == 0
-    assert len(env.all_flattened_nodes()) == 0
     env.add_module(_test_module)
     print(env.get_module_order())
     assert env.get_module_order() == [env.get_local_module().key, _test_module.key]
     assert env.get_otype("TestType") is _test_module.otypes.TestType
-    env.add_node(
-        "n1", _test_module.pipes.df1,
-    )
-    assert len(env.all_added_nodes()) == 1
-    assert len(env.all_flattened_nodes()) == 1
-    n2 = env.add_node("n2", "test_sql")
-    assert env.get_node("n2") is n2
     assert env.get_pipe("test_sql") is _test_module.pipes.test_sql
+    # Test runtime / storage
     env.add_storage("postgres://test")
-    assert len(env.storages) == 1
-    assert len(env.runtimes) == 2
+    assert len(env.storages) == 2  # added plus default local memory
+    assert len(env.runtimes) == 2  # added plus default local python

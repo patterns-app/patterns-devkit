@@ -7,7 +7,18 @@ from contextlib import contextmanager
 from dataclasses import MISSING, dataclass, field
 from enum import Enum
 from itertools import tee
-from typing import Any, Dict, Generator, Generic, List, Mapping, Optional, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    Generic,
+    List,
+    Mapping,
+    Optional,
+    Union,
+    cast,
+)
 
 import sqlalchemy
 from sqlalchemy.engine import ResultProxy
@@ -55,6 +66,9 @@ from dags.utils.common import (
 )
 from dags.utils.typing import C, S
 from loguru import logger
+
+if TYPE_CHECKING:
+    from dags.core.graph import Graph
 
 
 class Language(Enum):
@@ -141,6 +155,7 @@ class RunSession:
 @dataclass  # (frozen=True)
 class ExecutionContext:
     env: Environment
+    graph: Graph
     metadata_session: Session
     storages: List[Storage]
     runtimes: List[Runtime]
@@ -150,6 +165,7 @@ class ExecutionContext:
 
     def clone(self, **kwargs):
         args = dict(
+            graph=self.graph,
             env=self.env,
             metadata_session=self.metadata_session,
             storages=self.storages,
@@ -367,7 +383,7 @@ class Worker:
 
     def run(self, runnable: Runnable) -> Optional[DataBlockMetadata]:
         output_block: Optional[DataBlockMetadata] = None
-        node = self.env.get_node(runnable.node_key)
+        node = self.ctx.graph.get_any_node(runnable.node_key)
         with self.ctx.start_pipe_run(node) as run_session:
             output = self.execute_pipe(runnable, run_session)
             if output is not None:

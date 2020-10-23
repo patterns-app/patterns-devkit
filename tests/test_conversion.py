@@ -22,6 +22,7 @@ from dags.core.data_formats import (
     RecordsListFormat,
     RecordsListGeneratorFormat,
 )
+from dags.core.graph import Graph
 from dags.core.storage.storage import StorageType, new_local_memory_storage
 from tests.test_utils import get_tmp_sqlite_db_url
 from tests.utils import TestType4, make_test_env
@@ -188,7 +189,8 @@ class TestConversions:
         assert self.sdb.data_format == RecordsListFormat
 
     def test_memory_to_file(self):
-        ec = self.env.get_execution_context(self.sess)
+        g = Graph(self.env)
+        ec = self.env.get_execution_context(g, self.sess)
         for fmt in (DelimitedFileFormat, JsonListFileFormat):
             out_sdb = convert_lowest_cost(ec, self.sdb, self.fs, fmt)
             assert out_sdb.data_format == fmt
@@ -200,8 +202,9 @@ class TestConversions:
             assert db.as_records_list() == self.records_full
 
     def test_memory_to_database(self):
+        g = Graph(self.env)
         database = self.env.add_storage(get_tmp_sqlite_db_url())
-        ec = self.env.get_execution_context(self.sess)
+        ec = self.env.get_execution_context(g, self.sess)
         out_sdb = convert_lowest_cost(ec, self.sdb, database, DatabaseTableFormat)
         assert out_sdb.data_format == DatabaseTableFormat
         assert out_sdb.get_expected_otype(self.env) is TestType4

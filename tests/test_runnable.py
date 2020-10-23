@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from dags.core.data_formats import RecordsList
+from dags.core.graph import Graph
 from dags.core.pipe_interface import NodeInterfaceManager
 from dags.core.runnable import CompiledPipe, Runnable, RunSession, Worker
 from dags.modules import core
@@ -29,10 +30,11 @@ def pipe_error() -> RecordsList[TestType1]:
 
 def test_worker():
     env = make_test_env()
+    g = Graph(env)
     sess = env.get_new_metadata_session()
     rt = env.runtimes[0]
-    ec = env.get_execution_context(sess, current_runtime=rt)
-    node = env.add_node("node", pipe_t1_source)
+    ec = env.get_execution_context(g, sess, current_runtime=rt)
+    node = g.add_node("node", pipe_t1_source)
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
@@ -44,13 +46,14 @@ def test_worker():
 def test_worker_output():
     env = make_test_env()
     env.add_module(core)
+    g = Graph(env)
     sess = env.get_new_metadata_session()
     env.add_storage("memory://test")
     rt = env.runtimes[0]
     ec = env.get_execution_context(
-        sess, current_runtime=rt, target_storage=env.storages[0]
+        g, sess, current_runtime=rt, target_storage=env.storages[0]
     )
-    node = env.add_node("node", pipe_dl_source)
+    node = g.add_node("node", pipe_dl_source)
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()

@@ -4,7 +4,6 @@ from collections import abc
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple
 
-from loguru import logger
 import sqlalchemy as sa
 from pandas import DataFrame
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, event, or_
@@ -29,6 +28,7 @@ from dags.core.metadata.orm import BaseModel, timestamp_rand_key
 from dags.core.typing.inference import infer_otype_from_records_list
 from dags.core.typing.object_type import ObjectType, ObjectTypeKey, is_any
 from dags.utils.typing import T
+from loguru import logger
 
 if TYPE_CHECKING:
     from dags.core.conversion import (
@@ -94,7 +94,8 @@ class LocalMemoryDataRecords:
 
 
 class DataBlockMetadata(BaseModel):  # , Generic[DT]):
-    id = Column(String, primary_key=True, default=timestamp_rand_key)
+    # id = Column(String, primary_key=True, default=timestamp_rand_key)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     # name = Column(String) ????
     # otype_key: ObjectTypeKey = Column(String, nullable=False)  # type: ignore
     expected_otype_key: ObjectTypeKey = Column(String, nullable=True)  # type: ignore
@@ -192,8 +193,9 @@ DataBlock = ManagedDataBlock
 
 
 class StoredDataBlockMetadata(BaseModel):
-    id = Column(String, primary_key=True, default=timestamp_rand_key)
-    data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
+    # id = Column(String, primary_key=True, default=timestamp_rand_key)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    data_block_id = Column(Integer, ForeignKey(DataBlockMetadata.id), nullable=False)
     storage_url = Column(String, nullable=False)
     data_format: DataFormat = Column(DataFormatType, nullable=False)  # type: ignore
     # is_ephemeral = Column(Boolean, default=False) # TODO
@@ -249,11 +251,12 @@ event.listen(StoredDataBlockMetadata, "before_update", immutability_update_liste
 
 
 class DataSetMetadata(BaseModel):
-    id = Column(String, primary_key=True, default=timestamp_rand_key)
+    # id = Column(String, primary_key=True, default=timestamp_rand_key)
+    id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
     expected_otype_key: ObjectTypeKey = Column(String, nullable=True)  # type: ignore
     realized_otype_key: ObjectTypeKey = Column(String, nullable=False)  # type: ignore
-    data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
+    data_block_id = Column(Integer, ForeignKey(DataBlockMetadata.id), nullable=False)
     # Hints
     data_block: "DataBlockMetadata"
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from dags.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
+from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, PipeLog
 from dags.core.streams import DataBlockStream
 from tests.utils import (
@@ -20,6 +21,7 @@ class TestStreams:
         ctx = make_test_execution_context()
         self.ctx = ctx
         self.env = ctx.env
+        self.g = Graph(self.env)
         self.dr1t1 = DataBlockMetadata(
             expected_otype_key="_test.TestType1", realized_otype_key="_test.TestType1"
         )
@@ -32,10 +34,10 @@ class TestStreams:
         self.dr2t2 = DataBlockMetadata(
             expected_otype_key="_test.TestType2", realized_otype_key="_test.TestType2"
         )
-        self.node_source = self.env.add_node("pipe_source", pipe_t1_source)
-        self.node1 = self.env.add_node("pipe1", pipe_t1_sink)
-        self.node2 = self.env.add_node("pipe2", pipe_t1_to_t2)
-        self.node3 = self.env.add_node("pipe3", pipe_generic)
+        self.node_source = self.g.add_node("pipe_source", pipe_t1_source)
+        self.node1 = self.g.add_node("pipe1", pipe_t1_sink)
+        self.node2 = self.g.add_node("pipe2", pipe_t1_to_t2)
+        self.node3 = self.g.add_node("pipe3", pipe_generic)
         self.sess = ctx.metadata_session
         self.dr1t1 = ctx.merge(self.dr1t1)
         self.dr2t1 = ctx.merge(self.dr2t1)

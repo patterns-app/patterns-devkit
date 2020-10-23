@@ -69,9 +69,6 @@ class Environment:
         self.initialize_metadata_database()
         self._local_module = DEFAULT_LOCAL_MODULE  #     DagsModule(name=f"_env")
         self.library = ComponentLibrary()
-        self._declared_graph = Graph()
-        # self._added_nodes: Dict[str, Node] = {}
-        # self._flattened_nodes: Dict[str, Node] = {}
         self.storages = []
         self.runtimes = []
         self._metadata_sessions: List[Session] = []
@@ -176,14 +173,14 @@ class Environment:
     def all_pipes(self) -> List[Pipe]:
         return self.library.all_pipes()
 
-    def add_node(self, key: str, pipe: Union[PipeLike, str], **kwargs: Any) -> Node:
-        from dags.core.node import Node
-
-        if isinstance(pipe, str):
-            pipe = self.get_pipe(pipe)
-        node = Node(self, key, pipe, **kwargs)
-        self._declared_graph.add_node(node)
-        return node
+    # def add_node(self, key: str, pipe: Union[PipeLike, str], **kwargs: Any) -> Node:
+    #     from dags.core.node import Node
+    #
+    #     if isinstance(pipe, str):
+    #         pipe = self.get_pipe(pipe)
+    #     node = Node(self, key, pipe, **kwargs)
+    #     self._declared_graph.add_node(node)
+    #     return node
 
     # def add_dataset_node(
     #     self,
@@ -205,28 +202,33 @@ class Environment:
     #         upstream=upstream,
     #     )
 
-    def all_added_nodes(self) -> List[Node]:
-        return list(self._declared_graph.nodes())
+    # def all_added_nodes(self) -> List[Node]:
+    #     return list(self._declared_graph.nodes())
+    #
+    # def all_flattened_nodes(self) -> List[Node]:
+    #     # TODO: cache?
+    #     return list(self._flattened_graph().nodes())
+    #
+    # def _flattened_graph(self) -> Graph:
+    #     return self._declared_graph.with_dataset_nodes().flatten()
+    #
+    # def get_graph(self) -> Graph:
+    #     return self._declared_graph
 
-    def all_flattened_nodes(self) -> List[Node]:
-        # TODO: cache?
-        return list(self._flattened_graph().nodes())
-
-    def _flattened_graph(self) -> Graph:
-        return self._declared_graph.add_dataset_nodes().flatten()
-
-    def get_graph(self) -> Graph:
-        return self._declared_graph
-
-    def get_node(self, node_like: Union[Node, str]) -> Node:
-        from dags.core.node import Node
-
-        if isinstance(node_like, Node):
-            return node_like
-        # try:
-        return self._declared_graph.get_node(node_like)
-        # except KeyError:  # TODO: do we want to get flattened (sub) nodes too? Probably
-        # return self._flattened_graph().get_node(node_like)
+    # def get_node(self, node_like: Union[Node, str]) -> Node:
+    #     from dags.core.node import Node
+    #
+    #     if isinstance(node_like, Node):
+    #         return node_like
+    #     # try:
+    #     print(self._declared_graph)
+    #     # print(self._declared_graph.as_networkx_graph(False))
+    #     # print(self._declared_graph.as_networkx_graph(True))
+    #     print("***")
+    #     print(node_like)
+    #     return self._declared_graph.get_node(node_like)
+    #     # except KeyError:  # TODO: do we want to get flattened (sub) nodes too? Probably
+    #     # return self._flattened_graph().get_node(node_like)
 
     # def get_pipe_graph_resolver(self) -> PipeGraphResolver:
     #     from dags.core.pipe_interface import PipeGraphResolver
@@ -262,13 +264,14 @@ class Environment:
             session.close()
 
     def get_execution_context(
-        self, session: Session, target_storage: Storage = None, **kwargs
+        self, graph: Graph, session: Session, target_storage: Storage = None, **kwargs
     ) -> ExecutionContext:
         from dags.core.runnable import ExecutionContext
 
         if target_storage is None:
             target_storage = self.storages[0] if self.storages else None
         args = dict(
+            graph=graph,
             env=self,
             metadata_session=session,
             runtimes=self.runtimes,
@@ -280,13 +283,13 @@ class Environment:
         return ExecutionContext(**args)
 
     @contextmanager
-    def execution(self, target_storage: Storage = None, **kwargs):
+    def execution(self, graph: Graph, target_storage: Storage = None, **kwargs):
         # TODO: target storage??
         from dags.core.runnable import ExecutionManager
 
         session = self.Session()
         ec = self.get_execution_context(
-            session, target_storage=target_storage, **kwargs
+            graph, session, target_storage=target_storage, **kwargs
         )
         em = ExecutionManager(ec)
         try:
@@ -302,6 +305,7 @@ class Environment:
 
     def produce(
         self,
+        graph: Graph,
         node_like: Union[Node, str],
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
@@ -310,19 +314,20 @@ class Environment:
 
         node = node_like
         if isinstance(node, str):
-            node = self.get_node(node_like)
+            node = graph.get_any_node(node_like)
         assert isinstance(node, Node)
-        dependencies = self._flattened_graph().get_all_upstream_dependencies_in_execution_order(
+        dependencies = graph.get_flattened_graph().get_all_upstream_dependencies_in_execution_order(
             node
         )
         output = None
         for dep in dependencies:
-            with self.execution(**execution_kwargs) as em:
+            with self.execution(graph, **execution_kwargs) as em:
                 output = em.run(dep, to_exhaustion=to_exhaustion)
         return output
 
     def run_node(
         self,
+        graph: Graph,
         node_like: Union[Node, str],
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
@@ -330,20 +335,20 @@ class Environment:
         from dags.core.node import Node
 
         if isinstance(node_like, str):
-            node_like = self.get_node(node_like)
+            node_like = graph.get_any_node(node_like)
         assert isinstance(node_like, Node)
 
-        flattened_node = self._flattened_graph().get_flattened_root_node_for_declared_node(
+        flattened_node = graph.get_flattened_graph().get_flattened_root_node_for_declared_node(
             node_like
         )
         logger.debug(f"Running: flattened node: {flattened_node} (from {node_like})")
-        with self.execution(**execution_kwargs) as em:
+        with self.execution(graph, **execution_kwargs) as em:
             return em.run(flattened_node, to_exhaustion=to_exhaustion)
 
-    def run_all(self, to_exhaustion: bool = True, **execution_kwargs: Any):
-        nodes = self._flattened_graph().get_all_nodes_in_execution_order()
+    def run_graph(self, graph, to_exhaustion: bool = True, **execution_kwargs: Any):
+        nodes = graph.get_flattened_graph().get_all_nodes_in_execution_order()
         for node in nodes:
-            with self.execution(**execution_kwargs) as em:
+            with self.execution(graph, **execution_kwargs) as em:
                 em.run(node, to_exhaustion=to_exhaustion)
 
     # def get_latest_output(self, node: Node) -> Optional[DataBlock]:
