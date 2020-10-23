@@ -340,3 +340,11 @@ class DataBlockLog(BaseModel):
             direction=self.direction,
             processed_at=self.processed_at,
         )
+
+    @classmethod
+    def summary(cls, env: Environment) -> str:
+        s = ""
+        with env.session_scope() as sess:
+            for dbl in sess.query(DataBlockLog).all():
+                s += f"{dbl.pipe_log.node_key:50}{dbl.data_block_id:20}{dbl.direction.value:10}{dbl.data_block.updated_at}\n"
+        return s

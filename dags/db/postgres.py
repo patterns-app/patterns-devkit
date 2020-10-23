@@ -9,8 +9,11 @@ from dags.utils.common import printd, title_to_snake_case
 from dags.utils.data import conform_records_for_insert
 from loguru import logger
 
+POSTGRES_SUPPORTED = False
 try:
     from psycopg2.extras import execute_values
+
+    POSTGRES_SUPPORTED = True
 except ImportError:
 
     def execute_values(*args):
