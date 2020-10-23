@@ -166,11 +166,11 @@ ObjectTypeLike = Union[ObjectType, ObjectTypeKey, ObjectTypeName]
 
 
 class GeneratedObjectType(BaseModel):
-    name = Column(String, primary_key=True)
+    key = Column(String, primary_key=True)
     definition = Column(JSON)
 
     def __repr__(self):
-        return self._repr(name=self.name)
+        return self._repr(name=self.key)
 
     def as_otype(self) -> ObjectType:
         assert isinstance(self.definition, dict)
@@ -286,7 +286,7 @@ def create_quick_field(name: str, field_type: str, **kwargs) -> Field:
 
 # Helper
 def create_quick_otype(name: str, fields: List[Tuple[str, str]], **kwargs):
-    defaults = dict(
+    defaults: Dict[str, Any] = dict(
         name=name,
         module_key=None,
         # type_class="Observation",

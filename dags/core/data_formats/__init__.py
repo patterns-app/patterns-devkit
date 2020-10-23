@@ -37,7 +37,7 @@ class DataFormatRegistry:
     def get_key(self, fmt_cls: DataFormat):
         return fmt_cls.__name__
 
-    def get(self, key: str) -> DataFormat:
+    def get(self, key: str) -> Optional[DataFormat]:
         return self._registry.get(key)
 
     def all(self) -> Iterable[DataFormat]:

@@ -23,6 +23,7 @@ from dags.core.data_formats import (
     RecordsListGeneratorFormat,
 )
 from dags.core.storage.storage import StorageType, new_local_memory_storage
+from tests.test_utils import get_tmp_sqlite_db_url
 from tests.utils import TestType4, make_test_env
 
 
@@ -198,13 +199,13 @@ class TestConversions:
             db = out_sdb.data_block.as_managed_data_block(ec)
             assert db.as_records_list() == self.records_full
 
-    # def test_memory_to_database(self):
-    #     ec = self.env.get_execution_context(self.sess)
-    #     out_sdb = convert_lowest_cost(ec, self.sdb, self.fs, DatabaseTableFormat)
-    #     assert out_sdb.data_format == DelimitedFileFormat
-    #     assert out_sdb.get_expected_otype(self.env) is TestType4
-    #     assert out_sdb.get_realized_otype(self.env) is TestType4
-    #     fsapi = self.fs.get_file_system_api(self.env)
-    #     assert fsapi.exists(out_sdb)
-    #     db = out_sdb.data_block.as_managed_data_block(ec)
-    #     assert db.as_records_list() == self.records_full
+    def test_memory_to_database(self):
+        database = self.env.add_storage(get_tmp_sqlite_db_url())
+        ec = self.env.get_execution_context(self.sess)
+        out_sdb = convert_lowest_cost(ec, self.sdb, database, DatabaseTableFormat)
+        assert out_sdb.data_format == DatabaseTableFormat
+        assert out_sdb.get_expected_otype(self.env) is TestType4
+        assert out_sdb.get_realized_otype(self.env) is TestType4
+        assert database.get_database_api(self.env).exists(out_sdb.get_name(self.env))
+        db = out_sdb.data_block.as_managed_data_block(ec)
+        assert db.as_records_list() == self.records_full

@@ -10,12 +10,14 @@ import uuid
 from dataclasses import dataclass, fields
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Generic, List, Mapping, Optional, Tuple, Type, Union
 
 import pytz
 from colorful import Colorful
 from dateutil import parser
 from halo import Halo
+
+from dags.utils.typing import K, V
 
 DEBUG = False
 
@@ -25,7 +27,7 @@ def printd(*o):
         print(*[cf.dimmed(i) for i in o])
 
 
-class AttrDict(dict):
+class AttrDict(dict, Mapping[K, V]):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
 

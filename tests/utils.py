@@ -103,3 +103,49 @@ def pipe_dataset_input(
 
 def pipe_dataset_output(input: DataBlock[T]) -> DataSet[T]:
     pass
+
+
+sample_records = [
+    {
+        "a": "2017-02-17T15:09:26-08:00",
+        "b": "1/1/2020",
+        "c": "2020",
+        "d": [1, 2, 3],
+        "e": {1: 2},
+        "f": "1.3",
+        "g": 123,
+        "h": "null",
+        "i": None,
+    },
+    {
+        "a": "2017-02-17T15:09:26-08:00",
+        "b": "1/1/2020",
+        "c": "12",
+        "d": [1, 2, 3],
+        "e": {1: 2},
+        "f": "cookies",
+        "g": 123,
+        "h": "null",
+        "i": None,
+    },
+    {
+        "a": "2017-02-17T15:09:26-08:00",
+        "b": "30/30/2020",
+        "c": "12345",
+        "d": [1, 2, 3],
+        "e": "string",
+        "f": "true",
+        "g": 12345,
+        "h": "helloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworldhelloworld",
+    },
+    {
+        "a": None,
+        "b": None,
+        "c": None,
+        "d": None,
+        "e": None,
+        "f": None,
+        "g": None,
+        "i": None,
+    },
+]

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 import traceback
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Union
 
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 NodeLike = Union[str, "Node"]
 
 
-def inputs_as_nodes(env: Environment, inputs: Dict[str, NodeLike]):
+def inputs_as_nodes(env: Environment, inputs: Mapping[str, NodeLike]):
     return {name: env.get_node(dnl) for name, dnl in inputs.items()}
 
 
@@ -33,18 +33,18 @@ class Node:
     env: Environment
     key: str
     pipe: Pipe
-    _declared_inputs: Dict[str, NodeLike]
-    _compiled_inputs: Dict[str, Node] = None
+    _declared_inputs: Mapping[str, NodeLike]
+    _compiled_inputs: Optional[Mapping[str, Node]] = None
     _dataset_name: Optional[str] = None
     declared_composite_node_key: Optional[str] = None
-    _sub_nodes: List[Node] = None
+    _sub_nodes: Optional[List[Node]] = None
 
     def __init__(
         self,
         env: Environment,
         key: str,
         pipe: Union[PipeLike, str],
-        inputs: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,
+        inputs: Optional[Union[NodeLike, Mapping[str, NodeLike]]] = None,
         dataset_name: Optional[str] = None,
         config: Dict[str, Any] = None,
         declared_composite_node_key: str = None,
@@ -68,20 +68,20 @@ class Node:
     def __hash__(self):
         return hash(self.key)
 
-    def _clean_pipe(self, df: PipeLike) -> Pipe:
+    def _clean_pipe(self, df: Union[PipeLike, str]) -> Pipe:
         if isinstance(df, str):
             return self.env.get_pipe(df)
         return make_pipe(df)
 
-    def _set_declared_inputs(self, inputs: Union[NodeLike, Dict[str, NodeLike]]):
+    def _set_declared_inputs(self, inputs: Union[NodeLike, Mapping[str, NodeLike]]):
         self._declared_inputs = self.dfi.assign_inputs(inputs)
 
-    def set_compiled_inputs(self, inputs: Dict[str, NodeLike]):
+    def set_compiled_inputs(self, inputs: Mapping[str, NodeLike]):
         self._compiled_inputs = inputs_as_nodes(self.env, inputs)
         if self.is_composite():
             self.get_input_node().set_compiled_inputs(inputs)
 
-    def get_state(self, sess: Session) -> Optional[Dict]:
+    def get_state(self, sess: Session) -> Optional[Mapping]:
         state = sess.query(NodeState).filter(NodeState.node_key == self.key).first()
         if state:
             return state.state
@@ -138,34 +138,36 @@ class Node:
         #     dfi.connect_upstream(self, up)
         return dfi
 
-    def get_compiled_input_nodes(self) -> Dict[str, Node]:
+    def get_compiled_input_nodes(self) -> Mapping[str, Node]:
         # TODO: mark compiled?
         # if self._compiled_inputs is None:
         #     raise Exception("Node has not been compiled")
         return self._compiled_inputs or self.get_declared_input_nodes()
 
-    def get_declared_input_nodes(self) -> Dict[str, Node]:
+    def get_declared_input_nodes(self) -> Mapping[str, Node]:
         return inputs_as_nodes(self.env, self.get_declared_inputs())
 
-    def get_declared_inputs(self) -> Dict[str, NodeLike]:
+    def get_declared_inputs(self) -> Mapping[str, NodeLike]:
         return self._declared_inputs or {}
 
-    def get_compiled_input_keys(self) -> Dict[str, str]:
+    def get_compiled_input_keys(self) -> Mapping[str, str]:
         return {
             n: i.key if isinstance(i, Node) else i
             for n, i in self.get_compiled_input_nodes().items()
         }
 
-    def get_sub_nodes(self) -> Iterable[Node]:
+    def get_sub_nodes(self) -> Optional[Iterable[Node]]:
         return self._sub_nodes
 
     def get_output_node(self) -> Node:
         if self.is_composite():
+            assert self._sub_nodes is not None
             return self._sub_nodes[-1].get_output_node()
         return self
 
     def get_input_node(self) -> Node:
         if self.is_composite():
+            assert self._sub_nodes is not None
             return self._sub_nodes[0].get_input_node()
         return self
 

@@ -25,10 +25,8 @@ if TYPE_CHECKING:
     from dags.core.pipe import (
         PipeLike,
         Pipe,
-        make_pipe_definition,
     )
     from dags.core.node import Node
-    from dags.core.pipe_interface import PipeGraphResolver
     from dags.core.runnable import ExecutionContext
     from dags.core.data_block import DataBlock
     from dags.core.graph import Graph
@@ -52,7 +50,7 @@ class Environment:
         from dags.core.runtime import Runtime
         from dags.core.runtime import RuntimeClass
         from dags.core.runtime import RuntimeEngine
-        from dags.core.storage.storage import Storage
+        from dags.core.storage.storage import Storage, new_local_memory_storage
         from dags.modules import core
         from dags.core.graph import Graph
 
@@ -91,6 +89,8 @@ class Environment:
             self.add_module(m)
 
         self.event_handlers = event_handlers or []
+        self._local_memory_storage = new_local_memory_storage()
+        self.add_storage(self._local_memory_storage)
 
     def initialize_metadata_database(self):
         from dags.core.metadata.listeners import add_persisting_sdb_listener
@@ -120,6 +120,9 @@ class Environment:
         for s in self._metadata_sessions:
             s.close()
         self._metadata_sessions = []
+
+    def get_default_local_memory_storage(self) -> Storage:
+        return self._local_memory_storage
 
     def get_local_module(self) -> DagsModule:
         return self._local_module
@@ -152,10 +155,11 @@ class Environment:
             return got.as_otype()
 
     def add_new_otype(self, otype: ObjectType):
+        print(f"adding otype {otype.key}")
         if otype.key in self.library.otypes:
             # Already exists
             return
-        got = GeneratedObjectType(name=otype.name, definition=asdict(otype))
+        got = GeneratedObjectType(key=otype.key, definition=asdict(otype))
         with self.session_scope() as sess:
             sess.add(got)
         self.library.add_otype(otype)
@@ -261,7 +265,6 @@ class Environment:
         self, session: Session, target_storage: Storage = None, **kwargs
     ) -> ExecutionContext:
         from dags.core.runnable import ExecutionContext
-        from dags.core.storage.storage import new_local_memory_storage
 
         if target_storage is None:
             target_storage = self.storages[0] if self.storages else None
@@ -271,7 +274,7 @@ class Environment:
             runtimes=self.runtimes,
             storages=self.storages,
             target_storage=target_storage,
-            local_memory_storage=new_local_memory_storage(),
+            local_memory_storage=self.get_default_local_memory_storage(),
         )
         args.update(**kwargs)
         return ExecutionContext(**args)

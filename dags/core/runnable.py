@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from dataclasses import MISSING, dataclass, field
 from enum import Enum
 from itertools import tee
-from typing import Any, Dict, Generator, Generic, List, Optional, Union, cast
+from typing import Any, Dict, Generator, Generic, List, Mapping, Optional, Union, cast
 
 import sqlalchemy
 from sqlalchemy.engine import ResultProxy
@@ -29,7 +29,12 @@ from dags.core.data_formats.base import ReusableGenerator
 from dags.core.environment import Environment
 from dags.core.metadata.orm import BaseModel
 from dags.core.node import DataBlockLog, Direction, Node, PipeLog, get_state
-from dags.core.pipe import DataInterfaceType, InputExhaustedException, PipeInterface
+from dags.core.pipe import (
+    DataInterfaceType,
+    InputExhaustedException,
+    Pipe,
+    PipeInterface,
+)
 from dags.core.pipe_interface import (
     BoundPipeInterface,
     NodeInput,
@@ -125,11 +130,11 @@ class RunSession:
         self.metadata_session.add(drl)
 
     def log_input(self, block: DataBlockMetadata):
-        logger.debug(f"\t\tLogging Input {block}")
+        logger.debug(f"Input logged: {block}")
         self.log(block, Direction.INPUT)
 
     def log_output(self, block: DataBlockMetadata):
-        logger.debug(f"\t\tLogging Output {block}")
+        logger.debug(f"Output logged: {block}")
         self.log(block, Direction.OUTPUT)
 
 
@@ -228,15 +233,23 @@ class PipeContext:  # TODO: (Generic[C, S]):
     # resolved_output_otype: Optional[ObjectType]
     # realized_output_otype: Optional[ObjectType]
 
-    def get_config(self, key: Optional[str] = None) -> Any:
-        if key is not None:
-            return self.runnable.configuration.get(key)
+    def get_config_value(self, key: str, default: Any = None) -> Any:
+        return self.runnable.configuration.get(key, default)
+
+    def get_config(self) -> Mapping[str, Any]:
         return self.runnable.configuration
 
-    def get_state(self, key: Optional[str] = None) -> Any:
-        if key is not None:
-            return self.pipe_log.node_end_state.get(key)
+    def get_state_value(self, key: str, default: Any = None) -> Any:
+        assert isinstance(self.pipe_log.node_end_state, dict)
+        return self.pipe_log.node_end_state.get(key, default)
+
+    def get_state(self) -> Mapping[str, Any]:
         return self.pipe_log.node_end_state
+
+    def emit_state_value(self, key: str, new_value: Any):
+        new_state = self.pipe_log.node_end_state.copy()
+        new_state[key] = new_value
+        self.pipe_log.node_end_state = new_state
 
     def emit_state(self, new_state: Dict):
         self.pipe_log.node_end_state = new_state
@@ -298,7 +311,15 @@ class ExecutionManager:
                 if (
                     not to_exhaustion or not dfi.inputs
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
+                    # (they are responsible for creating their own generators)
                     break
+                # This below could work, but some sources may always return a
+                # result (eg datetime strictly equal edge case), and this would
+                # be infinite loop in that case
+                # if not dfi.inputs:
+                #     # No inputs, it is a data source (extractor), we stop when it produces no more output?
+                #     if last_output is None:
+                #         break
                 spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataBlocks output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
             spinner.stop_and_persist(symbol=cf.success(success_symbol))
         except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
@@ -324,7 +345,7 @@ class ExecutionManager:
             return None
         new_session = self.env.get_new_metadata_session()
         last_output = new_session.merge(last_output)
-        return last_output.as_managed_data_block(self.ctx,)
+        return last_output.as_managed_data_block(self.ctx,)  # type: ignore # (mypy does not know merge() is safe)
 
     #
     # def produce(

@@ -32,12 +32,12 @@ class DataFrameResourceConfig:
     state_class=LocalResourceState,
 )
 def extract_dataframe(ctx: PipeContext,) -> DataSet:
-    extracted = ctx.get_state("extracted")
+    extracted = ctx.get_state_value("extracted")
     if extracted:
         # Just emit once
         return
-    ctx.emit_state({"extracted": True})
-    return ctx.get_config("dataframe")
+    ctx.emit_state_value("extracted", True)
+    return ctx.get_config_value("dataframe")
 
 
 @dataclass
@@ -52,14 +52,14 @@ class LocalCSVResourceConfig:
     state_class=LocalResourceState,
 )
 def extract_csv(ctx: PipeContext,) -> DataSet:
-    extracted = ctx.get_state("extracted")
+    extracted = ctx.get_state_value("extracted")
     if extracted:
         # Static resource, if already emitted, return
         return
-    path = ctx.get_config("path")
+    path = ctx.get_config_value("path")
     with open(path) as f:
         records = read_csv(f.readlines())
-    ctx.emit_state({"extracted": True})
+    ctx.emit_state_value("extracted", True)
     return records
 
 

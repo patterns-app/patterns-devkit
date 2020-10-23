@@ -3,7 +3,19 @@ from __future__ import annotations
 import inspect
 import re
 from dataclasses import asdict, dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+    cast,
+)
 
 import networkx as nx
 
@@ -24,7 +36,7 @@ if TYPE_CHECKING:
         InputExhaustedException,
         PipeCallable,
     )
-    from dags.core.node import Node, Node, RawNodeInputs, NodeLike
+    from dags.core.node import Node, Node, NodeLike
     from dags.core.storage.storage import Storage
     from dags.core.runnable import ExecutionContext
     from dags.core.streams import (
@@ -158,12 +170,12 @@ class BoundPipeInterface:
                 return input
         raise KeyError(name)
 
-    def connect(self, input_nodes: Dict[str, Node]):
+    def connect(self, input_nodes: Mapping[str, Node]):
         for name, input_node in input_nodes.items():
             i = self.get_input(name)
             i.input_node = input_node
 
-    def bind(self, input_blocks: Dict[str, DataBlockMetadata]):
+    def bind(self, input_blocks: Mapping[str, DataBlockMetadata]):
         for name, input_block in input_blocks.items():
             i = self.get_input(name)
             i.bound_data_block = input_block
@@ -291,7 +303,9 @@ class PipeInterface:
                     )
                 data_block_seen = True
 
-    def assign_inputs(self, inputs: RawNodeInputs) -> Dict[str, NodeLike]:
+    def assign_inputs(
+        self, inputs: Union[NodeLike, Mapping[str, NodeLike]]
+    ) -> Dict[str, NodeLike]:
         if not isinstance(inputs, dict):
             assert (
                 len(self.get_non_recursive_inputs()) == 1
@@ -309,13 +323,14 @@ class NodeInterfaceManager:
     Node.
     """
 
-    def __init__(
-        self, ctx: ExecutionContext, node: Node,
-    ):
+    def __init__(self, ctx: ExecutionContext, node: Node, strict_storages: bool = True):
         self.env = ctx.env
         self.ctx = ctx
         self.node = node
         self.dfi = self.node.get_interface()
+        self.strict_storages = (
+            strict_storages  # Only pull datablocks from given storages
+        )
 
     def get_bound_interface(
         self, input_data_blocks: Optional[InputBlocks] = None
@@ -354,13 +369,18 @@ class NodeInterfaceManager:
         input_data_blocks: InputBlocks = {}
         any_unprocessed = False
         for input in self.get_connected_interface().inputs:
-            stream = input.input_node
-            logger.debug(f"Getting {input.name} for {stream}")
-            stream = ensure_data_stream(stream)
-            block: Optional[DataBlockMetadata] = self.get_input_data_block(
-                stream, input, self.ctx.all_storages
+            node_or_stream = input.input_node
+            assert node_or_stream is not None
+            logger.debug(
+                f"Getting input block for `{input.name}` from {node_or_stream}"
             )
-            logger.debug("\tFound:", block)
+            stream = ensure_data_stream(node_or_stream)
+            block: Optional[DataBlockMetadata] = self.get_input_data_block(
+                stream, input, self.ctx.all_storages if self.strict_storages else None
+            )
+            if block is not None:
+                logger.debug(f"Found: {block}")
+                logger.debug(list(block.stored_data_blocks.all()))
 
             """
             Inputs are considered "Exhausted" if:
@@ -402,8 +422,12 @@ class NodeInterfaceManager:
         # TODO: Is it necessary to filter otype? We're already filtered on the `upstream` stream
         # if not input.is_generic:
         #     stream = stream.filter_otype(input.otype_like)
+        logger.debug(f"{stream.get_count(self.ctx)} available DataBlocks")
         if storages:
             stream = stream.filter_storages(storages)
+            logger.debug(
+                f"{stream.get_count(self.ctx)} available DataBlocks in storages {storages}"
+            )
         # # TODO: where do we do this parent node filtering? Such hidden, so magic.
         # #   There's the *delcared* input DBS and then this actual one, maybe a bit surprising to
         # #   end user that they differ
@@ -412,10 +436,10 @@ class NodeInterfaceManager:
         block: Optional[DataBlockMetadata]
         logger.debug(f"Finding unprocessed input for: {stream}")
         if input.original_annotation.data_format_class in ("DataBlock",):
-            logger.debug(f"Finding DataBlock")
             stream = stream.filter_unprocessed(
                 self.node, allow_cycle=input.original_annotation.is_self_ref
             )
+            logger.debug(f"{stream.get_count(self.ctx)} unprocessed DataBlocks")
             block = stream.get_next(self.ctx)
         elif input.original_annotation.data_format_class == "DataSet":
             logger.debug(f"Finding DataSet")

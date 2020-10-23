@@ -8,7 +8,7 @@ from dags.utils.typing import T
 
 @pipe("core.as_dataset", compatible_runtimes="database")
 def as_dataset(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
-    name = ctx.get_config("dataset_name")
+    name = ctx.get_config_value("dataset_name")
     ds = (
         ctx.execution_context.metadata_session.query(DataSetMetadata)
         .filter(DataSetMetadata.name == name)

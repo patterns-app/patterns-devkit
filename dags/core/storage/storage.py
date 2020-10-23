@@ -272,7 +272,7 @@ class LocalMemoryStorageEngine(BaseStorageEngine):
         return self.get_key(stored_data_block) in global_memory_storage
 
 
-def new_local_memory_storage():
+def new_local_memory_storage() -> Storage:
     local_storage = Storage(
         url=f"memory://_local_{rand_str(6)}",
         storage_class=StorageClass.MEMORY,

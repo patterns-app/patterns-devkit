@@ -67,6 +67,9 @@ class Graph:
             for annotation in dfi.inputs:
                 if annotation.is_dataset:
                     inputs = copy(n.get_declared_input_nodes())
+                    assert (
+                        annotation.name is not None
+                    )  # inputs should always have a parameter name!
                     input_node = inputs[annotation.name]
                     dsn = input_node.get_or_create_dataset_node()
                     new_g.add_node(dsn)

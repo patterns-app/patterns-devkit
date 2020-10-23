@@ -9,7 +9,7 @@ from pandas import DataFrame
 from sqlalchemy.orm import close_all_sessions  # type: ignore
 
 from dags.core.environment import Environment
-from dags.core.pipe import PipeLike
+from dags.core.pipe import PipeLike, ensure_pipe
 from dags.core.streams import InputBlocks
 from dags.core.typing.inference import (
     conform_dataframe_to_otype,
@@ -43,9 +43,11 @@ class PipeTestCase:
         pipe: Union[PipeLike, str],
         test_datas: List[Dict[str, TestDataBlock]],
         ignored_fields: List[str] = None,
+        pipe_config: Dict = None,
     ):
         self.name = name
         self.pipe = pipe
+        self.pipe_config = pipe_config
         self.test_datas = test_datas
         self.ignored_fields = ignored_fields or []
 
@@ -55,11 +57,16 @@ class PipeTestCase:
 
 class PipeTest:
     def __init__(
-        self, pipe: Union[PipeLike, str], tests: List[Dict], module: DagsModule = None,
+        self,
+        pipe: Union[PipeLike, str],
+        tests: List[Dict],
+        pipe_config: Dict = None,
+        module: DagsModule = None,
     ):
         self.pipe = pipe
         self.module = module
         self._raw_tests = tests
+        self.pipe_config = pipe_config
 
     def get_tests(self) -> List[PipeTestCase]:
         return self.process_raw_tests(self._raw_tests)
@@ -150,13 +157,10 @@ class PipeTest:
         for case in self.get_tests():
             print(f"{case.name}:")
             with self.test_env(**env_args) as env:
-                if isinstance(self.pipe, str):
-                    fn = env.get_pipe(self.pipe)
-                else:
-                    fn = self.pipe
+                fn = ensure_pipe(env, self.pipe)
                 dfi = fn.get_interface(env)
                 assert dfi is not None
-                test_node = env.add_node("_test_node", fn)
+                test_node = env.add_node("_test_node", fn, config=case.pipe_config)
                 for i, test_data in enumerate(case.test_datas):
                     try:
                         inputs = {}

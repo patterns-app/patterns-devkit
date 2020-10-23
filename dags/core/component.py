@@ -36,7 +36,7 @@ if TYPE_CHECKING:
 class ComponentLibrary:
     pipes: Dict[str, Pipe]
     otypes: Dict[str, ObjectType]
-    module_lookup_keys = List["DagsModule"]
+    module_lookup_keys: List[str]
 
     def __init__(self, module_lookup_keys: List[str] = None):
         from dags.core.module import DEFAULT_LOCAL_MODULE_KEY

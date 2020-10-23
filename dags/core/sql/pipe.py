@@ -15,6 +15,7 @@ from dags.core.pipe_interface import (
     re_type_hint,
 )
 from dags.core.runnable import PipeContext
+
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from dags.core.runtime import RuntimeClass
 from dags.utils.common import md5_hash
@@ -69,84 +70,88 @@ def extract_interface(
     comment_annotations=True,
 ) -> TypedSqlStatement:
     # debug = print
-    # TODO
-    # TODO
-    # TODO: Say it with me: UN - MAIN - TAIN - ABLE!
-    # TODO
-    # TODO
+    # TODO: Bit of a nightmare. Building a proper parser for this
     """
     Get all table names in a sql statement, optionally sub them with new names.
     Also extract comment-style ObjectType annotations if they exists.
     """
+
+    @dataclass
+    class TableParseState:
+        prev_token: str = None
+        prev_token_was_select: bool = False
+        table_identifier_stmt: bool = False
+        table_identifier_required_next: bool = False
+        previous_token_table_identifier: str = None
+        jinja_context_cnt: int = 0
+
     replace_with_names = replace_with_names or {}
     table_refs: Dict[str, Optional[str]] = {}
     output_annotation: Optional[str] = None
-    table_stmt = False
-    table_stmt_required = False
-    jinja = 0
-    new_sql = []
-    prev = None
-    prev_table_ref = None
-    prev_select = False
+    state = TableParseState()
+    new_sql: List[str] = []
     for stmt in sqlparse.parse(sql):
         for token in stmt.flatten():
             # print(token, table_stmt_required, table_stmt)
             if new_sql:
-                prev = new_sql[-1]
+                state.prev_token = new_sql[-1]
             new_sql.append(str(token))
             # debug("\t\t", token, "\t\t", token.ttype, type(token))
             if token.ttype in tokens.Comment:
                 # debug("comment", str(token), prev_select, prev_table_ref)
-                if comment_annotations and prev_table_ref:
-                    table_refs[prev_table_ref] = str(token)
-                    prev_table_ref = None
-                if comment_annotations and prev_select:
-                    prev_select = False
+                if (
+                    comment_annotations
+                    and state.previous_token_table_identifier is not None
+                ):
+                    table_refs[state.previous_token_table_identifier] = str(token)
+                    state.previous_token_table_identifier = None
+                if comment_annotations and state.prev_token_was_select:
+                    state.prev_token_was_select = False
                     output_annotation = str(token)
                 continue
             if token.is_whitespace:
                 continue
             t = str(token).lower()
             if t == ",":
-                if table_stmt:
+                if state.table_identifier_stmt:
                     # debug("table comma")
-                    table_stmt_required = True
+                    state.table_identifier_required_next = True
                     continue
-            prev_table_ref = None
-            prev_select = False
+            state.previous_token_table_identifier = None
+            state.prev_token_was_select = False
             # Skip jinja if present
-            if t in ("%", "{", "%-") and prev == "{":
-                jinja += 1
+            if t in ("%", "{", "%-") and state.prev_token == "{":
+                state.jinja_context_cnt += 1
                 continue
-            if t == "}" and prev in ("}", "%", "-%"):
-                jinja -= 1
+            if t == "}" and state.prev_token in ("}", "%", "-%"):
+                state.jinja_context_cnt -= 1
                 continue
-            if jinja and ignore_jinja:
+            if state.jinja_context_cnt and ignore_jinja:
                 # debug("\t", t, f"skip jinja {jinja}")
                 continue
             if token.is_keyword:
                 if "join" in t or "from" in t:
                     # debug("on", token)
-                    table_stmt = True
-                    table_stmt_required = True
+                    state.table_identifier_stmt = True
+                    state.table_identifier_required_next = True
                 else:
                     if "select" == t:
-                        prev_select = True
-                    if not table_stmt_required:
+                        state.prev_token_was_select = True
+                    if not state.table_identifier_required_next:
                         # debug("off", token)
                         # Only turn off table_stmt if we don't require one
                         # Otherwise false positive here on table names that happen to be keywords
-                        table_stmt = False
+                        state.table_identifier_stmt = False
                     else:
                         # table name mistaken for keyword
                         token.ttype = tokens.Name
             if token.ttype in tokens.Name:
-                if table_stmt:
+                if state.table_identifier_stmt:
                     # debug("found", token)
                     table_ref = str(token)
                     table_refs[table_ref] = None
-                    prev_table_ref = table_ref
-                    table_stmt_required = False
+                    state.previous_token_table_identifier = table_ref
+                    state.table_identifier_required_next = False
                     if table_ref in replace_with_names:
                         new_sql.pop()
                         new_sql.append(replace_with_names[table_ref])

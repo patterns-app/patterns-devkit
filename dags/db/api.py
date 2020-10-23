@@ -29,6 +29,7 @@ from dags.core.storage.storage import Storage, StorageEngine
 from dags.core.typing.inference import infer_otype_from_db_table
 from dags.core.typing.object_type import ObjectType, is_any
 from dags.utils.common import DagsJSONEncoder, printd, rand_str, title_to_snake_case
+from dags.utils.data import conform_records_for_insert
 from loguru import logger
 
 if TYPE_CHECKING:
@@ -107,15 +108,20 @@ class DatabaseAPI:
         ddl = ObjectTypeMapper(self.env).create_table_statement(
             otype=otype, storage_engine=sdb.storage.storage_engine, table_name=name,
         )
+        print(ddl)
         self.execute_sql(ddl)
         return name
 
     def rename_table(self, table_name: str, new_name: str):
         self.execute_sql(f"alter table {table_name} rename to {new_name}")
 
+    def clean_sub_sql(self, sql: str) -> str:
+        return sql.strip(" ;")
+
     def insert_sql(self, destination_sdb: StoredDataBlockMetadata, sql: str):
         name = self.ensure_table(destination_sdb)
         otype = destination_sdb.get_realized_otype(self.env)
+        sql = self.clean_sub_sql(sql)
         columns = "\n,".join(f.name for f in otype.fields)
         insert_sql = f"""
         insert into {name} (
@@ -133,6 +139,7 @@ class DatabaseAPI:
         self, sess: Session, sql: str, expected_otype: ObjectType = None
     ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
         tmp_name = f"_tmp_{rand_str(10)}".lower()
+        sql = self.clean_sub_sql(sql)
         create_sql = f"""
         create table {tmp_name} as
         select
@@ -182,9 +189,20 @@ class DatabaseAPI:
         self._bulk_insert(name, records)
 
     def _bulk_insert(self, table_name: str, records: RecordsList):
-        raise NotImplementedError(
-            f"Bulk insert is not implemented for {self.resource.url}"
-        )
+        columns = conform_columns_for_insert(records)
+        records = conform_records_for_insert(records, columns)
+        sql = f"""
+        INSERT INTO "{ table_name }" (
+            "{ '","'.join(columns)}"
+        ) VALUES ({','.join(['?'] * len(columns))})
+        """
+        conn = self.get_engine().raw_connection()
+        curs = conn.cursor()
+        try:
+            curs.executemany(sql, records)
+            conn.commit()
+        finally:
+            conn.close()
 
     def exists(self, table_name: str) -> bool:
         try:

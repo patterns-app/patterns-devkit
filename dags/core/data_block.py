@@ -4,6 +4,7 @@ from collections import abc
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple
 
+from loguru import logger
 import sqlalchemy as sa
 from pandas import DataFrame
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, event, or_
@@ -366,6 +367,12 @@ class DataBlockManager:
             convert_sdb,
         )
 
+        cnt = (
+            self.ctx.metadata_session.query(StoredDataBlockMetadata)
+            .filter(StoredDataBlockMetadata.data_block == self.data_block)
+            .count()
+        )
+        logger.debug(f"{cnt} SDBs available")
         existing_sdbs = self.ctx.metadata_session.query(StoredDataBlockMetadata).filter(
             StoredDataBlockMetadata.data_block == self.data_block,
             # TODO: why do we persist memory SDBs at all? Need more robust solution to this. Either separate class or some flag?
@@ -379,9 +386,13 @@ class DataBlockManager:
                 == self.ctx.local_memory_storage.url,
             ),
         )
+        logger.debug(
+            f"{existing_sdbs.count()} SDBs available not in non-local memory (local: {self.ctx.local_memory_storage.url})"
+        )
         existing_sdbs.filter(
             StoredDataBlockMetadata.storage_url.in_(self.ctx.all_storages),
         )
+        logger.debug(f"{existing_sdbs.count()} SDBs available in eligible storages")
         target_storage_format = StorageFormat(
             self.ctx.local_memory_storage.storage_type, target_format
         )
