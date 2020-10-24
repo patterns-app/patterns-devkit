@@ -3,18 +3,7 @@ from __future__ import annotations
 import inspect
 from dataclasses import dataclass, field
 from functools import partial
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Type,
-    Union,
-    cast,
-    Mapping,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
 from pandas import DataFrame
 
@@ -83,7 +72,7 @@ class Pipe:
     is_composite: bool = False
     config_class: Optional[Type] = None
     state_class: Optional[Type] = None
-    declared_inputs: Optional[Mapping[str, str]] = None
+    declared_inputs: Optional[Dict[str, str]] = None
     declared_output: Optional[str] = None
     sub_graph: List[Pipe] = field(default_factory=list)  # TODO: support proper graphs
 
@@ -183,7 +172,7 @@ def pipe_factory(
     pipe_callable: Optional[PipeCallable],  # Composite DFs don't have a callable
     key: str = None,
     compatible_runtimes: str = None,
-    inputs: Optional[Mapping[str, str]] = None,
+    inputs: Optional[Dict[str, str]] = None,
     output: Optional[str] = None,
     **kwargs: Any,
 ) -> Pipe:
@@ -208,7 +197,7 @@ def pipe(
     compatible_runtimes: str = None,
     config_class: Optional[Type] = None,
     state_class: Optional[Type] = None,
-    inputs: Optional[Mapping[str, str]] = None,
+    inputs: Optional[Dict[str, str]] = None,
     output: Optional[str] = None,
     # test_data: PipeTestCaseLike = None,
 ) -> Union[Callable, Pipe]:

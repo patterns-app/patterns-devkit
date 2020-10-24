@@ -94,7 +94,6 @@ class ConverterLookup:
                 eligible_storage_types=set(s.storage_type for s in storages)
             ).get_lowest_cost_path(conversion)
 
-        # TODO: conversion paths
         try:
             path = nx.shortest_path(self._graph, *conversion, weight="cost")
         except nx.NetworkXNoPath:
@@ -116,7 +115,6 @@ class ConverterLookup:
         return min(converters)[1]
 
     def clone(self, eligible_storage_types: Set[StorageType] = None) -> ConverterLookup:
-        # TODO: a bit overkill, hmmmm
         eligible_storage_types = eligible_storage_types or self.eligible_storage_types
         new_c = ConverterLookup(eligible_storage_types=eligible_storage_types)
         for c in self._converters:

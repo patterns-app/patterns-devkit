@@ -30,7 +30,6 @@ class _BaseModel:
         at_least_one_attached_attribute = False
         for key, field in fields.items():
             try:
-                # TODO: debug hack
                 from dags.core.typing.object_type import ObjectType
 
                 if isinstance(field, ObjectType):

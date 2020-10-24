@@ -104,9 +104,7 @@ def get_records_list_sample(
     obj: Union[pd.DataFrame, RecordsList, RecordsListGenerator, DataFrameGenerator],
     max_sample: int = 1000,
 ) -> Optional[RecordsList]:
-    """Helper for getting a small records list sample (poor mans converter?)"""
-    # TODO: is this the right way/place to do this?
-    # TODO: implement max_sample everywhere...
+    """Helper for getting a small records list sample (poor man's converter? DRY?)"""
     if isinstance(obj, list):
         return obj[:max_sample]
     if isinstance(obj, pd.DataFrame):
@@ -114,7 +112,7 @@ def get_records_list_sample(
     if isinstance(obj, DataFrameGenerator):
         return get_records_list_sample(obj.get_one())
     if isinstance(obj, RecordsListGenerator):
-        return obj.get_one()
+        return get_records_list_sample(obj.get_one())
     if isinstance(obj, collections.abc.Generator):
-        raise TypeError("Generators must be `tee`d before being passed in")
+        raise TypeError("Generators must be `tee`d before being sampled")
     raise TypeError(obj)

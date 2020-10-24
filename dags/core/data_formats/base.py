@@ -75,7 +75,6 @@ class MemoryDataFormatBase(DataFormatBase[T]):
 
     @classmethod
     def definitely_instance(cls, obj: Any) -> bool:
-        # TODO: implement this and utilize for inference?
         return False
 
     @classmethod

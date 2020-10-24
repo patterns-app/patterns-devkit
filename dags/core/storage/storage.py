@@ -219,9 +219,9 @@ class BaseStorageEngine:
         logger.debug(
             f"➞ Putting {cf.bold(data_records.record_count if data_records.record_count is not None else 'Unknown')} records of SDB#{cf.bold(stored_data_block.id)} in {self.storage}"
         )
-        data_records.validate_and_conform_otype(
-            stored_data_block.get_expected_otype(self.env)
-        )
+        # data_records.validate_and_conform_otype(
+        #     stored_data_block.get_expected_otype(self.env)
+        # )
         self._put(stored_data_block, data_records)
 
     def _get(

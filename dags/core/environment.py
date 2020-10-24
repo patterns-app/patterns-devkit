@@ -32,6 +32,9 @@ if TYPE_CHECKING:
     from dags.core.graph import Graph
 
 
+DEFAULT_METADATA_STORAGE_URL = "sqlite:///.dags_metadata.db"
+
+
 class Environment:
     library: ComponentLibrary
     storages: List[Storage]
@@ -41,8 +44,7 @@ class Environment:
     def __init__(
         self,
         name: str = None,
-        metadata_storage: Union["Storage", str] = None,
-        create_metadata_storage: bool = True,
+        metadata_storage: Union["Storage", str] = DEFAULT_METADATA_STORAGE_URL,
         add_default_python_runtime: bool = True,
         initial_modules: List[DagsModule] = None,  # Defaults to `core` module
         event_handlers: List[EventHandler] = None,
@@ -52,14 +54,11 @@ class Environment:
         from dags.core.runtime import RuntimeEngine
         from dags.core.storage.storage import Storage, new_local_memory_storage
         from dags.modules import core
-        from dags.core.graph import Graph
 
         self.name = name
-        if metadata_storage is None and create_metadata_storage:
-            # TODO: kind of hidden. make configurable at least, and log/print to user
-            metadata_storage = Storage.from_url("sqlite:///.dags_metadata.db")
+        if metadata_storage == DEFAULT_METADATA_STORAGE_URL:
             logger.warning(
-                f"No metadata storage specified, using local '.dags_metadata.db' sqlite db"
+                f"No metadata storage specified, using default sqlite db `.dags_metadata.db`"
             )
         if isinstance(metadata_storage, str):
             metadata_storage = Storage.from_url(metadata_storage)
@@ -67,7 +66,7 @@ class Environment:
             raise Exception("Must specify metadata_storage or allow default")
         self.metadata_storage = metadata_storage
         self.initialize_metadata_database()
-        self._local_module = DEFAULT_LOCAL_MODULE  #     DagsModule(name=f"_env")
+        self._local_module = DEFAULT_LOCAL_MODULE
         self.library = ComponentLibrary()
         self.storages = []
         self.runtimes = []
@@ -173,83 +172,8 @@ class Environment:
     def all_pipes(self) -> List[Pipe]:
         return self.library.all_pipes()
 
-    # def add_node(self, key: str, pipe: Union[PipeLike, str], **kwargs: Any) -> Node:
-    #     from dags.core.node import Node
-    #
-    #     if isinstance(pipe, str):
-    #         pipe = self.get_pipe(pipe)
-    #     node = Node(self, key, pipe, **kwargs)
-    #     self._declared_graph.add_node(node)
-    #     return node
-
-    # def add_dataset_node(
-    #     self,
-    #     key: str,
-    #     dataset_name: str = None,
-    #     upstream: Any = None,
-    #     **stream_kwargs: Any,
-    # ) -> Node:
-    #     from dags.core.streams import DataBlockStream
-    #
-    #     if dataset_name is None:
-    #         dataset_name = name
-    #     if upstream is None:
-    #         upstream = DataBlockStream(**stream_kwargs)
-    #     return self.add_node(
-    #         name,
-    #         "core.accumulate_as_dataset",
-    #         config={"dataset_name": dataset_name},
-    #         upstream=upstream,
-    #     )
-
-    # def all_added_nodes(self) -> List[Node]:
-    #     return list(self._declared_graph.nodes())
-    #
-    # def all_flattened_nodes(self) -> List[Node]:
-    #     # TODO: cache?
-    #     return list(self._flattened_graph().nodes())
-    #
-    # def _flattened_graph(self) -> Graph:
-    #     return self._declared_graph.with_dataset_nodes().flatten()
-    #
-    # def get_graph(self) -> Graph:
-    #     return self._declared_graph
-
-    # def get_node(self, node_like: Union[Node, str]) -> Node:
-    #     from dags.core.node import Node
-    #
-    #     if isinstance(node_like, Node):
-    #         return node_like
-    #     # try:
-    #     print(self._declared_graph)
-    #     # print(self._declared_graph.as_networkx_graph(False))
-    #     # print(self._declared_graph.as_networkx_graph(True))
-    #     print("***")
-    #     print(node_like)
-    #     return self._declared_graph.get_node(node_like)
-    #     # except KeyError:  # TODO: do we want to get flattened (sub) nodes too? Probably
-    #     # return self._flattened_graph().get_node(node_like)
-
-    # def get_pipe_graph_resolver(self) -> PipeGraphResolver:
-    #     from dags.core.pipe_interface import PipeGraphResolver
-    #
-    #     return PipeGraphResolver(self)
-    #
-    # def set_upstream(self, node_like: Union[Node, str], upstream: PipeNodeRawInput):
-    #     n = self.get_node(node_like)
-    #     n.set_inputs(upstream)
-    #
-    # def add_upstream(self, node_like: Union[Node, str], upstream: PipeNodeRawInput):
-    #     n = self.get_node(node_like)
-    #     n.add_upstream(upstream)
-
     def add_module(self, module: DagsModule):
         self.library.add_module(module)
-
-    # def get_indexable_components(self) -> Iterable[IndexableComponent]:
-    #     for module in self.module_registry.all():
-    #         for c in module.get_indexable_components():
-    #             yield c
 
     @contextmanager
     def session_scope(self, **kwargs):
@@ -280,11 +204,10 @@ class Environment:
             local_memory_storage=self.get_default_local_memory_storage(),
         )
         args.update(**kwargs)
-        return ExecutionContext(**args)
+        return ExecutionContext(**args)  # type: ignore
 
     @contextmanager
     def execution(self, graph: Graph, target_storage: Storage = None, **kwargs):
-        # TODO: target storage??
         from dags.core.runnable import ExecutionManager
 
         session = self.Session()

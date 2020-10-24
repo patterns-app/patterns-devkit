@@ -94,7 +94,6 @@ class ObjectTypeFieldMapper:
         ft_class = self.get_field_type_class(field_type)
         if ft_class not in local_vars:
             raise NotImplementedError(field.field_type)
-        # TODO : don't eval user input?
         sa_data_type = eval(field_type, {"__builtins__": None}, local_vars)
         return Column(field.name, sa_data_type)
 
@@ -135,9 +134,7 @@ class ObjectTypeMapper:
     ):
         sa_columns = self.to_sqlalchemy(otype)
         if not table_name:
-            table_name = (
-                f"_{otype.name}_{rand_str(6)}"  # TODO: probably an error instead?
-            )
+            table_name = f"_{otype.name}_{rand_str(6)}"
         sa_table = Table(table_name, self.sqlalchemy_metadata, *sa_columns)
         dialect = self.storage_engine_to_sa_dialect[storage_engine]
         stmt = CreateTable(sa_table).compile(dialect=dialect)

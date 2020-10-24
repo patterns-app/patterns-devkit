@@ -40,7 +40,7 @@ from loguru import logger
 @dataclass(frozen=True)
 class Field:
     name: str
-    field_type: str  # TODO: Enum?
+    field_type: str
     validators: List[Validator] = field(default_factory=list)
     index: bool = False
     is_metadata: bool = False
@@ -80,7 +80,7 @@ class Implementation:
     fields: Dict[str, str]
 
 
-# TODO: support these!
+# TODO: support these?
 class ConflictBehavior(StringEnum):
     ReplaceWithNewer = "ReplaceWithNewer"
     UpdateNullValues = "UpdateNullValues"
@@ -112,9 +112,11 @@ class ObjectType:
     fields: List[Field]
     relationships: List[Relationship] = field(default_factory=list)
     implementations: List[ObjectTypeKey] = field(default_factory=list)
-    extends: Optional[ObjectTypeKey] = None  # TODO
+    extends: Optional[
+        ObjectTypeKey
+    ] = None  # TODO: TBD how useful this would be, or exactly how it would work
     raw_definition: Optional[str] = None
-    updated_at_field_name: Optional[str] = None  # TODO
+    updated_at_field_name: Optional[str] = None  # TODO: TBD if we want this
     # parameterized_by: Sequence[str] = field(default_factory=list) # This is like GPV use case in CountryIndicator
     # parametererized_from: Optional[ObjectTypeName] = None
     # unregistered: bool = False

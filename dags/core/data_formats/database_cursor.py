@@ -14,9 +14,7 @@ class DatabaseCursorFormat(MemoryDataFormatBase):
 
     @classmethod
     def type(cls) -> Type:
-        return (
-            ResultProxy  # TODO: assumes we are always using sqlalchemy. Which we are?
-        )
+        return ResultProxy
 
     @classmethod
     def type_hint(cls):

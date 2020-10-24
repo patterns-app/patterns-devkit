@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from dags.core.runnable import ExecutionContext
 
 
-# TODO: make this extensible
 def get_converter_lookup() -> ConverterLookup:
     from dags.core.conversion.database_to_database import DatabaseToDatabaseConverter
     from dags.core.conversion.database_to_memory import DatabaseToMemoryConverter
@@ -37,17 +36,22 @@ def get_converter_lookup() -> ConverterLookup:
     return lookup
 
 
+class ConversionPathDoesNotExist(Exception):
+    pass
+
+
 def convert_lowest_cost(
     ctx: ExecutionContext,
     sdb: StoredDataBlockMetadata,
     target_storage: Storage,
     target_format: DataFormat,
 ) -> StoredDataBlockMetadata:
-    # TODO: cleanup target vs output
     target_storage_format = StorageFormat(target_storage.storage_type, target_format)
     cp = get_conversion_path_for_sdb(sdb, target_storage_format, ctx.all_storages)
     if cp is None:
-        raise  # TODO
+        raise ConversionPathDoesNotExist(
+            f"Converting {sdb} to {target_storage} {target_format}"
+        )
     return convert_sdb(ctx, sdb, cp)
 
 

@@ -9,7 +9,6 @@ from typing import (
     Callable,
     Dict,
     List,
-    Mapping,
     Optional,
     Set,
     Tuple,
@@ -63,8 +62,8 @@ VALID_DATA_INTERFACE_TYPES = [
     "RecordsListGenerator",
     "DataFrameGenerator",
     "DatabaseTableRef",
-    # TODO: is this list just a list of formats? which ones are valid i/o to DFs?
-    # TODO: also, are DataBlocks the only valid *input* type?
+    # TODO: is this list just a list of formats? which ones are valid i/o to Pipes?
+    # TODO: also, are DataBlocks and DataSets the only valid *input* types? A bit confusing to end user I think
     # "DatabaseCursor",
 ]
 
@@ -129,7 +128,7 @@ class PipeAnnotation:
         """
         m = re_type_hint.match(
             annotation
-        )  # TODO: get more strict with matches (for sql comment annotations)
+        )  # TODO: get more strict with matches, for sql comment annotations (would be nice to have example where it fails...?)
         if m is None:
             raise BadAnnotationException(f"Invalid Pipe annotation '{annotation}'")
         is_optional = bool(m.groupdict()["optional"])
@@ -146,7 +145,7 @@ class PipeAnnotation:
 
     def otype_key(self, env: Environment) -> ObjectTypeKey:
         if self.is_generic:
-            raise  # TODO: ?? is this really an error? What is the KEY of a generic otype?
+            raise ValueError(f"Generic ObjectType has no key")
         return env.get_otype(self.otype_like).key
 
 
@@ -170,12 +169,12 @@ class BoundPipeInterface:
                 return input
         raise KeyError(name)
 
-    def connect(self, input_nodes: Mapping[str, Node]):
+    def connect(self, input_nodes: Dict[str, Node]):
         for name, input_node in input_nodes.items():
             i = self.get_input(name)
             i.input_node = input_node
 
-    def bind(self, input_blocks: Mapping[str, DataBlockMetadata]):
+    def bind(self, input_blocks: Dict[str, DataBlockMetadata]):
         for name, input_block in input_blocks.items():
             i = self.get_input(name)
             i.bound_data_block = input_block
@@ -304,7 +303,7 @@ class PipeInterface:
                 data_block_seen = True
 
     def assign_inputs(
-        self, inputs: Union[NodeLike, Mapping[str, NodeLike]]
+        self, inputs: Union[NodeLike, Dict[str, NodeLike]]
     ) -> Dict[str, NodeLike]:
         if not isinstance(inputs, dict):
             assert (
@@ -359,7 +358,6 @@ class NodeInterfaceManager:
     def is_input_required(self, annotation: PipeAnnotation) -> bool:
         if annotation.is_optional:
             return False
-        # TODO: more complex logic? hmmmm
         return True
 
     def get_input_data_blocks(self) -> InputBlocks:
@@ -419,20 +417,12 @@ class NodeInterfaceManager:
     def get_input_data_block(
         self, stream: DataBlockStream, input: NodeInput, storages: List[Storage] = None,
     ) -> Optional[DataBlockMetadata]:
-        # TODO: Is it necessary to filter otype? We're already filtered on the `upstream` stream
-        # if not input.is_generic:
-        #     stream = stream.filter_otype(input.otype_like)
         logger.debug(f"{stream.get_count(self.ctx)} available DataBlocks")
         if storages:
             stream = stream.filter_storages(storages)
             logger.debug(
                 f"{stream.get_count(self.ctx)} available DataBlocks in storages {storages}"
             )
-        # # TODO: where do we do this parent node filtering? Such hidden, so magic.
-        # #   There's the *delcared* input DBS and then this actual one, maybe a bit surprising to
-        # #   end user that they differ
-        # if input.parent_nodes:
-        #     stream = stream.filter_upstream(input.parent_nodes)
         block: Optional[DataBlockMetadata]
         logger.debug(f"Finding unprocessed input for: {stream}")
         if input.original_annotation.data_format_class in ("DataBlock",):

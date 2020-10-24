@@ -21,8 +21,6 @@ class RuntimeClass(Enum):
 class RuntimeEngine(Enum):
     # Python
     LOCAL = "local"
-    # KUBERNETES = "kubernetes" # TODO: for example?
-    # AWS_LAMBDA = "aws_lambda" # TODO?
     # RDBMS
     POSTGRES = "postgres"
     MYSQL = "mysql"  # TODO
@@ -75,16 +73,15 @@ class Runtime:
             storage_engine=runtime_storage_dual_mapping[self.runtime_engine],  # type: ignore # TODO
         )
 
-    def get_default_local_storage(self):
-        try:
-            return self.as_storage()
-        except KeyError:
-            # TODO: this is not well thought through, so who knows
-            return Storage(  # type: ignore
-                url=f"memory://_runtime_default_{rand_str(6)}",
-                storage_class=StorageClass.MEMORY,
-                storage_engine=StorageEngine.DICT,
-            )
+    # def get_default_local_storage(self):
+    #     try:
+    #         return self.as_storage()
+    #     except KeyError:
+    #         return Storage(  # type: ignore
+    #             url=f"memory://_runtime_default_{rand_str(6)}",
+    #             storage_class=StorageClass.MEMORY,
+    #             storage_engine=StorageEngine.DICT,
+    #         )
 
     def get_database_api(self, env: Environment) -> DatabaseAPI:
         from dags.db.api import get_database_api_class

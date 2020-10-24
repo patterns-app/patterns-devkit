@@ -42,7 +42,7 @@ class DataBlockStream:
         allow_cycle: bool = False,
         most_recent_first: bool = False,
     ):
-        # TODO: ugly duplicate params (but like obvious/intuitive interface for singulars)
+        # TODO: ugly duplicate params (but singulars give nice obvious/intuitive interface)
         if otype is not None:
             assert otypes is None
             otypes = [otype]
@@ -164,7 +164,6 @@ class DataBlockStream:
     def _filter_otypes(self, ctx: ExecutionContext, query: Query) -> Query:
         if not self.otypes:
             return query
-        # otype_names = []  # TODO: Fully qualified otype keys?
         return query.filter(
             DataBlockMetadata.expected_otype_key.in_([d.key for d in self.get_otypes(ctx.env)])  # type: ignore
         )
@@ -185,7 +184,6 @@ class DataBlockStream:
     def filter_storage(self, storage: Storage) -> DataBlockStream:
         return self.filter_storages(ensure_list(storage))
 
-    # TODO: Does this work?
     def filter_dataset(self, dataset_name: Optional[str] = None) -> DataBlockStream:
         # TODO: support more than one
         names = None
@@ -231,7 +229,7 @@ class DataBlockStream:
             order_by = order_by.desc()
         return (
             self.get_query(ctx).order_by(order_by).first()
-        )  # TODO: should it be ordered by processed at? Also, DBs AREN'T updated LOL. That's the whole point
+        )  # Ordered by creation id (order created in) (since blocks are immutable)
 
     def get_most_recent(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:
         return (
@@ -239,7 +237,7 @@ class DataBlockStream:
             self.get_query(ctx)
             .order_by(DataBlockMetadata.id.desc())
             .first()  # We use auto-inc ID instead of timestamp since timestamps can collide
-        )  # TODO: should it be ordered by processed at?
+        )
 
     def get_count(self, ctx: ExecutionContext) -> int:
         return self.get_query(ctx).count()

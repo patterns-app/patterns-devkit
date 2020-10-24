@@ -20,10 +20,10 @@ from dags.utils.pandas import dataframe_to_records_list, records_list_to_datafra
 
 
 class MemoryToMemoryConverter(Converter):
-    # TODO: we DON'T in general want to convert a GENERATOR to a non-GENERATOR
-    #   currently this might happen if we get a DataFrameGenerator, conversion path
-    #   might be: DFG -> RecordsList -> DBTable. What we want is DFG -> DLG -> DBTable
-    #   Solution is to add differing costs i suppose
+    # TODO: we DON'T in general want to convert a GENERATOR to a non-GENERATOR prematurely.
+    #   Currently, for example, if we want DataFrameGenerator to DBTable, the conversion path
+    #   might be: DFG -> RecordsList -> DBTable. What we want is DFG -> RLG -> DBTable
+    #   One solution is to add differing cost nuance
     # TODO: parameterized costs
     supported_input_formats: Sequence[StorageFormat] = (
         StorageFormat(StorageType.DICT_MEMORY, DataFrameFormat),
@@ -66,9 +66,7 @@ class MemoryToMemoryConverter(Converter):
         try:
             output_records_object = lookup[
                 (input_sdb.data_format, output_sdb.data_format)
-            ](
-                input_ldr.records_object, input_sdb.get_realized_otype(self.env)
-            )  # TODO: Realized or expected? Should be more obvious which one to use
+            ](input_ldr.records_object, input_sdb.get_realized_otype(self.env))
         except KeyError:
             raise NotImplementedError((input_sdb.data_format, output_sdb.data_format))
         output_ldr = LocalMemoryDataRecords.from_records_object(output_records_object)

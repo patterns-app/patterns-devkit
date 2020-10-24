@@ -34,6 +34,6 @@ class RecordsListGeneratorFormat(MemoryDataFormatBase):
 
         dl = get_records_list_sample(records)
         if dl is None:
-            raise ValueError("Empty records object")  # TODO
+            raise ValueError("Empty records object")
         inferred_otype = infer_otype_from_records_list(dl)
         return inferred_otype

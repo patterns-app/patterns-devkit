@@ -72,22 +72,6 @@ class LocalMemoryDataRecords:
             records_object=records_object,
         )
 
-    def validate_and_conform_otype(self, expected_otype: ObjectType):
-        # TODO: idea here is to make sure local records look like what we expect. part of larger project on ObjectType
-        #   validation
-        # if self.data_format == DataFrameFormat:
-        #     from dags.core.pandas import coerce_dataframe_to_otype
-        #
-        #     printd(f"Before validation")
-        #     printd(f"-----------------")
-        #     printd(self.records_object)
-        #     coerce_dataframe_to_otype(self.records_object, otype)
-        #     printd(f"After validation")
-        #     printd(f"-----------------")
-        #     printd(self.records_object)
-        # # TODO: other formats
-        pass
-
     @property
     def record_count_display(self):
         return self.record_count if self.record_count is not None else "Unknown"
@@ -96,14 +80,8 @@ class LocalMemoryDataRecords:
 class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     # id = Column(String, primary_key=True, default=timestamp_rand_key)
     id = Column(Integer, primary_key=True, autoincrement=True)
-    # name = Column(String) ????
-    # otype_key: ObjectTypeKey = Column(String, nullable=False)  # type: ignore
     expected_otype_key: ObjectTypeKey = Column(String, nullable=True)  # type: ignore
     realized_otype_key: ObjectTypeKey = Column(String, nullable=True)  # type: ignore
-    # metadata_is_set = Column(Boolean, default=False)
-    # otype_is_validated = Column(Boolean, default=False) # TODO
-    # references_are_resolved = Column(Boolean, default=False)
-    # is_dataset = Column(Boolean, default=False)
     record_count = Column(Integer, nullable=True)
     # Other metadata? created_by_job? last_processed_at?
     deleted = Column(Boolean, default=False)
@@ -162,10 +140,9 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 
 @dataclass(frozen=True)
 class ManagedDataBlock(Generic[T]):
-    data_block_id: str
+    data_block_id: int
     expected_otype_key: ObjectTypeKey
     realized_otype_key: ObjectTypeKey
-    # otype_is_validated: bool
     manager: DataBlockManager
 
     def as_dataframe(self) -> DataFrame:
@@ -199,7 +176,6 @@ class StoredDataBlockMetadata(BaseModel):
     storage_url = Column(String, nullable=False)
     data_format: DataFormat = Column(DataFormatType, nullable=False)  # type: ignore
     # is_ephemeral = Column(Boolean, default=False) # TODO
-    # data_records_object: Optional[Any]  # Union[DataFrame, FilePointer, List[Dict]]
     # Hints
     data_block: "DataBlockMetadata"
 
@@ -211,12 +187,12 @@ class StoredDataBlockMetadata(BaseModel):
             storage_url=self.storage_url,
         )
 
-    def get_realized_otype(self, env: Environment) -> ObjectType:
+    def get_realized_otype(self, env: Environment) -> Optional[ObjectType]:
         if self.data_block.realized_otype_key is None:
             return None
         return env.get_otype(self.data_block.realized_otype_key)
 
-    def get_expected_otype(self, env: Environment) -> ObjectType:
+    def get_expected_otype(self, env: Environment) -> Optional[ObjectType]:
         if self.data_block.expected_otype_key is None:
             return None
         return env.get_otype(self.data_block.expected_otype_key)
@@ -229,11 +205,11 @@ class StoredDataBlockMetadata(BaseModel):
 
     def get_name(self, env: Environment) -> str:
         if self.data_block_id is None or self.id is None:
-            raise Exception(
-                "Trying to get SDB name, but IDs not set yet"
-            )  # TODO, better exceptions
+            raise ValueError(
+                "Trying to get StoredDataBlock name, but id is not set yet (obj must be committed to database first)"
+            )
         otype = env.get_otype(self.data_block.most_real_otype_key)
-        return f"_{otype.get_identifier()[:40]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
+        return f"_{otype.get_identifier()[:50]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
 
     def get_storage_format(self) -> StorageFormat:
         return StorageFormat(self.storage.storage_type, self.data_format)
@@ -242,7 +218,8 @@ class StoredDataBlockMetadata(BaseModel):
         return self.storage.get_manager(env).exists(self)
 
     def record_count(self, env: Environment) -> Optional[int]:
-        # TODO: this is really a property of a DB, but can only be computed by a SDB?
+        if self.data_block.record_count is not None:
+            return self.data_block.record_count
         return self.storage.get_manager(env).record_count(self)
 
 
@@ -287,9 +264,9 @@ class DataSetMetadata(BaseModel):
 
 @dataclass(frozen=True)
 class ManagedDataSet(Generic[T]):
-    data_set_id: str
+    data_set_id: int
     data_set_name: str
-    data_block_id: str
+    data_block_id: int
     expected_otype_key: ObjectTypeKey
     realized_otype_key: ObjectTypeKey
     # otype_is_validated: bool
@@ -349,9 +326,6 @@ class DataBlockManager:
     def as_table(self) -> DatabaseTableRef:
         return self.as_format(DatabaseTableRefFormat)
 
-    def is_valid_storage_format(self, fmt: StorageFormat) -> bool:
-        return True  # TODO
-
     def as_format(self, fmt: DataFormat) -> Any:
         from dags.core.storage.storage import LocalMemoryStorageEngine
 
@@ -378,13 +352,11 @@ class DataBlockManager:
         logger.debug(f"{cnt} SDBs available")
         existing_sdbs = self.ctx.metadata_session.query(StoredDataBlockMetadata).filter(
             StoredDataBlockMetadata.data_block == self.data_block,
-            # TODO: why do we persist memory SDBs at all? Need more robust solution to this. Either separate class or some flag?
-            #   Nice to be able to query all together via orm... hmmmm
-            # DO NOT fetch memory SDBs that aren't of current runtime (since we can't get them!
+            # DO NOT fetch memory SDBs that aren't of current runtime (since we can't get them!)
+            # TODO: clean up memory SDBs when the memory goes away? Doesn't make sense to persist them really
+            # Should be a separate in-memory lookup for memory SDBs, so they naturally expire?
             or_(
-                ~StoredDataBlockMetadata.storage_url.startswith(
-                    "memory:"
-                ),  # TODO: drawback of just having url for StorageResource instead of proper metadata object
+                ~StoredDataBlockMetadata.storage_url.startswith("memory:"),
                 StoredDataBlockMetadata.storage_url
                 == self.ctx.local_memory_storage.url,
             ),
@@ -399,8 +371,6 @@ class DataBlockManager:
         target_storage_format = StorageFormat(
             self.ctx.local_memory_storage.storage_type, target_format
         )
-        if not self.is_valid_storage_format(target_storage_format):
-            raise  # TODO
 
         # Compute conversion costs
         eligible_conversion_paths = (
@@ -449,10 +419,6 @@ def create_data_block_from_records(
             realized_otype = ldr.data_format.infer_otype_from_records(
                 ldr.records_object
             )
-            # dl = get_records_list_sample(records)
-            # if dl is None:
-            #     raise ValueError("Empty records object")
-            # realized_otype = infer_otype_from_records_list(dl)
             env.add_new_otype(realized_otype)
         else:
             realized_otype = expected_otype
@@ -467,7 +433,8 @@ def create_data_block_from_records(
     )
     sess.add(block)
     sess.add(sdb)
-    # TODO: Don't understand merge still
+    # Sqlalchemy is a bit finnicky with getting objects live in the right session
+    # I don't understand why these merges should be necessary... but they appear to be
     block = sess.merge(block)
     sdb = sess.merge(sdb)
     LocalMemoryStorageEngine(env, local_storage).store_local_memory_data_records(

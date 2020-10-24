@@ -45,8 +45,9 @@ class DatabaseToMemoryConverter(Converter):
             output_records = DatabaseTableRef(name, storage_url=input_sdb.storage_url)
         elif output_sdb.data_format == DatabaseCursorFormat:
             output_records = db_conn.execute(select_sql)
-        # TODO: We are not using Pandas type inference generally, so can't use read_sql or any other read_* method
-        #   so this goes through DB -> RECORDS_LIST -> DATAFRAME conversion for now
+        # Note: We are not using Pandas type inference generally (it has poor null support)
+        #   so can't use read_sql or any other read_* method
+        #   so we let this go through DB -> RECORDS_LIST -> DATAFRAME conversion path for now
         # elif output_sdb.data_format == DataFrameFormat:
         #     output_records = pd.read_sql_table(name, con=db_conn)
         elif output_sdb.data_format == RecordsListFormat:

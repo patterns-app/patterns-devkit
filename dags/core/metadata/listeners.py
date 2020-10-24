@@ -16,9 +16,13 @@ def add_persisting_sdb_listener(session_maker: sessionmaker):
         #     )
 
 
+class ImmutableObjectException(Exception):
+    pass
+
+
 def immutability_update_listener(mapper, connection, target):
     if object_session(target).is_modified(target, include_collections=False):
-        raise Exception("DRs and SDBs are immutable")  # TODO exception cleanup
+        raise ImmutableObjectException("DataBlocks and StoredDataBlocks are immutable")
 
 
 # @event.listens_for(BaseModel, "init", propagate=True)

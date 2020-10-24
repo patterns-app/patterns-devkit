@@ -125,12 +125,13 @@ class PipeTest:
 
     @contextmanager
     def test_env(self, **kwargs: Any) -> Generator[Environment, None, None]:
-        # TODO: need way more hooks here (adding runtimes and storages, for instance)
+        # TODO: need more hooks here (adding runtimes and storages, for instance)
         from dags.core.environment import Environment
         from dags.db.api import create_db, drop_db
         from dags.modules import core
 
-        # TODO: what is this hack
+        # TODO: Can we use sqlite?
+        # TODO: check for pg support at least
         db_name = f"__test_{rand_str(10).lower()}"
         conn_url = f"postgres://postgres@localhost:5432/postgres"
         db_url = f"postgres://postgres@localhost:5432/{db_name}"

@@ -26,6 +26,7 @@ from dags.utils.common import (
     is_datetime_str,
     printd,
     title_to_snake_case,
+    rand_str,
 )
 from dags.utils.data import is_nullish, read_json, records_list_as_dict_of_lists
 from loguru import logger
@@ -103,7 +104,7 @@ def infer_otype_from_records_list(records: RecordsList, **kwargs) -> ObjectType:
 
 
 def generate_auto_otype(fields, **kwargs) -> ObjectType:
-    auto_name = "AutoType" + str(randint(1000, 9999))  # TODO
+    auto_name = "AutoType_" + rand_str(8)
     args = dict(
         name=auto_name,
         module_key=DEFAULT_LOCAL_MODULE.key,

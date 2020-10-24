@@ -9,7 +9,6 @@ from typing import (
     Dict,
     Iterable,
     List,
-    Mapping,
     Optional,
     Set,
     Tuple,
@@ -35,7 +34,7 @@ class Graph:
         self._declared_graph_with_dataset_nodes: Optional[NodeGraph] = None
         self._flattened_graph: Optional[NodeGraph] = None
         # self._compiled_input_nodes: Optional[
-        #     Mapping[str, Mapping[str, NodeLike]]
+        #     Dict[str, Dict[str, NodeLike]]
         # ] = None
 
     # def __str__(self):
@@ -100,11 +99,11 @@ class NodeGraph:
         self,
         nodes: Iterable[Node] = None,
         is_flattened: bool = False,
-        compiled_inputs: Mapping[str, Mapping[str, Node]] = None,
+        compiled_inputs: Dict[str, Dict[str, Node]] = None,
     ):
         self.is_flattened = is_flattened
         self._nodes: Dict[str, Node] = {}
-        self._compiled_inputs: Mapping[str, Mapping[str, Node]] = compiled_inputs or {}
+        self._compiled_inputs: Dict[str, Dict[str, Node]] = compiled_inputs or {}
         if nodes:
             for n in nodes:
                 self.add_node(n)
@@ -137,14 +136,14 @@ class NodeGraph:
             self._nodes.values(), compiled_inputs=self._compiled_inputs, **kwargs
         )
 
-    def set_compiled_inputs(self, node: Node, inputs: Mapping[str, NodeLike]):
+    def set_compiled_inputs(self, node: Node, inputs: Dict[str, NodeLike]):
         if node.is_composite():
             return self.set_compiled_inputs(node.get_input_node(), inputs)
         self._compiled_inputs[node.key] = {
             name: self.get_node_like(n) for name, n in inputs.items()
         }
 
-    def get_compiled_inputs(self, node: Node) -> Mapping[str, Node]:
+    def get_compiled_inputs(self, node: Node) -> Dict[str, Node]:
         return self._compiled_inputs.get(node.key, node.get_declared_input_nodes())
 
     def get_declared_node_subgraph(self, declared_node_key: str) -> NodeGraph:

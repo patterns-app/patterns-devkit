@@ -14,7 +14,6 @@ from typing import (
     Generator,
     Generic,
     List,
-    Mapping,
     Optional,
     Union,
     cast,
@@ -105,10 +104,10 @@ class LanguageDialectSupport:
 
 
 @dataclass(frozen=True)
-class CompiledPipe:  # TODO: this is unused currently, just a dumb wrapper on the df
+class CompiledPipe:  # TODO: this is unused currently, just a dumb wrapper on the pipe
     key: str
     # code: str
-    pipe: Pipe  # TODO: compile this to actual string code we can run aaannnnnnyyywhere
+    pipe: Pipe  # TODO: compile this to actual string code we can run aaaaa-nnnnnnyyy-wheeeerrrrre
     # language_support: Iterable[LanguageDialect] = None  # TODO
 
 
@@ -186,7 +185,7 @@ class ExecutionContext:
             node_start_state=node_state,
             node_end_state=node_state,
             pipe_key=node.pipe.key,
-            # pipe_config=node.pipe.configuration,  # TODO
+            pipe_config=node.config,
             runtime_url=self.current_runtime.url,
             started_at=utcnow(),
         )
@@ -252,14 +251,14 @@ class PipeContext:  # TODO: (Generic[C, S]):
     def get_config_value(self, key: str, default: Any = None) -> Any:
         return self.runnable.configuration.get(key, default)
 
-    def get_config(self) -> Mapping[str, Any]:
+    def get_config(self) -> Dict[str, Any]:
         return self.runnable.configuration
 
     def get_state_value(self, key: str, default: Any = None) -> Any:
         assert isinstance(self.pipe_log.node_end_state, dict)
         return self.pipe_log.node_end_state.get(key, default)
 
-    def get_state(self) -> Mapping[str, Any]:
+    def get_state(self) -> Dict[str, Any]:
         return self.pipe_log.node_end_state
 
     def emit_state_value(self, key: str, new_value: Any):

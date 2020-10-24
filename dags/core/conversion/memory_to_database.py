@@ -54,8 +54,9 @@ class MemoryToDatabaseConverter(Converter):
             records_objects = records_objects.get_generator()
         output_api = output_sdb.storage.get_database_api(self.env)
         # TODO: this loop is what is actually calling our Iterable Pipe in RECORDS_LIST_GENERATOR case. Is that ok?
-        #   seems a bit opaque. Why don't we just iterate this at the conform_output level? We decided this approach was
-        #   better / necessary for some reason... don't remember why
+        #   Seems a bit opaque. Why don't we just iterate this at the conform_output level?
+        #   One reason would be to allow for efficiency/flexibility at the converter level
+        #   in handling chunks of data (which we don't exploit here...)
         for records_object in records_objects:
             output_api.bulk_insert_records_list(output_sdb, records_object)
         return output_sdb

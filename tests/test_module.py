@@ -18,5 +18,5 @@ def test_module_init():
     # assert set(f.key for f in _test_module.pipes) == {"_test_module.test_sql", "df1"}
 
 
-def core_modules():
-    core.run_tests()  # TODO: This is not a unit test, should separate out
+if __name__ == "__main__":
+    core.run_tests()

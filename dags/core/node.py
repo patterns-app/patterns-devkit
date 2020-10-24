@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 import traceback
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 NodeLike = Union[str, "Node"]
 
 
-def inputs_as_nodes(graph: Graph, inputs: Mapping[str, NodeLike]):
+def inputs_as_nodes(graph: Graph, inputs: Dict[str, NodeLike]):
     return {name: graph.get_any_node(dnl) for name, dnl in inputs.items()}
 
 
@@ -35,9 +35,9 @@ def create_node(
     graph: Graph,
     key: str,
     pipe: Union[PipeLike, str],
-    inputs: Optional[Union[NodeLike, Mapping[str, NodeLike]]] = None,
+    inputs: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,
     dataset_name: Optional[str] = None,
-    config: Optional[Mapping[str, Any]] = None,
+    config: Optional[Dict[str, Any]] = None,
     declared_composite_node_key: str = None,
 ):
     config = config or {}
@@ -47,8 +47,8 @@ def create_node(
     else:
         pipe = make_pipe(pipe)
     interface = pipe.get_interface(env)
-    _declared_inputs = {}
-    _sub_nodes = []
+    _declared_inputs: Dict[str, NodeLike] = {}
+    _sub_nodes: List[Node] = []
     n = Node(
         env=graph.env,
         graph=graph,
@@ -76,10 +76,10 @@ class Node:
     graph: Graph
     key: str
     pipe: Pipe
-    config: Mapping[str, Any]
+    config: Dict[str, Any]
     interface: PipeInterface
-    _declared_inputs: Mapping[str, NodeLike]
-    # _compiled_inputs: Optional[Mapping[str, Node]] = None
+    _declared_inputs: Dict[str, NodeLike]
+    # _compiled_inputs: Optional[Dict[str, Node]] = None
     _dataset_name: Optional[str] = None
     declared_composite_node_key: Optional[str] = None
     _sub_nodes: Optional[List[Node]] = None
@@ -90,12 +90,12 @@ class Node:
     def __hash__(self):
         return hash(self.key)
 
-    # def set_compiled_inputs(self, inputs: Mapping[str, NodeLike]):
+    # def set_compiled_inputs(self, inputs: Dict[str, NodeLike]):
     #     self._compiled_inputs = inputs_as_nodes(self.graph, inputs)
     #     if self.is_composite():
     #         self.get_input_node().set_compiled_inputs(inputs)
 
-    def get_state(self, sess: Session) -> Optional[Mapping]:
+    def get_state(self, sess: Session) -> Optional[Dict]:
         state = sess.query(NodeState).filter(NodeState.node_key == self.key).first()
         if state:
             return state.state
@@ -146,18 +146,18 @@ class Node:
     def get_interface(self) -> PipeInterface:
         return self.interface
 
-    def get_compiled_input_nodes(self) -> Mapping[str, Node]:
+    def get_compiled_input_nodes(self) -> Dict[str, Node]:
         # Just a convenience function
         return self.graph.get_flattened_graph().get_compiled_inputs(self)
         # return self._compiled_inputs or self.get_declared_input_nodes()
 
-    def get_declared_input_nodes(self) -> Mapping[str, Node]:
+    def get_declared_input_nodes(self) -> Dict[str, Node]:
         return inputs_as_nodes(self.graph, self.get_declared_inputs())
 
-    def get_declared_inputs(self) -> Mapping[str, NodeLike]:
+    def get_declared_inputs(self) -> Dict[str, NodeLike]:
         return self._declared_inputs or {}
 
-    # def get_compiled_input_keys(self) -> Mapping[str, str]:
+    # def get_compiled_input_keys(self) -> Dict[str, str]:
     #     return {
     #         n: i.key if isinstance(i, Node) else i
     #         for n, i in self.get_compiled_input_nodes().items()
@@ -168,13 +168,13 @@ class Node:
 
     def get_output_node(self) -> Node:
         if self.is_composite():
-            assert self._sub_nodes is not None
+            assert self._sub_nodes
             return self._sub_nodes[-1].get_output_node()
         return self
 
     def get_input_node(self) -> Node:
         if self.is_composite():
-            assert self._sub_nodes is not None
+            assert self._sub_nodes
             return self._sub_nodes[0].get_input_node()
         return self
 
@@ -207,7 +207,10 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
     if not n.pipe.is_composite:
         raise
     nodes = []
-    # TODO: just supports list for now
+    # TODO: just supports chain for now, not actual sub-graph
+    # (hard to imagine totally unconstrained sub-graph, but if we restrict
+    # to one input and one output, could easily support arbitrary interior)
+    # Multiple inputs would take some thought. No concept of multiple outputs in Dags tho
     raw_inputs = list(n.get_declared_inputs().values())
     assert len(raw_inputs) == 1, "Composite pipes take one input"
     input_node = raw_inputs[0]
@@ -236,10 +239,6 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
         input_node = node
     return nodes
 
-    # @property
-    # def key(self):
-    #     return self.key  # TODO
-
 
 class NodeState(BaseModel):
     node_key = Column(String, primary_key=True)
@@ -258,7 +257,9 @@ def get_state(sess: Session, node_key: str) -> Optional[Dict]:
 
 class PipeLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    node_key = Column(String, nullable=False)
+    node_key = Column(
+        String, nullable=False
+    )  # TODO / FIXME: node_key is only unique to a graph now, not an env. Hmmmm
     node_start_state = Column(JSON, nullable=True)
     node_end_state = Column(JSON, nullable=True)
     pipe_key = Column(String, nullable=False)

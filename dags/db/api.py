@@ -46,17 +46,11 @@ def dispose_all():
 
 
 def conform_columns_for_insert(
-    records: RecordsList,
-    columns: List[str] = None,
-    convert_columns_to_snake_case: bool = False,
+    records: RecordsList, columns: List[str] = None,
 ) -> List[str]:
     if columns is None:
         # Use first object's keys as columns. Assumes uniform dicts
         columns = list(records[0].keys())
-    if convert_columns_to_snake_case:
-        columns = [
-            title_to_snake_case(c) for c in columns
-        ]  # TODO: DO NOT DO THIS HERE! Just quote things properly in the SQL. smh...
     return columns
 
 
