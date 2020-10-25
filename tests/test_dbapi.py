@@ -31,7 +31,7 @@ def test_conn():
     env = make_test_env()
     db = env.add_storage(get_tmp_sqlite_db_url())
     api = DatabaseAPI(env, db)
-    engine = api.get_engine()
+    api.get_engine()
     with api.connection() as conn:
         assert conn.execute("select 1").first()[0] == 1
 

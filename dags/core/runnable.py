@@ -10,6 +10,7 @@ from itertools import tee
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     Generator,
     Generic,
@@ -161,6 +162,7 @@ class ExecutionContext:
     target_storage: Storage
     local_memory_storage: Storage
     current_runtime: Optional[Runtime] = None
+    logger: Optional[Callable[[str], None]] = None
 
     def clone(self, **kwargs):
         args = dict(
@@ -172,6 +174,7 @@ class ExecutionContext:
             target_storage=self.target_storage,
             local_memory_storage=self.local_memory_storage,
             current_runtime=self.current_runtime,
+            logger=logger,
         )
         args.update(**kwargs)
         return ExecutionContext(**args)  # type: ignore
@@ -275,6 +278,12 @@ class ExecutionManager:
         self.ctx = ctx
         self.env = ctx.env
 
+    def get_logger(self) -> Callable[[str], None]:
+        return self.ctx.logger or (lambda s: print(s, end=""))
+
+    def log(self, msg: str):
+        self.get_logger()(msg)
+
     def select_runtime(self, node: Node) -> Runtime:
         compatible_runtimes = node.pipe.compatible_runtime_classes
         for runtime in self.ctx.runtimes:
@@ -299,10 +308,12 @@ class ExecutionManager:
         last_output: Optional[DataBlockMetadata] = None
 
         # Setup for run
-        base_msg = f"Running node: {cf.green(node.key)} {cf.dimmed(node.pipe.key)}"
-        # spinner = get_spinner()
-        # spinner.start(base_msg)
-        start = time.time()
+        base_msg = f"Running node {cf.bold(node.key)} {cf.dimmed(node.pipe.key)}"
+        if node.declared_composite_node_key is not None:
+            base_msg = " " * 8 + f" {cf.dimmed(node.pipe.key)}"
+        self.log("{0:50} ".format(str(base_msg)))
+        # self.log(base_msg)
+        # start = time.time()
         n_outputs = 0
         n_runs = 0
         try:
@@ -336,31 +347,25 @@ class ExecutionManager:
                 #     if last_output is None:
                 #         break
                 # spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataBlocks output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
+            self.log(cf.success(success_symbol + "\n"))
             # spinner.stop_and_persist(symbol=cf.success(success_symbol))
         except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
             logger.debug(cf.warning("    Input Exhausted"))
             if e.args:
                 logger.debug(e)
-            # if n_runs == 0:
-            # spinner.stop_and_persist(
-            #     symbol=cf.success(success_symbol),
-            #     text=f"{base_msg}: {cf.dimmed_bold}No unprocessed inputs{cf.reset}",
-            # )
-            # else:
-            #     spinner.stop_and_persist(symbol=cf.success(success_symbol))
-            #     pass
+            if n_runs == 0:
+                self.log(cf.success(success_symbol) + " No unprocessed inputs\n")
+            else:
+                self.log(cf.success(success_symbol + "\n"))
         except Exception as e:
-            # spinner.stop_and_persist(
-            #     symbol=cf.error(error_symbol),
-            #     text=f"{base_msg}: {cf.error('Error')} {cf.dimmed_red(e)}",
-            # )
+            self.log(cf.error(error_symbol + " Error ") + str(e) + "\n")
             raise e
 
         if last_output is None:
             return None
         new_session = self.env.get_new_metadata_session()
         last_output = new_session.merge(last_output)
-        return last_output.as_managed_data_block(self.ctx,)  # type: ignore # (mypy does not know merge() is safe)
+        return last_output.as_managed_data_block(self.ctx)  # type: ignore # (mypy does not know merge() is safe)
 
     #
     # def produce(

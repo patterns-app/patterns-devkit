@@ -226,8 +226,10 @@ def pipe_chain(key: str, pipe_chain: List[Union[PipeLike, str]], **kwargs) -> Pi
     sub_funcs = []
     for fn in pipe_chain:
         if isinstance(fn, str):
-            k = fn
-            raise NotImplementedError
+            # p = fn
+            raise NotImplementedError(
+                "Please specify explicit pipe objects in a pipe chain (not key strings)"
+            )
         elif isinstance(fn, Pipe):
             p = fn
         elif callable(fn):

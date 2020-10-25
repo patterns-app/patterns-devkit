@@ -145,7 +145,7 @@ class PipeAnnotation:
 
     def otype_key(self, env: Environment) -> ObjectTypeKey:
         if self.is_generic:
-            raise ValueError(f"Generic ObjectType has no key")
+            raise ValueError("Generic ObjectType has no key")
         return env.get_otype(self.otype_like).key
 
 
@@ -432,7 +432,7 @@ class NodeInterfaceManager:
             logger.debug(f"{stream.get_count(self.ctx)} unprocessed DataBlocks")
             block = stream.get_next(self.ctx)
         elif input.original_annotation.data_format_class == "DataSet":
-            logger.debug(f"Finding DataSet")
+            logger.debug("Finding DataSet")
             stream = stream.filter_dataset()
             block = stream.get_most_recent(self.ctx)
             # TODO: someday probably pass in actual DataSet (not underlying DB) to pipe that asks

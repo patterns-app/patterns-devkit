@@ -70,7 +70,7 @@ def app(ctx, debug: bool = False):
     env = Environment(metadata_storage="sqlite:///:memory:")
     try:
         env = current_env()
-    except:
+    except ImportError:
         pass
     ctx.obj = env
 

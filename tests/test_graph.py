@@ -37,17 +37,17 @@ def make_graph() -> Graph:
     env = make_test_env()
     env.add_module(core)
     g = Graph(env)
-    n1 = g.add_node("node1", pipe_t1_source)
-    n2 = g.add_node("node2", pipe_t1_source)
-    n3 = g.add_node("node3", pipe_chain_t1_to_t2, inputs="node1")
-    n4 = g.add_node("node4", pipe_t1_to_t2, inputs="node2")
-    n5 = g.add_node("node5", pipe_generic, inputs="node4")
-    n6 = g.add_node("node6", pipe_self, inputs="node4")
-    n7 = g.add_node(
+    g.add_node("node1", pipe_t1_source)
+    g.add_node("node2", pipe_t1_source)
+    g.add_node("node3", pipe_chain_t1_to_t2, inputs="node1")
+    g.add_node("node4", pipe_t1_to_t2, inputs="node2")
+    g.add_node("node5", pipe_generic, inputs="node4")
+    g.add_node("node6", pipe_self, inputs="node4")
+    g.add_node(
         "node7", pipe_dataset_input, inputs={"input": "node4", "other_ds_t2": "node3"}
     )
-    n8 = g.add_node("node8", pipe_dataset_output, inputs={"input": "node3"})
-    n9 = g.add_node(
+    g.add_node("node8", pipe_dataset_output, inputs={"input": "node3"})
+    g.add_node(
         "node9", pipe_dataset_input, inputs={"input": "node3", "other_ds_t2": "node8"}
     )
     return g
@@ -76,7 +76,7 @@ def test_dataset_nodes():
 
 def test_flattened_graph():
     g = make_graph()
-    dg = g.get_declared_graph_with_dataset_nodes()
+    # dg = g.get_declared_graph_with_dataset_nodes()
     fg = g.get_flattened_graph()
     nodes = {
         "node2",

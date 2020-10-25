@@ -240,79 +240,10 @@ def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
     assert node.get_interface() == expected
 
 
-# env = make_test_env()
-# upstream = env.add_node("_test_df1", pipe_t1_source)
-#
-#
-# @pytest.mark.parametrize(
-#     "pipe,expected",
-#     [
-#         (
-#             pipe_t1_sink,
-#             PipeInterface(
-#                 inputs=[
-#                     PipeAnnotation(
-#                         data_format_class="DataBlock",
-#                         otype_like="TestType1",
-#                         resolved_otype=TestType1,
-#                         connected_stream=upstream,
-#                         name="input",
-#                         is_iterable=False,
-#                         is_optional=False,
-#                         original_annotation="DataBlock[TestType1]",
-#                     )
-#                 ],
-#                 output=None,
-#                 requires_pipe_context=True,
-#                 is_connected=True,
-#                 is_resolved=True,
-#             ),
-#         ),
-#         (
-#             pipe_generic,
-#             PipeInterface(
-#                 inputs=[
-#                     PipeAnnotation(
-#                         data_format_class="DataBlock",
-#                         otype_like="T",
-#                         resolved_otype=TestType1,
-#                         connected_stream=upstream,
-#                         name="input",
-#                         is_generic=True,
-#                         is_iterable=False,
-#                         is_optional=False,
-#                         original_annotation="DataBlock[T]",
-#                     )
-#                 ],
-#                 output=PipeAnnotation(
-#                     data_format_class="DataFrame",
-#                     otype_like="T",
-#                     resolved_otype=TestType1,
-#                     is_generic=True,
-#                     is_iterable=False,
-#                     is_optional=False,
-#                     original_annotation="DataFrame[T]",
-#                 ),
-#                 requires_pipe_context=False,
-#                 is_connected=True,
-#                 is_resolved=True,
-#             ),
-#         ),
-#     ],
-# )
-# def test_concrete_pipe_interface(
-#     pipe: Callable, expected: PipeInterface
-# ):
-#     dfi = PipeInterface.from_pipe_definition(pipe)
-#     dfi.connect_upstream(upstream)
-#     dfi.resolve_otypes(env)
-#     assert dfi == expected
-
-
 def test_inputs():
     env = make_test_env()
     g = Graph(env)
-    n1 = g.add_node("node1", pipe_t1_source)
+    g.add_node("node1", pipe_t1_source)
     n2 = g.add_node("node2", pipe_t1_to_t2, inputs={"input": "node1"})
     dfi = n2.get_interface()
     assert dfi is not None
@@ -321,24 +252,8 @@ def test_inputs():
     assert dfi is not None
 
 
-# def test_stream_input():
-#     env = make_test_env()
-#     env.add_module(core)
-#     n1 = env.add_node("node1", pipe_t1_source)
-#     n2 = env.add_node("node2", pipe_t1_source)
-#     n3 = env.add_node("node3", pipe_chain_t1_to_t2, inputs="node1")
-#     ds1 = env.add_node(
-#         "ds1",
-#         accumulate_as_dataset,
-#         config=dict(dataset_name="type1"),
-#         upstream=DataBlockStream(otype="TestType1"),
-#     )
-#     dfi = ds1.get_interface()
-
-
 def test_python_pipe():
     env = make_test_env()
-    g = Graph(env)
     df = pipe(pipe_t1_sink)
     assert (
         df.key == pipe_t1_sink.__name__
@@ -360,16 +275,6 @@ def df1():
 @pipe("k1", compatible_runtimes="mysql")
 def df2():
     pass
-
-
-# def test_pipe_registry():
-#     r = PipeRegistry()
-#     dfs = Pipe(name="k1", module_key=DEFAULT_module_key, version=None)
-#     dfs.add_definition(df1)
-#     r.process_and_register_all([pipe_t1_sink, pipe_chain_t1_to_t2, dfs, df2])
-#     assert r.get("k1") is dfs
-#     assert r.get("k1").runtime_pipes[RuntimeClass.PYTHON] is df1
-#     assert r.get("k1").runtime_pipes[RuntimeClass.DATABASE] is df2
 
 
 def test_node_no_inputs():
@@ -415,64 +320,6 @@ def test_node_config():
     with env.execution(g) as exe:
         exe.run(n)
     assert config_vals == [1]
-
-
-# def test_node_chain():
-#     env = make_test_env()
-#     df = pipe(pipe_t1_source)
-#     node = Node(env, "node", df)
-#     node1 = PipeNodeChain(env, "node1", pipe_chain_t1_to_t2, upstream=node)
-#     dfi = node1.get_interface()
-#     assert len(dfi.inputs) == 1
-#     assert dfi.output is not None
-#     assert list(node1.get_inputs().keys()) == ["input"]
-#     assert node1.get_input("input").get_upstream(env)[0] is node
-#     # Output NODE
-#     output_node = node1.get_output_node()
-#     assert output_node is not node1
-#     assert node1.name in output_node.key
-#     out_dfi = output_node.get_interface()
-#     assert len(out_dfi.inputs) == 1
-#     assert out_dfi.output is not None
-#     # Children
-#     assert len(node1.get_nodes()) == 2
-
-
-# def test_graph_resolution():
-#     env = make_test_env()
-#     n1 = env.add_node("node1", pipe_t1_source)
-#     n2 = env.add_node("node2", pipe_t1_source)
-#     n3 = env.add_node("node3", pipe_chain_t1_to_t2, upstream="node1")
-#     n4 = env.add_node("node4", pipe_t1_to_t2, upstream="node2")
-#     n5 = env.add_node("node5", pipe_generic, upstream="node4")
-#     n6 = env.add_node("node6", pipe_self, upstream="node4")
-#     fgr = PipeGraphResolver(env)
-#     # Resolve types
-#     assert fgr.resolve_output_type(n4) is TestType2
-#     assert fgr.resolve_output_type(n5) is TestType2
-#     assert fgr.resolve_output_type(n6) is TestType2
-#     fgr.resolve_output_types()
-#     last = n3.get_nodes()[-1]
-#     assert fgr._resolved_output_types[last] is TestType2
-#     # Resolve deps
-#     assert fgr._resolve_node_dependencies(n4)[0].parent_nodes == [n2]
-#     assert fgr._resolve_node_dependencies(n5)[0].parent_nodes == [n4]
-#     fgr.resolve_dependencies()
-#     # Otype resolution
-#     n7 = env.add_node("node7", pipe_self, upstream=DataBlockStream(otype="TestType2"))
-#     n8 = env.add_node("node8", pipe_self, upstream=n7)
-#     fgr = env.get_pipe_graph_resolver()
-#     fgr.resolve()
-#     parent_keys = set(
-#         p.name for p in fgr.get_resolved_interface(n7).inputs[0].parent_nodes
-#     )
-#     assert parent_keys == {
-#         "node3__pipe_t1_to_t2",
-#         "node3__pipe_generic",
-#         "node4",
-#         "node5",
-#         "node6",
-#     }
 
 
 def test_any_otype_interface():

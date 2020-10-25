@@ -59,7 +59,7 @@ class Environment:
         self.name = name
         if metadata_storage == DEFAULT_METADATA_STORAGE_URL:
             logger.warning(
-                f"No metadata storage specified, using default sqlite db `.dags_metadata.db`"
+                f"No metadata storage specified, using default sqlite db `{DEFAULT_METADATA_STORAGE_URL}`"
             )
         if isinstance(metadata_storage, str):
             metadata_storage = Storage.from_url(metadata_storage)

@@ -15,7 +15,6 @@ from typing import Any, Dict, Generic, List, Optional, Set, Tuple, Type, Union
 import pytz
 from colorful import Colorful
 from dateutil import parser
-from halo import Halo
 
 from dags.utils.typing import K, T, V
 
@@ -108,10 +107,10 @@ def dataclass_kwargs(dc: Any, kwargs: Dict) -> Dict:
     return {f.name: kwargs.get(f.name) for f in fields(dc)}
 
 
-def remove_dupes(l: List[T]) -> List[T]:
+def remove_dupes(a: List[T]) -> List[T]:
     seen: Set[T] = set()
     deduped: List[T] = []
-    for i in l:
+    for i in a:
         if i in seen:
             continue
         seen.add(i)
@@ -202,7 +201,7 @@ cf_semantic_palette = {
     "error": "#D83925",
     "info": "#66D9EF",
     "warning": "#FD971F",
-    "success": "#F8F8F0",
+    "success": "#A6E22E",
 }
 colors = list(cf_palette)
 cf_palette.update(cf_semantic_palette)

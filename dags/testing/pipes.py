@@ -116,7 +116,7 @@ class PipeTest:
                 raw_records = [read_json(line) for line in f]
         else:
             # Raw str csv
-            lines = [l.strip() for l in test_data.split("\n") if l.strip()]
+            lines = [ln.strip() for ln in test_data.split("\n") if ln.strip()]
             assert lines, "Empty test data"
             raw_records = read_csv(lines)
         auto_otype = infer_otype_from_records_list(raw_records)
@@ -133,7 +133,7 @@ class PipeTest:
         # TODO: Can we use sqlite?
         # TODO: check for pg support at least
         db_name = f"__test_{rand_str(10).lower()}"
-        conn_url = f"postgres://postgres@localhost:5432/postgres"
+        conn_url = "postgres://postgres@localhost:5432/postgres"
         db_url = f"postgres://postgres@localhost:5432/{db_name}"
         # conn_url = f"sqlite:///" + db_name + ".db"
         # try:

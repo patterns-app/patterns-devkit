@@ -36,6 +36,7 @@ def create_node(
     key: str,
     pipe: Union[PipeLike, str],
     inputs: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,
+    upstream: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,  # Synonym
     dataset_name: Optional[str] = None,
     config: Optional[Dict[str, Any]] = None,
     declared_composite_node_key: str = None,
@@ -61,6 +62,7 @@ def create_node(
         _declared_inputs=_declared_inputs,
         _sub_nodes=_sub_nodes,
     )
+    inputs = inputs or upstream
     if inputs is not None:
         for i, v in interface.assign_inputs(inputs).items():
             n._declared_inputs[i] = v
@@ -90,27 +92,11 @@ class Node:
     def __hash__(self):
         return hash(self.key)
 
-    # def set_compiled_inputs(self, inputs: Dict[str, NodeLike]):
-    #     self._compiled_inputs = inputs_as_nodes(self.graph, inputs)
-    #     if self.is_composite():
-    #         self.get_input_node().set_compiled_inputs(inputs)
-
     def get_state(self, sess: Session) -> Optional[Dict]:
         state = sess.query(NodeState).filter(NodeState.node_key == self.key).first()
         if state:
             return state.state
         return None
-
-    # def clone(self, new_name: str, **kwargs) -> Node:
-    #     args = dict(
-    #         env=self.env,
-    #         key=new_name,
-    #         pipe=self.pipe,
-    #         config=self.config,
-    #         inputs=self.get_declared_inputs(),
-    #     )
-    #     args.update(kwargs)
-    #     return Node(**args)
 
     def get_dataset_node_key(self) -> str:
         return f"{self.key}__dataset"
@@ -149,19 +135,12 @@ class Node:
     def get_compiled_input_nodes(self) -> Dict[str, Node]:
         # Just a convenience function
         return self.graph.get_flattened_graph().get_compiled_inputs(self)
-        # return self._compiled_inputs or self.get_declared_input_nodes()
 
     def get_declared_input_nodes(self) -> Dict[str, Node]:
         return inputs_as_nodes(self.graph, self.get_declared_inputs())
 
     def get_declared_inputs(self) -> Dict[str, NodeLike]:
         return self._declared_inputs or {}
-
-    # def get_compiled_input_keys(self) -> Dict[str, str]:
-    #     return {
-    #         n: i.key if isinstance(i, Node) else i
-    #         for n, i in self.get_compiled_input_nodes().items()
-    #     }
 
     def get_sub_nodes(self) -> Optional[Iterable[Node]]:
         return self._sub_nodes

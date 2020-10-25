@@ -7,7 +7,7 @@ module = DagsModule(
     py_module_path=__file__,
     py_module_name=__name__,
     otypes=[],
-    pipes=[extract_fred_observations,],
+    pipes=[extract_fred_observations],
     tests=[],
 )
 module.export()

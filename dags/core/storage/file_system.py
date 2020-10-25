@@ -62,4 +62,4 @@ class FileSystemAPI:
 
 # TODO: better way to register these types of managers / apis (so someone can extend without editing
 def get_file_system_api_class(engine: StorageEngine) -> Type[FileSystemAPI]:
-    return {StorageEngine.LOCAL: FileSystemAPI,}.get(engine, FileSystemAPI)
+    return {StorageEngine.LOCAL: FileSystemAPI}.get(engine, FileSystemAPI)

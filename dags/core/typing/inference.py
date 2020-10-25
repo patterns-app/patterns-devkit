@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from parser import ParserError
 from random import randint
 from statistics import StatisticsError, mode
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
@@ -25,8 +26,8 @@ from dags.utils.common import (
     ensure_time,
     is_datetime_str,
     printd,
-    title_to_snake_case,
     rand_str,
+    title_to_snake_case,
 )
 from dags.utils.data import is_nullish, read_json, records_list_as_dict_of_lists
 from loguru import logger
@@ -109,7 +110,7 @@ def generate_auto_otype(fields, **kwargs) -> ObjectType:
         name=auto_name,
         module_key=DEFAULT_LOCAL_MODULE.key,
         version="0",
-        description=f"Automatically inferred type",
+        description="Automatically inferred type",
         unique_on=[],
         implementations=[],
         on_conflict=ConflictBehavior("ReplaceWithNewer"),
@@ -201,7 +202,7 @@ def pandas_series_to_sqlalchemy_type(series: Series) -> str:
         try:
             pd.to_datetime(series)
             return "DateTime"
-        except:
+        except ParserError:
             pass
     return "UnicodeText"
 
@@ -375,7 +376,7 @@ def conform_dataframe_to_otype(df: DataFrame, otype: ObjectType) -> DataFrame:
                     try:
                         df[field.name] = df[field.name].astype(pd_type)
                         logger.debug(f"Casting {field.name} to {pd_type}")
-                    except:
+                    except (TypeError, ValueError, ParserError):
                         logger.debug(
                             f"Manually casting {field.name} to py objects {field.field_type}"
                         )

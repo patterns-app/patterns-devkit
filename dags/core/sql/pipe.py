@@ -15,7 +15,6 @@ from dags.core.pipe_interface import (
     re_type_hint,
 )
 from dags.core.runnable import PipeContext
-
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from dags.core.runtime import RuntimeClass
 from dags.utils.common import md5_hash
@@ -36,6 +35,58 @@ def annotation_from_comment_annotation(ann: str, **kwargs) -> PipeAnnotation:
     return PipeAnnotation.from_type_annotation(ann, **kwargs)
 
 
+@dataclass
+class TableParseState:
+    prev_token: Optional[str] = None
+    prev_token_was_select: bool = False
+    table_identifier_stmt: bool = False
+    table_identifier_required_next: bool = False
+    previous_token_table_identifier: Optional[str] = None
+    jinja_context_cnt: int = 0
+
+
+def make_typed_statement_from_parse(
+    new_sql: List[str],
+    table_identifier_annotations: Dict[str, Optional[str]],
+    output_annotation: Optional[str],
+):
+    output = None
+    if output_annotation:
+        try:
+            output = annotation_from_comment_annotation(output_annotation)
+        except BadAnnotationException:
+            pass
+    if output is None:
+        output = PipeAnnotation.create(data_format_class="DataSet")
+    inputs = []
+    for name, ann in table_identifier_annotations.items():
+        if ann:
+            try:
+                # logger.debug(f"Found comment annotation in SQL: {ann}")
+                inputs.append(annotation_from_comment_annotation(ann, name=name))
+                continue
+            except BadAnnotationException:
+                pass
+        inputs.append(PipeAnnotation.create(name=name, data_format_class="DataSet"))
+    return TypedSqlStatement(
+        cleaned_sql="".join(new_sql),
+        interface=PipeInterface(inputs=inputs, output=output),
+    )
+
+
+def skip_jinja(t: str, state: TableParseState, ignore_jinja: bool = True) -> bool:
+    if t in ("%", "{", "%-") and state.prev_token == "{":
+        state.jinja_context_cnt += 1
+        return True
+    if t == "}" and state.prev_token in ("}", "%", "-%"):
+        state.jinja_context_cnt -= 1
+        return True
+    if state.jinja_context_cnt and ignore_jinja:
+        # debug("\t", t, f"skip jinja {jinja}")
+        return True
+    return False
+
+
 def extract_interface(
     sql: str,
     replace_with_names: Optional[Dict[str, str]] = None,
@@ -48,18 +99,8 @@ def extract_interface(
     Get all table names in a sql statement, optionally sub them with new names.
     Also extract comment-style ObjectType annotations if they exists.
     """
-
-    @dataclass
-    class TableParseState:
-        prev_token: Optional[str] = None
-        prev_token_was_select: bool = False
-        table_identifier_stmt: bool = False
-        table_identifier_required_next: bool = False
-        previous_token_table_identifier: Optional[str] = None
-        jinja_context_cnt: int = 0
-
     replace_with_names = replace_with_names or {}
-    table_refs: Dict[str, Optional[str]] = {}
+    table_identifier_annotations: Dict[str, Optional[str]] = {}
     output_annotation: Optional[str] = None
     state = TableParseState()
     new_sql: List[str] = []
@@ -76,7 +117,9 @@ def extract_interface(
                     comment_annotations
                     and state.previous_token_table_identifier is not None
                 ):
-                    table_refs[state.previous_token_table_identifier] = str(token)
+                    table_identifier_annotations[
+                        state.previous_token_table_identifier
+                    ] = str(token)
                     state.previous_token_table_identifier = None
                 if comment_annotations and state.prev_token_was_select:
                     state.prev_token_was_select = False
@@ -92,15 +135,8 @@ def extract_interface(
                     continue
             state.previous_token_table_identifier = None
             state.prev_token_was_select = False
-            # Skip jinja if present
-            if t in ("%", "{", "%-") and state.prev_token == "{":
-                state.jinja_context_cnt += 1
-                continue
-            if t == "}" and state.prev_token in ("}", "%", "-%"):
-                state.jinja_context_cnt -= 1
-                continue
-            if state.jinja_context_cnt and ignore_jinja:
-                # debug("\t", t, f"skip jinja {jinja}")
+            # Skip jinja stmt if present
+            if skip_jinja(t, state, ignore_jinja):
                 continue
             if token.is_keyword:
                 if "join" in t or "from" in t:
@@ -122,7 +158,7 @@ def extract_interface(
                 if state.table_identifier_stmt:
                     # debug("found", token)
                     table_ref = str(token)
-                    table_refs[table_ref] = None
+                    table_identifier_annotations[table_ref] = None
                     state.previous_token_table_identifier = table_ref
                     state.table_identifier_required_next = False
                     if table_ref in replace_with_names:
@@ -130,27 +166,8 @@ def extract_interface(
                         new_sql.append(
                             replace_with_names[table_ref] + f' as "{table_ref}"'
                         )
-    output = None
-    if output_annotation:
-        try:
-            output = annotation_from_comment_annotation(output_annotation)
-        except BadAnnotationException:
-            pass
-    if output is None:
-        output = PipeAnnotation.create(data_format_class="DataSet")
-    inputs = []
-    for name, ann in table_refs.items():
-        if ann:
-            try:
-                # logger.debug(f"Found comment annotation in SQL: {ann}")
-                inputs.append(annotation_from_comment_annotation(ann, name=name))
-                continue
-            except BadAnnotationException:
-                pass
-        inputs.append(PipeAnnotation.create(name=name, data_format_class="DataSet"))
-    return TypedSqlStatement(
-        cleaned_sql="".join(new_sql),
-        interface=PipeInterface(inputs=inputs, output=output),
+    return make_typed_statement_from_parse(
+        new_sql, table_identifier_annotations, output_annotation
     )
 
 

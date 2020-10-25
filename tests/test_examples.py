@@ -33,10 +33,10 @@ def test_example():
 
 
 Customer = create_quick_otype(
-    "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "JSON"),]
+    "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "JSON")]
 )
 Metric = create_quick_otype(
-    "Metric", [("metric", "Unicode"), ("value", "Numeric(12,2"),]
+    "Metric", [("metric", "Unicode"), ("value", "Numeric(12,2")]
 )
 
 
@@ -239,3 +239,7 @@ def test_mixed_inputs():
         {"tble": "metrics", "row_count": 8},  # DataSet input does
     ]
     assert records == expected_records
+
+
+if __name__ == "__main__":
+    test_mixed_inputs()
