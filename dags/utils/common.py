@@ -167,15 +167,6 @@ def ensure_bool(x: Optional[Union[str, bool]]) -> Optional[bool]:
     raise TypeError(x)
 
 
-def get_spinner(**kwargs):
-    args = {
-        "spinner": {"interval": 225, "frames": ["●∙∙", "∙●∙", "∙∙●", "∙●∙"]},
-        "color": "white",
-    }
-    args.update(**kwargs)
-    return Halo(**args)
-
-
 success_symbol = " ✔ "
 error_symbol = " ✖ "
 

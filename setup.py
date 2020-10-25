@@ -6,35 +6,53 @@ packages = [
     "dags.cli",
     "dags.core",
     "dags.core.conversion",
+    "dags.core.data_formats",
     "dags.core.extraction",
     "dags.core.metadata",
     "dags.core.sql",
+    "dags.core.storage",
+    "dags.core.typing",
     "dags.db",
+    "dags.examples",
+    "dags.logging",
+    "dags.modules.core",
+    "dags.modules.core.external",
+    "dags.modules.core.pipes",
+    "dags.modules.fred",
+    "dags.project",
+    "dags.testing",
     "dags.utils",
 ]
 
-package_data = {"": ["*"], "dags.core.sql": ["templates/*"]}
+package_data = {
+    "": ["*"],
+    "dags.core.sql": ["templates/*"],
+    "dags.modules.core": ["otypes/*"],
+}
 
 install_requires = [
     "click>=7.1.1,<8.0.0",
     "colorful>=0.5.4,<0.6.0",
-    "halo>=0.0.29,<0.0.30",
     "jinja2>=2.11.1,<3.0.0",
+    "loguru>=0.5.1,<0.6.0",
     "networkx>=2.4,<3.0",
     "pandas>=1.0.1,<2.0.0",
     "psycopg2-binary==2.8.4",
+    "pymysql>=0.9.3,<0.10.0",
     "ratelimit>=2.2.1,<3.0.0",
     "requests>=2.23.0,<3.0.0",
     "sqlalchemy>=1.3.13,<2.0.0",
+    "sqlparse>=0.3.1,<0.4.0",
     "strictyaml>=1.0.6,<2.0.0",
+    "typing_extensions>=3.7.4,<4.0.0",
 ]
 
-entry_points = {"console_scripts": ["dream = dags.cli:app"]}
+entry_points = {"console_scripts": ["dags = dags.cli:app"]}
 
 setup_kwargs = {
     "name": "dags",
-    "version": "0.1.0",
-    "description": "Pipeal typed data pipelines",
+    "version": "0.1.1",
+    "description": "Functional Data Pipelines",
     "long_description": None,
     "author": "Ken Van Haren",
     "author_email": "kenvanharen@gmail.com",
