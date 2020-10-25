@@ -109,7 +109,6 @@ class DatabaseAPI:
         ddl = ObjectTypeMapper(self.env).create_table_statement(
             otype=otype, storage_engine=sdb.storage.storage_engine, table_name=name,
         )
-        print(ddl)
         self.execute_sql(ddl)
         return name
 

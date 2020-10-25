@@ -11,7 +11,6 @@ def test_env_init():
     env = Environment("_test", metadata_storage="sqlite://", initial_modules=[])
     assert len(env.get_module_order()) == 1
     env.add_module(_test_module)
-    print(env.get_module_order())
     assert env.get_module_order() == [env.get_local_module().key, _test_module.key]
     assert env.get_otype("TestType") is _test_module.otypes.TestType
     assert env.get_pipe("test_sql") is _test_module.pipes.test_sql

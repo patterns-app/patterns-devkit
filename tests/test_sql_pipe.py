@@ -6,8 +6,8 @@ from tests.utils import make_test_env
 
 def test_sql_pipe_interface():
     env = make_test_env()
-    sql = """select 1 from from t1 -- DataBlock[T1]
-    join t2 on t1.a = t2.b left join t3 -- DataSet[T2]
+    sql = """select 1 from from t1 -- :DataBlock[T1]
+    join t2 on t1.a = t2.b left join t3 -- :DataSet[T2]
     on"""
     df = sql_pipe("s1", sql)
     dfi = df.get_interface(env)
@@ -24,7 +24,7 @@ def test_sql_pipe_interface():
     assert dfi.inputs[2].data_format_class == "DataSet"
     assert dfi.output is not None
 
-    sql = """select -- DataSet[T]
+    sql = """select -- :DataSet[T]
     1 
     from -- comment inbetween
     input
@@ -67,7 +67,7 @@ def test_sql_pipe_interface():
     assert dfi.inputs[0].is_generic
 
     sql = """
-            select -- DataBlock[T]
+            select -- :DataBlock[T]
             {% if inputs.input.realized_otype.unique_on %}
                 distinct on (
                     {% for col in inputs.input.realized_otype.unique_on %}
@@ -81,7 +81,7 @@ def test_sql_pipe_interface():
                     {%- if not loop.last %},{% endif %}
                 {% endfor %}
 
-            from input -- DataBlock[T]
+            from input -- :DataBlock[T]
             {% if inputs.input.resolved_otype.updated_at_field %}
             order by
                 {% for col in inputs.input.realized_otype.unique_on %}

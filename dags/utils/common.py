@@ -10,14 +10,14 @@ import uuid
 from dataclasses import dataclass, fields
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-from typing import Any, Dict, Generic, List, Optional, Tuple, Type, Union
+from typing import Any, Dict, Generic, List, Optional, Set, Tuple, Type, Union
 
 import pytz
 from colorful import Colorful
 from dateutil import parser
 from halo import Halo
 
-from dags.utils.typing import K, V
+from dags.utils.typing import K, T, V
 
 DEBUG = False
 
@@ -106,6 +106,17 @@ def md5_hash(s: str) -> str:
 
 def dataclass_kwargs(dc: Any, kwargs: Dict) -> Dict:
     return {f.name: kwargs.get(f.name) for f in fields(dc)}
+
+
+def remove_dupes(l: List[T]) -> List[T]:
+    seen: Set[T] = set()
+    deduped: List[T] = []
+    for i in l:
+        if i in seen:
+            continue
+        seen.add(i)
+        deduped.append(i)
+    return deduped
 
 
 def ensure_list(x: Any) -> List:
@@ -331,3 +342,15 @@ class DagsJSONEncoder(json.JSONEncoder):
 
 def to_json(d: Any) -> str:
     return json.dumps(d, cls=DagsJSONEncoder)
+
+
+def profile_stmt(stmt: str, globals: Dict, locals: Dict):
+    import cProfile
+    import pstats
+    from pstats import SortKey
+
+    cProfile.runctx(
+        stmt, globals=globals, locals=locals, filename="profile.stats",
+    )
+    p = pstats.Stats("profile.stats")
+    p.strip_dirs().sort_stats(SortKey.CUMULATIVE).print_stats(100)

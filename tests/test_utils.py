@@ -12,9 +12,9 @@ from dags.utils.common import (
     DagsJSONEncoder,
     StringEnum,
     is_datetime_str,
+    rand_str,
     snake_to_title_case,
     title_to_snake_case,
-    rand_str,
 )
 from dags.utils.data import is_nullish
 from dags.utils.pandas import (
@@ -71,7 +71,6 @@ def test_json_encoder():
         e=T.A,
     )
     s = json.dumps(d, cls=DagsJSONEncoder)
-    print(s)
     assert (
         s.strip()
         == """

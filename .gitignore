@@ -52,6 +52,9 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Profiling
+*.stats
+
 # Translations
 *.mo
 *.pot

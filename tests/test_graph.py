@@ -95,14 +95,10 @@ def test_flattened_graph():
         "node9",
     }
     assert set(n.key for n in fg.nodes()) == nodes
-    # pprint(dict(fg.get_compiled_networkx_graph().adj))
     n3 = g.get_any_node("node3")
     n7 = g.get_any_node("node7")
-    pprint(fg.get_all_upstream_dependencies_in_execution_order(n7))
-    pprint(fg._compiled_inputs)
     assert len(fg.get_all_upstream_dependencies_in_execution_order(n7)) == 8
     assert len(fg.get_all_nodes_in_execution_order()) == 13
-    print([n.key for n in fg.get_all_nodes_in_execution_order()])
     execution_order = [
         "node2",
         "node4",

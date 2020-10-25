@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from datetime import datetime
+from pprint import pprint
 from typing import Generator
 
 import pandas as pd
@@ -66,7 +67,6 @@ def customer_source(ctx: PipeContext) -> RecordsListGenerator[Customer]:
     for i in range(2):
         records = []
         for j in range(2):
-            print(n, N)
             records.append(
                 {
                     "name": f"name{n}",
@@ -84,27 +84,47 @@ def customer_source(ctx: PipeContext) -> RecordsListGenerator[Customer]:
 aggregate_metrics_sql = sql_pipe(
     "aggregate_metrics_sql",
     sql="""
-    select -- DataBlock[Metric]
+    select -- :DataSet[Metric]
         'row_count' as metric,
         count(*) as value
     from input
     """,
 )
 
+
+dataset_inputs_sql = sql_pipe(
+    "dataset_inputs_sql",
+    sql="""
+    select
+        'input' as tble
+        , count(*) as row_count
+    from input
+    union all
+    select
+        'metrics' as tble
+        , count(*) as row_count
+    from metrics
+    """,
+)
+
+
 mixed_inputs_sql = sql_pipe(
     "mixed_inputs_sql",
     sql="""
     select
-        input.*
-        , metrics.*
-    from input 
-    cross join metrics
+        'input' as tble
+        , count(*) as row_count
+    from input -- :DataBlock
+    union all
+    select
+        'metrics' as tble
+        , count(*) as row_count
+    from metrics
     """,
 )
 
 
 def test_incremental():
-    # logger.enable("dags")
     env = Environment(metadata_storage="sqlite://")
     g = Graph(env)
     s = env.add_storage("memory://test")
@@ -156,3 +176,66 @@ def test_incremental():
     # Run again, should be exhausted
     output = env.produce(g, "aggregate_metrics_sql", target_storage=sdb)
     assert output is None
+
+
+def test_mixed_inputs():
+    # logger.enable("dags")
+    env = Environment(metadata_storage="sqlite://")
+    g = Graph(env)
+    s = env.add_storage(get_tmp_sqlite_db_url())
+    env.add_module(core)
+    # Initial graph
+    N = 4 * 4
+    g.add_node("source", customer_source, config={"total_records": N})
+    g.add_node("aggregate_metrics", aggregate_metrics, inputs="source")
+    output = env.produce(g, "aggregate_metrics", target_storage=s)
+    records = output.as_records_list()
+    expected_records = [
+        {"metric": "row_count", "value": 4},
+        {"metric": "col_count", "value": 3},
+    ]
+    assert records == expected_records
+    # Mixed inputs
+    g.add_node(
+        "mixed_inputs",
+        mixed_inputs_sql,
+        inputs={"input": "source", "metrics": "aggregate_metrics"},
+    )
+    g.add_node(
+        "dataset_inputs",
+        dataset_inputs_sql,
+        inputs={"input": "source", "metrics": "aggregate_metrics"},
+    )
+
+    output = env.produce(g, "dataset_inputs", target_storage=s)
+    records = output.as_records_list()
+    expected_records = [
+        {"tble": "input", "row_count": 8},
+        {"tble": "metrics", "row_count": 4},
+    ]
+    assert records == expected_records
+
+    output = env.produce(g, "mixed_inputs", target_storage=s)
+    records = output.as_records_list()
+    expected_records = [
+        {"tble": "input", "row_count": 4},
+        {"tble": "metrics", "row_count": 6},
+    ]
+    assert records == expected_records
+
+    # Run again
+    output = env.produce(g, "dataset_inputs", target_storage=s)
+    records = output.as_records_list()
+    expected_records = [
+        {"tble": "input", "row_count": 16},
+        {"tble": "metrics", "row_count": 8},
+    ]
+    assert records == expected_records
+
+    output = env.run_node(g, "mixed_inputs", target_storage=s)
+    records = output.as_records_list()
+    expected_records = [
+        {"tble": "input", "row_count": 4},  # DataBlock input does NOT accumulate
+        {"tble": "metrics", "row_count": 8},  # DataSet input does
+    ]
+    assert records == expected_records

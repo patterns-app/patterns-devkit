@@ -21,9 +21,14 @@ import networkx as nx
 from dags import Environment
 from dags.core.node import Node, NodeLike, create_node, inputs_as_nodes
 from dags.core.pipe import PipeLike
+from dags.utils.common import remove_dupes
 from loguru import logger
 
 if TYPE_CHECKING:
+    pass
+
+
+class NodeDoesNotExist(KeyError):
     pass
 
 
@@ -93,6 +98,14 @@ class Graph:
         self._flattened_graph = self.get_declared_graph_with_dataset_nodes().flatten()
         return self._flattened_graph
 
+    def validate_graph(self) -> bool:
+        # TODO
+        #   validate node keys are valid
+        #   validate pipes are valid
+        #   validate types are valid
+        #   etc
+        pass
+
 
 class NodeGraph:
     def __init__(
@@ -158,13 +171,21 @@ class NodeGraph:
                 sub_nodes.append(n)
         return NodeGraph(sub_nodes)
 
+    def declared_input_nodes(self, node: Node) -> Dict[str, Node]:
+        raw_inputs = copy(node.get_declared_inputs())
+        # inputs = copy(n.get_declared_input_nodes())
+        inputs: Dict[str, Node] = {}
+        for name, inp in raw_inputs.items():
+            inputs[name] = self.get_node(inp)
+        return inputs
+
     def with_dataset_nodes(self) -> NodeGraph:
         new_g = NodeGraph()
         for n in list(self.nodes()):
             dfi = n.get_interface()
+            inputs = self.declared_input_nodes(n)
             for annotation in dfi.inputs:
                 if annotation.is_dataset:
-                    inputs = copy(n.get_declared_input_nodes())
                     assert (
                         annotation.name is not None
                     )  # inputs should always have a parameter name!
@@ -175,7 +196,7 @@ class NodeGraph:
                     except KeyError:
                         pass
                     inputs[annotation.name] = dsn
-                    new_g.set_compiled_inputs(n, inputs)
+            new_g.set_compiled_inputs(n, inputs)
             new_g.add_node(n)
         return new_g
 
@@ -238,6 +259,7 @@ class NodeGraph:
     def get_declared_networkx_graph(self) -> nx.DiGraph:
         return self.as_networkx_graph(compiled=False)
 
+    # TODO: Think through how to "run" declared composite node (and do we produce datasets too?)
     def get_flattened_root_node_for_declared_node(self, node: Node) -> Node:
         if not self.is_flattened:
             return node
@@ -268,7 +290,8 @@ class NodeGraph:
             )
             nodes.extend(parent_deps)
         nodes.append(node)
-        return nodes
+        # May have added nodes twice, just keep first reference:
+        return remove_dupes(nodes)
 
     def get_all_nodes_in_execution_order(self) -> List[Node]:
         g = self.get_compiled_networkx_graph()

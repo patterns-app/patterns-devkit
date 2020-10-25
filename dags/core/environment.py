@@ -4,6 +4,7 @@ import os
 from contextlib import contextmanager
 from dataclasses import asdict
 from importlib import import_module
+from pprint import pprint
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
@@ -151,7 +152,6 @@ class Environment:
             return got.as_otype()
 
     def add_new_otype(self, otype: ObjectType):
-        print(f"adding otype {otype.key}")
         if otype.key in self.library.otypes:
             # Already exists
             return

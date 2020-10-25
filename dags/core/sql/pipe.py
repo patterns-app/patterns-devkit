@@ -30,11 +30,9 @@ class TypedSqlStatement:
 
 def annotation_from_comment_annotation(ann: str, **kwargs) -> PipeAnnotation:
     ann = ann.strip().strip("-# ")
-    # TODO: make this more explicit? So we don't have accidental annotation (any one word comment would pass...)
-    #   For instance:
-    # if not ann.startswith(":"):
-    #     raise BadAnnotationException
-    # ann = ann.strip(": ")
+    if not ann.startswith(":"):
+        raise BadAnnotationException
+    ann = ann.strip(": ")
     return PipeAnnotation.from_type_annotation(ann, **kwargs)
 
 
@@ -129,7 +127,9 @@ def extract_interface(
                     state.table_identifier_required_next = False
                     if table_ref in replace_with_names:
                         new_sql.pop()
-                        new_sql.append(replace_with_names[table_ref])
+                        new_sql.append(
+                            replace_with_names[table_ref] + f' as "{table_ref}"'
+                        )
     output = None
     if output_annotation:
         try:
@@ -140,9 +140,9 @@ def extract_interface(
         output = PipeAnnotation.create(data_format_class="DataSet")
     inputs = []
     for name, ann in table_refs.items():
-        # print("input:", name, ann)
         if ann:
             try:
+                # logger.debug(f"Found comment annotation in SQL: {ann}")
                 inputs.append(annotation_from_comment_annotation(ann, name=name))
                 continue
             except BadAnnotationException:
