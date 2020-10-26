@@ -7,7 +7,7 @@ from pandas import DataFrame
 from dags import DataSet
 from dags.core.pipe import pipe
 from dags.core.runnable import PipeContext
-from dags.core.typing.object_type import ObjectTypeLike
+from dags.core.typing.object_schema import ObjectSchemaLike
 from dags.utils.data import read_csv
 
 
@@ -19,7 +19,7 @@ class LocalResourceState:
 @dataclass
 class DataFrameResourceConfig:
     dataframe: DataFrame
-    otype: ObjectTypeLike
+    schema: ObjectSchemaLike
 
 
 @pipe(
@@ -39,7 +39,7 @@ def extract_dataframe(ctx: PipeContext,) -> DataSet:
 @dataclass
 class LocalCSVResourceConfig:
     path: str
-    otype: ObjectTypeLike
+    schema: ObjectSchemaLike
 
 
 @pipe(

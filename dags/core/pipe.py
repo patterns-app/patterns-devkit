@@ -102,7 +102,7 @@ class Pipe:
         #     try:
         #         found_input = found_dfi.get_input(input.name)
         #         found_input.data_format_class = input.data_format_class
-        #         found_input.otype_like = input.otype_like
+        #         found_input.schema_like = input.schema_like
         #     except KeyError:
         #         found_dfi.inputs.append(input)
         # if declared_dfi.output:
@@ -110,7 +110,7 @@ class Pipe:
         #         found_dfi.output.data_format_class = (
         #             declared_dfi.output.data_format_class
         #         )
-        #         found_dfi.output.otype_like = declared_dfi.output.otype_like
+        #         found_dfi.output.schema_like = declared_dfi.output.schema_like
         #     else:
         #         found_dfi.output = declared_dfi.output
         if self.declared_output is not None or self.declared_inputs is not None:

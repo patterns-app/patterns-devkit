@@ -15,8 +15,9 @@ from dags.core.environment import Environment
 from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, PipeLog
 from dags.core.runnable import PipeContext
-from dags.core.typing.object_type import create_quick_otype
+from dags.core.typing.object_schema import create_quick_schema
 from dags.modules import core
+from dags.utils.common import utcnow
 from loguru import logger
 from tests.test_utils import get_tmp_sqlite_db_url
 
@@ -32,10 +33,10 @@ def test_example():
     assert_almost_equal(output.as_dataframe(), df)
 
 
-Customer = create_quick_otype(
+Customer = create_quick_schema(
     "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "JSON")]
 )
-Metric = create_quick_otype(
+Metric = create_quick_schema(
     "Metric", [("metric", "Unicode"), ("value", "Numeric(12,2")]
 )
 

@@ -5,4 +5,4 @@ from .core.node import Node
 from .core.pipe import Pipe, pipe
 from .core.sql.pipe import sql_pipe
 from .core.storage.storage import Storage
-from .core.typing.object_type import ObjectType
+from .core.typing.object_schema import ObjectSchema

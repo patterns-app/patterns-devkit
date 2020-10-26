@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, Type
 from dags.utils.typing import T
 
 if TYPE_CHECKING:
-    from dags import ObjectType
+    from dags import ObjectSchema
 
 
 class DataFormatBase(Generic[T]):
@@ -48,11 +48,11 @@ class DataFormatBase(Generic[T]):
         raise NotImplementedError
 
     @classmethod
-    def infer_otype_from_records(cls, records: T) -> ObjectType:
+    def infer_schema_from_records(cls, records: T) -> ObjectSchema:
         raise NotImplementedError
 
     @classmethod
-    def conform_records_to_otype(cls, records: T) -> T:
+    def conform_records_to_schema(cls, records: T) -> T:
         raise NotImplementedError
 
 

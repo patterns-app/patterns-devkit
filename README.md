@@ -8,10 +8,10 @@ type-aware data graphs**. These graphs are composed of discrete `pipes` written 
 **python or SQL** that snap together both batch and streaming data flows to form end-to-end data
  pipelines, from API data extraction to SQL transformation to analysis, modeling, and visualization.
 
-Dags `pipes` optionally expose type interfaces, called `dataschema`s or `d-schema`s, that describe
-the structure, datatypes, and semantics of the expected input and output data. These type
-interfaces allow the Dags community to build an ecosystem of interoperable components that can
-grow bigger and better over time, making more and more data use cases "one click" plug and play.
+Dags `pipes` optionally expose type interfaces, called `ObjectSchema`s or just `schema`s, that
+describe the structure, data types, and semantics of the expected input and output data. These type
+interfaces allow the Dags community to build an ecosystem of interoperable components that power
+instant "plug and play" pipelines.
  
 Dags brings the best practices learned over the last 60 years in software to the world of data,
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
@@ -20,7 +20,7 @@ scale from laptop to AWS cluster.
 ### Features:
 
  - **Reusable modules and components**  
-   There are hundreds of `pipes`, `d-schemas`, ready to plug into pipelines in the Dags Repository
+   There are hundreds of `pipes`, `schemas`, ready to plug into pipelines in the Dags Repository
     [Coming soon].
    
     - Connect Stripe data to LTV models
@@ -32,7 +32,7 @@ scale from laptop to AWS cluster.
  - **Testable components**  
    Modular `pipes` allow individual steps in a data process to be independently tested and
    QA'd with the same rigor as software. All components available in the Dags Repository are
-   automatically tested against sample data sets of the appropriate `ObjectType`.
+   automatically tested against sample data sets with the appropriate `ObjectSchema`.
      
  - **Batch or streaming**
    Dags exposes both batch and streaming data outputs from all pipes, allowing chains of
@@ -111,15 +111,15 @@ Pipes can operate on *incremental* or *batch* inputs, and generate incremental o
 In Dags, incremental data is processed as *DataBlock*s and batch data is processed as
  *DataSet*s. These are discussed in more detail below.
 
-#### ObjectType
+#### ObjectSchema
 
-`ObjectType`s define data schemas that let `pipe`s specify the data structure
+`ObjectSchema`s define data schemas that let `pipe`s specify the data structure
  they expect and allow them to inter-operate safely. They also
 provide a natural place for column descriptions, validation logic, deduplication
  behavior, and other metadata associated with
-a specific type of data record. You can think of `ObjectType`s as the equivalent of "Interfaces"
+a specific type of data record. You can think of `ObjectSchema`s as the equivalent of "Interfaces"
 in a traditional programming language paradigm -- they specify a "contract" that the underlying data
-must abide by. The Dags `ObjectType` system is "duck" typed and "gradually" typed -- types are both
+must abide by. The Dags `ObjectSchema` system is "duck" typed and "gradually" typed -- types are both
 optional and inferred, there is no formal type hierarchy, and type compatibility can be inspected
 at runtime. A type is said to be `compatible` with another type if it defines a
 superset of compatible fields or if it provides an `implementation` of that type.
@@ -162,18 +162,18 @@ implementations:
     value: amount
 ```
 
-`pipe`s can then declare the ObjectTypes they expect, allowing them to specify the
+`pipe`s can then declare the ObjectSchemas they expect, allowing them to specify the
  (minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
  
 ```python
-# In python, use type annotations to specify expected ObjectType:  
+# In python, use type annotations to specify expected ObjectSchema:  
 def sales(txs: DataBlock[Transaction]) -> DataFrame[CustomerMetric]:  
     df = txs.as_dataframe()
     return df.groupby("customer_id").sum("amount")
 ```
 
 ```sql
--- In SQL, use special syntax to specify expected ObjectType
+-- In SQL, use special syntax to specify expected ObjectSchema
 select:CustomerMetric
     customer_id
   , sum(amount)
@@ -182,19 +182,19 @@ group by customer_id
 ```
 
 A few things to note:
-    - typing is always optional, our original pipe definitions were valid with no ObjectTypes
+    - typing is always optional, our original pipe definitions were valid with no ObjectSchemas
     - We've taken some liberties with Python's type hints (hence why Dags requires python 3.7+)
     - We've introduced a special syntax for typing SQL queries: `table:Type` for inputs and
      `select:Type` for output.
  
-Dags `ObjectType`s are a powerful mechanism for producing reusable components and building
+Dags `ObjectSchema`s are a powerful mechanism for producing reusable components and building
 maintainable large-scale data projects and ecosystems. They are always optional though, and
 should be used when the value they provide out-weighs the friction they introduce.
 
 
 #### DataBlock
 
-A `DataBlock` is an immutable set of data records of uniform `ObjectType`. `DataBlock`s are the
+A `DataBlock` is an immutable set of data records of uniform `ObjectSchema`. `DataBlock`s are the
 basic data unit of Dags, the unit that `pipe`s take as input and ultimately produce as
 output. More precisely, `DataBlock`s are a reference to an abstract ideal of these records. In
  practice, a DataBlock will be stored on one or more Storage mediums in one or more DataFormats -- a
@@ -210,7 +210,7 @@ data types this is simply not possible, and Dags tries to emit warnings in these
 ideal for building industrial grade pipelines and complex ecosystems of `pipe`s. But
  often you it is necessarily or just simpler to work with entire datasets in batch, not as
   incremental chunks. Dags `DataSet`s serve this purpose -- they "accumulate"
-DataBlocks of a uniform ObjectType, deduping and merging records according to desired logic, and
+DataBlocks of a uniform ObjectSchema, deduping and merging records according to desired logic, and
  provide a clean, nicely named, end set of data records (a single `customers` table, for instance).
  
 Every `pipe` in Dags automatically outputs both an incremental `DataBlock` stream and a

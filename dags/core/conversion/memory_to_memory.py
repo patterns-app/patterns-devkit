@@ -15,7 +15,7 @@ from dags.core.data_formats import (
     RecordsListGeneratorFormat,
 )
 from dags.core.storage.storage import LocalMemoryStorageEngine, StorageType
-from dags.core.typing.object_type import ObjectType
+from dags.core.typing.object_schema import ObjectSchema
 from dags.utils.pandas import dataframe_to_records_list, records_list_to_dataframe
 
 
@@ -66,7 +66,7 @@ class MemoryToMemoryConverter(Converter):
         try:
             output_records_object = lookup[
                 (input_sdb.data_format, output_sdb.data_format)
-            ](input_ldr.records_object, input_sdb.get_realized_otype(self.env))
+            ](input_ldr.records_object, input_sdb.get_realized_schema(self.env))
         except KeyError:
             raise NotImplementedError((input_sdb.data_format, output_sdb.data_format))
         output_ldr = LocalMemoryDataRecords.from_records_object(output_records_object)
@@ -74,17 +74,17 @@ class MemoryToMemoryConverter(Converter):
         return output_sdb
 
     def dataframe_to_records_list(
-        self, input_object: DataFrame, otype: ObjectType
+        self, input_object: DataFrame, schema: ObjectSchema
     ) -> RecordsList:
-        return dataframe_to_records_list(input_object, otype)
+        return dataframe_to_records_list(input_object, schema)
 
     def records_list_to_dataframe(
-        self, input_object: RecordsList, otype: ObjectType
+        self, input_object: RecordsList, schema: ObjectSchema
     ) -> DataFrame:
-        return records_list_to_dataframe(input_object, otype)
+        return records_list_to_dataframe(input_object, schema)
 
     def records_list_generator_to_records_list(
-        self, input_object: RecordsListGenerator, otype: ObjectType
+        self, input_object: RecordsListGenerator, schema: ObjectSchema
     ) -> RecordsList:
         all_ = []
         for dl in input_object.get_generator():
@@ -92,21 +92,21 @@ class MemoryToMemoryConverter(Converter):
         return all_
 
     def records_list_generator_to_dataframe(
-        self, input_object: RecordsListGenerator, otype: ObjectType
+        self, input_object: RecordsListGenerator, schema: ObjectSchema
     ) -> DataFrame:
         return self.records_list_to_dataframe(
-            self.records_list_generator_to_records_list(input_object, otype), otype
+            self.records_list_generator_to_records_list(input_object, schema), schema
         )
 
     def dataframe_generator_to_records_list(
-        self, input_object: DataFrameGenerator, otype: ObjectType
+        self, input_object: DataFrameGenerator, schema: ObjectSchema
     ) -> RecordsList:
         return self.dataframe_to_records_list(
-            self.dataframe_generator_to_dataframe(input_object, otype), otype
+            self.dataframe_generator_to_dataframe(input_object, schema), schema
         )
 
     def dataframe_generator_to_dataframe(
-        self, input_object: DataFrameGenerator, otype: ObjectType
+        self, input_object: DataFrameGenerator, schema: ObjectSchema
     ) -> DataFrame:
         all_ = []
         for dl in input_object.get_generator():

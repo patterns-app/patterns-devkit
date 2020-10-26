@@ -30,7 +30,7 @@ sql_accumulate_as_dataset_test = PipeTest(
             "name": "test_dupe",
             "test_data": {
                 "input": {
-                    "otype": "CoreTestType",
+                    "schema": "CoreTestSchema",
                     "data": """
                             k1,k2,f1,f2,f3
                             1,2,abc,1.1,1
@@ -41,7 +41,7 @@ sql_accumulate_as_dataset_test = PipeTest(
                         """,
                 },
                 "output": {
-                    "otype": "CoreTestType",
+                    "schema": "CoreTestSchema",
                     "data": """
                             k1,k2,f1,f2,f3
                             1,2,abc,1.1,1

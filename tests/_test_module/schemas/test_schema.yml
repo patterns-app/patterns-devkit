@@ -1,4 +1,4 @@
-name: TestType
+name: TestSchema
 version: 3
 description: Description
 unique on: uniq
@@ -12,7 +12,7 @@ fields:
     type: Integer
 relationships:
   other:
-    type: OtherType
+    schema: OtherSchema
     fields:
       other_field: other_field
 implementations:

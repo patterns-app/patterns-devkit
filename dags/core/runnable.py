@@ -54,7 +54,7 @@ from dags.core.pipe_interface import (
 )
 from dags.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from dags.core.storage.storage import LocalMemoryStorageEngine, Storage
-from dags.core.typing.object_type import ObjectType
+from dags.core.typing.object_schema import ObjectSchema
 from dags.utils.common import (
     DagsJSONEncoder,
     cf,
@@ -247,8 +247,8 @@ class PipeContext:  # TODO: (Generic[C, S]):
     pipe_log: PipeLog
     # state: Dict = field(default_factory=dict)
     # emitted_states: List[Dict] = field(default_factory=list)
-    # resolved_output_otype: Optional[ObjectType]
-    # realized_output_otype: Optional[ObjectType]
+    # resolved_output_schema: Optional[ObjectSchema]
+    # realized_output_schema: Optional[ObjectSchema]
 
     def get_config_value(self, key: str, default: Any = None) -> Any:
         return self.runnable.configuration.get(key, default)
@@ -357,7 +357,7 @@ class ExecutionManager:
             else:
                 self.log(cf.success(success_symbol + "\n"))
         except Exception as e:
-            self.log(cf.error(error_symbol + " Error ") + str(e) + "\n")
+            self.log(cf.error(error_symbol + " Error \n") + str(e) + "\n")
             raise e
 
         if last_output is None:
@@ -391,7 +391,7 @@ class Worker:
             output = self.execute_pipe(runnable, run_session)
             if output is not None:
                 # assert (
-                #     runnable.pipe_interface.resolved_output_otype is not None
+                #     runnable.pipe_interface.resolved_output_schema is not None
                 # )
                 assert (
                     self.ctx.target_storage is not None
@@ -418,8 +418,8 @@ class Worker:
                 runnable=runnable,
                 inputs=runnable.pipe_interface.inputs,
                 pipe_log=run_session.pipe_log,
-                # resolved_output_otype=runnable.pipe_interface.resolved_output_otype,
-                # realized_output_otype=runnable.pipe_interface.realized_output_otype,
+                # resolved_output_schema=runnable.pipe_interface.resolved_output_schema,
+                # realized_output_schema=runnable.pipe_interface.realized_output_schema,
             )
             args.append(dfc)
         inputs = runnable.pipe_interface.as_kwargs()
@@ -438,7 +438,7 @@ class Worker:
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
     ) -> Optional[DataBlockMetadata]:
         assert runnable.pipe_interface.output is not None
-        # assert runnable.pipe_interface.resolved_output_otype is not None
+        # assert runnable.pipe_interface.resolved_output_schema is not None
         assert self.ctx.target_storage is not None
         # TODO: check if these Metadata objects have been added to session!
         #   also figure out what merge actually does
@@ -471,11 +471,11 @@ class Worker:
             self.ctx.metadata_session,
             self.ctx.local_memory_storage,
             output,
-            # expected_otype=runnable.pipe_interface.resolved_output_otype,
+            # expected_schema=runnable.pipe_interface.resolved_output_schema,
         )
         # ldr = LocalMemoryDataRecords.from_records_object(output)
         # block = DataBlockMetadata(
-        #     otype_key=runnable.pipe_interface.output_otype.key
+        #     schema_key=runnable.pipe_interface.output_schema.key
         # )
         # sdb = StoredDataBlockMetadata(  # type: ignore
         #     data_block=block,

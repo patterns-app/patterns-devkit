@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from dags.core.data_formats.base import MemoryDataFormatBase
 
 if TYPE_CHECKING:
-    from dags import ObjectType
+    from dags import ObjectSchema
 
 
 RecordsList = List[Dict[str, Any]]
@@ -41,12 +41,12 @@ class RecordsListFormat(MemoryDataFormatBase):
         return isinstance(obj, list) and len(obj) > 0 and isinstance(obj[0], dict)
 
     @classmethod
-    def infer_otype_from_records(cls, records: RecordsList) -> ObjectType:
-        from dags.core.typing.inference import infer_otype_from_records_list
+    def infer_schema_from_records(cls, records: RecordsList) -> ObjectSchema:
+        from dags.core.typing.inference import infer_schema_from_records_list
         from dags.core.data_formats import get_records_list_sample
 
         dl = get_records_list_sample(records)
         if dl is None:
             raise ValueError("Empty records object")
-        inferred_otype = infer_otype_from_records_list(dl)
-        return inferred_otype
+        inferred_schema = infer_schema_from_records_list(dl)
+        return inferred_schema

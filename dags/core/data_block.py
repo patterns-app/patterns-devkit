@@ -25,8 +25,8 @@ from dags.core.data_formats.records_list import RecordsList, RecordsListFormat
 from dags.core.environment import Environment
 from dags.core.metadata.listeners import immutability_update_listener
 from dags.core.metadata.orm import BaseModel, timestamp_rand_key
-from dags.core.typing.inference import infer_otype_from_records_list
-from dags.core.typing.object_type import ObjectType, ObjectTypeKey, is_any
+from dags.core.typing.inference import infer_schema_from_records_list
+from dags.core.typing.object_schema import ObjectSchema, ObjectSchemaKey, is_any
 from dags.utils.typing import T
 from loguru import logger
 
@@ -80,8 +80,8 @@ class LocalMemoryDataRecords:
 class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     # id = Column(String, primary_key=True, default=timestamp_rand_key)
     id = Column(Integer, primary_key=True, autoincrement=True)
-    expected_otype_key: ObjectTypeKey = Column(String, nullable=True)  # type: ignore
-    realized_otype_key: ObjectTypeKey = Column(String, nullable=True)  # type: ignore
+    expected_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
+    realized_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
     record_count = Column(Integer, nullable=True)
     # Other metadata? created_by_job? last_processed_at?
     deleted = Column(Boolean, default=False)
@@ -98,24 +98,24 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     def __repr__(self):
         return self._repr(
             id=self.id,
-            expected_otype_key=self.expected_otype_key,
-            realized_otype_key=self.realized_otype_key,
+            expected_schema_key=self.expected_schema_key,
+            realized_schema_key=self.realized_schema_key,
         )
 
     @property
-    def most_real_otype_key(self) -> ObjectTypeKey:
-        return self.realized_otype_key or self.expected_otype_key
+    def most_real_schema_key(self) -> ObjectSchemaKey:
+        return self.realized_schema_key or self.expected_schema_key
 
     @property
-    def most_abstract_otype_key(self) -> ObjectTypeKey:
-        return self.expected_otype_key or self.realized_otype_key
+    def most_abstract_schema_key(self) -> ObjectSchemaKey:
+        return self.expected_schema_key or self.realized_schema_key
 
     def as_managed_data_block(self, ctx: ExecutionContext):
         mgr = DataBlockManager(ctx, self,)
         return ManagedDataBlock(
             data_block_id=self.id,
-            expected_otype_key=self.expected_otype_key,
-            realized_otype_key=self.realized_otype_key,
+            expected_schema_key=self.expected_schema_key,
+            realized_schema_key=self.realized_schema_key,
             manager=mgr,
         )
 
@@ -141,8 +141,8 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 @dataclass(frozen=True)
 class ManagedDataBlock(Generic[T]):
     data_block_id: int
-    expected_otype_key: ObjectTypeKey
-    realized_otype_key: ObjectTypeKey
+    expected_schema_key: ObjectSchemaKey
+    realized_schema_key: ObjectSchemaKey
     manager: DataBlockManager
 
     def as_dataframe(self) -> DataFrame:
@@ -158,12 +158,12 @@ class ManagedDataBlock(Generic[T]):
         return self.manager.as_format(fmt)
 
     @property
-    def expected_otype(self) -> Optional[ObjectType]:
-        return self.manager.get_expected_otype()
+    def expected_schema(self) -> Optional[ObjectSchema]:
+        return self.manager.get_expected_schema()
 
     @property
-    def realized_otype(self) -> Optional[ObjectType]:
-        return self.manager.get_realized_otype()
+    def realized_schema(self) -> Optional[ObjectSchema]:
+        return self.manager.get_realized_schema()
 
 
 DataBlock = ManagedDataBlock
@@ -187,15 +187,15 @@ class StoredDataBlockMetadata(BaseModel):
             storage_url=self.storage_url,
         )
 
-    def get_realized_otype(self, env: Environment) -> Optional[ObjectType]:
-        if self.data_block.realized_otype_key is None:
+    def get_realized_schema(self, env: Environment) -> Optional[ObjectSchema]:
+        if self.data_block.realized_schema_key is None:
             return None
-        return env.get_otype(self.data_block.realized_otype_key)
+        return env.get_schema(self.data_block.realized_schema_key)
 
-    def get_expected_otype(self, env: Environment) -> Optional[ObjectType]:
-        if self.data_block.expected_otype_key is None:
+    def get_expected_schema(self, env: Environment) -> Optional[ObjectSchema]:
+        if self.data_block.expected_schema_key is None:
             return None
-        return env.get_otype(self.data_block.expected_otype_key)
+        return env.get_schema(self.data_block.expected_schema_key)
 
     @property
     def storage(self) -> Storage:
@@ -208,8 +208,8 @@ class StoredDataBlockMetadata(BaseModel):
             raise ValueError(
                 "Trying to get StoredDataBlock name, but id is not set yet (obj must be committed to database first)"
             )
-        otype = env.get_otype(self.data_block.most_real_otype_key)
-        return f"_{otype.get_identifier()[:50]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
+        schema = env.get_schema(self.data_block.most_real_schema_key)
+        return f"_{schema.get_identifier()[:50]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
 
     def get_storage_format(self) -> StorageFormat:
         return StorageFormat(self.storage.storage_type, self.data_format)
@@ -231,8 +231,8 @@ class DataSetMetadata(BaseModel):
     # id = Column(String, primary_key=True, default=timestamp_rand_key)
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
-    expected_otype_key: ObjectTypeKey = Column(String, nullable=True)  # type: ignore
-    realized_otype_key: ObjectTypeKey = Column(String, nullable=False)  # type: ignore
+    expected_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
+    realized_schema_key: ObjectSchemaKey = Column(String, nullable=False)  # type: ignore
     data_block_id = Column(Integer, ForeignKey(DataBlockMetadata.id), nullable=False)
     # Hints
     data_block: "DataBlockMetadata"
@@ -245,8 +245,8 @@ class DataSetMetadata(BaseModel):
         return self._repr(
             id=self.id,
             name=self.name,
-            expected_otype_key=self.expected_otype_key,
-            realized_otype_key=self.realized_otype_key,
+            expected_schema_key=self.expected_schema_key,
+            realized_schema_key=self.realized_schema_key,
             data_block=self.data_block,
         )
 
@@ -256,8 +256,8 @@ class DataSetMetadata(BaseModel):
             data_set_id=self.id,
             data_set_name=self.name,
             data_block_id=self.data_block_id,
-            expected_otype_key=self.expected_otype_key,
-            realized_otype_key=self.realized_otype_key,
+            expected_schema_key=self.expected_schema_key,
+            realized_schema_key=self.realized_schema_key,
             manager=mgr,
         )
 
@@ -267,9 +267,9 @@ class ManagedDataSet(Generic[T]):
     data_set_id: int
     data_set_name: str
     data_block_id: int
-    expected_otype_key: ObjectTypeKey
-    realized_otype_key: ObjectTypeKey
-    # otype_is_validated: bool
+    expected_schema_key: ObjectSchemaKey
+    realized_schema_key: ObjectSchemaKey
+    # schema_is_validated: bool
     manager: DataBlockManager
 
     def as_dataframe(self) -> DataFrame:
@@ -285,12 +285,12 @@ class ManagedDataSet(Generic[T]):
         return self.manager.as_format(fmt)
 
     @property
-    def expected_otype(self) -> Optional[ObjectType]:
-        return self.manager.get_expected_otype()
+    def expected_schema(self) -> Optional[ObjectSchema]:
+        return self.manager.get_expected_schema()
 
     @property
-    def realized_otype(self) -> Optional[ObjectType]:
-        return self.manager.get_realized_otype()
+    def realized_schema(self) -> Optional[ObjectSchema]:
+        return self.manager.get_realized_schema()
 
 
 DataSet = ManagedDataSet
@@ -307,15 +307,15 @@ class DataBlockManager:
     def __str__(self):
         return f"DRM: {self.data_block}, Local: {self.ctx.local_memory_storage}, rest: {self.ctx.storages}"
 
-    def get_realized_otype(self) -> Optional[ObjectType]:
-        if self.data_block.realized_otype_key is None:
+    def get_realized_schema(self) -> Optional[ObjectSchema]:
+        if self.data_block.realized_schema_key is None:
             return None
-        return self.ctx.env.get_otype(self.data_block.realized_otype_key)
+        return self.ctx.env.get_schema(self.data_block.realized_schema_key)
 
-    def get_expected_otype(self) -> Optional[ObjectType]:
-        if self.data_block.expected_otype_key is None:
+    def get_expected_schema(self) -> Optional[ObjectSchema]:
+        if self.data_block.expected_schema_key is None:
             return None
-        return self.ctx.env.get_otype(self.data_block.expected_otype_key)
+        return self.ctx.env.get_schema(self.data_block.expected_schema_key)
 
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFrameFormat)
@@ -405,27 +405,27 @@ def create_data_block_from_records(
     sess: Session,
     local_storage: Storage,
     records: Any,
-    expected_otype: ObjectType = None,
-    realized_otype: ObjectType = None,
+    expected_schema: ObjectSchema = None,
+    realized_schema: ObjectSchema = None,
 ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
     from dags.core.storage.storage import LocalMemoryStorageEngine
 
-    if not expected_otype:
-        expected_otype = env.get_otype("Any")
-    expected_otype_key = expected_otype.key
+    if not expected_schema:
+        expected_schema = env.get_schema("Any")
+    expected_schema_key = expected_schema.key
     ldr = LocalMemoryDataRecords.from_records_object(records)
-    if not realized_otype:
-        if is_any(expected_otype):
-            realized_otype = ldr.data_format.infer_otype_from_records(
+    if not realized_schema:
+        if is_any(expected_schema):
+            realized_schema = ldr.data_format.infer_schema_from_records(
                 ldr.records_object
             )
-            env.add_new_otype(realized_otype)
+            env.add_new_schema(realized_schema)
         else:
-            realized_otype = expected_otype
-    realized_otype_key = realized_otype.key
+            realized_schema = expected_schema
+    realized_schema_key = realized_schema.key
     block = DataBlockMetadata(
-        expected_otype_key=expected_otype_key,
-        realized_otype_key=realized_otype_key,
+        expected_schema_key=expected_schema_key,
+        realized_schema_key=realized_schema_key,
         record_count=ldr.record_count,
     )
     sdb = StoredDataBlockMetadata(  # type: ignore

@@ -30,19 +30,19 @@ if TYPE_CHECKING:
         Pipe,
     )
     from dags.core.module import DagsModule
-    from dags.core.typing.object_type import ObjectTypeLike, ObjectType
+    from dags.core.typing.object_schema import ObjectSchemaLike, ObjectSchema
 
 
 class ComponentLibrary:
     pipes: Dict[str, Pipe]
-    otypes: Dict[str, ObjectType]
+    schemas: Dict[str, ObjectSchema]
     module_lookup_keys: List[str]
 
     def __init__(self, module_lookup_keys: List[str] = None):
         from dags.core.module import DEFAULT_LOCAL_MODULE_KEY
 
         self.pipes = {}
-        self.otypes = {}
+        self.schemas = {}
         self.module_lookup_keys = [DEFAULT_LOCAL_MODULE_KEY]
         if module_lookup_keys:
             for k in module_lookup_keys:
@@ -58,8 +58,8 @@ class ComponentLibrary:
     def add_pipe(self, p: Pipe):
         self.pipes[p.key] = p
 
-    def add_otype(self, otype: ObjectType):
-        self.otypes[otype.key] = otype
+    def add_schema(self, schema: ObjectSchema):
+        self.schemas[schema.key] = schema
 
     def get_pipe(self, pipe_like: Union[Pipe, str], try_module_lookups=True) -> Pipe:
         from dags.core.pipe import Pipe
@@ -75,20 +75,20 @@ class ComponentLibrary:
                 return self.module_key_lookup(self.pipes, pipe_like)
             raise e
 
-    def get_otype(
-        self, otype_like: Union[ObjectType, str], try_module_lookups=True
-    ) -> ObjectType:
-        from dags.core.typing.object_type import ObjectType
+    def get_schema(
+        self, schema_like: Union[ObjectSchema, str], try_module_lookups=True
+    ) -> ObjectSchema:
+        from dags.core.typing.object_schema import ObjectSchema
 
-        if isinstance(otype_like, ObjectType):
-            return otype_like
-        if not isinstance(otype_like, str):
-            raise TypeError(otype_like)
+        if isinstance(schema_like, ObjectSchema):
+            return schema_like
+        if not isinstance(schema_like, str):
+            raise TypeError(schema_like)
         try:
-            return self.otypes[otype_like]
+            return self.schemas[schema_like]
         except KeyError as e:
             if try_module_lookups:
-                return self.module_key_lookup(self.otypes, otype_like)
+                return self.module_key_lookup(self.schemas, schema_like)
             raise e
 
     def module_key_lookup(self, d: Dict[str, Any], k: str) -> Any:
@@ -104,12 +104,12 @@ class ComponentLibrary:
     def all_pipes(self) -> List[Pipe]:
         return list(self.pipes.values())
 
-    def all_otypes(self) -> List[ObjectType]:
-        return list(self.otypes.values())
+    def all_schemas(self) -> List[ObjectSchema]:
+        return list(self.schemas.values())
 
     def merge(self, other: ComponentLibrary):
         self.pipes.update(other.pipes)
-        self.otypes.update(other.otypes)
+        self.schemas.update(other.schemas)
         for k in other.module_lookup_keys:
             self.add_module_key(k)
 
@@ -117,11 +117,11 @@ class ComponentLibrary:
         ad = AttrDict()
         for k, p in d.items():
             ad[k] = p
-            ad[k.split(".")[-1]] = p
+            ad[k.split(".")[-1]] = p  # TODO: module precedence
         return ad
 
     def get_pipes_view(self) -> AttrDict[str, Pipe]:
         return self.get_view(self.pipes)
 
-    def get_otypes_view(self) -> AttrDict[str, ObjectType]:
-        return self.get_view(self.otypes)
+    def get_schemas_view(self) -> AttrDict[str, ObjectSchema]:
+        return self.get_view(self.schemas)

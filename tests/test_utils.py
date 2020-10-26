@@ -20,9 +20,9 @@ from dags.utils.data import is_nullish
 from dags.utils.pandas import (
     assert_dataframes_are_almost_equal,
     dataframe_to_records_list,
-    empty_dataframe_for_otype,
+    empty_dataframe_for_schema,
 )
-from tests.utils import TestType4
+from tests.utils import TestSchema4
 
 
 def test_snake_and_title_cases():
@@ -84,11 +84,11 @@ def test_assert_dataframes_are_almost_equal():
     df2 = DataFrame({"f1": range(10), "f2": range(10)})
     df3 = DataFrame({"f1": range(10), "f2": range(10), "c": range(10)})
     df4 = DataFrame({"f1": range(20), "f2": range(20)})
-    assert_dataframes_are_almost_equal(df1, df2, TestType4)
+    assert_dataframes_are_almost_equal(df1, df2, TestSchema4)
     with pytest.raises(AssertionError):
-        assert_dataframes_are_almost_equal(df1, df3, TestType4)
+        assert_dataframes_are_almost_equal(df1, df3, TestSchema4)
     with pytest.raises(AssertionError):
-        assert_dataframes_are_almost_equal(df1, df4, TestType4)
+        assert_dataframes_are_almost_equal(df1, df4, TestSchema4)
 
 
 def test_is_emptyish():
@@ -103,10 +103,10 @@ def test_is_emptyish():
     assert not is_nullish("0")
 
 
-def test_empty_dataframe_from_otype():
-    df = empty_dataframe_for_otype(TestType4)
+def test_empty_dataframe_from_schema():
+    df = empty_dataframe_for_schema(TestSchema4)
     assert set(df.columns) == {"f1", "f2"}
-    df = empty_dataframe_for_otype(TestType4)
+    df = empty_dataframe_for_schema(TestSchema4)
     assert set(d.name for d in df.dtypes) == {"string", "int32"}
 
 
@@ -129,8 +129,8 @@ def get_tmp_sqlite_db_url(dbname=None):
     return f"sqlite:///{dir}/{dbname}.db"
 
 
-# def test_coerce_dataframe_to_otype():
+# def test_coerce_dataframe_to_schema():
 #     df = DataFrame({"f1": range(10), "f2": range(10)})
-#     df = coerce_dataframe_to_otype(df, TestType4)
+#     df = coerce_dataframe_to_schema(df, TestSchema4)
 #     dfe = DataFrame({"f1": [str(i) for i in range(10)], "f2": range(10)})
-#     assert_dataframes_are_almost_equal(df, dfe, TestType4)
+#     assert_dataframes_are_almost_equal(df, dfe, TestSchema4)

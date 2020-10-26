@@ -18,7 +18,7 @@ accumulator_test = PipeTest(
             "test_data": [
                 {
                     "input": {
-                        "otype": "CoreTestType",
+                        "schema": "CoreTestSchema",
                         "data": """
                         k1,k2,f1,f2,f3,f4
                         1,2,abc,1.1,1,
@@ -30,7 +30,7 @@ accumulator_test = PipeTest(
                     },
                     "this": {},
                     "output": {
-                        "otype": "CoreTestType",
+                        "schema": "CoreTestSchema",
                         "data": """
                         k1,k2,f1,f2,f3,f4
                         1,2,abc,1.1,1,
@@ -43,7 +43,7 @@ accumulator_test = PipeTest(
                 },
                 {
                     "input": {
-                        "otype": "CoreTestType",
+                        "schema": "CoreTestSchema",
                         "data": """
                         k1,k2,f1,f2,f3,f4
                         1,2,abc,1.1,1,
@@ -56,7 +56,7 @@ accumulator_test = PipeTest(
                     },
                     "this": {},
                     "output": {
-                        "otype": "CoreTestType",
+                        "schema": "CoreTestSchema",
                         "data": """
                         k1,k2,f1,f2,f3,f4
                         1,2,abc,1.1,1,
@@ -74,7 +74,7 @@ accumulator_test = PipeTest(
             "name": "test_empty_this",
             "test_data": {
                 "input": {
-                    "otype": "CoreTestType",
+                    "schema": "CoreTestSchema",
                     "data": """
         k1,k2,f1,f2,f3,f4
         1,2,abc,1.1,1,
@@ -86,7 +86,7 @@ accumulator_test = PipeTest(
                 },
                 "this": {},
                 "output": {
-                    "otype": "CoreTestType",
+                    "schema": "CoreTestSchema",
                     "data": """
         k1,k2,f1,f2,f3,f4
         1,2,abc,1.1,1,
@@ -102,7 +102,7 @@ accumulator_test = PipeTest(
     # TODO: how to test `this`?
     # test_recursive_input=dict(
     #     input="""
-    #         otype: CoreTestType
+    #         schema: CoreTestSchema
     #         k1,k2,f1,f2,f3
     #         1,2,abc,1.1,1
     #         1,2,def,1.1,{"1":2}
@@ -111,13 +111,13 @@ accumulator_test = PipeTest(
     #         2,2,1.0,2.1,"[1,2,3]"
     #     """,
     #     this="""
-    #         otype: CoreTestType
+    #         schema: CoreTestSchema
     #         k1,k2,f1,f2,f3
     #         1,5,abc,1.1,
     #         1,6,abc,1.1,2
     #     """,
     #     output="""
-    #         otype: CoreTestType
+    #         schema: CoreTestSchema
     #         k1,k2,f1,f2,f3
     #         1,2,def,1.1,{"1":2}
     #         1,3,abc,1.1,2

@@ -9,7 +9,7 @@ from dags.core.data_formats.base import MemoryDataFormatBase
 from dags.utils.typing import T
 
 if TYPE_CHECKING:
-    from dags import ObjectType
+    from dags import ObjectSchema
 
 
 class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
@@ -29,16 +29,16 @@ class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
         return cls.maybe_instance(obj)
 
     @classmethod
-    def infer_otype_from_records(cls, records: DataFrame) -> ObjectType:
-        from dags.core.typing.inference import infer_otype_from_records_list
+    def infer_schema_from_records(cls, records: DataFrame) -> ObjectSchema:
+        from dags.core.typing.inference import infer_schema_from_records_list
         from dags.core.data_formats import get_records_list_sample
 
         dl = get_records_list_sample(records)
         if dl is None:
             raise ValueError("Empty records object")
-        inferred_otype = infer_otype_from_records_list(dl)
-        return inferred_otype
+        inferred_schema = infer_schema_from_records_list(dl)
+        return inferred_schema
 
     @classmethod
-    def conform_records_to_otype(cls, records: T) -> T:
+    def conform_records_to_schema(cls, records: T) -> T:
         raise NotImplementedError

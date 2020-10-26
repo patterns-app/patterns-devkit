@@ -27,7 +27,7 @@ packages = [
 package_data = {
     "": ["*"],
     "dags.core.sql": ["templates/*"],
-    "dags.modules.core": ["otypes/*"],
+    "dags.modules.core": ["schemas/*"],
 }
 
 install_requires = [

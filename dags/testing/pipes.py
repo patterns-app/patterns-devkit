@@ -13,10 +13,10 @@ from dags.core.graph import Graph
 from dags.core.pipe import PipeLike, ensure_pipe
 from dags.core.streams import InputBlocks
 from dags.core.typing.inference import (
-    conform_dataframe_to_otype,
-    infer_otype_from_records_list,
+    conform_dataframe_to_schema,
+    infer_schema_from_records_list,
 )
-from dags.core.typing.object_type import ObjectTypeLike
+from dags.core.typing.object_schema import ObjectSchemaLike
 from dags.db.api import dispose_all
 from dags.utils.common import cf, printd, rand_str
 from dags.utils.data import read_csv, read_json
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class TestDataBlock:
-    otype_like: ObjectTypeLike
+    schema_like: ObjectSchemaLike
     data_frame: DataFrame
     data_raw: Optional[str] = None
 
@@ -85,13 +85,13 @@ class PipeTest:
                 test_data_blocks = {}
                 for input_name, data_block_like in test_data.items():
                     data = data_block_like.get("data")
-                    otype = data_block_like.get("otype")
+                    schema = data_block_like.get("schema")
                     if data:
                         df = self.process_raw_test_data_into_dataframe(data)
                     else:
                         df = None
                     test_data_blocks[input_name] = TestDataBlock(
-                        otype_like=otype, data_frame=df, data_raw=data
+                        schema_like=schema, data_frame=df, data_raw=data
                     )
                 processed_test_datas.append(test_data_blocks)
             dfcase = PipeTestCase(
@@ -119,8 +119,8 @@ class PipeTest:
             lines = [ln.strip() for ln in test_data.split("\n") if ln.strip()]
             assert lines, "Empty test data"
             raw_records = read_csv(lines)
-        auto_otype = infer_otype_from_records_list(raw_records)
-        df = records_list_to_dataframe(raw_records, auto_otype)
+        auto_schema = infer_schema_from_records_list(raw_records)
+        df = records_list_to_dataframe(raw_records, auto_schema)
         return df
 
     @contextmanager
@@ -169,11 +169,11 @@ class PipeTest:
                         for input in dfi.inputs:
                             assert input.name is not None
                             test_df = test_data[input.name].data_frame
-                            test_otype = test_data[input.name].otype_like
+                            test_schema = test_data[input.name].schema_like
                             n = g.add_node(
                                 f"_test_source_node_{input.name}_{i}",
                                 "core.extract_dataframe",
-                                config={"dataframe": test_df, "otype": test_otype},
+                                config={"dataframe": test_df, "schema": test_schema},
                             )
                             inputs[input.name] = n
                         test_node = g.add_node(
@@ -190,18 +190,18 @@ class PipeTest:
                             output_df = output.as_dataframe()
                             # output_df.to_csv("out.csv")
                             expected_df = test_data["output"].data_frame
-                            expected_otype = env.get_otype(
-                                test_data["output"].otype_like
+                            expected_schema = env.get_schema(
+                                test_data["output"].schema_like
                             )
                             # TODO: conform cleanup
-                            conform_dataframe_to_otype(expected_df, expected_otype)
-                            conform_dataframe_to_otype(output_df, expected_otype)
+                            conform_dataframe_to_schema(expected_df, expected_schema)
+                            conform_dataframe_to_schema(output_df, expected_schema)
                             logger.debug("Output", output_df)
                             logger.debug("Expected", expected_df)
                             assert_dataframes_are_almost_equal(
                                 output_df,
                                 expected_df,
-                                expected_otype,
+                                expected_schema,
                                 ignored_columns=case.ignored_fields,
                             )
                         else:

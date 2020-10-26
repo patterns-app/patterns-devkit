@@ -18,7 +18,11 @@ from typing import (
 )
 
 from dags.core.component import ComponentLibrary
-from dags.core.typing.object_type import ObjectType, ObjectTypeLike, otype_from_yaml
+from dags.core.typing.object_schema import (
+    ObjectSchema,
+    ObjectSchemaLike,
+    schema_from_yaml,
+)
 from dags.utils.common import AttrDict
 
 if TYPE_CHECKING:
@@ -45,7 +49,7 @@ class DagsModule:
         key: str,
         py_module_path: Optional[str] = None,
         py_module_name: Optional[str] = None,
-        otypes: Optional[Sequence[ObjectTypeLike]] = None,
+        schemas: Optional[Sequence[ObjectSchemaLike]] = None,
         pipes: Optional[Sequence[Union[PipeLike, str]]] = None,
         tests: Optional[Sequence[PipeTest]] = None,
         dependencies: List[
@@ -61,8 +65,8 @@ class DagsModule:
         self.library = ComponentLibrary(module_lookup_keys=[self.key])
         self.test_cases = []
         self.dependencies = []
-        for otype in otypes or []:
-            self.add_otype(otype)
+        for schema in schemas or []:
+            self.add_schema(schema)
         for fn in pipes or []:
             self.add_pipe(fn)
         for t in tests or []:
@@ -84,10 +88,10 @@ class DagsModule:
         with open(typedef_path) as f:
             yield f
 
-    def get_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
-        if isinstance(otype_like, ObjectType):
-            return otype_like
-        return self.library.get_otype(otype_like)
+    def get_schema(self, schema_like: ObjectSchemaLike) -> ObjectSchema:
+        if isinstance(schema_like, ObjectSchema):
+            return schema_like
+        return self.library.get_schema(schema_like)
 
     def get_pipe(self, pipe_like: Union[Pipe, str]) -> Pipe:
         from dags.core.pipe import Pipe
@@ -102,8 +106,8 @@ class DagsModule:
         sys.modules[self.py_module_name] = self  # type: ignore  # sys.module_lookup_keys wants a modulefinder.Module type and it's not gonna get it
 
     @property
-    def otypes(self) -> AttrDict[str, ObjectType]:
-        return self.library.get_otypes_view()
+    def schemas(self) -> AttrDict[str, ObjectSchema]:
+        return self.library.get_schemas_view()
 
     @property
     def pipes(self) -> AttrDict[str, Pipe]:
@@ -114,22 +118,22 @@ class DagsModule:
         # if not obj.key.startswith(self.key + "."):
         #     raise ValueError("Must prefix component key with module key")
 
-    def add_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
-        otype = self.process_otype(otype_like)
-        self.validate_key(otype)
-        self.library.add_otype(otype)
-        return otype
+    def add_schema(self, schema_like: ObjectSchemaLike) -> ObjectSchema:
+        schema = self.process_schema(schema_like)
+        self.validate_key(schema)
+        self.library.add_schema(schema)
+        return schema
 
-    def process_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
-        if isinstance(otype_like, ObjectType):
-            otype = otype_like
-        elif isinstance(otype_like, str):
-            with self.open_module_file(otype_like) as f:
+    def process_schema(self, schema_like: ObjectSchemaLike) -> ObjectSchema:
+        if isinstance(schema_like, ObjectSchema):
+            schema = schema_like
+        elif isinstance(schema_like, str):
+            with self.open_module_file(schema_like) as f:
                 yml = f.read()
-                otype = otype_from_yaml(yml, module_key=self.key)
+                schema = schema_from_yaml(yml, module_key=self.key)
         else:
-            raise TypeError(otype_like)
-        return otype
+            raise TypeError(schema_like)
+        return schema
 
     def add_pipe(self, pipe_like: Union[PipeLike, str]) -> Pipe:
         p = self.process_pipe(pipe_like)
@@ -208,11 +212,11 @@ class DagsModule:
     #     return test_cases
 
     # def get_indexable_components(self) -> Iterable[IndexableComponent]:
-    #     dti = self.otype_indexer()
+    #     dti = self.schema_indexer()
     #     si = self.provider_indexer()
     #     dfi = self.pipe_indexer()
-    #     for otype in self.otypes.all():
-    #         for ic in dti.get_indexable_components(otype, self):
+    #     for schema in self.schemas.all():
+    #         for ic in dti.get_indexable_components(schema, self):
     #             yield ic
     #     for s in self.providers.all():
     #         for ic in si.get_indexable_components(s, self):

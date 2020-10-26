@@ -24,10 +24,10 @@ from dags.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.data_formats import DatabaseTableFormat, DataFormat, RecordsList
 from dags.core.environment import Environment
 from dags.core.runtime import Runtime
-from dags.core.sql.utils import ObjectTypeMapper
+from dags.core.sql.utils import ObjectSchemaMapper
 from dags.core.storage.storage import Storage, StorageEngine
-from dags.core.typing.inference import infer_otype_from_db_table
-from dags.core.typing.object_type import ObjectType, is_any
+from dags.core.typing.inference import infer_schema_from_db_table
+from dags.core.typing.object_schema import ObjectSchema, is_any
 from dags.utils.common import DagsJSONEncoder, printd, rand_str, title_to_snake_case
 from dags.utils.data import conform_records_for_insert
 from loguru import logger
@@ -105,9 +105,9 @@ class DatabaseAPI:
         name = sdb.get_name(self.env)
         if self.exists(name):
             return name
-        otype = sdb.get_realized_otype(self.env)
-        ddl = ObjectTypeMapper(self.env).create_table_statement(
-            otype=otype, storage_engine=sdb.storage.storage_engine, table_name=name,
+        schema = sdb.get_realized_schema(self.env)
+        ddl = ObjectSchemaMapper(self.env).create_table_statement(
+            schema=schema, storage_engine=sdb.storage.storage_engine, table_name=name,
         )
         self.execute_sql(ddl)
         return name
@@ -120,9 +120,9 @@ class DatabaseAPI:
 
     def insert_sql(self, destination_sdb: StoredDataBlockMetadata, sql: str):
         name = self.ensure_table(destination_sdb)
-        otype = destination_sdb.get_realized_otype(self.env)
+        schema = destination_sdb.get_realized_schema(self.env)
         sql = self.clean_sub_sql(sql)
-        columns = "\n,".join(f.name for f in otype.fields)
+        columns = "\n,".join(f.name for f in schema.fields)
         insert_sql = f"""
         insert into {name} (
             {columns}
@@ -136,7 +136,7 @@ class DatabaseAPI:
         self.execute_sql(insert_sql)
 
     def create_data_block_from_sql(
-        self, sess: Session, sql: str, expected_otype: ObjectType = None
+        self, sess: Session, sql: str, expected_schema: ObjectSchema = None
     ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
         tmp_name = f"_tmp_{rand_str(10)}".lower()
         sql = self.clean_sub_sql(sql)
@@ -151,18 +151,18 @@ class DatabaseAPI:
         self.execute_sql(create_sql)
         cnt = self.count(tmp_name)
         # TODO: DRY this with other "create_data_block"
-        if not expected_otype:
-            expected_otype = self.env.get_otype("Any")
-        expected_otype_key = expected_otype.key
-        if is_any(expected_otype):
-            realized_otype = infer_otype_from_db_table(self, tmp_name)
-            self.env.add_new_otype(realized_otype)
+        if not expected_schema:
+            expected_schema = self.env.get_schema("Any")
+        expected_schema_key = expected_schema.key
+        if is_any(expected_schema):
+            realized_schema = infer_schema_from_db_table(self, tmp_name)
+            self.env.add_new_schema(realized_schema)
         else:
-            realized_otype = expected_otype
-        realized_otype_key = realized_otype.key
+            realized_schema = expected_schema
+        realized_schema_key = realized_schema.key
         block = DataBlockMetadata(
-            expected_otype_key=expected_otype_key,
-            realized_otype_key=realized_otype_key,
+            expected_schema_key=expected_schema_key,
+            realized_schema_key=realized_schema_key,
             record_count=cnt,
         )
         storage_url = self.resource.url

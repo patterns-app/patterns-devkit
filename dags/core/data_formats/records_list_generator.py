@@ -7,7 +7,7 @@ from dags.core.data_formats.base import MemoryDataFormatBase, ReusableGenerator
 from dags.core.data_formats.records_list import RecordsList
 
 if TYPE_CHECKING:
-    from dags import ObjectType
+    from dags import ObjectSchema
 
 
 class RecordsListGenerator(ReusableGenerator[RecordsList]):
@@ -28,12 +28,12 @@ class RecordsListGeneratorFormat(MemoryDataFormatBase):
         return isinstance(obj, cls.type())
 
     @classmethod
-    def infer_otype_from_records(cls, records: RecordsListGenerator) -> ObjectType:
-        from dags.core.typing.inference import infer_otype_from_records_list
+    def infer_schema_from_records(cls, records: RecordsListGenerator) -> ObjectSchema:
+        from dags.core.typing.inference import infer_schema_from_records_list
         from dags.core.data_formats import RecordsList, get_records_list_sample
 
         dl = get_records_list_sample(records)
         if dl is None:
             raise ValueError("Empty records object")
-        inferred_otype = infer_otype_from_records_list(dl)
-        return inferred_otype
+        inferred_schema = infer_schema_from_records_list(dl)
+        return inferred_schema

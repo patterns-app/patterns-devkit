@@ -11,7 +11,7 @@ from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, PipeLog
 from dags.core.streams import DataBlockStream
 from tests.utils import (
-    TestType1,
+    TestSchema1,
     make_test_execution_context,
     pipe_generic,
     pipe_t1_sink,
@@ -27,22 +27,26 @@ class TestStreams:
         self.env = ctx.env
         self.g = Graph(self.env)
         self.dr1t1 = DataBlockMetadata(
-            expected_otype_key="_test.TestType1", realized_otype_key="_test.TestType1"
+            expected_schema_key="_test.TestSchema1",
+            realized_schema_key="_test.TestSchema1",
         )
         self.dr2t1 = DataBlockMetadata(
-            expected_otype_key="_test.TestType1", realized_otype_key="_test.TestType1"
+            expected_schema_key="_test.TestSchema1",
+            realized_schema_key="_test.TestSchema1",
         )
         self.dr1t2 = DataBlockMetadata(
-            expected_otype_key="_test.TestType2", realized_otype_key="_test.TestType2"
+            expected_schema_key="_test.TestSchema2",
+            realized_schema_key="_test.TestSchema2",
         )
         self.dr2t2 = DataBlockMetadata(
-            expected_otype_key="_test.TestType2", realized_otype_key="_test.TestType2"
+            expected_schema_key="_test.TestSchema2",
+            realized_schema_key="_test.TestSchema2",
         )
         self.ds1db1 = DataSetMetadata(
             data_block=self.dr1t1,
             name="dataset1",
-            expected_otype_key="_test.TestType1",
-            realized_otype_key="_test.TestType1",
+            expected_schema_key="_test.TestSchema1",
+            realized_schema_key="_test.TestSchema1",
         )
         self.node_source = self.g.add_node("pipe_source", pipe_t1_source)
         self.node1 = self.g.add_node("pipe1", pipe_t1_sink)
@@ -125,7 +129,7 @@ class TestStreams:
         s2 = s.filter_unprocessed(self.node1, allow_cycle=True)
         assert s2.get_next(self.ctx) == self.dr1t1
 
-    def test_stream_unprocessed_eligible_otype(self):
+    def test_stream_unprocessed_eligible_schema(self):
         dfl = PipeLog(
             node_key=self.node_source.key,
             pipe_key=self.node_source.pipe.key,
@@ -136,11 +140,11 @@ class TestStreams:
         )
         self.sess.add_all([dfl, drl])
 
-        s = DataBlockStream(upstream=self.node_source, otype="TestType1")
+        s = DataBlockStream(upstream=self.node_source, schema="TestSchema1")
         s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) == self.dr1t1
 
-        s = DataBlockStream(upstream=self.node_source, otype="TestType2")
+        s = DataBlockStream(upstream=self.node_source, schema="TestSchema2")
         s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) is None
 
@@ -163,7 +167,7 @@ class TestStreams:
     # Deprecated for now
     # def test_stream_records_object(self):
     #     records = [{"a": 1, "b": 2}]
-    #     s = DataBlockStream(raw_records_object=records, raw_records_otype=TestType1)
+    #     s = DataBlockStream(raw_records_object=records, raw_records_schema=TestSchema1)
     #     db = s.get_next(self.ctx)
     #     self.ctx.metadata_session.commit()
     #     assert db is not None

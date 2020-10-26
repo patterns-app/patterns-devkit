@@ -38,8 +38,8 @@ class FileSystemAPI:
         stored_data_block: StoredDataBlockMetadata,
         records_iterable: Iterable[RecordsList],
     ):
-        output_otype = stored_data_block.get_realized_otype(self.env)
-        columns = [f.name for f in output_otype.fields]
+        output_schema = stored_data_block.get_realized_schema(self.env)
+        columns = [f.name for f in output_schema.fields]
         with self.open(stored_data_block, "w") as f:
             append = False
             for records in records_iterable:

@@ -14,7 +14,7 @@ module = DagsModule(
     "_test_module",
     py_module_path=__file__,
     py_module_name=__name__,
-    otypes=["otypes/test_type.yml"],
+    schemas=["schemas/test_schema.yml"],
     pipes=["test_sql.sql", df1],
 )
 module.export()

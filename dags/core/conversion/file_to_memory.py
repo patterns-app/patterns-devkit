@@ -15,7 +15,7 @@ from dags.core.data_formats import (
 )
 from dags.core.storage.file_system import FileSystemAPI
 from dags.core.storage.storage import LocalMemoryStorageEngine, StorageType
-from dags.core.typing.inference import conform_records_list_to_otype
+from dags.core.typing.inference import conform_records_list_to_schema
 from dags.utils.data import read_csv, read_json
 
 
@@ -39,8 +39,8 @@ class FileToMemoryConverter(Converter):
         if output_sdb.data_format == RecordsListFormat:
             if input_sdb.data_format == DelimitedFileFormat:
                 with input_api.open(input_sdb) as f:
-                    output_records = conform_records_list_to_otype(
-                        read_csv(f.readlines()), input_sdb.get_realized_otype(self.env)
+                    output_records = conform_records_list_to_schema(
+                        read_csv(f.readlines()), input_sdb.get_realized_schema(self.env)
                     )
             elif input_sdb.data_format == JsonListFileFormat:
                 with input_api.open(input_sdb) as f:
@@ -83,8 +83,8 @@ class FileToMemoryConverter(Converter):
                     while len(chunk) < chunk_size and line:
                         chunk.append(line)
                         line = f.readline()
-                    yield conform_records_list_to_otype(
-                        read_csv(chunk), input_sdb.get_realized_otype(self.env)
+                    yield conform_records_list_to_schema(
+                        read_csv(chunk), input_sdb.get_realized_schema(self.env)
                     )
 
         return RecordsListGenerator(generate_chunks(input_sdb))

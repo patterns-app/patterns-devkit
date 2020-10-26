@@ -20,10 +20,10 @@ import networkx as nx
 
 from dags.core.data_block import DataBlock, DataBlockMetadata, DataSetMetadata
 from dags.core.environment import Environment
-from dags.core.typing.object_type import (
-    ObjectType,
-    ObjectTypeKey,
-    ObjectTypeLike,
+from dags.core.typing.object_schema import (
+    ObjectSchema,
+    ObjectSchemaKey,
+    ObjectSchemaLike,
     is_any,
     is_generic,
 )
@@ -77,7 +77,7 @@ class BadAnnotationException(Exception):
 @dataclass
 class PipeAnnotation:
     data_format_class: str
-    otype_like: ObjectTypeLike
+    schema_like: ObjectSchemaLike
     name: Optional[str] = None
     # is_iterable: bool = False  # TODO: what is state of iterable support?
     is_variadic: bool = False  # TODO: what is state of variadic support?
@@ -94,14 +94,14 @@ class PipeAnnotation:
 
     @classmethod
     def create(cls, **kwargs) -> PipeAnnotation:
-        if not kwargs.get("otype_like"):
-            kwargs["otype_like"] = "Any"
+        if not kwargs.get("schema_like"):
+            kwargs["schema_like"] = "Any"
         name = kwargs.get("name")
         if name:
             kwargs["is_self_ref"] = name == SELF_REF_PARAM_NAME
-        otype_name = kwargs.get("otype_like")
-        if isinstance(otype_name, str):
-            kwargs["is_generic"] = is_generic(otype_name)
+        schema_name = kwargs.get("schema_like")
+        if isinstance(schema_name, str):
+            kwargs["is_generic"] = is_generic(schema_name)
         if kwargs["data_format_class"] not in VALID_DATA_INTERFACE_TYPES:
             raise TypeError(
                 f"`{kwargs['data_format_class']}` is not a valid data input type"
@@ -133,20 +133,20 @@ class PipeAnnotation:
             raise BadAnnotationException(f"Invalid Pipe annotation '{annotation}'")
         is_optional = bool(m.groupdict()["optional"])
         data_format_class = m.groupdict()["origin"]
-        otype_name = m.groupdict()["arg"]
+        schema_name = m.groupdict()["arg"]
         args = dict(
             data_format_class=data_format_class,
-            otype_like=otype_name,
+            schema_like=schema_name,
             is_optional=is_optional,
             original_annotation=annotation,
         )
         args.update(**kwargs)
         return PipeAnnotation.create(**args)  # type: ignore
 
-    def otype_key(self, env: Environment) -> ObjectTypeKey:
+    def schema_key(self, env: Environment) -> ObjectSchemaKey:
         if self.is_generic:
-            raise ValueError("Generic ObjectType has no key")
-        return env.get_otype(self.otype_like).key
+            raise ValueError("Generic ObjectSchema has no key")
+        return env.get_schema(self.schema_like).key
 
 
 @dataclass
@@ -196,26 +196,26 @@ class BoundPipeInterface:
 
 
 #
-#     def bind_and_specify_otypes(self, env: Environment, input_blocks: InputBlocks):
+#     def bind_and_specify_schemas(self, env: Environment, input_blocks: InputBlocks):
 #         if self.is_bound:
 #             raise Exception("Already bound")
-#         realized_generics: Dict[str, ObjectType] = {}
+#         realized_generics: Dict[str, ObjectSchema] = {}
 #         for name, input_block in input_blocks.items():
 #             i = self.get_input(name)
 #             i.bound_data_block = input_block
-#             i.realized_otype = env.get_otype(input_block.realized_otype_key)
+#             i.realized_schema = env.get_schema(input_block.realized_schema_key)
 #             if i.original_annotation.is_generic:
-#                 assert isinstance(i.original_annotation.otype_like, str)
-#                 realized_generics[i.original_annotation.otype_like] = i.realized_otype
+#                 assert isinstance(i.original_annotation.schema_like, str)
+#                 realized_generics[i.original_annotation.schema_like] = i.realized_schema
 #         if (
 #             self.output is not None
-#             and is_any(self.resolved_output_otype)
+#             and is_any(self.resolved_output_schema)
 #             and self.output.is_generic
 #         ):
 #             # Further specify resolved type now that we have something concrete for Any
 #             # TODO: man this is too complex. how do we simplify different type levels
-#             assert isinstance(self.output.otype_like, str)
-#             self.resolved_output_otype = realized_generics[self.output.otype_like]
+#             assert isinstance(self.output.schema_like, str)
+#             self.resolved_output_schema = realized_generics[self.output.schema_like]
 #         self.is_bound = True
 #
 #     def as_kwargs(self):

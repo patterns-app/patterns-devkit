@@ -12,7 +12,7 @@ def test_env_init():
     assert len(env.get_module_order()) == 1
     env.add_module(_test_module)
     assert env.get_module_order() == [env.get_local_module().key, _test_module.key]
-    assert env.get_otype("TestType") is _test_module.otypes.TestType
+    assert env.get_schema("TestSchema") is _test_module.schemas.TestSchema
     assert env.get_pipe("test_sql") is _test_module.pipes.test_sql
     # Test runtime / storage
     env.add_storage("postgres://test")

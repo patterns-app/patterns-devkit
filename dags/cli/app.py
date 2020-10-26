@@ -11,8 +11,8 @@ from sqlalchemy import func
 from dags.core.data_block import DataBlockMetadata, DataSetMetadata
 from dags.core.environment import Environment, current_env
 from dags.core.node import PipeLog
-from dags.core.typing.inference import dict_to_rough_otype
-from dags.core.typing.object_type import otype_to_yaml
+from dags.core.typing.inference import dict_to_rough_schema
+from dags.core.typing.object_schema import schema_to_yaml
 from dags.project.project import DAGS_PROJECT_FILE_NAME, init_project_in_dir
 from dags.utils import common
 from dags.utils.common import cf
@@ -110,15 +110,15 @@ def search(query: str, component_type: str = None):
 def generate(component_type: str):
     """Generate components from other sources"""
     # TODO: make this a whole wizard flow for each component type
-    if component_type == "otype":
+    if component_type == "schema":
         s = ""
         for line in sys.stdin:
             s += line
-        otype = dict_to_rough_otype("NewType", json.loads(s))
-        otype = otype_to_yaml(otype)
-        click.secho("New ObjectType definition", bold=True)
+        schema = dict_to_rough_schema("NewType", json.loads(s))
+        schema = schema_to_yaml(schema)
+        click.secho("New ObjectSchema definition", bold=True)
         click.secho("-----------------------")
-        click.echo(otype)
+        click.echo(schema)
         click.secho("-----------------------")
 
 
@@ -148,7 +148,7 @@ def list_data_blocks(env: Environment):
         rows = [
             [
                 r.id,
-                r.expected_otype_key,
+                r.expected_schema_key,
                 r.created_by(sess),
                 r.stored_data_blocks.count(),
             ]
@@ -164,7 +164,7 @@ def list_data_sets(env: Environment):
         rows = [
             [
                 r.name,
-                r.data_block.expected_otype_key,
+                r.data_block.expected_schema_key,
                 r.data_block.stored_data_blocks.count(),
             ]
             for r in query

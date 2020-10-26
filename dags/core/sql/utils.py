@@ -13,7 +13,7 @@ from sqlalchemy.sql.ddl import CreateTable
 
 from dags.core.environment import Environment
 from dags.core.storage.storage import StorageEngine
-from dags.core.typing.object_type import Field, ObjectType
+from dags.core.typing.object_schema import Field, ObjectSchema
 from dags.utils.common import rand_str
 
 core_dir = os.path.dirname(__file__)
@@ -63,7 +63,7 @@ def compile_jinja_sql_template(template, template_ctx=None):
 #         return nodes.Const("")
 
 
-class ObjectTypeFieldMapper:
+class ObjectSchemaFieldMapper:
     def __init__(self, env: Environment):
         self.env = env
 
@@ -102,7 +102,7 @@ class ObjectTypeFieldMapper:
         return Field(name=sa_column.name, field_type=repr(sa_column.type), **kwargs)
 
 
-class ObjectTypeMapper:
+class ObjectSchemaMapper:
     def __init__(self, env: Environment, sqlalchemy_metadata: MetaData = None):
         self.storage_engine_to_sa_dialect: Dict[StorageEngine, Dialect] = {
             StorageEngine.POSTGRES: postgresql.dialect(),
@@ -113,41 +113,41 @@ class ObjectTypeMapper:
         self.sqlalchemy_metadata = sqlalchemy_metadata or MetaData()
 
     def to_sqlalchemy(
-        self, otype: ObjectType, otype_field_mapper: ObjectTypeFieldMapper = None,
+        self, schema: ObjectSchema, schema_field_mapper: ObjectSchemaFieldMapper = None,
     ) -> Sequence[Column]:
         columns: List[Column] = []
-        if otype_field_mapper is None:
-            otype_field_mapper = ObjectTypeFieldMapper(self.env)
-        fields = otype.fields
+        if schema_field_mapper is None:
+            schema_field_mapper = ObjectSchemaFieldMapper(self.env)
+        fields = schema.fields
         for field in fields:
-            c = otype_field_mapper.to_sqlalchemy(field)
+            c = schema_field_mapper.to_sqlalchemy(field)
             columns.append(c)
         # TODO: table level constraints
         return columns
 
     def create_table_statement(
         self,
-        otype: ObjectType,
+        schema: ObjectSchema,
         storage_engine: StorageEngine,
         # dialect: Dialect = postgresql.dialect(),
         table_name: str = None,
     ):
-        sa_columns = self.to_sqlalchemy(otype)
+        sa_columns = self.to_sqlalchemy(schema)
         if not table_name:
-            table_name = f"_{otype.name}_{rand_str(6)}"
+            table_name = f"_{schema.name}_{rand_str(6)}"
         sa_table = Table(table_name, self.sqlalchemy_metadata, *sa_columns)
         dialect = self.storage_engine_to_sa_dialect[storage_engine]
         stmt = CreateTable(sa_table).compile(dialect=dialect)
         sql = str(stmt)
         return sql
 
-    def from_sqlalchemy(self, sa_table: Table, **kwargs) -> ObjectType:
+    def from_sqlalchemy(self, sa_table: Table, **kwargs) -> ObjectSchema:
         fields = kwargs.get("fields", [])
-        field_mapper = ObjectTypeFieldMapper(self.env)
+        field_mapper = ObjectSchemaFieldMapper(self.env)
         for column in sa_table.columns:
             fields.append(field_mapper.from_sqlalchemy(column))
         kwargs["fields"] = fields
-        return ObjectType(**kwargs)
+        return ObjectSchema(**kwargs)
 
 
 def field_from_sqlalchemy_column(sa_column: Column, **kwargs) -> Field:

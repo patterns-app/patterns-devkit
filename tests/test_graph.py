@@ -19,8 +19,8 @@ from dags.core.streams import DataBlockStream
 from dags.modules import core
 from dags.utils.typing import T, U
 from tests.utils import (
-    TestType1,
-    TestType2,
+    TestSchema1,
+    TestSchema2,
     make_test_env,
     pipe_chain_t1_to_t2,
     pipe_dataset_input,

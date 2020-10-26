@@ -10,21 +10,21 @@ from dags.core.pipe import pipe_chain
 from dags.core.runnable import ExecutionContext, ExecutionManager, PipeContext
 from dags.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from dags.core.storage.storage import Storage, StorageClass, StorageEngine
-from dags.core.typing.object_type import create_quick_otype
+from dags.core.typing.object_schema import create_quick_schema
 from dags.utils.common import rand_str
 from dags.utils.typing import T
 
-TestType1 = create_quick_otype(
-    "TestType1", [("f1", "Unicode(256)")], module_key="_test"
+TestSchema1 = create_quick_schema(
+    "TestSchema1", [("f1", "Unicode(256)")], module_key="_test"
 )
-TestType2 = create_quick_otype(
-    "TestType2", [("f1", "Unicode(256)")], module_key="_test"
+TestSchema2 = create_quick_schema(
+    "TestSchema2", [("f1", "Unicode(256)")], module_key="_test"
 )
-TestType3 = create_quick_otype(
-    "TestType3", [("f1", "Unicode(256)")], module_key="_test"
+TestSchema3 = create_quick_schema(
+    "TestSchema3", [("f1", "Unicode(256)")], module_key="_test"
 )
-TestType4 = create_quick_otype(
-    "TestType4",
+TestSchema4 = create_quick_schema(
+    "TestSchema4",
     [("f1", "Unicode(256)"), ("f2", "Integer")],
     unique_on=["f1"],
     module_key="_test",
@@ -38,7 +38,7 @@ def make_test_env(**kwargs):
         kwargs["metadata_storage"] = metadata_storage
     env = Environment(initial_modules=[], **kwargs)
     test_module = DagsModule(
-        "_test", otypes=[TestType1, TestType2, TestType3, TestType4],
+        "_test", schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
     )
     env.add_module(test_module)
     return env
@@ -75,11 +75,11 @@ def make_test_execution_manager(**kwargs):
     return ExecutionManager(make_test_execution_context(**kwargs))
 
 
-def pipe_t1_sink(ctx: PipeContext, input: DataBlock[TestType1]):
+def pipe_t1_sink(ctx: PipeContext, input: DataBlock[TestSchema1]):
     pass
 
 
-def pipe_t1_to_t2(input: DataBlock[TestType1]) -> DataFrame[TestType2]:
+def pipe_t1_to_t2(input: DataBlock[TestSchema1]) -> DataFrame[TestSchema2]:
     pass
 
 
@@ -87,7 +87,7 @@ def pipe_generic(input: DataBlock[T]) -> DataFrame[T]:
     pass
 
 
-def pipe_t1_source(ctx: PipeContext) -> DataFrame[TestType1]:
+def pipe_t1_source(ctx: PipeContext) -> DataFrame[TestSchema1]:
     pass
 
 
@@ -99,7 +99,7 @@ def pipe_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
 
 
 def pipe_dataset_input(
-    input: DataBlock[T], other_ds_t2: DataSet[TestType2] = None
+    input: DataBlock[T], other_ds_t2: DataSet[TestSchema2] = None
 ) -> DataFrame[T]:
     pass
 

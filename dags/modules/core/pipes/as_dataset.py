@@ -17,8 +17,8 @@ def as_dataset_sql(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
     if ds is None:
         ds = DataSetMetadata(
             name=name,
-            expected_otype_key=input.expected_otype_key,
-            realized_otype_key=input.realized_otype_key,
+            expected_schema_key=input.expected_schema_key,
+            realized_schema_key=input.realized_schema_key,
         )
     ds.data_block_id = input.data_block_id
     ctx.execution_context.add(ds)
@@ -41,8 +41,8 @@ def as_dataset(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
     if ds is None:
         ds = DataSetMetadata(
             name=name,
-            expected_otype_key=input.expected_otype_key,
-            realized_otype_key=input.realized_otype_key,
+            expected_schema_key=input.expected_schema_key,
+            realized_schema_key=input.realized_schema_key,
         )
     ds.data_block_id = input.data_block_id
     ctx.execution_context.add(ds)

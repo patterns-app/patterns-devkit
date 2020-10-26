@@ -12,7 +12,7 @@ def add_persisting_sdb_listener(session_maker: sessionmaker):
 
         # if isinstance(instance, StoredDataBlockMetadata):
         #     logger.debug(
-        #         f"Persisted StoredDataBlock SDB#{cf.bold(instance.id)} DB#{cf.bold(instance.data_block.id)} {cf.magenta(instance.data_block.expected_otype_key)} {cf.dimmed_magenta(instance.data_format)}"
+        #         f"Persisted StoredDataBlock SDB#{cf.bold(instance.id)} DB#{cf.bold(instance.data_block.id)} {cf.magenta(instance.data_block.expected_schema_key)} {cf.dimmed_magenta(instance.data_format)}"
         #     )
 
 
@@ -32,8 +32,8 @@ def immutability_update_listener(mapper, connection, target):
 #     if isinstance(instance, StoredDataBlock):
 #         print(instance)
 #         print(type(instance))
-#         otype = getattr(instance.data_block, "otype", None)
+#         schema = getattr(instance.data_block, "schema", None)
 #         print(
-#             f"New transient StoredDataBlock {cf.magenta(otype)} {cf.dimmed_magenta(instance.data_format)}"
+#             f"New transient StoredDataBlock {cf.magenta(schema)} {cf.dimmed_magenta(instance.data_format)}"
 #         )
 # print(f"{cf.orange}New transient:{cf.reset} {instance!r}")

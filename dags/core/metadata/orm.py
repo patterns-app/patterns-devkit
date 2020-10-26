@@ -30,9 +30,9 @@ class _BaseModel:
         at_least_one_attached_attribute = False
         for key, field in fields.items():
             try:
-                from dags.core.typing.object_type import ObjectType
+                from dags.core.typing.object_schema import ObjectSchema
 
-                if isinstance(field, ObjectType):
+                if isinstance(field, ObjectSchema):
                     field_strings.append(f"{key}={field.name}")
                 elif key in ("id", "url"):
                     field_strings.append(str(cf.bold_italic(f"{key}={field!r}")))
@@ -83,10 +83,10 @@ def timestamp_rand_key() -> str:
 #         return value
 
 
-# class ObjectType(TypeDecorator):
+# class ObjectSchema(TypeDecorator):
 #     impl = types.Unicode
 #
-#     def process_bind_param(self, value: Union[ObjectType, str], dialect) -> str:
+#     def process_bind_param(self, value: Union[ObjectSchema, str], dialect) -> str:
 #         if value is None:
 #             return None
 #         if isinstance(value, str):

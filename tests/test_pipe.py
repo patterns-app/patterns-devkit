@@ -16,7 +16,7 @@ from dags.core.sql.pipe import sql_pipe
 from dags.modules import core
 from dags.utils.typing import T, U
 from tests.utils import (
-    TestType1,
+    TestSchema1,
     make_test_env,
     pipe_chain_t1_to_t2,
     pipe_generic,
@@ -34,7 +34,7 @@ from tests.utils import (
             "DataBlock[Type]",
             PipeAnnotation(
                 data_format_class="DataBlock",
-                otype_like="Type",
+                schema_like="Type",
                 # is_iterable=False,
                 is_generic=False,
                 is_optional=False,
@@ -46,7 +46,7 @@ from tests.utils import (
             "DataSet[Type]",
             PipeAnnotation(
                 data_format_class="DataSet",
-                otype_like="Type",
+                schema_like="Type",
                 # is_iterable=False,
                 is_generic=False,
                 is_optional=False,
@@ -58,7 +58,7 @@ from tests.utils import (
             "DataBlock[T]",
             PipeAnnotation(
                 data_format_class="DataBlock",
-                otype_like="T",
+                schema_like="T",
                 # is_iterable=False,
                 is_generic=True,
                 is_optional=False,
@@ -73,7 +73,7 @@ def test_typed_annotation(annotation: str, expected: PipeAnnotation):
     assert tda == expected
 
 
-def pipe_notworking(_1: int, _2: str, input: DataBlock[TestType1]):
+def pipe_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     # Bad args
     pass
 
@@ -91,13 +91,13 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                 inputs=[
                     PipeAnnotation(
                         data_format_class="DataBlock",
-                        otype_like="TestType1",
+                        schema_like="TestSchema1",
                         name="input",
                         # is_iterable=False,
                         is_generic=False,
                         is_optional=False,
                         is_variadic=False,
-                        original_annotation="DataBlock[TestType1]",
+                        original_annotation="DataBlock[TestSchema1]",
                     )
                 ],
                 output=None,
@@ -110,23 +110,23 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                 inputs=[
                     PipeAnnotation(
                         data_format_class="DataBlock",
-                        otype_like="TestType1",
+                        schema_like="TestSchema1",
                         name="input",
                         # is_iterable=False,
                         is_generic=False,
                         is_optional=False,
                         is_variadic=False,
-                        original_annotation="DataBlock[TestType1]",
+                        original_annotation="DataBlock[TestSchema1]",
                     )
                 ],
                 output=PipeAnnotation(
                     data_format_class="DataFrame",
-                    otype_like="TestType2",
+                    schema_like="TestSchema2",
                     # is_iterable=False,
                     is_generic=False,
                     is_optional=False,
                     is_variadic=False,
-                    original_annotation="DataFrame[TestType2]",
+                    original_annotation="DataFrame[TestSchema2]",
                 ),
                 requires_pipe_context=False,
             ),
@@ -137,7 +137,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                 inputs=[
                     PipeAnnotation(
                         data_format_class="DataBlock",
-                        otype_like="T",
+                        schema_like="T",
                         name="input",
                         # is_iterable=False,
                         is_generic=True,
@@ -148,7 +148,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                 ],
                 output=PipeAnnotation(
                     data_format_class="DataFrame",
-                    otype_like="T",
+                    schema_like="T",
                     # is_iterable=False,
                     is_generic=True,
                     is_optional=False,
@@ -164,7 +164,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                 inputs=[
                     PipeAnnotation(
                         data_format_class="DataBlock",
-                        otype_like="T",
+                        schema_like="T",
                         name="input",
                         # is_iterable=False,
                         is_generic=True,
@@ -175,7 +175,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                     ),
                     PipeAnnotation(
                         data_format_class="DataBlock",
-                        otype_like="T",
+                        schema_like="T",
                         name="this",
                         # is_iterable=False,
                         is_generic=True,
@@ -187,7 +187,7 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                 ],
                 output=PipeAnnotation(
                     data_format_class="DataFrame",
-                    otype_like="T",
+                    schema_like="T",
                     # is_iterable=False,
                     is_generic=True,
                     is_optional=False,
@@ -203,18 +203,18 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                 inputs=[
                     PipeAnnotation(
                         data_format_class="DataBlock",
-                        otype_like="TestType1",
+                        schema_like="TestSchema1",
                         name="input",
                         # is_iterable=False,
                         is_generic=False,
                         is_optional=False,
                         is_variadic=False,
-                        original_annotation="DataBlock[TestType1]",
+                        original_annotation="DataBlock[TestSchema1]",
                     )
                 ],
                 output=PipeAnnotation(
                     data_format_class="DataFrame",
-                    otype_like="T",
+                    schema_like="T",
                     # is_iterable=False,
                     is_generic=True,
                     is_optional=False,
@@ -322,7 +322,7 @@ def test_node_config():
     assert config_vals == [1]
 
 
-def test_any_otype_interface():
+def test_any_schema_interface():
     env = make_test_env()
     env.add_module(core)
 
@@ -331,5 +331,5 @@ def test_any_otype_interface():
 
     df = pipe(pipe_any)
     dfi = df.get_interface(env)
-    assert dfi.inputs[0].otype_like == "Any"
-    assert dfi.output.otype_like == "Any"
+    assert dfi.inputs[0].schema_like == "Any"
+    assert dfi.output.schema_like == "Any"

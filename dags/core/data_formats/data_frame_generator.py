@@ -8,7 +8,7 @@ import pandas as pd
 from dags.core.data_formats.base import MemoryDataFormatBase, ReusableGenerator
 
 if TYPE_CHECKING:
-    from dags import ObjectType
+    from dags import ObjectSchema
 
 
 class DataFrameGenerator(ReusableGenerator[pd.DataFrame]):
@@ -29,18 +29,18 @@ class DataFrameGeneratorFormat(MemoryDataFormatBase):
         return isinstance(obj, cls.type())
 
     @classmethod
-    def infer_otype_from_records(cls, records: DataFrameGenerator) -> ObjectType:
-        from dags.core.typing.inference import infer_otype_from_records_list
+    def infer_schema_from_records(cls, records: DataFrameGenerator) -> ObjectSchema:
+        from dags.core.typing.inference import infer_schema_from_records_list
         from dags.core.data_formats import get_records_list_sample
 
         dl = get_records_list_sample(records)
         if dl is None:
             raise ValueError("Empty records object")
-        inferred_otype = infer_otype_from_records_list(dl)
-        return inferred_otype
+        inferred_schema = infer_schema_from_records_list(dl)
+        return inferred_schema
 
     @classmethod
-    def conform_records_to_otype(
+    def conform_records_to_schema(
         cls, records: DataFrameGenerator
     ) -> DataFrameGenerator:
         raise NotImplementedError

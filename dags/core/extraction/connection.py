@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type, Union
 
 import requests
@@ -25,7 +25,7 @@ class JsonHttpApiConnection:
         date_format: str = "%F %T",
         raise_for_status: bool = True,
         ratelimit_calls_per_min: int = 1000,
-        strip_none_params: bool = True,
+        remove_none_params: bool = True,
     ):
         self.default_params = default_params or {}
         self.default_headers = default_headers or {}
@@ -33,7 +33,7 @@ class JsonHttpApiConnection:
         self.raise_for_status = raise_for_status
         self.ratelimit_calls_per_min = ratelimit_calls_per_min
         self.g = self.add_rate_limiting(self.get)
-        self.strip_none_params = strip_none_params
+        self.remove_none_params = remove_none_params
 
     def add_rate_limiting(self, f: Callable):
         g = sleep_and_retry(f)
@@ -46,15 +46,15 @@ class JsonHttpApiConnection:
     def get_default_headers(self) -> Dict:
         return self.default_headers.copy()
 
-    # def validate_params(self, params: Dict) -> Dict:
-    #     formatted = {}
-    #     for k, v in params.items():
-    #         if self.strip_none_params and v is None:
-    #             continue
-    #         if isinstance(v, datetime) or isinstance(v, date):
-    #             v = v.strftime(self.date_format)
-    #         formatted[k] = v
-    #     return formatted
+    def validate_params(self, params: Dict) -> Dict:
+        formatted = {}
+        for k, v in params.items():
+            if self.remove_none_params and v is None:
+                continue
+            if isinstance(v, datetime) or isinstance(v, date):
+                v = v.strftime(self.date_format)
+            formatted[k] = v
+        return formatted
 
     def get(
         self, url: str, params: Dict = None, headers: Dict = None, **kwargs
@@ -65,8 +65,8 @@ class JsonHttpApiConnection:
         default_headers = self.get_default_headers()
         if headers:
             default_headers.update(headers)
-        # final_params = self.validate_params(default_params)
-        resp = requests.get(url, params=default_params, headers=headers, **kwargs)
+        final_params = self.validate_params(default_params)
+        resp = requests.get(url, params=final_params, headers=headers, **kwargs)
         if self.raise_for_status:
             resp.raise_for_status()
         return resp

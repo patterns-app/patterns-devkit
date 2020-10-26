@@ -8,14 +8,8 @@ def test_module_init():
     from . import _test_module
 
     assert isinstance(_test_module, DagsModule)
-    # Otypes
-    # assert len(_test_module.otypes) == 1
-    # testtype = list(_test_module.otypes)[0]
-    # assert testtype.name == "TestType"
-    # assert testtype.module_key == "_test_module"
-    # Pipes
-    # assert len(_test_module.pipes) == 2
-    # assert set(f.key for f in _test_module.pipes) == {"_test_module.test_sql", "df1"}
+    assert len(_test_module.schemas) >= 1
+    assert len(_test_module.pipes) >= 2
 
 
 if __name__ == "__main__":

@@ -12,7 +12,11 @@ from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
 from dags.core.component import ComponentLibrary
 from dags.core.metadata.orm import BaseModel
 from dags.core.module import DEFAULT_LOCAL_MODULE, DagsModule
-from dags.core.typing.object_type import GeneratedObjectType, ObjectType, ObjectTypeLike
+from dags.core.typing.object_schema import (
+    GeneratedObjectSchema,
+    ObjectSchema,
+    ObjectSchemaLike,
+)
 from dags.logging.event import Event, EventHandler, EventSubject, event_factory
 from loguru import logger
 
@@ -127,41 +131,43 @@ class Environment:
     def get_module_order(self) -> List[str]:
         return self.library.module_lookup_keys
 
-    def get_otype(self, otype_like: ObjectTypeLike) -> ObjectType:
-        if isinstance(otype_like, ObjectType):
-            return otype_like
+    def get_schema(self, schema_like: ObjectSchemaLike) -> ObjectSchema:
+        if isinstance(schema_like, ObjectSchema):
+            return schema_like
         try:
-            return self.library.get_otype(otype_like)
+            return self.library.get_schema(schema_like)
         except KeyError:
-            otype = self.get_generated_otype(otype_like)
-            if otype is None:
-                raise KeyError(otype_like)
-            return otype
+            schema = self.get_generated_schema(schema_like)
+            if schema is None:
+                raise KeyError(schema_like)
+            return schema
 
-    def get_generated_otype(self, otype_like: ObjectTypeLike) -> Optional[ObjectType]:
-        if isinstance(otype_like, str):
-            key = otype_like
-        elif isinstance(otype_like, ObjectType):
-            key = otype_like.key
+    def get_generated_schema(
+        self, schema_like: ObjectSchemaLike
+    ) -> Optional[ObjectSchema]:
+        if isinstance(schema_like, str):
+            key = schema_like
+        elif isinstance(schema_like, ObjectSchema):
+            key = schema_like.key
         else:
-            raise TypeError(otype_like)
+            raise TypeError(schema_like)
         with self.session_scope() as sess:
-            got = sess.query(GeneratedObjectType).get(key)
+            got = sess.query(GeneratedObjectSchema).get(key)
             if got is None:
                 return None
-            return got.as_otype()
+            return got.as_schema()
 
-    def add_new_otype(self, otype: ObjectType):
-        if otype.key in self.library.otypes:
+    def add_new_schema(self, schema: ObjectSchema):
+        if schema.key in self.library.schemas:
             # Already exists
             return
-        got = GeneratedObjectType(key=otype.key, definition=asdict(otype))
+        got = GeneratedObjectSchema(key=schema.key, definition=asdict(schema))
         with self.session_scope() as sess:
             sess.add(got)
-        self.library.add_otype(otype)
+        self.library.add_schema(schema)
 
-    def all_otypes(self) -> List[ObjectType]:
-        return self.library.all_otypes()
+    def all_schemas(self) -> List[ObjectSchema]:
+        return self.library.all_schemas()
 
     def get_pipe(self, pipe_like: str) -> Pipe:
         return self.library.get_pipe(pipe_like)
@@ -321,7 +327,7 @@ class Environment:
             for block in sess.query(DataBlockMetadata).filter(
                 ~DataBlockMetadata.stored_data_blocks.any()
             ):
-                print(f"#{block.id} {block.expected_otype_key} is orphaned! SAD")
+                print(f"#{block.id} {block.expected_schema_key} is orphaned! SAD")
             if delete_intermediate:
                 # TODO: does no checking if they are unprocessed or not...
                 if not force:

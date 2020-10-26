@@ -8,8 +8,8 @@ from dags.testing.pipes import PipeTest
 #     sql="""
 # select:T
 # distinct on (
-#     {% for col in inputs.input.realized_otype.fields %}
-#         {% if col.name in inputs.input.realized_otype.unique_on %}
+#     {% for col in inputs.input.realized_schema.fields %}
+#         {% if col.name in inputs.input.realized_schema.unique_on %}
 #             "{{ col.name }}"
 #         {% else %}
 #             {% if col.field_type.startswith("Bool") %}
@@ -22,7 +22,7 @@ from dags.testing.pipes import PipeTest
 #     {% endfor %}
 # from input:T
 # group by
-#     {% for col in inputs.input.realized_otype.unique_on -%}
+#     {% for col in inputs.input.realized_schema.unique_on -%}
 #         "{{ col }}"
 #         {%- if not loop.last %},{% endif %}
 #     {% endfor %}
@@ -36,12 +36,12 @@ from dags.testing.pipes import PipeTest
 #     sql="""
 # select:T
 # distinct on (
-#     {% for col in inputs.input.realized_otype.unique_on %}
+#     {% for col in inputs.input.realized_schema.unique_on %}
 #         "{{ col }}"
 #         {%- if not loop.last %},{% endif %}
 #     {% endfor %}
 #     )
-#     {% for col in inputs.input.realized_otype.fields %}
+#     {% for col in inputs.input.realized_schema.fields %}
 #         "{{ col.name }}"
 #         {%- if not loop.last %},{% endif %}
 #     {% endfor %}
@@ -58,26 +58,26 @@ dedupe_unique_keep_newest_row = sql_pipe(
     compatible_runtimes="postgres",
     sql="""
         select -- DataBlock[T]
-        {% if inputs.input.realized_otype.unique_on %}
+        {% if inputs.input.realized_schema.unique_on %}
             distinct on (
-                {% for col in inputs.input.realized_otype.unique_on %}
+                {% for col in inputs.input.realized_schema.unique_on %}
                     "{{ col }}"
                     {%- if not loop.last %},{% endif %}
                 {% endfor %}
                 )
         {% endif %}
-            {% for col in inputs.input.realized_otype.fields %}
+            {% for col in inputs.input.realized_schema.fields %}
                 "{{ col.name }}"
                 {%- if not loop.last %},{% endif %}
             {% endfor %}
 
         from input -- DataBlock[T]
-        {% if inputs.input.resolved_otype.updated_at_field %}
+        {% if inputs.input.resolved_schema.updated_at_field %}
         order by
-            {% for col in inputs.input.realized_otype.unique_on %}
+            {% for col in inputs.input.realized_schema.unique_on %}
                 "{{ col }}",
             {% endfor %}
-            "{{ inputs.input.resolved_otype.updated_at_field.name }}" desc
+            "{{ inputs.input.resolved_schema.updated_at_field.name }}" desc
         {% endif %}
 """,
 )
@@ -90,7 +90,7 @@ dedupe_test = PipeTest(
             "name": "test_dupe",
             "test_data": {
                 "input": {
-                    "otype": "CoreTestType",
+                    "schema": "CoreTestSchema",
                     "data": """
                         k1,k2,f1,f2,f3,f4
                         1,2,abc,1.1,1,2012-01-01
@@ -101,7 +101,7 @@ dedupe_test = PipeTest(
                     """,
                 },
                 "output": {
-                    "otype": "CoreTestType",
+                    "schema": "CoreTestSchema",
                     "data": """
                         k1,k2,f1,f2,f3,f4
                         1,2,def,1.1,{"1":2},2012-01-02

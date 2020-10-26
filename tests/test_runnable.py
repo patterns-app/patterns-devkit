@@ -8,7 +8,7 @@ from dags.core.pipe_interface import NodeInterfaceManager
 from dags.core.runnable import CompiledPipe, Runnable, RunSession, Worker
 from dags.modules import core
 from tests.utils import (
-    TestType1,
+    TestSchema1,
     make_test_env,
     make_test_execution_context,
     pipe_generic,
@@ -20,11 +20,11 @@ from tests.utils import (
 mock_dl_output = [{1: 2}, {2: 3}]
 
 
-def pipe_dl_source() -> RecordsList[TestType1]:
+def pipe_dl_source() -> RecordsList[TestSchema1]:
     return mock_dl_output
 
 
-def pipe_error() -> RecordsList[TestType1]:
+def pipe_error() -> RecordsList[TestSchema1]:
     raise Exception("pipe FAIL")
 
 

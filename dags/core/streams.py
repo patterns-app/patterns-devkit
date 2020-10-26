@@ -16,7 +16,7 @@ from dags.core.environment import Environment
 from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, Node, PipeLog
 from dags.core.storage.storage import Storage
-from dags.core.typing.object_type import ObjectType, ObjectTypeLike
+from dags.core.typing.object_schema import ObjectSchema, ObjectSchemaLike
 from dags.utils.common import ensure_list
 from loguru import logger
 
@@ -31,9 +31,9 @@ class DataBlockStream:
     def __init__(
         self,
         upstream: Union[Node, List[Node]] = None,
-        otypes: List[ObjectTypeLike] = None,
+        schemas: List[ObjectSchemaLike] = None,
         storages: List[Storage] = None,
-        otype: ObjectTypeLike = None,
+        schema: ObjectSchemaLike = None,
         storage: Storage = None,
         unprocessed_by: Node = None,
         data_sets: List[str] = None,
@@ -43,15 +43,15 @@ class DataBlockStream:
         most_recent_first: bool = False,
     ):
         # TODO: ugly duplicate params (but singulars give nice obvious/intuitive interface)
-        if otype is not None:
-            assert otypes is None
-            otypes = [otype]
+        if schema is not None:
+            assert schemas is None
+            schemas = [schema]
         if storage is not None:
             assert storages is None
             storages = [storage]
         # TODO: make all these private?
         self.upstream = upstream
-        self.otypes = otypes
+        self.schemas = schemas
         self.storages = storages
         self.data_sets = data_sets
         self.data_sets_only = data_sets_only
@@ -79,8 +79,8 @@ class DataBlockStream:
         q = self._base_query()
         if self.upstream is not None:
             q = self._filter_upstream(ctx, q)
-        if self.otypes is not None:
-            q = self._filter_otypes(ctx, q)
+        if self.schemas is not None:
+            q = self._filter_schemas(ctx, q)
         if self.storages is not None:
             q = self._filter_storages(ctx, q)
         if self.unprocessed_by is not None:
@@ -94,7 +94,7 @@ class DataBlockStream:
     def clone(self, **kwargs) -> DataBlockStream:
         args = dict(
             upstream=self.upstream,
-            otypes=self.otypes,
+            schemas=self.schemas,
             storages=self.storages,
             unprocessed_by=self.unprocessed_by,
             data_sets=self.data_sets,
@@ -154,22 +154,22 @@ class DataBlockStream:
         )
         return query.filter(DataBlockMetadata.id.in_(eligible_input_drs))
 
-    def get_otypes(self, env: Environment):
-        dts = ensure_list(self.otypes)
-        return [env.get_otype(d) for d in dts]
+    def get_schemas(self, env: Environment):
+        dts = ensure_list(self.schemas)
+        return [env.get_schema(d) for d in dts]
 
-    def filter_otypes(self, otypes: List[ObjectTypeLike]) -> DataBlockStream:
-        return self.clone(otypes=otypes)
+    def filter_schemas(self, schemas: List[ObjectSchemaLike]) -> DataBlockStream:
+        return self.clone(schemas=schemas)
 
-    def _filter_otypes(self, ctx: ExecutionContext, query: Query) -> Query:
-        if not self.otypes:
+    def _filter_schemas(self, ctx: ExecutionContext, query: Query) -> Query:
+        if not self.schemas:
             return query
         return query.filter(
-            DataBlockMetadata.expected_otype_key.in_([d.key for d in self.get_otypes(ctx.env)])  # type: ignore
+            DataBlockMetadata.expected_schema_key.in_([d.key for d in self.get_schemas(ctx.env)])  # type: ignore
         )
 
-    def filter_otype(self, otype: ObjectTypeLike) -> DataBlockStream:
-        return self.filter_otypes(ensure_list(otype))
+    def filter_schema(self, schema: ObjectSchemaLike) -> DataBlockStream:
+        return self.filter_schemas(ensure_list(schema))
 
     def filter_storages(self, storages: List[Storage]) -> DataBlockStream:
         return self.clone(storages=storages)

@@ -1,6 +1,6 @@
-name: CoreTestType
+name: CoreTestSchema
 version: 1
-description: All-purpose testing type
+description: All-purpose testing schema
 unique on:
   - k1
   - k2

@@ -15,6 +15,7 @@ from dags.core.pipe_interface import (
     re_type_hint,
 )
 from dags.core.runnable import PipeContext
+
 # NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
 from dags.core.runtime import RuntimeClass
 from dags.utils.common import md5_hash
@@ -97,7 +98,7 @@ def extract_interface(
     # TODO: Bit of a nightmare. Need to extend a proper grammar/parser for this
     """
     Get all table names in a sql statement, optionally sub them with new names.
-    Also extract comment-style ObjectType annotations if they exists.
+    Also extract comment-style ObjectSchema annotations if they exists.
     """
     replace_with_names = replace_with_names or {}
     table_identifier_annotations: Dict[str, Optional[str]] = {}
@@ -194,7 +195,7 @@ class SqlPipeWrapper:
             if not isinstance(i, DataBlock):
                 raise NotImplementedError(f"Unsupported input type {i}")
         sql = self.get_compiled_sql(ctx, inputs)
-        # if ctx.resolved_output_otype is None:
+        # if ctx.resolved_output_schema is None:
         #     raise Exception("SQL pipe should always produce output!")
 
         db_api = ctx.execution_context.current_runtime.get_database_api(
@@ -203,7 +204,7 @@ class SqlPipeWrapper:
         block, sdb = db_api.create_data_block_from_sql(
             ctx.execution_context.metadata_session,
             sql,
-            # expected_otype=ctx.resolved_output_otype,
+            # expected_schema=ctx.resolved_output_schema,
         )
 
         return sdb
@@ -215,8 +216,8 @@ class SqlPipeWrapper:
             return {}
         table_names = {}
         for input_name, block in inputs.items():
-            otype = block.as_table()
-            table_names[input_name] = otype.table_name
+            schema = block.as_table()
+            table_names[input_name] = schema.table_name
         return table_names
 
     def get_compiled_sql(
@@ -230,8 +231,8 @@ class SqlPipeWrapper:
             worker=ctx.worker,
             runnable=ctx.runnable,
             inputs={i.name: i for i in ctx.inputs},
-            # output_otype=ctx.resolved_output_otype,
-            # output_otype=ctx.realized_output_otype,
+            # output_schema=ctx.resolved_output_schema,
+            # output_schema=ctx.realized_output_schema,
         )
         return compile_jinja_sql(sql, sql_ctx)
 

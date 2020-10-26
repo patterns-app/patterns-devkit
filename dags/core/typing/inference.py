@@ -12,12 +12,12 @@ from sqlalchemy import Table
 
 from dags.core.data_formats import RecordsList
 from dags.core.module import DEFAULT_LOCAL_MODULE
-from dags.core.typing.object_type import (
+from dags.core.typing.object_schema import (
     ConflictBehavior,
     Field,
-    ObjectType,
+    ObjectSchema,
     create_quick_field,
-    create_quick_otype,
+    create_quick_schema,
 )
 from dags.utils.common import (
     ensure_bool,
@@ -48,7 +48,7 @@ def get_highest_precedence_sa_type(types: List[str]) -> str:
     return types[0]
 
 
-def dataframe_to_sqlalchemy_schema():
+def dataframe_to_sqlalchemy_table():
     # TODO
     # SQLTable()._get_column_names_and_types(self._sqlalchemy_type) # see pandas.io.sql
     pass
@@ -80,7 +80,7 @@ def get_sample(
 # ]
 
 
-def infer_otype_fields_from_records(
+def infer_schema_fields_from_records(
     records: RecordsList, sample_size: int = 100
 ) -> List[Field]:
     records = get_sample(records, sample_size=sample_size)
@@ -99,25 +99,25 @@ def infer_otype_fields_from_records(
     return fields
 
 
-def infer_otype_from_records_list(records: RecordsList, **kwargs) -> ObjectType:
-    fields = infer_otype_fields_from_records(records)
-    return generate_auto_otype(fields, **kwargs)
+def infer_schema_from_records_list(records: RecordsList, **kwargs) -> ObjectSchema:
+    fields = infer_schema_fields_from_records(records)
+    return generate_auto_schema(fields, **kwargs)
 
 
-def generate_auto_otype(fields, **kwargs) -> ObjectType:
-    auto_name = "AutoType_" + rand_str(8)
+def generate_auto_schema(fields, **kwargs) -> ObjectSchema:
+    auto_name = "AutoSchema_" + rand_str(8)
     args = dict(
         name=auto_name,
         module_key=DEFAULT_LOCAL_MODULE.key,
         version="0",
-        description="Automatically inferred type",
+        description="Automatically inferred schema",
         unique_on=[],
         implementations=[],
         on_conflict=ConflictBehavior("ReplaceWithNewer"),
         fields=fields,
     )
     args.update(kwargs)
-    return ObjectType(**args)
+    return ObjectSchema(**args)
 
 
 def create_sa_table(dbapi: DatabaseAPI, table_name: str) -> Table:
@@ -130,23 +130,23 @@ def create_sa_table(dbapi: DatabaseAPI, table_name: str) -> Table:
     return sa_table
 
 
-def infer_otype_from_db_table(
-    dbapi: DatabaseAPI, table_name: str, **otype_kwargs
-) -> ObjectType:
+def infer_schema_from_db_table(
+    dbapi: DatabaseAPI, table_name: str, **schema_kwargs
+) -> ObjectSchema:
     from dags.core.sql.utils import fields_from_sqlalchemy_table
 
     fields = fields_from_sqlalchemy_table(create_sa_table(dbapi, table_name))
-    return generate_auto_otype(fields, **otype_kwargs)
+    return generate_auto_schema(fields, **schema_kwargs)
 
 
-def dict_to_rough_otype(name: str, d: Dict, convert_to_snake_case=True, **kwargs):
+def dict_to_rough_schema(name: str, d: Dict, convert_to_snake_case=True, **kwargs):
     fields = []
     for k, v in d.items():
         if convert_to_snake_case:
             k = title_to_snake_case(k)
         fields.append((k, pandas_series_to_sqlalchemy_type(pd.Series([v]))))
     fields = sorted(fields)
-    return create_quick_otype(name, fields, **kwargs)
+    return create_quick_schema(name, fields, **kwargs)
 
 
 def has_dict_or_list(series: Series) -> bool:
@@ -345,22 +345,22 @@ def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
     raise NotImplementedError
 
 
-def conform_records_list_to_otype(d: RecordsList, otype: ObjectType) -> RecordsList:
+def conform_records_list_to_schema(d: RecordsList, schema: ObjectSchema) -> RecordsList:
     conformed = []
     for r in d:
         new_record = {}
         for k, v in r.items():
             new_v = cast_python_object_to_sqlalchemy_type(
-                v, otype.get_field(k).field_type
+                v, schema.get_field(k).field_type
             )
             new_record[k] = new_v
         conformed.append(new_record)
     return conformed
 
 
-def conform_dataframe_to_otype(df: DataFrame, otype: ObjectType) -> DataFrame:
-    logger.debug(f"conforming {id(df)} to otype")
-    for field in otype.fields:
+def conform_dataframe_to_schema(df: DataFrame, schema: ObjectSchema) -> DataFrame:
+    logger.debug(f"conforming {id(df)} to schema")
+    for field in schema.fields:
         pd_type = sqlalchemy_type_to_pandas_type(field.field_type)
         try:
             if field.name in df:
