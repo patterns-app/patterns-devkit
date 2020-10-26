@@ -59,7 +59,6 @@ from dags.utils.common import (
     DagsJSONEncoder,
     cf,
     error_symbol,
-    get_spinner,
     printd,
     success_symbol,
     utcnow,
