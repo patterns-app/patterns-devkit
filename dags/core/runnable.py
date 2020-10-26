@@ -475,7 +475,7 @@ class Worker:
         )
         # ldr = LocalMemoryDataRecords.from_records_object(output)
         # block = DataBlockMetadata(
-        #     schema_key=runnable.pipe_interface.output_schema.key
+        #     schema_key=runnable.pipe_interface.output_schema.name
         # )
         # sdb = StoredDataBlockMetadata(  # type: ignore
         #     data_block=block,

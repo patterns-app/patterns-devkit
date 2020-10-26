@@ -51,20 +51,21 @@ def get_runtime_class(runtime: Optional[str]) -> RuntimeClass:
     return RuntimeClass.PYTHON
 
 
-def make_pipe_key(pipe: PipeCallable) -> str:
+def make_pipe_name(pipe: PipeCallable) -> str:
     # TODO: something more principled / explicit?
-    if hasattr(pipe, "key"):
-        return pipe.key  # type: ignore
+    if hasattr(pipe, "name"):
+        return pipe.name  # type: ignore
     if hasattr(pipe, "__name__"):
         return pipe.__name__
     if hasattr(pipe, "__class__"):
         return pipe.__class__.__name__
-    raise Exception(f"Invalid Pipe key {pipe}")
+    raise Exception(f"Invalid Pipe name {pipe}")
 
 
 @dataclass(frozen=True)
 class Pipe:
-    key: str
+    name: str
+    module_name: str
     pipe_callable: Optional[
         Callable
     ]  # Optional since Composite DFs don't have a Callable
@@ -78,6 +79,13 @@ class Pipe:
 
     # TODO: runtime engine eg "mysql>=8.0", "python==3.7.4"  ???
     # TODO: runtime dependencies
+
+    @property
+    def key(self) -> str:
+        k = self.name
+        if self.module_name:
+            k = self.module_name + "." + k
+        return k
 
     def __call__(
         self, *args: PipeContext, **kwargs: DataInterfaceType
@@ -169,20 +177,28 @@ PipeLike = Union[PipeCallable, Pipe]
 
 
 def pipe_factory(
-    pipe_callable: Optional[PipeCallable],  # Composite DFs don't have a callable
-    key: str = None,
+    pipe_callable: Optional[PipeCallable],  # Composite Pipes don't have a callable
+    name: str = None,
+    module: Union[DagsModule, str] = DEFAULT_LOCAL_MODULE,
     compatible_runtimes: str = None,
     inputs: Optional[Dict[str, str]] = None,
     output: Optional[str] = None,
     **kwargs: Any,
 ) -> Pipe:
-    if key is None:
+    if name is None:
         if pipe_callable is None:
             raise
-        key = make_pipe_key(pipe_callable)
+        name = make_pipe_name(pipe_callable)
     runtime_class = get_runtime_class(compatible_runtimes)
+    if module is None:
+        module = DEFAULT_LOCAL_MODULE
+    if isinstance(module, DagsModule):
+        module_name = module.name
+    else:
+        module_name = module
     return Pipe(
-        key=key,
+        name=name,
+        module_name=module_name,
         pipe_callable=pipe_callable,
         compatible_runtime_classes=[runtime_class],
         declared_inputs=inputs,
@@ -193,7 +209,8 @@ def pipe_factory(
 
 def pipe(
     pipe_or_name: Union[str, PipeCallable] = None,
-    key: str = None,
+    name: str = None,
+    module: Optional[Union[DagsModule, str]] = None,
     compatible_runtimes: str = None,
     config_class: Optional[Type] = None,
     state_class: Optional[Type] = None,
@@ -204,7 +221,8 @@ def pipe(
     if isinstance(pipe_or_name, str) or pipe_or_name is None:
         return partial(
             pipe,
-            key=pipe_or_name,
+            module=module,
+            name=pipe_or_name,
             compatible_runtimes=compatible_runtimes,
             config_class=config_class,
             state_class=state_class,
@@ -213,7 +231,8 @@ def pipe(
         )
     return pipe_factory(
         pipe_or_name,
-        key=key,
+        name=name,
+        module=module,
         compatible_runtimes=compatible_runtimes,
         config_class=config_class,
         state_class=state_class,
@@ -222,28 +241,30 @@ def pipe(
     )
 
 
-def pipe_chain(key: str, pipe_chain: List[Union[PipeLike, str]], **kwargs) -> Pipe:
+def pipe_chain(name: str, pipe_chain: List[Union[PipeLike, str]], **kwargs,) -> Pipe:
     sub_funcs = []
     for fn in pipe_chain:
         if isinstance(fn, str):
             # p = fn
             raise NotImplementedError(
-                "Please specify explicit pipe objects in a pipe chain (not key strings)"
+                "Please specify explicit pipe objects in a pipe chain (not name strings)"
             )
         elif isinstance(fn, Pipe):
             p = fn
         elif callable(fn):
             p = make_pipe(fn, **kwargs)
         else:
-            raise TypeError(f"Invalid pipe key in chain {fn}")
+            raise TypeError(f"Invalid pipe name in chain {fn}")
         sub_funcs.append(p)
-    return pipe_factory(None, key=key, sub_graph=sub_funcs, is_composite=True, **kwargs)
+    return pipe_factory(
+        None, name=name, sub_graph=sub_funcs, is_composite=True, **kwargs
+    )
 
 
-def make_pipe(dfl: PipeLike, **kwargs) -> Pipe:
-    if isinstance(dfl, Pipe):
-        return dfl
-    return pipe_factory(dfl, **kwargs)
+def make_pipe(pipe_like: PipeLike, **kwargs) -> Pipe:
+    if isinstance(pipe_like, Pipe):
+        return pipe_like
+    return pipe_factory(pipe_like, **kwargs)
 
 
 def ensure_pipe(env: Environment, pipe_like: Union[PipeLike, str]) -> Pipe:

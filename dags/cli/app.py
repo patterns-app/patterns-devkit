@@ -94,7 +94,9 @@ def search(query: str, component_type: str = None):
         first = True
         while results["results"]:
             headers = ["Component type", "Key", "Name"]
-            rows = [[r["component_type"], r["key"], r["verbose_name"]] for r in results]
+            rows = [
+                [r["component_type"], r["name"], r["verbose_name"]] for r in results
+            ]
             for ln in table_pager(headers, rows, show_header=first):
                 yield ln
             first = False

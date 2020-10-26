@@ -54,7 +54,8 @@ from dags.testing.pipes import PipeTest
 # TODO: currently no-op when no unique columns specified, should probably be ALL columns
 #   but _very_ expensive. In general any deduping on non-indexed columns will be costly.
 dedupe_unique_keep_newest_row = sql_pipe(
-    key="core.dedupe_unique_keep_newest_row",
+    name="dedupe_unique_keep_newest_row",
+    module="core",
     compatible_runtimes="postgres",
     sql="""
         select -- DataBlock[T]

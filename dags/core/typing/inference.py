@@ -108,7 +108,7 @@ def generate_auto_schema(fields, **kwargs) -> ObjectSchema:
     auto_name = "AutoSchema_" + rand_str(8)
     args = dict(
         name=auto_name,
-        module_key=DEFAULT_LOCAL_MODULE.key,
+        module_name=DEFAULT_LOCAL_MODULE.name,
         version="0",
         description="Automatically inferred schema",
         unique_on=[],

@@ -12,7 +12,7 @@ from .pipes.dedupe import dedupe_test, dedupe_unique_keep_newest_row
 
 AnyType = ObjectSchema(
     name="Any",
-    module_key="core",
+    module_name="core",
     version="0",
     description="Any super type is compatible with all ObjectSchemas",
     on_conflict=ConflictBehavior.ReplaceWithNewer,

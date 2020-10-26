@@ -90,11 +90,11 @@ def timestamp_rand_key() -> str:
 #         if value is None:
 #             return None
 #         if isinstance(value, str):
-#             module, key = value.split(".")
+#             module, name = value.split(".")
 #         else:
 #             module = value.module
-#             key = value.key
-#         return f"{module}.{key}"
+#             name = value.name
+#         return f"{module}.{name}"
 #
 #     def process_result_value(self, value: str, dialect) -> str:
 #         if value is None:

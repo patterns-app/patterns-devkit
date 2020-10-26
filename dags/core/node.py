@@ -14,7 +14,7 @@ from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 from dags.core.data_block import DataBlock, DataBlockMetadata
 from dags.core.environment import Environment
 from dags.core.metadata.orm import BaseModel
-from dags.core.pipe import Pipe, PipeLike, ensure_pipe, make_pipe, make_pipe_key
+from dags.core.pipe import Pipe, PipeLike, ensure_pipe, make_pipe, make_pipe_name
 from dags.core.pipe_interface import PipeInterface
 from loguru import logger
 
@@ -196,7 +196,7 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
     created_nodes = {}
     for fn in n.pipe.sub_graph:
         fn = ensure_pipe(n.env, fn)
-        child_fn_key = make_pipe_key(fn)
+        child_fn_key = make_pipe_name(fn)
         child_node_key = f"{n.key}__{child_fn_key}"
         try:
             if child_node_key in created_nodes:

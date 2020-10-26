@@ -129,7 +129,7 @@ class Environment:
         return self._local_module
 
     def get_module_order(self) -> List[str]:
-        return self.library.module_lookup_keys
+        return self.library.module_lookup_names
 
     def get_schema(self, schema_like: ObjectSchemaLike) -> ObjectSchema:
         if isinstance(schema_like, ObjectSchema):
@@ -368,8 +368,8 @@ class Environment:
 #     )
 #     for url in yml.get("storages"):
 #         env.add_storage(StorageResource.from_url(url))
-#     for module_key in yml.get("module_lookup_keys"):
-#         m = import_module(module_key)
+#     for module_name in yml.get("module_lookup_names"):
+#         m = import_module(module_name)
 #         env.add_module(m)
 #     return env
 
@@ -383,8 +383,8 @@ def load_environment_from_project(project: Any) -> Environment:
     )
     for url in getattr(project, "storages", []):
         env.add_storage(Storage.from_url(url))
-    for module_key in getattr(project, "module_lookup_keys", []):
-        m = import_module(module_key)
+    for module_name in getattr(project, "module_lookup_names", []):
+        m = import_module(module_name)
         env.add_module(m)  # type: ignore  # We hijack the module
     return env
 

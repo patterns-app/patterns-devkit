@@ -3,11 +3,14 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from re import Match
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import sqlparse
+from sqlparse import tokens
+
 from dags.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.data_formats import DataFormat
+from dags.core.module import DagsModule
 from dags.core.pipe import DataInterfaceType, Pipe, PipeInterface, pipe_factory
 from dags.core.pipe_interface import (
     BadAnnotationException,
@@ -15,11 +18,6 @@ from dags.core.pipe_interface import (
     re_type_hint,
 )
 from dags.core.runnable import PipeContext
-
-# NB: It's important that these regexes can't combinatorially explode (they will be parsing user input)
-from dags.core.runtime import RuntimeClass
-from dags.utils.common import md5_hash
-from sqlparse import tokens
 
 
 @dataclass(frozen=True)
@@ -247,18 +245,19 @@ class SqlPipeWrapper:
 
 
 def sql_pipe_factory(
-    key: str,
+    name: str,
     sql: str = None,
+    module: Optional[Union[DagsModule, str]] = None,
     version: str = None,
     compatible_runtimes: str = None,  # TODO: engine support
-    module_key: str = None,
     **kwargs,  # TODO: explicit options
 ) -> Pipe:
     if not sql:
-        raise ValueError("Must give sql")
+        raise ValueError("Must provide sql")
     return pipe_factory(
         SqlPipeWrapper(sql),
-        key=key,
+        name=name,
+        module=module,
         compatible_runtimes=compatible_runtimes or "database",
         **kwargs,
     )

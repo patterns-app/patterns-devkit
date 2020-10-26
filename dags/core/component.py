@@ -36,21 +36,21 @@ if TYPE_CHECKING:
 class ComponentLibrary:
     pipes: Dict[str, Pipe]
     schemas: Dict[str, ObjectSchema]
-    module_lookup_keys: List[str]
+    module_lookup_names: List[str]
 
     def __init__(self, module_lookup_keys: List[str] = None):
-        from dags.core.module import DEFAULT_LOCAL_MODULE_KEY
+        from dags.core.module import DEFAULT_LOCAL_MODULE_NAME
 
         self.pipes = {}
         self.schemas = {}
-        self.module_lookup_keys = [DEFAULT_LOCAL_MODULE_KEY]
+        self.module_lookup_names = [DEFAULT_LOCAL_MODULE_NAME]
         if module_lookup_keys:
             for k in module_lookup_keys:
-                self.add_module_key(k)
+                self.add_module_name(k)
 
-    def add_module_key(self, k: str):
-        if k not in self.module_lookup_keys:
-            self.module_lookup_keys.append(k)
+    def add_module_name(self, k: str):
+        if k not in self.module_lookup_names:
+            self.module_lookup_names.append(k)
 
     def add_module(self, module: DagsModule):
         self.merge(module.library)
@@ -72,7 +72,7 @@ class ComponentLibrary:
             return self.pipes[pipe_like]
         except KeyError as e:
             if try_module_lookups:
-                return self.module_key_lookup(self.pipes, pipe_like)
+                return self.module_name_lookup(self.pipes, pipe_like)
             raise e
 
     def get_schema(
@@ -88,13 +88,13 @@ class ComponentLibrary:
             return self.schemas[schema_like]
         except KeyError as e:
             if try_module_lookups:
-                return self.module_key_lookup(self.schemas, schema_like)
+                return self.module_name_lookup(self.schemas, schema_like)
             raise e
 
-    def module_key_lookup(self, d: Dict[str, Any], k: str) -> Any:
+    def module_name_lookup(self, d: Dict[str, Any], k: str) -> Any:
         if "." in k:
             raise KeyError(k)
-        for m in self.module_lookup_keys:
+        for m in self.module_lookup_names:
             try:
                 return d[m + "." + k]
             except KeyError:
@@ -110,8 +110,8 @@ class ComponentLibrary:
     def merge(self, other: ComponentLibrary):
         self.pipes.update(other.pipes)
         self.schemas.update(other.schemas)
-        for k in other.module_lookup_keys:
-            self.add_module_key(k)
+        for k in other.module_lookup_names:
+            self.add_module_name(k)
 
     def get_view(self, d: Dict) -> AttrDict:
         ad = AttrDict()

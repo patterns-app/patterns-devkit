@@ -23,7 +23,8 @@ class DataFrameResourceConfig:
 
 
 @pipe(
-    "core.extract_dataframe",
+    "extract_dataframe",
+    module="core",
     config_class=DataFrameResourceConfig,
     state_class=LocalResourceState,
 )
@@ -43,7 +44,8 @@ class LocalCSVResourceConfig:
 
 
 @pipe(
-    "core.extract_csv",
+    "extract_csv",
+    module="core",
     config_class=LocalCSVResourceConfig,
     state_class=LocalResourceState,
 )

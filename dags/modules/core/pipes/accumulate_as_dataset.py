@@ -7,11 +7,13 @@ from dags.modules.core.pipes.dedupe import dedupe_unique_keep_newest_row
 from dags.testing.pipes import PipeTest
 
 sql_accumulate_as_dataset = pipe_chain(
-    key="core.sql_accumulate_as_dataset",
+    name="sql_accumulate_as_dataset",
+    module="core",
     pipe_chain=[sql_accumulator, dedupe_unique_keep_newest_row, as_dataset_sql],
 )
 dataframe_accumulate_as_dataset = pipe_chain(
-    key="core.dataframe_accumulate_as_dataset",
+    name="dataframe_accumulate_as_dataset",
+    module="core",
     pipe_chain=[dataframe_accumulator, as_dataset],  # TODO: add dedupe
 )
 

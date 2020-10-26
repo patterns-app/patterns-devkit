@@ -7,6 +7,7 @@ from pandas import DataFrame
 
 from dags.core.data_block import DataBlock
 from dags.core.graph import Graph
+from dags.core.module import DEFAULT_LOCAL_MODULE_NAME
 from dags.core.node import Node, create_node
 from dags.core.pipe import Pipe, PipeInterface, PipeLike, pipe
 from dags.core.pipe_interface import PipeAnnotation
@@ -254,17 +255,18 @@ def test_inputs():
 
 def test_python_pipe():
     env = make_test_env()
-    df = pipe(pipe_t1_sink)
+    p = pipe(pipe_t1_sink)
     assert (
-        df.key == pipe_t1_sink.__name__
+        p.name == pipe_t1_sink.__name__
     )  # TODO: do we really want this implicit name? As long as we error on duplicate should be ok
 
     k = "name1"
-    df = pipe(pipe_t1_sink, key=k)
-    assert df.key == k
+    p = pipe(pipe_t1_sink, name=k)
+    assert p.name == k
+    assert p.key == f"{DEFAULT_LOCAL_MODULE_NAME}.{k}"
 
-    dfi = df.get_interface(env)
-    assert dfi is not None
+    pi = p.get_interface(env)
+    assert pi is not None
 
 
 @pipe("k1", compatible_runtimes="python")

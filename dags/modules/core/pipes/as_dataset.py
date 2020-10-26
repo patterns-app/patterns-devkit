@@ -6,7 +6,7 @@ from dags.core.runnable import PipeContext
 from dags.utils.typing import T
 
 
-@pipe("core.as_dataset_sql", compatible_runtimes="database")
+@pipe("as_dataset_sql", module="core", compatible_runtimes="database")
 def as_dataset_sql(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
     name = ctx.get_config_value("dataset_name")
     ds = (
@@ -30,7 +30,7 @@ def as_dataset_sql(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
     return ds
 
 
-@pipe("core.as_dataset", compatible_runtimes="python")
+@pipe("as_dataset", module="core", compatible_runtimes="python")
 def as_dataset(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
     name = ctx.get_config_value("dataset_name")
     ds = (

@@ -15,19 +15,19 @@ from dags.utils.common import rand_str
 from dags.utils.typing import T
 
 TestSchema1 = create_quick_schema(
-    "TestSchema1", [("f1", "Unicode(256)")], module_key="_test"
+    "TestSchema1", [("f1", "Unicode(256)")], module_name="_test"
 )
 TestSchema2 = create_quick_schema(
-    "TestSchema2", [("f1", "Unicode(256)")], module_key="_test"
+    "TestSchema2", [("f1", "Unicode(256)")], module_name="_test"
 )
 TestSchema3 = create_quick_schema(
-    "TestSchema3", [("f1", "Unicode(256)")], module_key="_test"
+    "TestSchema3", [("f1", "Unicode(256)")], module_name="_test"
 )
 TestSchema4 = create_quick_schema(
     "TestSchema4",
     [("f1", "Unicode(256)"), ("f2", "Integer")],
     unique_on=["f1"],
-    module_key="_test",
+    module_name="_test",
 )
 
 

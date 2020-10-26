@@ -145,7 +145,7 @@ class PipeAnnotation:
 
     def schema_key(self, env: Environment) -> ObjectSchemaKey:
         if self.is_generic:
-            raise ValueError("Generic ObjectSchema has no key")
+            raise ValueError("Generic ObjectSchema has no name")
         return env.get_schema(self.schema_like).key
 
 

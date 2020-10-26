@@ -103,7 +103,7 @@ def schema_key_to_identifier(key: str) -> str:
 @dataclass(frozen=True)
 class ObjectSchema:
     name: str
-    module_key: Optional[str]
+    module_name: Optional[str]
     version: Optional[str]
     description: str
     unique_on: List[str]
@@ -111,25 +111,29 @@ class ObjectSchema:
     fields: List[Field]
     relationships: List[Relationship] = field(default_factory=list)
     implementations: List[ObjectSchemaKey] = field(default_factory=list)
+    raw_definition: Optional[str] = None
     extends: Optional[
         ObjectSchemaKey
     ] = None  # TODO: TBD how useful this would be, or exactly how it would work
-    raw_definition: Optional[str] = None
     updated_at_field_name: Optional[str] = None  # TODO: TBD if we want this
-    # parameterized_by: Sequence[str] = field(default_factory=list) # This is like GPV use case in CountryIndicator
-    # parametererized_from: Optional[ObjectSchemaName] = None
-    # unregistered: bool = False
-    # Data set order of magnitude / expected cardinality ? 1e2, country = 1e2, EcommOrder = 1e6 (Optional for sure, and overridable as "compiler hint")
-    #       How often is this a property of the type, and how often a property of the SourceResource? SR probably better place for it
-    # ckeyng window? data records are supposed to be stateless (are they?? what about Product name), but often not possible. Ckeyng window sets the duration of statefulness for a record
-    # late arriving?
-    # statefulness?
+    """
+    Things that are a property of the SOURCE of data, not the Schema definition
+        - Data set expected cardinality / order of magnitude ?
+            This is actually sometimes a property of a the ObjectSchema (`Country` you could argue, for instance, less than 1000)
+            Other times more likely to be property of source (`Customer` for instance, could be 100 or 100M)
+        - Curing window
+            Records are ideally stateless (think event logs), but many data sources produce stateful
+            uniquely identified records (think ecomm transaction with cancelled field)
+        - Late arriving
+            Relatedly, some sources produce late-arriving records (significantly out-of-order records)
+            Not a property of the Schema
+    """
 
     @property
     def key(self) -> str:
         k = self.name
-        if self.module_key:
-            k = self.module_key + "." + k
+        if self.module_name:
+            k = self.module_name + "." + k
         return k
 
     def get_identifier(self) -> str:  # TODO: better name for this fn
@@ -226,8 +230,8 @@ def clean_raw_schema_defintion(raw_def: dict) -> dict:
     if isinstance(oc, str):
         raw_def["on_conflict"] = ConflictBehavior(oc)
     # raw_def["type_class"] = raw_def.pop("class", None)
-    if "module_key" not in raw_def:
-        raw_def["module_key"] = raw_def.pop("module", None)
+    if "module_name" not in raw_def:
+        raw_def["module_name"] = raw_def.pop("module", None)
     raw_def["version"] = int(raw_def["version"])
     return raw_def
 
@@ -287,10 +291,11 @@ def create_quick_field(name: str, field_type: str, **kwargs) -> Field:
 
 # Helper
 def create_quick_schema(name: str, fields: List[Tuple[str, str]], **kwargs):
+    from dags.core.module import DEFAULT_LOCAL_MODULE_NAME
+
     defaults: Dict[str, Any] = dict(
         name=name,
-        module_key=None,
-        # type_class="Observation",
+        module_name=DEFAULT_LOCAL_MODULE_NAME,
         version="1.0",
         description="...",
         unique_on=[],
