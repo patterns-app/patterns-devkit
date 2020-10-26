@@ -196,8 +196,8 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
     created_nodes = {}
     for fn in n.pipe.sub_graph:
         fn = ensure_pipe(n.env, fn)
-        child_fn_key = make_pipe_name(fn)
-        child_node_key = f"{n.key}__{child_fn_key}"
+        child_fn_name = make_pipe_name(fn)
+        child_node_key = f"{n.key}__{child_fn_name}"  # TODO: could be name clash since we don't include module name here
         try:
             if child_node_key in created_nodes:
                 node = created_nodes[child_node_key]
