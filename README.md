@@ -8,7 +8,7 @@ Dags is a framework for building end-to-end functional data pipelines from modul
 Dags abstracts over underlying database, runtime, and storage resources with **functional,
 type-aware data graphs**. These graphs are composed of discrete `pipes` written in
 **python or SQL** that snap together both batch and streaming data flows to form end-to-end data
- pipelines, from API data extraction to SQL transformation to analysis, modeling, and visualization.
+ pipelines, from API extraction to SQL transformation to analysis, modeling, and visualization.
 
 Dags `pipes` optionally expose type interfaces, called `ObjectSchema`s or just `schema`s, that
 describe the structure, data types, and semantics of the expected input and output data. These type
@@ -21,9 +21,8 @@ scale from laptop to AWS cluster.
 
 ### Features:
 
- - **Reusable modules and components**  
-   There are hundreds of `pipes`, `schemas`, ready to plug into pipelines in the Dags Repository
-    [Coming soon].
+ - **Reusable modules and components** - There are hundreds of `pipes` and `schemas` ready to
+  plug into pipelines in the Dags Repository [Coming soon].
    
     - Connect Stripe data to LTV models and plot a chart
     - Blend finance and macroeconomics data
@@ -31,24 +30,22 @@ scale from laptop to AWS cluster.
     
    and much more, instantly and out of the box.
      
- - **Testable components**  
-   Modular `pipes` allow individual steps in a data process to be independently tested and
-   QA'd with the same rigor as software. 
+ - **Testable components** - Modular `pipes` allow individual steps in a data process to be
+  independently tested and QA'd with the same rigor as software. 
      
- - **Batch or incremental**
-   Dags exposes both batch and streaming data outputs from all pipes, allowing chains of
-   incremental and batch work to exist naturally with strong guarantees on accuracy and
-   completeness.
+ - **Batch or incremental** - Dags exposes both batch and streaming data outputs from all pipes
+ , allowing chains of incremental and batch work to exist naturally with strong guarantees on
+  accuracy and completeness.
      
- - **Zero cost abstractions and high performance**  
-   Dags makes its type and immutability guarantees at the abstraction level, so those
-   guarantees can be compiled away at execution time for high performance. This lets developers and
-   analysts work with clean mental models without incurring performance costs at runtime. The
-   Dags compiler also optimizes across databases, runtimes, and storages -- e.g. a
-   query on BigQuery vs Redshift, data copy on S3 vs in-memory -- and can optimize entire pipelines
-   for the resources at hand, leading to overall performance gains when adopting Dags.
+ - **Zero cost abstractions and high performance** - Dags makes its type and immutability
+  guarantees at the abstraction level, so those guarantees can be compiled away at execution time
+  for high performance. This lets developers and analysts work with clean mental models without
+  incurring performance costs at runtime. The Dags compiler also optimizes across databases,
+  runtimes, and storages -- e.g. a query on BigQuery vs Redshift, data copy on S3 vs in-memory
+  -- and can optimize entire pipelines for the resources at hand, leading to overall performance
+  gains when adopting Dags.
   
-Note: Dags is **ALPHA** software. Expect breaking changes to core APIs. 
+Dags is **ALPHA** software. Expect breaking changes to core APIs. 
 
 
 ### Example
