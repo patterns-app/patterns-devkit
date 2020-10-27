@@ -336,7 +336,7 @@ class Environment:
                     )
                     if not d or d.lower()[0] != "y":
                         return
-                # Delete DRs with no DataSet
+                # Delete blocks with no DataSet
                 cnt = (
                     sess.query(DataBlockMetadata)
                     .filter(~DataBlockMetadata.data_sets.any(),)

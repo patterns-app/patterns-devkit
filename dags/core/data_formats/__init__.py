@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import collections
-from typing import Any, Dict, Iterable, Optional, Union
+from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
 from sqlalchemy import types
@@ -48,7 +48,7 @@ class DataFormatRegistry:
 
 
 data_format_registry = DataFormatRegistry()
-core_data_formats_precedence = [
+core_data_formats_precedence: List[DataFormat] = [
     ### Memory formats
     # Roughly ordered from most universal / "default" to least
     # Ordering used when inferring DataFormat from raw object and have ambiguous object (eg an empty list)
@@ -66,6 +66,10 @@ core_data_formats_precedence = [
 ]
 for fmt in core_data_formats_precedence:
     data_format_registry.register(fmt)
+
+
+def register_format(format: DataFormat):
+    data_format_registry.register(format)
 
 
 def get_data_format_of_object(obj: Any) -> Optional[DataFormat]:

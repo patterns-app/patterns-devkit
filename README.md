@@ -1,5 +1,7 @@
 <img src="dags.png">
 
+![dags](https://github.com/actions/kvh/workflows/dags/badge.svg)
+
 ### Modern Data Pipelines
  
 Dags is a framework for building end-to-end functional data pipelines from modular components.
@@ -23,7 +25,7 @@ scale from laptop to AWS cluster.
    There are hundreds of `pipes`, `schemas`, ready to plug into pipelines in the Dags Repository
     [Coming soon].
    
-    - Connect Stripe data to LTV models
+    - Connect Stripe data to LTV models and plot a chart
     - Blend finance and macroeconomics data
     - Export SaaS metrics to Google Sheets, Tableau, or Looker
     
@@ -31,13 +33,12 @@ scale from laptop to AWS cluster.
      
  - **Testable components**  
    Modular `pipes` allow individual steps in a data process to be independently tested and
-   QA'd with the same rigor as software. All components available in the Dags Repository are
-   automatically tested against sample data sets with the appropriate `ObjectSchema`.
+   QA'd with the same rigor as software. 
      
- - **Batch or streaming**
+ - **Batch or incremental**
    Dags exposes both batch and streaming data outputs from all pipes, allowing chains of
    incremental and batch work to exist naturally with strong guarantees on accuracy and
-    completeness.
+   completeness.
      
  - **Zero cost abstractions and high performance**  
    Dags makes its type and immutability guarantees at the abstraction level, so those
@@ -50,37 +51,31 @@ scale from laptop to AWS cluster.
 Note: Dags is **ALPHA** software. Expect breaking changes to core APIs. 
 
 
-### Getting started
+### Example
 
-`pip install git+git://github.com/kvh/dags.git`
-
-To initialize a Dags project in a directory:
-
-`dags init`
-
-Edit the resulting `project.py` file to add storages, runtimes, and modules.
-
-Build your pipeline (you'll need to add the `stripe` and `bi` modules to your project):
+`pip install dags dags-stripe dags-bi`
 
 ```python
 from dags import Environment, Graph
 from dags_stripe import stripe
 from dags_bi import bi
 
+
 graph = Graph()
 graph.add_node(
     key="stripe_txs",
-    pipe=stripe.StripeTransactionsResource,
+    pipe=stripe.extract_stripe_transactions,
     config={"api_key":"xxxxxxxx"},
 )
 graph.add_node(
     key="ltv_model",
-    pipe=bi.TransactionLTVModel,
+    pipe=bi.transaction_ltv_model,
     upstream="stripe_txs",
 )
 
-env = Environment()
-env.run(graph)
+env = Environment("sqlite:///dags.db")
+ltv_output = env.produce(graph, "ltv_model")
+print(ltv_output.as_dataframe())
 ```
 
 ### Architecture overview
@@ -90,11 +85,11 @@ Key elements of Dags:
 #### pipe
 
 `pipe`s are the core computational unit of Dags. They are added as nodes to a pipe
- graph and then linked by connecting their inputs and outputs. They are written in python or sql and
- can be arbitrarily simple or complex. Below are two equivalent and valid (though untyped) pipes:
+ graph, linking one node's output to another's input. Pipes are written in python or sql and
+ can be as simple or complex as required. Below are two equivalent and valid pipes:
  
 ```python
-def sales(txs: DataBlock) -> DataFrame:  
+def sales(txs: DataSet):  
     df = txs.as_dataframe()
     return df.groupby("customer_id").sum("amount")
 ```
@@ -167,25 +162,29 @@ implementations:
  
 ```python
 # In python, use type annotations to specify expected ObjectSchema:  
-def sales(txs: DataBlock[Transaction]) -> DataFrame[CustomerMetric]:  
+def sales(txs: DataBlock[Transaction]) -> DataSet[CustomerMetric]:  
     df = txs.as_dataframe()
     return df.groupby("customer_id").sum("amount")
 ```
 
+In SQL, we add type hints with comments after the `select` statement and after table identifiers:
+
 ```sql
 -- In SQL, use special syntax to specify expected ObjectSchema
-select:CustomerMetric
+select --: DataSet[CustomerMetric]
     customer_id
   , sum(amount)
-from txs:Transaction
+from txs -- :DataBlock[Transaction]
 group by customer_id
 ```
 
 A few things to note:
-    - typing is always optional, our original pipe definitions were valid with no ObjectSchemas
-    - We've taken some liberties with Python's type hints (hence why Dags requires python 3.7+)
-    - We've introduced a special syntax for typing SQL queries: `table:Type` for inputs and
-     `select:Type` for output.
+    - Typing is always optional, our original pipe definitions were valid with no ObjectSchemas
+    - Whether or not explicit schemas are provided, Dags always infers the actual
+      structure of the data automatically, producing an `AutoSchema` that can then be validated
+      against an explicitly provided schema or used directly instead.
+    - We've taken some liberties with Python's type hints (partly why Dags requires python 3.7+) -- 
+      we don't require our ObjectSchema types to exist as actual python type objects in scope.
  
 Dags `ObjectSchema`s are a powerful mechanism for producing reusable components and building
 maintainable large-scale data projects and ecosystems. They are always optional though, and
@@ -194,25 +193,34 @@ should be used when the value they provide out-weighs the friction they introduc
 
 #### DataBlock
 
-A `DataBlock` is an immutable set of data records of uniform `ObjectSchema`. `DataBlock`s are the
+A `DataBlock` is an immutable set of data records of a uniform `ObjectSchema`. `DataBlock`s are the
 basic data unit of Dags, the unit that `pipe`s take as input and ultimately produce as
-output. More precisely, `DataBlock`s are a reference to an abstract ideal of these records. In
- practice, a DataBlock will be stored on one or more Storage mediums in one or more DataFormats -- a
-  CSV on the local file, a JSON string in memory, or a
-table in a Postgres database, for example. To the extent possible, Dags maintains the 
-same data and byte representation of these records across formats and storages. For some formats and
-data types this is simply not possible, and Dags tries to emit warnings in these cases. 
+output. More precisely, `DataBlock`s are a reference to an abstract ideal of these records; in
+practice, a DataBlock will be stored on one or more Storage mediums in one or more DataFormats -- a
+CSV on the local file, a JSON string in memory, or a table in a Postgres database, for example --
+Dags abstracts over specific formats and storage engines, and provides seamless
+conversion and i/o between them.
+
+To the extent possible, Dags maintains the same data and byte representation of these records
+across formats and storages. Not all formats and storages support all data representations,
+though -- for instance, empty / null / None / NA support differs
+significantly across common data formats, runtimes, and storage engines. When it notices a
+conversion or storage operation may produce data loss or corruption, Dags will try to emit a
+warning or, if serious enough, fail with an error. 
  
  
 #### DataSet
 
-`DataBlock`s are the basic data unit of Dags -- their discrete, immutable properties make them
+`DataBlock`s are the basic data unit of Dags -- their discrete, immutable qualities make them
 ideal for building industrial grade pipelines and complex ecosystems of `pipe`s. But
- often you it is necessarily or just simpler to work with entire datasets in batch, not as
-  incremental chunks. Dags `DataSet`s serve this purpose -- they "accumulate"
-DataBlocks of a uniform ObjectSchema, deduping and merging records according to desired logic, and
- provide a clean, nicely named, end set of data records (a single `customers` table, for instance).
+often it is necessary or simpler to work not with incremental chunks of data, but with entire
+datasets as a whole. Dags `DataSet`s serve this purpose -- they "accumulate"
+DataBlocks of a uniform ObjectSchema, deduping and merging records according to specified or default
+logic, and provide a clean, named set of data records (a single `customers` table, for instance).
  
+ 
+### Incremental vs Batch (DataBlocks vs DataSets)
+
 Every `pipe` in Dags automatically outputs both an incremental `DataBlock` stream and a
 batch accumulated `DataSet`. Downstream pipes can connect to either the DataBlock stream or
 the DataSet by specify in their python or sql type signature which mode of input and output
@@ -240,61 +248,16 @@ Note that since we want to join emails on all possible customers, we used a `Dat
 cases and only processed the emails incrementally in the first scenario.
 
 
-#### ExternalResource
-
-Dags handles all stages of the ETL pipeline, including extracting data from external sources. An
-`ExternalResource` is any source of data external to the Dags pipeline. This could be a SaaS API
- (Stripe, Facebook Ads, Zendesk, Shopify, etc), an external production database, a CSV, or a
-  Google Sheet, for example. `ExternalResource`s are configured and added to an environment as
-   follows:
-  
-```python
-env.add_external_source_node(
-    name="stripe_txs",
-    external_source="stripe.StripeTransactionsResource",
-    config={"api_key": "xxxxxxxx"},
-)
-```
-
-This is a shortcut for the more explicit:
-
-```python
-cfgd_provider = stripe.external.StripeProvider(api_key="xxxxxxx")
-cfgd_resource = cfgd_provider.StripTransactionsResource()
-env.add_node(
-    name="stripe_txs",
-    pipe=cfgd_resource.extractor,
-)
-```
-
-`ExternalResource`s are **stateful** entities in Dags -- Dags must keep track of what it has
-extracted from the `ExternalResource` so far, and how it will extract more in the future. Every
-`ExternalResource` has an associated default `Extractor` (which is just a specific type of
-`pipe`) that updates and utilizes this `ExternalResource` state to fetch and stay in-sync
-with the external data. Working with external systems is a complex and subtle topic (we often have 
-limited visibility into the state and changes of the external system). Read the docs on
-`ExternalResource`s and `Extractor`s for more details [Coming soon].
-
-#### Environment
+#### Environment and metadata
 A Dags environment tracks the pipe graph, and acts as a registry for the `modules`,
 `runtimes`, and `storages` available to pipes. It is associated one-to-one with a single
 `metadata database`.  The primary responsibility of the metadata database is to track which
-pipes have processed which DataBlocks, and the state of ExternalResources. In this
-sense, the environment and its associated metadata database contain all the "state" of a Dags
-project. If you delete the metadata database, you will have effectively "reset" your Dags
-project.
+pipes have processed which DataBlocks, and the state of pipes. In this sense, the environment and
+its associated metadata database contain all the "state" of a Dags project. If you delete the
+ metadata database, you will have effectively "reset" your Dags project.
 
 
 ### Component Development
 
 Developing new Dags components is straightforward and can be done as part of a Dags `module` or as
-a standalone component. We'll start with a simple standalone example.
-
-Say we want to use the pipe we developed in an earlier example in a data pipeline:
-
-```python
-def sales(txs: DataBlock[Transaction]) -> DataFrame[CustomerMetric]:  
-    df = txs.as_dataframe()
-    return df.groupby("customer_id").sum("amount")
-```
-
+a standalone component. 

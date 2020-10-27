@@ -70,7 +70,7 @@ ObjectSchemaName = str
 @dataclass(frozen=True)
 class Relationship:
     name: str
-    type: ObjectSchemaKey
+    schema: ObjectSchemaKey
     fields: Dict[str, str]
 
 

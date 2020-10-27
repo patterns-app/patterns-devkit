@@ -102,7 +102,7 @@ class TestStreams:
 
     def test_stream_unprocessed_ineligible_already_output(self):
         """
-        By default we don't input a DB that has already been output by a DF, _even if that DB was never input_,
+        By default we don't input a block that has already been output by a DF, _even if that block was never input_,
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
         dfl = PipeLog(
@@ -168,8 +168,8 @@ class TestStreams:
     # def test_stream_records_object(self):
     #     records = [{"a": 1, "b": 2}]
     #     s = DataBlockStream(raw_records_object=records, raw_records_schema=TestSchema1)
-    #     db = s.get_next(self.ctx)
+    #     block = s.get_next(self.ctx)
     #     self.ctx.metadata_session.commit()
-    #     assert db is not None
-    #     db = db.as_managed_data_block(self.ctx)
-    #     assert db.as_records_list() == records
+    #     assert block is not None
+    #     block = block.as_managed_data_block(self.ctx)
+    #     assert block.as_records_list() == records

@@ -18,6 +18,13 @@ if TYPE_CHECKING:
     from dags.core.runnable import ExecutionContext
 
 
+third_party_converters: List[Type[Converter]] = []
+
+
+def register_converter(converter: Type[Converter]):
+    third_party_converters.append(converter)
+
+
 def get_converter_lookup() -> ConverterLookup:
     from dags.core.conversion.database_to_database import DatabaseToDatabaseConverter
     from dags.core.conversion.database_to_memory import DatabaseToMemoryConverter
@@ -33,6 +40,8 @@ def get_converter_lookup() -> ConverterLookup:
     lookup.add(DatabaseToDatabaseConverter)
     lookup.add(MemoryToFileConverter)
     lookup.add(FileToMemoryConverter)
+    for converter in third_party_converters:
+        lookup.add(converter)
     return lookup
 
 

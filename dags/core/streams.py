@@ -114,14 +114,14 @@ class DataBlockStream:
         if not self.unprocessed_by:
             return query
         if self.allow_cycle:
-            # Only exclude DRs processed as INPUT
+            # Only exclude blocks processed as INPUT
             filter_clause = and_(
                 DataBlockLog.direction == Direction.INPUT,
                 PipeLog.node_key == self.unprocessed_by.key,
             )
         else:
-            # No DB cycles allowed
-            # Exclude DRs processed as INPUT and DRs outputted
+            # No block cycles allowed
+            # Exclude blocks processed as INPUT and blocks outputted
             filter_clause = PipeLog.node_key == self.unprocessed_by.key
         already_processed_drs = (
             Query(DataBlockLog.data_block_id)
@@ -219,8 +219,8 @@ class DataBlockStream:
     def is_unprocessed(
         self, ctx: ExecutionContext, block: DataBlockMetadata, node: Node,
     ) -> bool:
-        drs = self.filter_unprocessed(node)
-        q = drs.get_query(ctx)
+        blocks = self.filter_unprocessed(node)
+        q = blocks.get_query(ctx)
         return q.filter(DataBlockMetadata.id == block.id).count() > 0
 
     def get_next(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:

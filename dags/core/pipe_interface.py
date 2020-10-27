@@ -382,11 +382,11 @@ class NodeInterfaceManager:
 
             """
             Inputs are considered "Exhausted" if:
-            - Single DB stream (and zero or more DSs): no unprocessed DRs
-            - Multiple correlated DB streams: ANY stream has no unprocessed DRs
+            - Single block stream (and zero or more DSs): no unprocessed blocks
+            - Multiple correlated block streams: ANY stream has no unprocessed blocks
             - One or more DSs: if ALL DS streams have no unprocessed
 
-            In other words, if ANY DB stream is empty, bail out. If ALL DS streams are empty, bail
+            In other words, if ANY block stream is empty, bail out. If ALL DS streams are empty, bail
             """
             if block is None:
                 logger.debug(
@@ -435,9 +435,9 @@ class NodeInterfaceManager:
             logger.debug("Finding DataSet")
             stream = stream.filter_dataset()
             block = stream.get_most_recent(self.ctx)
-            # TODO: someday probably pass in actual DataSet (not underlying DB) to pipe that asks
+            # TODO: someday probably pass in actual DataSet (not underlying block) to pipe that asks
             #   for it (might want to use `name`, for instance). and then just proxy
-            #   through to underlying DB
+            #   through to underlying block
         else:
             raise NotImplementedError
 

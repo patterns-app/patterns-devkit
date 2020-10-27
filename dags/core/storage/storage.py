@@ -265,7 +265,7 @@ class LocalMemoryStorageEngine(BaseStorageEngine):
         ldr = global_memory_storage[key]
         return (
             ldr.copy()
-        )  # IMPORTANT: It's critical that we *copy* here, otherwise user may mutate an SDB/DB -- absolute no no
+        )  # IMPORTANT: It's critical that we *copy* here, otherwise user may mutate an SDB/block -- absolute no no
         # TODO: should also copy on put? Just to be safe. Copying is not zero cost of course...
 
     def _exists(self, stored_data_block: StoredDataBlockMetadata) -> bool:

@@ -174,7 +174,7 @@ class DatabaseAPI:
         # TODO: Don't understand merge still
         block = sess.merge(block)
         sdb = sess.merge(sdb)
-        # TODO: would be great to validate that a DB/SDB resource is named right, or even to record the name
+        # TODO: would be great to validate that a block/SDB resource is named right, or even to record the name
         #   eg what if we change the naming logic at some point...?  attr on SDB: storage_name or something
         self.rename_table(tmp_name, sdb.get_name(self.env))
         return block, sdb

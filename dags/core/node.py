@@ -186,10 +186,10 @@ def build_composite_nodes(n: Node) -> Iterable[Node]:
     if not n.pipe.is_composite:
         raise
     nodes = []
-    # TODO: just supports chain for now, not actual sub-graph
+    # TODO: this just supports chains for now, not arbitrary sub-graph
     # (hard to imagine totally unconstrained sub-graph, but if we restrict
-    # to one input and one output, could easily support arbitrary interior)
-    # Multiple inputs would take some thought. No concept of multiple outputs in Dags tho
+    # to one input and one output, straightforward to support arbitrary interior)
+    # Multiple inputs would take some thought. No concept of multiple outputs in Dags
     raw_inputs = list(n.get_declared_inputs().values())
     assert len(raw_inputs) == 1, "Composite pipes take one input"
     input_node = raw_inputs[0]
@@ -262,10 +262,12 @@ class PipeLog(BaseModel):
         )
 
     def output_data_blocks(self) -> Iterable[DataBlockMetadata]:
-        return [db for db in self.data_block_logs if db.direction == Direction.OUTPUT]
+        return [
+            dbl for dbl in self.data_block_logs if dbl.direction == Direction.OUTPUT
+        ]
 
     def input_data_blocks(self) -> Iterable[DataBlockMetadata]:
-        return [db for db in self.data_block_logs if db.direction == Direction.INPUT]
+        return [dbl for dbl in self.data_block_logs if dbl.direction == Direction.INPUT]
 
     def set_error(self, e: Exception):
         tback = traceback.format_exc()
