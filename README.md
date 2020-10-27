@@ -1,6 +1,6 @@
 <img src="dags.png">
 
-![dags](https://github.com/actions/kvh/workflows/dags/badge.svg)
+![dags](https://github.com/kvh/basis/workflows/dags/badge.svg)
 
 ### Modern Data Pipelines
  
