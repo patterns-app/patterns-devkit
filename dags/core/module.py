@@ -36,6 +36,10 @@ if TYPE_CHECKING:
 DEFAULT_LOCAL_MODULE_NAME = "_local_"
 
 
+class ModuleException(Exception):
+    pass
+
+
 class DagsModule:
     name: str
     py_module_path: Optional[str]
@@ -114,9 +118,10 @@ class DagsModule:
         return self.library.get_pipes_view()
 
     def validate_key(self, obj: Any):
-        pass  # TODO: make the name whatever you want? idk
-        # if not obj.name.startswith(self.name + "."):
-        #     raise ValueError("Must prefix component name with module name")
+        if obj.module_name != self.name:
+            raise ModuleException(
+                f"Component {obj} module name `{obj.module_name}` does not match module `{self.name}` to which it was added"
+            )
 
     def add_schema(self, schema_like: ObjectSchemaLike) -> ObjectSchema:
         schema = self.process_schema(schema_like)
@@ -153,7 +158,7 @@ class DagsModule:
             pipe = pipe_like
         else:
             if callable(pipe_like):
-                pipe = make_pipe(pipe_like)
+                pipe = make_pipe(pipe_like, module=self.name)
             elif isinstance(pipe_like, str) and pipe_like.endswith(".sql"):
                 if not self.py_module_path:
                     raise Exception(

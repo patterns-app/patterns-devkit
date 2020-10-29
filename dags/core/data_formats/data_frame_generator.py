@@ -8,7 +8,8 @@ import pandas as pd
 from dags.core.data_formats.base import MemoryDataFormatBase, ReusableGenerator
 
 if TYPE_CHECKING:
-    from dags import ObjectSchema
+    from dags.core.data_block import LocalMemoryDataRecords
+    from dags.core.typing.object_schema import SchemaMapping, ObjectSchema
 
 
 class DataFrameGenerator(ReusableGenerator[pd.DataFrame]):
@@ -44,3 +45,10 @@ class DataFrameGeneratorFormat(MemoryDataFormatBase):
         cls, records: DataFrameGenerator
     ) -> DataFrameGenerator:
         raise NotImplementedError
+
+    @classmethod
+    def apply_schema_mapping(
+        cls, mapping: SchemaMapping, dfg: DataFrameGenerator
+    ) -> DataFrameGenerator:
+        for df in dfg:
+            yield df.rename(mapping.as_dict(), axis=1)

@@ -170,6 +170,23 @@ class ObjectSchema:
 ObjectSchemaLike = Union[ObjectSchema, ObjectSchemaKey, ObjectSchemaName]
 
 
+class SchemaMapping:
+    def __init__(
+        self,
+        mapping: Optional[Dict[str, str]] = None,
+        from_schema: Optional[ObjectSchema] = None,
+        to_schema: Optional[ObjectSchema] = None,
+    ):
+        self.mapping = mapping
+        self.from_schema = from_schema
+        self.to_schema = to_schema
+
+    def as_dict(self) -> Dict[str, str]:
+        if not self.mapping:
+            raise NotImplementedError
+        return self.mapping
+
+
 class GeneratedObjectSchema(BaseModel):
     key = Column(String, primary_key=True)
     definition = Column(JSON)

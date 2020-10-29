@@ -17,9 +17,9 @@ from dags.core.node import DataBlockLog, PipeLog
 from dags.core.runnable import PipeContext
 from dags.core.typing.object_schema import create_quick_schema
 from dags.modules import core
+from dags.testing.utils import get_tmp_sqlite_db_url
 from dags.utils.common import utcnow
 from loguru import logger
-from tests.test_utils import get_tmp_sqlite_db_url
 
 
 def test_example():

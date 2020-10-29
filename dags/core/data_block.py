@@ -26,7 +26,12 @@ from dags.core.environment import Environment
 from dags.core.metadata.listeners import immutability_update_listener
 from dags.core.metadata.orm import BaseModel, timestamp_rand_key
 from dags.core.typing.inference import infer_schema_from_records_list
-from dags.core.typing.object_schema import ObjectSchema, ObjectSchemaKey, is_any
+from dags.core.typing.object_schema import (
+    ObjectSchema,
+    ObjectSchemaKey,
+    is_any,
+    SchemaMapping,
+)
 from dags.utils.typing import T
 from loguru import logger
 
@@ -110,8 +115,10 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     def most_abstract_schema_key(self) -> ObjectSchemaKey:
         return self.expected_schema_key or self.realized_schema_key
 
-    def as_managed_data_block(self, ctx: ExecutionContext):
-        mgr = DataBlockManager(ctx, self,)
+    def as_managed_data_block(
+        self, ctx: ExecutionContext, mapping: Optional[SchemaMapping] = None
+    ):
+        mgr = DataBlockManager(ctx, self, schema_mapping=mapping)
         return ManagedDataBlock(
             data_block_id=self.id,
             expected_schema_key=self.expected_schema_key,
@@ -250,8 +257,10 @@ class DataSetMetadata(BaseModel):
             data_block=self.data_block,
         )
 
-    def as_managed_data_block(self, ctx: ExecutionContext):
-        mgr = DataBlockManager(ctx, self.data_block)
+    def as_managed_data_block(
+        self, ctx: ExecutionContext, mapping: Optional[SchemaMapping] = None
+    ):
+        mgr = DataBlockManager(ctx, self, schema_mapping=mapping)
         return ManagedDataSet(
             data_set_id=self.id,
             data_set_name=self.name,
@@ -298,11 +307,15 @@ DataSet = ManagedDataSet
 
 class DataBlockManager:
     def __init__(
-        self, ctx: ExecutionContext, data_block: DataBlockMetadata,
+        self,
+        ctx: ExecutionContext,
+        data_block: DataBlockMetadata,
+        schema_mapping: Optional[SchemaMapping] = None,
     ):
 
         self.ctx = ctx
         self.data_block = data_block
+        self.schema_mapping = schema_mapping
 
     def __str__(self):
         return f"DRM: {self.data_block}, Local: {self.ctx.local_memory_storage}, rest: {self.ctx.storages}"
@@ -333,7 +346,10 @@ class DataBlockManager:
         local_memory_storage = LocalMemoryStorageEngine(
             self.ctx.env, self.ctx.local_memory_storage
         )
-        return local_memory_storage.get_local_memory_data_records(sdb).records_object
+        obj = local_memory_storage.get_local_memory_data_records(sdb).records_object
+        if self.schema_mapping:
+            obj = fmt.apply_schema_mapping(self.schema_mapping, obj)
+        return obj
 
     def get_or_create_local_stored_data_block(
         self, target_format: DataFormat

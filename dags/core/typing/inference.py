@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from parser import ParserError
 from random import randint
 from statistics import StatisticsError, mode
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
 
 import pandas as pd
+from dateutil.parser import ParserError
 from pandas import DataFrame, Series
 from sqlalchemy import Table
 
@@ -195,6 +195,8 @@ def pandas_series_to_sqlalchemy_type(series: Series) -> str:
         return "Time"
     elif dtype == "complex":
         raise ValueError("Complex datatypes not supported")
+    elif dtype == "empty":
+        return "UnicodeText"
     else:
         # Handle object/string case
         if has_dict_or_list(series):

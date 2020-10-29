@@ -56,6 +56,10 @@ def echo_table(headers, rows):
         click.echo_via_pager(pager)
 
 
+class CliAppException(Exception):
+    pass
+
+
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option("-d", "--debug")
 @click.pass_context
@@ -122,6 +126,8 @@ def generate(component_type: str):
         click.secho("-----------------------")
         click.echo(schema)
         click.secho("-----------------------")
+    else:
+        raise CliAppException(f"Invalid component type {component_type}")
 
 
 @click.command("list")

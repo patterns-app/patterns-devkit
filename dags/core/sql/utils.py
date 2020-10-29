@@ -51,18 +51,6 @@ def compile_jinja_sql_template(template, template_ctx=None):
     return sql
 
 
-# class ConfigExtension(Extension):
-#     # a set of names that trigger the extension.
-#     tags = {"config"}
-#
-#     def parse(self, parser):
-#         # now we parse the body of the config block up to `endconfig` and
-#         # drop the needle (which would always be `endconfig` in that case)
-#         body = parser.parse_statements(["name:endconfig"], drop_needle=True)
-#         self.environment.template_config = body
-#         return nodes.Const("")
-
-
 class ObjectSchemaFieldMapper:
     def __init__(self, env: Environment):
         self.env = env

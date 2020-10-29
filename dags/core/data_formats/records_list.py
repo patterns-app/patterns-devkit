@@ -6,9 +6,17 @@ from dags.core.data_formats.base import MemoryDataFormatBase
 
 if TYPE_CHECKING:
     from dags import ObjectSchema
+    from dags.core.typing.object_schema import SchemaMapping
 
 
 RecordsList = List[Dict[str, Any]]
+
+
+def map_recordslist(mapping: Dict[str, str], records: RecordsList) -> RecordsList:
+    mapped = []
+    for r in records:
+        mapped.append({mapping.get(k, k): v for k, v in r.items()})
+    return mapped
 
 
 class RecordsListFormat(MemoryDataFormatBase):
@@ -50,3 +58,10 @@ class RecordsListFormat(MemoryDataFormatBase):
             raise ValueError("Empty records object")
         inferred_schema = infer_schema_from_records_list(dl)
         return inferred_schema
+
+    @classmethod
+    def apply_schema_mapping(
+        cls, mapping: SchemaMapping, records: RecordsList
+    ) -> RecordsList:
+        m = mapping.as_dict()
+        return map_recordslist(m, records)

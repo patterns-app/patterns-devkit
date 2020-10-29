@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, Type
 from dags.utils.typing import T
 
 if TYPE_CHECKING:
+    from dags.core.data_block import LocalMemoryDataRecords
+    from dags.core.typing.object_schema import SchemaMapping
     from dags import ObjectSchema
 
 
@@ -53,6 +55,10 @@ class DataFormatBase(Generic[T]):
 
     @classmethod
     def conform_records_to_schema(cls, records: T) -> T:
+        raise NotImplementedError
+
+    @classmethod
+    def apply_schema_mapping(cls, mapping: SchemaMapping, obj: T) -> T:
         raise NotImplementedError
 
 

@@ -6,8 +6,6 @@ from re import Match
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import sqlparse
-from sqlparse import tokens
-
 from dags.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.data_formats import DataFormat
 from dags.core.module import DagsModule
@@ -18,6 +16,7 @@ from dags.core.pipe_interface import (
     re_type_hint,
 )
 from dags.core.runnable import PipeContext
+from sqlparse import tokens
 
 
 @dataclass(frozen=True)
@@ -171,11 +170,11 @@ def extract_interface(
 
 
 def extract_types(
-    sql: str, input_table_names: Dict[str, str] = None
+    sql: str, input_table_stmts: Dict[str, str] = None
 ) -> TypedSqlStatement:
-    if input_table_names is None:
-        input_table_names = {}
-    return extract_interface(sql, input_table_names)
+    if input_table_stmts is None:
+        input_table_stmts = {}
+    return extract_interface(sql, input_table_stmts)
 
 
 class SqlPipeWrapper:
@@ -207,16 +206,16 @@ class SqlPipeWrapper:
 
         return sdb
 
-    def get_input_table_names(
+    def get_input_table_stmts(
         self, inputs: Dict[str, DataBlock] = None,
     ) -> Dict[str, str]:
         if inputs is None:
             return {}
-        table_names = {}
+        table_stmts = {}
         for input_name, block in inputs.items():
             schema = block.as_table()
-            table_names[input_name] = schema.table_name
-        return table_names
+            table_stmts[input_name] = schema.get_table_stmt()
+        return table_stmts
 
     def get_compiled_sql(
         self, ctx: PipeContext, inputs: Dict[str, DataBlock] = None,
@@ -237,7 +236,7 @@ class SqlPipeWrapper:
     def get_typed_statement(
         self, inputs: Dict[str, DataBlock] = None,
     ) -> TypedSqlStatement:
-        return extract_types(self.sql, self.get_input_table_names(inputs))
+        return extract_types(self.sql, self.get_input_table_stmts(inputs))
 
     def get_interface(self) -> PipeInterface:
         stmt = self.get_typed_statement()

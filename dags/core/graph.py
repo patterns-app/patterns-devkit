@@ -18,14 +18,13 @@ from typing import (
 
 import networkx as nx
 
-from dags import Environment
 from dags.core.node import Node, NodeLike, create_node, inputs_as_nodes
 from dags.core.pipe import PipeLike
 from dags.utils.common import remove_dupes
 from loguru import logger
 
 if TYPE_CHECKING:
-    pass
+    from dags import Environment
 
 
 class NodeDoesNotExist(KeyError):

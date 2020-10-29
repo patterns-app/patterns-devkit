@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import tempfile
 from datetime import date, datetime, time, timedelta
 
 import pytest
@@ -12,7 +11,6 @@ from dags.utils.common import (
     DagsJSONEncoder,
     StringEnum,
     is_datetime_str,
-    rand_str,
     snake_to_title_case,
     title_to_snake_case,
 )
@@ -120,13 +118,6 @@ def test_dataframe_to_records_list():
         if r["a"] == 0:
             # NaT has been converted to None
             assert r["c"] is None
-
-
-def get_tmp_sqlite_db_url(dbname=None):
-    if dbname is None:
-        dbname = rand_str(10)
-    dir = tempfile.mkdtemp()
-    return f"sqlite:///{dir}/{dbname}.db"
 
 
 # def test_coerce_dataframe_to_schema():

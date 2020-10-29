@@ -24,7 +24,7 @@ from dags.core.data_formats import (
 )
 from dags.core.graph import Graph
 from dags.core.storage.storage import StorageType, new_local_memory_storage
-from tests.test_utils import get_tmp_sqlite_db_url
+from dags.testing.utils import get_tmp_sqlite_db_url
 from tests.utils import TestSchema4, make_test_env
 
 

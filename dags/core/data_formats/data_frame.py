@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import pandas as pd
 from pandas import DataFrame
@@ -9,7 +9,8 @@ from dags.core.data_formats.base import MemoryDataFormatBase
 from dags.utils.typing import T
 
 if TYPE_CHECKING:
-    from dags import ObjectSchema
+    from dags.core.data_block import LocalMemoryDataRecords
+    from dags.core.typing.object_schema import SchemaMapping, ObjectSchema
 
 
 class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
@@ -42,3 +43,7 @@ class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
     @classmethod
     def conform_records_to_schema(cls, records: T) -> T:
         raise NotImplementedError
+
+    @classmethod
+    def apply_schema_mapping(cls, mapping: SchemaMapping, df: DataFrame) -> DataFrame:
+        return df.rename(mapping.as_dict(), axis=1)

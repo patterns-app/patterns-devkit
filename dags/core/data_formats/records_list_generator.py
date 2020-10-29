@@ -4,9 +4,10 @@ from collections import abc
 from typing import TYPE_CHECKING, Any, Optional, Type
 
 from dags.core.data_formats.base import MemoryDataFormatBase, ReusableGenerator
-from dags.core.data_formats.records_list import RecordsList
+from dags.core.data_formats.records_list import RecordsList, map_recordslist
 
 if TYPE_CHECKING:
+    from dags.core.typing.object_schema import SchemaMapping
     from dags import ObjectSchema
 
 
@@ -37,3 +38,11 @@ class RecordsListGeneratorFormat(MemoryDataFormatBase):
             raise ValueError("Empty records object")
         inferred_schema = infer_schema_from_records_list(dl)
         return inferred_schema
+
+    @classmethod
+    def apply_schema_mapping(
+        cls, mapping: SchemaMapping, rlg: RecordsListGenerator
+    ) -> RecordsListGenerator:
+        m = mapping.as_dict()
+        for records in rlg:
+            yield map_recordslist(m, records)

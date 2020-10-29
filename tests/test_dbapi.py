@@ -15,7 +15,7 @@ from dags.core.data_formats import DatabaseTableFormat
 from dags.core.storage.storage import new_local_memory_storage
 from dags.db.api import DatabaseAPI
 from dags.modules import core
-from tests.test_utils import get_tmp_sqlite_db_url
+from dags.testing.utils import get_tmp_sqlite_db_url
 from tests.utils import make_test_env, sample_records
 
 
