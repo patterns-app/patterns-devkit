@@ -40,6 +40,7 @@ def create_node(
     dataset_name: Optional[str] = None,
     config: Optional[Dict[str, Any]] = None,
     declared_composite_node_key: str = None,
+    schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
 ):
     config = config or {}
     env = graph.env
@@ -61,6 +62,7 @@ def create_node(
         declared_composite_node_key=declared_composite_node_key,
         _declared_inputs=_declared_inputs,
         _sub_nodes=_sub_nodes,
+        _declared_schema_mapping=schema_mapping,
     )
     inputs = inputs or upstream
     if inputs is not None:
@@ -85,6 +87,7 @@ class Node:
     _dataset_name: Optional[str] = None
     declared_composite_node_key: Optional[str] = None
     _sub_nodes: Optional[List[Node]] = None
+    _declared_schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(key={self.key}, pipe={self.pipe.key})>"
@@ -141,6 +144,18 @@ class Node:
 
     def get_declared_inputs(self) -> Dict[str, NodeLike]:
         return self._declared_inputs or {}
+
+    def get_schema_mapping_for_input(self, input_name: str) -> Optional[Dict[str, str]]:
+        if not self._declared_schema_mapping:
+            return None
+        v = list(self._declared_schema_mapping.values())[0]
+        if isinstance(v, str):
+            # Just one mapping, so should be one input
+            assert len(self.interface.inputs) == 1
+            return self._declared_schema_mapping
+        if isinstance(v, dict):
+            return self._declared_schema_mapping.get(input_name)
+        raise TypeError(self._declared_schema_mapping)
 
     def get_sub_nodes(self) -> Optional[Iterable[Node]]:
         return self._sub_nodes

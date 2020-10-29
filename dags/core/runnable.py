@@ -422,17 +422,11 @@ class Worker:
                 # realized_output_schema=runnable.pipe_interface.realized_output_schema,
             )
             args.append(dfc)
-        inputs = runnable.pipe_interface.as_kwargs()
-        mgd_inputs = {
-            n: self.get_managed_data_block(block) for n, block in inputs.items()
-        }
+        mgd_inputs = runnable.pipe_interface.inputs_as_managed_data_blocks(self.ctx)
         assert (
             runnable.compiled_pipe.pipe.pipe_callable is not None
         ), f"Attempting to execute composite pipe directly {runnable.compiled_pipe.pipe}"
         return runnable.compiled_pipe.pipe.pipe_callable(*args, **mgd_inputs)
-
-    def get_managed_data_block(self, block: DataBlockMetadata) -> ManagedDataBlock:
-        return block.as_managed_data_block(self.ctx)
 
     def conform_output(
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,

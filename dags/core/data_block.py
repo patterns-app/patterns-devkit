@@ -115,6 +115,12 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     def most_abstract_schema_key(self) -> ObjectSchemaKey:
         return self.expected_schema_key or self.realized_schema_key
 
+    def realized_schema(self, env: Environment) -> ObjectSchema:
+        return env.get_schema(self.realized_schema_key)
+
+    def expected_schema(self, env: Environment) -> ObjectSchema:
+        return env.get_schema(self.expected_schema_key)
+
     def as_managed_data_block(
         self, ctx: ExecutionContext, mapping: Optional[SchemaMapping] = None
     ):

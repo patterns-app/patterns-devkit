@@ -5,12 +5,12 @@ from typing import Callable
 import pytest
 from pandas import DataFrame
 
-from dags.core.data_block import DataBlock
+from dags.core.data_block import DataBlock, DataBlockMetadata
 from dags.core.graph import Graph
 from dags.core.module import DEFAULT_LOCAL_MODULE_NAME
 from dags.core.node import Node, create_node
 from dags.core.pipe import Pipe, PipeInterface, PipeLike, pipe
-from dags.core.pipe_interface import PipeAnnotation
+from dags.core.pipe_interface import NodeInterfaceManager, PipeAnnotation
 from dags.core.runnable import PipeContext
 from dags.core.runtime import RuntimeClass
 from dags.core.sql.pipe import sql_pipe
@@ -19,6 +19,7 @@ from dags.utils.typing import T, U
 from tests.utils import (
     TestSchema1,
     make_test_env,
+    make_test_execution_context,
     pipe_chain_t1_to_t2,
     pipe_generic,
     pipe_self,
@@ -239,6 +240,45 @@ def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
     assert val == expected
     node = create_node(g, "_test", pipe, inputs="mock")
     assert node.get_interface() == expected
+
+
+def test_declared_schema_mapping():
+    ec = make_test_execution_context()
+    env = ec.env
+    g = Graph(env)
+    mapping = {"f1": "mapped_f1"}
+    n1 = g.add_node("node1", pipe_t1_to_t2, schema_mapping=mapping)
+    pi = n1.get_interface()
+    im = NodeInterfaceManager(ctx=ec, node=n1)
+    block = DataBlockMetadata(
+        expected_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
+    )
+    bpi = im.get_bound_interface({"input": block})
+    assert len(bpi.inputs) == 1
+    input = bpi.inputs[0]
+    schema_mapping = input.get_schema_mapping(env)
+    assert schema_mapping.as_dict() == mapping
+
+
+def test_natural_schema_mapping():
+    # TODO
+    ec = make_test_execution_context()
+    env = ec.env
+    g = Graph(env)
+    mapping = {"f1": "mapped_f1"}
+    n1 = g.add_node("node1", pipe_t1_to_t2, schema_mapping=mapping)
+    pi = n1.get_interface()
+    im = NodeInterfaceManager(ctx=ec, node=n1)
+    block = DataBlockMetadata(
+        expected_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
+    )
+    bpi = im.get_bound_interface({"input": block})
+    assert len(bpi.inputs) == 1
+    input = bpi.inputs[0]
+    schema_mapping = input.get_schema_mapping(env)
+    assert schema_mapping.as_dict() == mapping
 
 
 def test_inputs():

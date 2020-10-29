@@ -18,12 +18,18 @@ from typing import (
 
 import networkx as nx
 
-from dags.core.data_block import DataBlock, DataBlockMetadata, DataSetMetadata
+from dags.core.data_block import (
+    DataBlock,
+    DataBlockMetadata,
+    DataSetMetadata,
+    ManagedDataBlock,
+)
 from dags.core.environment import Environment
 from dags.core.typing.object_schema import (
     ObjectSchema,
     ObjectSchemaKey,
     ObjectSchemaLike,
+    SchemaMapping,
     is_any,
     is_generic,
 )
@@ -71,6 +77,10 @@ SELF_REF_PARAM_NAME = "this"
 
 
 class BadAnnotationException(Exception):
+    pass
+
+
+class GenericSchemaException(Exception):
     pass
 
 
@@ -143,18 +153,46 @@ class PipeAnnotation:
         args.update(**kwargs)
         return PipeAnnotation.create(**args)  # type: ignore
 
-    def schema_key(self, env: Environment) -> ObjectSchemaKey:
+    def schema(self, env: Environment) -> ObjectSchema:
         if self.is_generic:
-            raise ValueError("Generic ObjectSchema has no name")
-        return env.get_schema(self.schema_like).key
+            raise GenericSchemaException("Generic ObjectSchema has no name")
+        return env.get_schema(self.schema_like)
+
+    def schema_key(self, env: Environment) -> ObjectSchemaKey:
+        return self.schema(env).key
 
 
 @dataclass
 class NodeInput:
     name: str
     original_annotation: PipeAnnotation
+    declared_schema_mapping: Optional[Dict[str, str]] = None
     input_node: Optional[Node] = None
     bound_data_block: Optional[DataBlockMetadata] = None
+
+    def get_schema_mapping(self, env: Environment) -> Optional[SchemaMapping]:
+        print(self)
+        if self.bound_data_block is None:
+            return None
+        if self.declared_schema_mapping:
+            # If we are given a declared mapping, then that overrides a natural mapping
+            return SchemaMapping(
+                mapping=self.declared_schema_mapping,
+                from_schema=self.bound_data_block.realized_schema(env),
+            )
+        if (
+            self.bound_data_block.expected_schema_key is None
+            or self.original_annotation.is_generic
+        ):
+            # If block has no expected schema, then we can't map
+            # Or if input is generic, then no mapping required
+            #   TODO: Above is NOT necessarily true, this is why we need to compute the "specific" / "resolved" schema
+            #         so we can know what the actual expected schema is and map to that if possible/required.
+            #         Specification logic is commented out below
+            return None
+        return self.bound_data_block.expected_schema(env).get_mapping_to(
+            env, self.original_annotation.schema(env)
+        )
 
 
 @dataclass
@@ -187,12 +225,24 @@ class BoundPipeInterface:
             requires_pipe_context=dfi.requires_pipe_context,
         )
 
-    def as_kwargs(self):
+    def inputs_as_kwargs(self):
         return {
             i.name: i.bound_data_block
             for i in self.inputs
             if i.bound_data_block is not None
         }
+
+    def inputs_as_managed_data_blocks(
+        self, ctx: ExecutionContext
+    ) -> Dict[str, ManagedDataBlock]:
+        inputs: Dict[str, ManagedDataBlock] = {}
+        for i in self.inputs:
+            if i.bound_data_block is None:
+                continue
+            inputs[i.name] = i.bound_data_block.as_managed_data_block(
+                ctx, mapping=i.get_schema_mapping(ctx.env)
+            )
+        return inputs
 
 
 #
@@ -340,6 +390,9 @@ class NodeInterfaceManager:
         for input in i.inputs:
             if input.original_annotation.is_self_ref:
                 inputs["this"] = self.node
+            input.declared_schema_mapping = self.node.get_schema_mapping_for_input(
+                input.name
+            )
         i.connect(inputs)
         if input_data_blocks is None:
             input_data_blocks = self.get_input_data_blocks()

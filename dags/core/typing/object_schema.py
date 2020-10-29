@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
 
 import strictyaml
 from sqlalchemy import JSON, Column, String
@@ -10,6 +10,10 @@ from sqlalchemy import JSON, Column, String
 from dags.core.metadata.orm import BaseModel
 from dags.utils.common import StringEnum, title_to_snake_case
 from loguru import logger
+
+if TYPE_CHECKING:
+    from dags import Environment
+
 
 ### Not needed atm, maybe in the future
 # def parse_field_type(ft: str):
@@ -76,8 +80,16 @@ class Relationship:
 
 @dataclass(frozen=True)
 class Implementation:
-    type: ObjectSchemaKey
+    schema_key: ObjectSchemaKey
     fields: Dict[str, str]
+
+    def schema(self, env: Environment) -> ObjectSchema:
+        return env.get_schema(self.schema_key)
+
+    def as_schema_mapping(self, env: Environment, other: ObjectSchema) -> SchemaMapping:
+        return SchemaMapping(
+            mapping=self.fields, from_schema=self.schema(env), to_schema=other
+        )
 
 
 # TODO: support these?
@@ -110,7 +122,7 @@ class ObjectSchema:
     on_conflict: ConflictBehavior
     fields: List[Field]
     relationships: List[Relationship] = field(default_factory=list)
-    implementations: List[ObjectSchemaKey] = field(default_factory=list)
+    implementations: List[Implementation] = field(default_factory=list)
     raw_definition: Optional[str] = None
     extends: Optional[
         ObjectSchemaKey
@@ -165,6 +177,16 @@ class ObjectSchema:
             fields.append(build_field_type_from_dict(f))
         d["fields"] = fields
         return ObjectSchema(**d)
+
+    def get_mapping_to(
+        self, env: Environment, other: ObjectSchema
+    ) -> Optional[SchemaMapping]:
+        if not self.implementations:
+            return None
+        for impl in self.implementations:
+            if impl.schema_key == other.key:
+                return impl.as_schema_mapping(env, other)
+        return None
 
 
 ObjectSchemaLike = Union[ObjectSchema, ObjectSchemaKey, ObjectSchemaName]
@@ -255,6 +277,7 @@ def clean_raw_schema_defintion(raw_def: dict) -> dict:
 
 def build_schema_from_dict(d: dict, **overrides: Any) -> ObjectSchema:
     fields = [build_field_type_from_dict(f) for f in d.pop("fields", [])]
+    # TODO: relationships and implementations
     d["fields"] = fields
     d.update(**overrides)
     schema = ObjectSchema(**d)
