@@ -1,6 +1,7 @@
-<img src="dags.png">
 
 ![dags](https://github.com/kvh/basis/workflows/dags/badge.svg)
+
+<img src="dags.png">
 
 ### Modern Data Pipelines
  
@@ -10,7 +11,7 @@ type-aware data graphs**. These graphs are composed of discrete `pipes` written 
 **python or SQL** that snap together both batch and streaming data flows to form end-to-end data
  pipelines, from API extraction to SQL transformation to analysis, modeling, and visualization.
 
-Dags `pipes` optionally expose type interfaces, called `ObjectSchema`s or just `schema`s, that
+Dags `pipes` optionally expose type interfaces, called `ObjectSchemas` (or just `schemas`), that
 describe the structure, data types, and semantics of the expected input and output data. These type
 interfaces allow the Dags community to build an ecosystem of interoperable components that power
 instant "plug and play" pipelines.
@@ -61,7 +62,7 @@ from dags_bi import bi
 graph = Graph()
 graph.add_node(
     key="stripe_txs",
-    pipe=stripe.extract_stripe_transactions,
+    pipe=stripe.extract_charges,
     config={"api_key":"xxxxxxxx"},
 )
 graph.add_node(

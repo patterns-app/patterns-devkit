@@ -69,7 +69,7 @@ def test_schema_helpers():
 def test_schema_yaml():
     tt = schema_from_yaml(test_schema_yml)
     assert tt.name == "TestSchema"
-    assert tt.version == 3
+    assert tt.version == "3"
     assert len(tt.fields) == 2
     assert len(tt.relationships) == 1
     assert len(tt.implementations) == 1
