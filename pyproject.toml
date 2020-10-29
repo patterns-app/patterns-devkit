@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dags"
-version = "0.1.1"
+version = "0.1.2"
 license = "BSD-3-Clause"
 description = "Functional Data Pipelines"
 authors = ["Ken Van Haren <kenvanharen@gmail.com>"]

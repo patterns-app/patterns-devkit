@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import strictyaml
 from sqlalchemy import JSON, Column, String
@@ -271,7 +271,6 @@ def clean_raw_schema_defintion(raw_def: dict) -> dict:
     # raw_def["type_class"] = raw_def.pop("class", None)
     if "module_name" not in raw_def:
         raw_def["module_name"] = raw_def.pop("module", None)
-    raw_def["version"] = int(raw_def["version"])
     return raw_def
 
 
