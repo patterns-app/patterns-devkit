@@ -18,6 +18,8 @@ from dags.core.typing.inference import (
 )
 from dags.core.typing.object_schema import ObjectSchemaLike
 from dags.db.api import dispose_all
+from dags.db.postgres import POSTGRES_SUPPORTED
+from dags.testing.utils import display_pipe_log, get_tmp_sqlite_db_url
 from dags.utils.common import cf, printd, rand_str
 from dags.utils.data import read_csv, read_json
 from dags.utils.pandas import (
@@ -132,19 +134,22 @@ class PipeTest:
 
         # TODO: Can we use sqlite?
         # TODO: check for pg support at least
-        db_name = f"__test_{rand_str(10).lower()}"
-        conn_url = "postgres://postgres@localhost:5432/postgres"
-        db_url = f"postgres://postgres@localhost:5432/{db_name}"
-        # conn_url = f"sqlite:///" + db_name + ".db"
-        # try:
-        #     drop_db(conn_url, db_name)
-        # except Exception as e:
-        #     pass
-        create_db(conn_url, db_name)
+        conn_url = None
+        db_name = None
+        if POSTGRES_SUPPORTED:
+            db_name = f"__test_{rand_str(10).lower()}"
+            conn_url = "postgres://postgres@localhost:5432/postgres"
+            db_url = f"postgres://postgres@localhost:5432/{db_name}"
+            create_db(conn_url, db_name)
+        else:
+            db_url = get_tmp_sqlite_db_url()
         initial_modules = [core] + kwargs.pop("initial_modules", [])
 
         env = Environment(
-            db_name, metadata_storage=db_url, initial_modules=initial_modules, **kwargs
+            name=db_url,
+            metadata_storage=db_url,
+            initial_modules=initial_modules,
+            **kwargs,
         )
         env.add_storage(db_url)
         try:
@@ -152,7 +157,8 @@ class PipeTest:
         finally:
             close_all_sessions()
             dispose_all()
-            drop_db(conn_url, db_name)
+            if conn_url:
+                drop_db(conn_url, db_name)
 
     def run(self, **env_args: Any):
         # TODO: clean this pipe up
@@ -167,6 +173,8 @@ class PipeTest:
                     try:
                         inputs = {}
                         for input in dfi.inputs:
+                            if input.is_self_ref:
+                                continue
                             assert input.name is not None
                             test_df = test_data[input.name].data_frame
                             test_schema = test_data[input.name].schema_like
@@ -179,10 +187,9 @@ class PipeTest:
                         test_node = g.add_node(
                             "_test_node", fn, config=case.pipe_config, inputs=inputs
                         )
-                        # test_node._set_declared_inputs(
-                        #     inputs
-                        # )  # Force, for testing. Normally want node to be immutable
                         output = env.produce(g, test_node, to_exhaustion=False)
+                        # with env.session_scope() as sess:
+                        #     display_pipe_log(sess)
                         if "output" in test_data:
                             assert (
                                 output is not None

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
+
 from dags.core.module import DagsModule
 from dags.modules import core
+from loguru import logger
 
 
 def test_module_init():

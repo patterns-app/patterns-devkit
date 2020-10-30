@@ -109,6 +109,9 @@ class PipeAnnotation:
         name = kwargs.get("name")
         if name:
             kwargs["is_self_ref"] = name == SELF_REF_PARAM_NAME
+            if kwargs["is_self_ref"]:
+                # self-ref is always optional
+                kwargs["is_optional"] = True
         schema_name = kwargs.get("schema_like")
         if isinstance(schema_name, str):
             kwargs["is_generic"] = is_generic(schema_name)
@@ -121,12 +124,12 @@ class PipeAnnotation:
     @classmethod
     def from_parameter(cls, parameter: inspect.Parameter) -> PipeAnnotation:
         annotation = parameter.annotation
-        is_optional = parameter.default != inspect.Parameter.empty
+        # is_optional = parameter.default != inspect.Parameter.empty
         is_variadic = parameter.kind == inspect.Parameter.VAR_POSITIONAL
         tda = cls.from_type_annotation(
             annotation,
             name=parameter.name,
-            is_optional=is_optional,
+            # is_optional=is_optional,
             is_variadic=is_variadic,
         )
         return tda
@@ -171,7 +174,6 @@ class NodeInput:
     bound_data_block: Optional[DataBlockMetadata] = None
 
     def get_schema_mapping(self, env: Environment) -> Optional[SchemaMapping]:
-        print(self)
         if self.bound_data_block is None:
             return None
         if self.declared_schema_mapping:

@@ -175,7 +175,13 @@ class NodeGraph:
         # inputs = copy(n.get_declared_input_nodes())
         inputs: Dict[str, Node] = {}
         for name, inp in raw_inputs.items():
-            inputs[name] = self.get_node(inp)
+            if isinstance(inp, str):
+                inp = self.get_node(inp)
+            elif isinstance(inp, Node):
+                pass
+            else:
+                raise TypeError(inp)
+            inputs[name] = inp
         return inputs
 
     def with_dataset_nodes(self) -> NodeGraph:
@@ -184,6 +190,10 @@ class NodeGraph:
             dfi = n.get_interface()
             inputs = self.declared_input_nodes(n)
             for annotation in dfi.inputs:
+                if annotation.is_self_ref:
+                    # self refs can never be datasets! They operate on the raw block stream
+                    # ... i think ...
+                    continue
                 if annotation.is_dataset:
                     assert (
                         annotation.name is not None

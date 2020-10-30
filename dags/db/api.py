@@ -7,6 +7,7 @@ from typing import (
     TYPE_CHECKING,
     Callable,
     ContextManager,
+    Dict,
     Generator,
     List,
     Tuple,
@@ -36,7 +37,6 @@ if TYPE_CHECKING:
     pass
 
 
-# _sa_engines: Dict[str, Engine] = {}
 _sa_engines: List[Engine] = []
 
 
@@ -70,13 +70,7 @@ class DatabaseAPI:
         )
 
     def get_engine(self) -> sqlalchemy.engine.Engine:
-        # return sqlalchemy.create_engine(
-        #     self.resource.url, json_serializer=self.json_serializer
-        # )
         url = self.resource.url
-        # try:
-        #     return _sa_engines[url]
-        # except KeyError:
         eng = sqlalchemy.create_engine(
             url, json_serializer=self.json_serializer, echo=False
         )

@@ -12,12 +12,12 @@ from dags.utils.data import read_csv
 
 
 @dataclass
-class LocalResourceState:
+class LocalExtractState:
     extracted: bool
 
 
 @dataclass
-class DataFrameResourceConfig:
+class ExtractDataFrameConfig:
     dataframe: DataFrame
     schema: ObjectSchemaLike
 
@@ -25,8 +25,8 @@ class DataFrameResourceConfig:
 @pipe(
     "extract_dataframe",
     module="core",
-    config_class=DataFrameResourceConfig,
-    state_class=LocalResourceState,
+    config_class=ExtractDataFrameConfig,
+    state_class=LocalExtractState,
 )
 def extract_dataframe(ctx: PipeContext,) -> DataSet:
     extracted = ctx.get_state_value("extracted")
@@ -38,7 +38,7 @@ def extract_dataframe(ctx: PipeContext,) -> DataSet:
 
 
 @dataclass
-class LocalCSVResourceConfig:
+class ExtractLocalCSVConfig:
     path: str
     schema: ObjectSchemaLike
 
@@ -46,8 +46,8 @@ class LocalCSVResourceConfig:
 @pipe(
     "extract_csv",
     module="core",
-    config_class=LocalCSVResourceConfig,
-    state_class=LocalResourceState,
+    config_class=ExtractLocalCSVConfig,
+    state_class=LocalExtractState,
 )
 def extract_csv(ctx: PipeContext,) -> DataSet:
     extracted = ctx.get_state_value("extracted")

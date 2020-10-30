@@ -100,6 +100,7 @@ class ConflictBehavior(StringEnum):
     CreateNewVersion = (
         "CreateNewVersion"  # TODO: would need a field ("_record_version") or something
     )
+    DoNothing = "DoNothing"
 
 
 class ObjectSchemaClass(StringEnum):
@@ -119,7 +120,7 @@ class ObjectSchema:
     version: Optional[str]
     description: str
     unique_on: List[str]
-    on_conflict: ConflictBehavior
+    on_conflict: Optional[ConflictBehavior]
     fields: List[Field]
     relationships: List[Relationship] = field(default_factory=list)
     implementations: List[Implementation] = field(default_factory=list)
@@ -265,7 +266,7 @@ def clean_raw_schema_defintion(raw_def: dict) -> dict:
         raw_def["unique_on"] = []
     if isinstance(raw_def.get("unique_on"), str):
         raw_def["unique_on"] = [raw_def["unique_on"]]
-    oc = raw_def["on_conflict"]
+    oc = raw_def.get("on_conflict")
     if isinstance(oc, str):
         raw_def["on_conflict"] = ConflictBehavior(oc)
     # raw_def["type_class"] = raw_def.pop("class", None)

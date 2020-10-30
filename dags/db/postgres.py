@@ -34,16 +34,13 @@ def bulk_upsert(
     update: bool = True,
     columns: List[str] = None,
     adapt_objects_to_json: bool = True,
-    convert_columns_to_snake_case: bool = False,
     page_size: int = 5000,
 ):
     if not records:
         return
     if update and not unique_on_column:
         raise Exception("Must specify unique_on_column when updating")
-    columns = conform_columns_for_insert(
-        records, columns, convert_columns_to_snake_case
-    )
+    columns = conform_columns_for_insert(records, columns)
     records = conform_records_for_insert(records, columns, adapt_objects_to_json)
     if update:
         tmpl = "templates/bulk_upsert.sql"
