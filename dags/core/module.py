@@ -15,6 +15,7 @@ from typing import (
     TextIO,
     Type,
     Union,
+    Callable,
 )
 
 from dags.core.component import ComponentLibrary
@@ -31,7 +32,6 @@ if TYPE_CHECKING:
         Pipe,
         make_pipe,
     )
-    from dags.testing.pipes import PipeTest
 
 DEFAULT_LOCAL_MODULE_NAME = "_local_"
 
@@ -45,7 +45,7 @@ class DagsModule:
     py_module_path: Optional[str]
     py_module_name: Optional[str]
     library: ComponentLibrary
-    test_cases: List[PipeTest]
+    test_cases: List[Callable]
     dependencies: List[DagsModule]
 
     def __init__(
@@ -55,7 +55,7 @@ class DagsModule:
         py_module_name: Optional[str] = None,
         schemas: Optional[Sequence[ObjectSchemaLike]] = None,
         pipes: Optional[Sequence[Union[PipeLike, str]]] = None,
-        tests: Optional[Sequence[PipeTest]] = None,
+        tests: Optional[Sequence[Callable]] = None,
         dependencies: List[
             DagsModule
         ] = None,  # TODO: support str references to external deps (will need repo hooks...)
@@ -175,16 +175,15 @@ class DagsModule:
                 raise TypeError(pipe_like)
         return pipe
 
-    def add_test(self, test_case: PipeTest):
-        test_case.module = self
+    def add_test(self, test_case: Callable):
         self.test_cases.append(test_case)
 
     def run_tests(self):
         print(f"Running tests for module {self.name}")
         for test in self.test_cases:
-            print(f"======= {test.pipe} =======")
+            print(f"======= {test.__name__} =======")
             try:
-                test.run(initial_modules=[self] + self.dependencies)
+                test()
             except Exception as e:
                 print(e)
                 raise e

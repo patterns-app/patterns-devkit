@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 from dags.core.data_formats import RecordsList
@@ -23,7 +23,7 @@ def sortable_columns(dtypes: Series) -> List[str]:
 def assert_dataframes_are_almost_equal(
     df1: DataFrame,
     df2: DataFrame,
-    schema: ObjectSchema,
+    schema: Optional[ObjectSchema] = None,
     ignored_columns: List[str] = None,
 ):
     if ignored_columns:
@@ -36,11 +36,14 @@ def assert_dataframes_are_almost_equal(
     # except: pass
     # for c, d, dd in zip(df1.columns, list(df1.dtypes), list(df2.dtypes)):
     #     print(f"{c:30} {str(d):20}", str(dd))
-    df1.sort_values(schema.unique_on, inplace=True)
-    df2.sort_values(schema.unique_on, inplace=True)
+    if schema is not None:
+        df1.sort_values(schema.unique_on, inplace=True)
+        df2.sort_values(schema.unique_on, inplace=True)
     for (i, r), (i2, r2) in zip(df1.iterrows(), df2.iterrows()):
         for c in r.keys():
-            assert (is_nullish(r[c]) and is_nullish(r2[c])) or r[c] == r2[c]
+            if is_nullish(r[c]) and is_nullish(r2[c]):
+                continue
+            assert_almost_equal(r[c], r2[c])
 
 
 def empty_dataframe_for_schema(schema: ObjectSchema) -> DataFrame:

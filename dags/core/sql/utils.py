@@ -68,11 +68,12 @@ class ObjectSchemaFieldMapper:
             "Integer": sa.Integer,
             "BigInteger": sa.BigInteger,
             "Numeric": sa.Numeric,
+            "Float": sa.Float,
+            "REAL": sa.Float,
             "Boolean": sa.Boolean,
             "Date": sa.Date,
             "DATE": sa.Date,
             "DateTime": sa.DateTime,
-            "Float": sa.Float,
             "Json": sa.JSON,
             "JSON": sa.JSON,
         }

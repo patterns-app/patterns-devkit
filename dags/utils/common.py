@@ -255,14 +255,29 @@ def as_aware_datetime(v: Union[datetime, str, int]) -> datetime:
 
 
 def is_datetime_str(s: str) -> bool:
-    if len(s) < 8:
-        # dateutil.parse is quite greedy, will take any integer like
-        # thing as a date, "199603" for instance
-        # So we assume shorter strings are not ever valid datetimes
-        # Must be at least "1/1/1985" long
-        return False
+    """
+    Relatively conservative datetime string detector. Takes preference
+    for numerics over datetimes (so 20201201 is an integer, not a date)
+    """
+    if not isinstance(s, str):
+        s = str(s)
     try:
-        parser.parse(s)
+        int(s)
+        return False
+    except (TypeError, ValueError):
+        pass
+    try:
+        float(s)
+        return False
+    except (TypeError, ValueError):
+        pass
+    try:
+        # We use ancient date as default to detect when no date was found
+        # Will fail if trying to parse actual ancient dates!
+        dt = parser.parse(s, default=datetime(1, 1, 1))
+        if dt.year < 2:
+            # dateutil parser only found a time, not a date
+            return False
     except Exception:
         return False
     return True

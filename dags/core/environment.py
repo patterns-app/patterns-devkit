@@ -152,13 +152,12 @@ class Environment:
                 return None
             return got.as_schema()
 
-    def add_new_schema(self, schema: ObjectSchema):
+    def add_new_schema(self, schema: ObjectSchema, sess: Session):
         if schema.key in self.library.schemas:
             # Already exists
             return
         got = GeneratedObjectSchema(key=schema.key, definition=asdict(schema))
-        with self.session_scope() as sess:
-            sess.add(got)
+        sess.add(got)
         self.library.add_schema(schema)
 
     def all_schemas(self) -> List[ObjectSchema]:
@@ -281,7 +280,7 @@ class Environment:
     #     return node.get_latest_output(ctx)
 
     def add_storage(
-        self, storage_like: Union[Storage, str], add_runtime=True
+        self, storage_like: Union[Storage, str], add_runtime: bool = True
     ) -> Storage:
         from dags.core.storage.storage import Storage
 
@@ -291,6 +290,9 @@ class Environment:
             sr = storage_like
         else:
             raise TypeError
+        for s in self.storages:
+            if s.url == sr.url:
+                return s
         self.storages.append(sr)
         if add_runtime:
             from dags.core.runtime import Runtime

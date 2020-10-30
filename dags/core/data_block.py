@@ -29,8 +29,8 @@ from dags.core.typing.inference import infer_schema_from_records_list
 from dags.core.typing.object_schema import (
     ObjectSchema,
     ObjectSchemaKey,
-    is_any,
     SchemaMapping,
+    is_any,
 )
 from dags.utils.typing import T
 from loguru import logger
@@ -441,7 +441,7 @@ def create_data_block_from_records(
             realized_schema = ldr.data_format.infer_schema_from_records(
                 ldr.records_object
             )
-            env.add_new_schema(realized_schema)
+            env.add_new_schema(realized_schema, sess)
         else:
             realized_schema = expected_schema
     realized_schema_key = realized_schema.key
@@ -455,7 +455,7 @@ def create_data_block_from_records(
     )
     sess.add(block)
     sess.add(sdb)
-    # Sqlalchemy is a bit finnicky with getting objects live in the right session
+    # Sqlalchemy is a bit finnicky with getting objects live in the right session?
     # I don't understand why these merges should be necessary... but they appear to be
     block = sess.merge(block)
     sdb = sess.merge(sdb)

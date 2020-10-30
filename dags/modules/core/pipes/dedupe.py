@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dags.core.sql.pipe import sql_pipe
-from dags.testing.pipes import PipeTest
 
 # dedupe_unique_keep_max_value = sql_pipe(
 #     name="dedupe_unique_keep_max_value",
@@ -84,34 +83,34 @@ dedupe_unique_keep_newest_row = sql_pipe(
 )
 
 
-dedupe_test = PipeTest(
-    pipe="core.dedupe_unique_keep_newest_row",
-    tests=[
-        {
-            "name": "test_dupe",
-            "test_data": {
-                "input": {
-                    "schema": "CoreTestSchema",
-                    "data": """
-                        k1,k2,f1,f2,f3,f4
-                        1,2,abc,1.1,1,2012-01-01
-                        1,2,def,1.1,{"1":2},2012-01-02
-                        1,3,abc,1.1,2,2012-01-01
-                        1,4,,,"[1,2,3]",2012-01-01
-                        2,2,1.0,2.1,"[1,2,3]",2012-01-01
-                    """,
-                },
-                "output": {
-                    "schema": "CoreTestSchema",
-                    "data": """
-                        k1,k2,f1,f2,f3,f4
-                        1,2,def,1.1,{"1":2},2012-01-02
-                        1,3,abc,1.1,2,2012-01-01
-                        1,4,,,"[1,2,3]",2012-01-01
-                        2,2,1.0,2.1,"[1,2,3]",2012-01-01
-                    """,
-                },
-            },
-        }
-    ],
-)
+# dedupe_test = PipeTest(
+#     pipe="core.dedupe_unique_keep_newest_row",
+#     tests=[
+#         {
+#             "name": "test_dupe",
+#             "test_data": {
+#                 "input": {
+#                     "schema": "CoreTestSchema",
+#                     "data": """
+#                         k1,k2,f1,f2,f3,f4
+#                         1,2,abc,1.1,1,2012-01-01
+#                         1,2,def,1.1,{"1":2},2012-01-02
+#                         1,3,abc,1.1,2,2012-01-01
+#                         1,4,,,"[1,2,3]",2012-01-01
+#                         2,2,1.0,2.1,"[1,2,3]",2012-01-01
+#                     """,
+#                 },
+#                 "output": {
+#                     "schema": "CoreTestSchema",
+#                     "data": """
+#                         k1,k2,f1,f2,f3,f4
+#                         1,2,def,1.1,{"1":2},2012-01-02
+#                         1,3,abc,1.1,2,2012-01-01
+#                         1,4,,,"[1,2,3]",2012-01-01
+#                         2,2,1.0,2.1,"[1,2,3]",2012-01-01
+#                     """,
+#                 },
+#             },
+#         }
+#     ],
+# )

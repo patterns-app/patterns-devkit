@@ -1,14 +1,7 @@
 from dags.core.module import DagsModule
 
 from ...core.typing.object_schema import ConflictBehavior, ObjectSchema
-from .external.static import extract_csv, extract_dataframe
-from .pipes.accumulate_as_dataset import (
-    dataframe_accumulate_as_dataset,
-    sql_accumulate_as_dataset,
-)
-from .pipes.accumulator import accumulator_test, dataframe_accumulator, sql_accumulator
-from .pipes.as_dataset import as_dataset
-from .pipes.dedupe import dedupe_test, dedupe_unique_keep_newest_row
+from .pipes import accumulate_as_dataset, accumulator, as_dataset, dedupe, static
 
 AnyType = ObjectSchema(
     name="Any",
@@ -26,15 +19,15 @@ module = DagsModule(
     py_module_name=__name__,
     schemas=[AnyType, "schemas/core_test_type.yml"],
     pipes=[
-        sql_accumulate_as_dataset,
-        dataframe_accumulate_as_dataset,
-        as_dataset,
-        dedupe_unique_keep_newest_row,
-        sql_accumulator,
-        dataframe_accumulator,
-        extract_dataframe,
-        extract_csv,
+        accumulate_as_dataset.sql_accumulate_as_dataset,
+        accumulate_as_dataset.dataframe_accumulate_as_dataset,
+        as_dataset.as_dataset,
+        dedupe.dedupe_unique_keep_newest_row,
+        accumulator.sql_accumulator,
+        accumulator.dataframe_accumulator,
+        static.extract_dataframe,
+        static.extract_csv,
     ],
-    tests=[accumulator_test, dedupe_test],
+    tests=[accumulator.test, accumulate_as_dataset.test],
 )
 module.export()

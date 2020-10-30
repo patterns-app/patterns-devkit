@@ -40,6 +40,7 @@ def test_snake_and_title_cases():
 
 
 def test_is_datetime_str():
+    # dt strs
     assert is_datetime_str("2012/01/01")
     assert is_datetime_str("1/1/2012")
     assert is_datetime_str("2012-01-01")
@@ -47,10 +48,15 @@ def test_is_datetime_str():
     assert is_datetime_str("2012-01-01T00:00:00Z")
     assert is_datetime_str("2012-01-01 00:00:00+08")
     assert is_datetime_str("2012-01-01 00:00:00.001+08")
+    assert is_datetime_str("3/2012")
     assert is_datetime_str("January 2012")  # TODO: False positive?
-    # Not dt strs (too short or not date like)
+    # Not dt strs
+    assert not is_datetime_str("57.3999999")
+    assert not is_datetime_str("-157.0000001")
+    assert not is_datetime_str("yesterday")
+    assert not is_datetime_str("one day ago")
     assert not is_datetime_str("2012")
-    assert not is_datetime_str("3/2012")  # TODO: False negative?
+    assert not is_datetime_str("20000101")
     assert not is_datetime_str("Pizza 2012-02-02")
 
 

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from random import randint
 from statistics import StatisticsError, mode
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
 
 import pandas as pd
-from dateutil.parser import ParserError
+from dateutil.parser import ParserError, parse
 from pandas import DataFrame, Series
 from sqlalchemy import Table
 
@@ -202,8 +203,12 @@ def pandas_series_to_sqlalchemy_type(series: Series) -> str:
         if has_dict_or_list(series):
             return "JSON"
         try:
-            pd.to_datetime(series)
-            return "DateTime"
+            # First test one value
+            v = series.dropna().iloc[0]
+            if is_datetime_str(v):
+                # Now see if the whole series can parse without error
+                pd.to_datetime(series)
+                return "DateTime"
         except ParserError:
             pass
     return "UnicodeText"
@@ -217,7 +222,7 @@ def sqlalchemy_type_to_pandas_type(satype: str) -> str:
         return "date"
     if ft.startswith("time"):
         return "time"
-    if ft.startswith("float"):
+    if ft.startswith("float") or ft.startswith("real"):
         return "float64"
     if ft.startswith("numeric"):
         return "float64"  # TODO: Does np/pd support Decimal?
@@ -322,7 +327,7 @@ def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
         return ensure_date(obj)
     if ft.startswith("time"):
         return ensure_time(obj)
-    if ft.startswith("float"):
+    if ft.startswith("float") or ft.startswith("real"):
         return float(obj)
     if ft.startswith("numeric"):
         return Decimal(obj)

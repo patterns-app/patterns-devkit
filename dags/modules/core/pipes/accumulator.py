@@ -7,127 +7,13 @@ from pandas import DataFrame
 from dags.core.data_block import DataBlock, DataSet
 from dags.core.pipe import pipe
 from dags.core.sql.pipe import sql_pipe
-from dags.testing.pipes import PipeTest
-from dags.utils.typing import T
-
-accumulator_test = PipeTest(
-    pipe="core.sql_accumulator",
-    tests=[
-        {
-            "name": "test_empty_this",
-            "test_data": [
-                {
-                    "input": {
-                        "schema": "CoreTestSchema",
-                        "data": """
-                        k1,k2,f1,f2,f3,f4
-                        1,2,abc,1.1,1,
-                        1,2,def,1.1,{"1":2},2012-01-01
-                        1,3,abc,1.1,2,2012-01-01
-                        1,4,,,"[1,2,3]",2012-01-01
-                        2,2,1.0,2.1,"[1,2,3]",2012-01-01
-                    """,
-                    },
-                    "this": {},
-                    "output": {
-                        "schema": "CoreTestSchema",
-                        "data": """
-                        k1,k2,f1,f2,f3,f4
-                        1,2,abc,1.1,1,
-                        1,2,def,1.1,{"1":2},2012-01-01
-                        1,3,abc,1.1,2,2012-01-01
-                        1,4,,,"[1,2,3]",2012-01-01
-                        2,2,1.0,2.1,"[1,2,3]",2012-01-01
-                    """,
-                    },
-                },
-                {
-                    "input": {
-                        "schema": "CoreTestSchema",
-                        "data": """
-                        k1,k2,f1,f2,f3,f4
-                        1,2,abc,1.1,1,
-                        1,2,def,1.1,{"1":2},2012-01-01
-                        1,3,abc,1.1,2,2012-01-01
-                        1,4,,,"[1,2,3]",2012-01-01
-                        2,2,1.0,2.1,"[1,2,3]",2012-01-01
-                        1,7,g,0,
-                    """,
-                    },
-                    "this": {},
-                    "output": {
-                        "schema": "CoreTestSchema",
-                        "data": """
-                        k1,k2,f1,f2,f3,f4
-                        1,2,abc,1.1,1,
-                        1,2,def,1.1,{"1":2},2012-01-01
-                        1,3,abc,1.1,2,2012-01-01
-                        1,4,,,"[1,2,3]",2012-01-01
-                        2,2,1.0,2.1,"[1,2,3]",2012-01-01
-                        1,7,g,0,
-                    """,
-                    },
-                },
-            ],
-        },
-        {
-            "name": "test_empty_this",
-            "test_data": {
-                "input": {
-                    "schema": "CoreTestSchema",
-                    "data": """
-        k1,k2,f1,f2,f3,f4
-        1,2,abc,1.1,1,
-        1,2,def,1.1,{"1":2},2012-01-01
-        1,3,abc,1.1,2,2012-01-01
-        1,4,,,"[1,2,3]",2012-01-01
-        2,2,1.0,2.1,"[1,2,3]",2012-01-01
-            """,
-                },
-                "this": {},
-                "output": {
-                    "schema": "CoreTestSchema",
-                    "data": """
-        k1,k2,f1,f2,f3,f4
-        1,2,abc,1.1,1,
-        1,2,def,1.1,{"1":2},2012-01-01
-        1,3,abc,1.1,2,2012-01-01
-        1,4,,,"[1,2,3]",2012-01-01
-        2,2,1.0,2.1,"[1,2,3]",2012-01-01
-            """,
-                },
-            },
-        },
-    ],
-    # TODO: how to test `this`?
-    # test_recursive_input=dict(
-    #     input="""
-    #         schema: CoreTestSchema
-    #         k1,k2,f1,f2,f3
-    #         1,2,abc,1.1,1
-    #         1,2,def,1.1,{"1":2}
-    #         1,3,abc,1.1,2
-    #         1,4,,,"[1,2,3]"
-    #         2,2,1.0,2.1,"[1,2,3]"
-    #     """,
-    #     this="""
-    #         schema: CoreTestSchema
-    #         k1,k2,f1,f2,f3
-    #         1,5,abc,1.1,
-    #         1,6,abc,1.1,2
-    #     """,
-    #     output="""
-    #         schema: CoreTestSchema
-    #         k1,k2,f1,f2,f3
-    #         1,2,def,1.1,{"1":2}
-    #         1,3,abc,1.1,2
-    #         1,4,,,"[1,2,3]"
-    #         2,2,1.0,2.1,"[1,2,3]"
-    #         1,5,abc,1.1,
-    #         1,6,abc,1.1,2
-    #     """,
-    # ),
+from dags.testing.utils import (
+    get_tmp_sqlite_db_url,
+    produce_pipe_output_for_static_input,
+    str_as_dataframe,
 )
+from dags.utils.pandas import assert_dataframes_are_almost_equal
+from dags.utils.typing import T
 
 
 # Note this pipe is special case where cannot specify dataset as output (even tho practically it is)
@@ -156,3 +42,79 @@ sql_accumulator = sql_pipe(
     {% endif %}
     """,
 )
+
+
+def test():
+    input_data_1 = """
+        k1,k2,f1,f2,f3,f4
+        1,2,abc,1.1,1,
+        1,2,def,1.1,{"1":2},2012-01-01
+        1,3,abc,1.1,2,2012-01-01
+        1,4,,,"[1,2,3]",2012-01-01
+        2,2,1.0,2.1,"[1,2,3]",2012-01-01
+    """
+    expected_1 = """
+        k1,k2,f1,f2,f3,f4
+        1,2,abc,1.1,1,
+        1,2,def,1.1,{"1":2},2012-01-01
+        1,3,abc,1.1,2,2012-01-01
+        1,4,,,"[1,2,3]",2012-01-01
+        2,2,1.0,2.1,"[1,2,3]",2012-01-01
+    """
+    input_data_2 = """
+        k1,k2,f1,f2,f3,f4
+        1,2,abc,1.1,1,
+        1,2,def,1.1,{"1":2},2012-01-01
+        1,3,abc,1.1,2,2012-01-01
+        1,4,,,"[1,2,3]",2012-01-01
+        2,2,1.0,2.1,"[1,2,3]",2012-01-01
+        1,7,g,0,
+    """
+    expected_2 = """
+        k1,k2,f1,f2,f3,f4
+        1,2,abc,1.1,1,
+        1,2,def,1.1,{"1":2},2012-01-01
+        1,3,abc,1.1,2,2012-01-01
+        1,4,,,"[1,2,3]",2012-01-01
+        2,2,1.0,2.1,"[1,2,3]",2012-01-01
+        1,7,g,0,
+    """
+    s = get_tmp_sqlite_db_url()
+    for input_data, expected in [
+        (input_data_1, expected_1),
+        (input_data_2, expected_2),
+    ]:
+        for p in [sql_accumulator, dataframe_accumulator]:
+            expected_df = str_as_dataframe(expected)
+            db = produce_pipe_output_for_static_input(p, input=input_data, target_storage=s)
+            df = db.as_dataframe()
+            assert_dataframes_are_almost_equal(df, expected_df)
+
+    # TODO: how to test `this`?
+    # test_recursive_input=dict(
+    #     input="""
+    #         schema: CoreTestSchema
+    #         k1,k2,f1,f2,f3
+    #         1,2,abc,1.1,1
+    #         1,2,def,1.1,{"1":2}
+    #         1,3,abc,1.1,2
+    #         1,4,,,"[1,2,3]"
+    #         2,2,1.0,2.1,"[1,2,3]"
+    #     """,
+    #     this="""
+    #         schema: CoreTestSchema
+    #         k1,k2,f1,f2,f3
+    #         1,5,abc,1.1,
+    #         1,6,abc,1.1,2
+    #     """,
+    #     output="""
+    #         schema: CoreTestSchema
+    #         k1,k2,f1,f2,f3
+    #         1,2,def,1.1,{"1":2}
+    #         1,3,abc,1.1,2
+    #         1,4,,,"[1,2,3]"
+    #         2,2,1.0,2.1,"[1,2,3]"
+    #         1,5,abc,1.1,
+    #         1,6,abc,1.1,2
+    #     """,
+    # ),

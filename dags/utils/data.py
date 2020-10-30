@@ -62,6 +62,11 @@ def read_csv(lines: Iterable, dialect=DagsCsvDialect) -> List[Dict]:
     return records
 
 
+def read_raw_string_csv(csv_str: str, **kwargs) -> List[Dict]:
+    lines = [ln.strip() for ln in csv_str.split("\n") if ln.strip()]
+    return read_csv(lines, **kwargs)
+
+
 def conform_csv_value(v: Any) -> Any:
     if v is None:
         return ""
