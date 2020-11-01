@@ -34,6 +34,7 @@ from dags.core.data_block import (
     ManagedDataBlock,
     StoredDataBlockMetadata,
     create_data_block_from_records,
+    ManagedDataSet,
 )
 from dags.core.data_formats import DataFrameGenerator, RecordsListGenerator
 from dags.core.data_formats.base import ReusableGenerator
@@ -54,7 +55,7 @@ from dags.core.pipe_interface import (
 )
 from dags.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from dags.core.storage.storage import LocalMemoryStorageEngine, Storage
-from dags.core.typing.object_schema import ObjectSchema
+from dags.core.typing.object_schema import ObjectSchema, ObjectSchemaLike
 from dags.utils.common import (
     DagsJSONEncoder,
     cf,
@@ -247,8 +248,22 @@ class PipeContext:  # TODO: (Generic[C, S]):
     pipe_log: PipeLog
     # state: Dict = field(default_factory=dict)
     # emitted_states: List[Dict] = field(default_factory=list)
-    # resolved_output_schema: Optional[ObjectSchema]
+    # resolved_output_schema: Optional[ObjectSchema] = None
     # realized_output_schema: Optional[ObjectSchema]
+
+    def get_resolved_output_schema(self) -> Optional[ObjectSchema]:
+        return self.runnable.pipe_interface.resolved_output_schema(
+            self.execution_context.env
+        )
+
+    def set_resolved_output_schema(self, schema: ObjectSchema):
+        self.runnable.pipe_interface.set_resolved_output_schema(schema)
+
+    def set_output_schema(self, schema_like: ObjectSchemaLike):
+        if not schema_like:
+            return
+        schema = self.execution_context.env.get_schema(schema_like)
+        self.set_resolved_output_schema(schema)
 
     def get_config_value(self, key: str, default: Any = None) -> Any:
         return self.runnable.configuration.get(key, default)
@@ -311,6 +326,7 @@ class ExecutionManager:
         if node.declared_composite_node_key is not None:
             base_msg = " " * 8 + f" {cf.dimmed(node.pipe.key)}"
         self.log("{0:50} ".format(str(base_msg)))
+        logger.debug(f"RUNNING NODE {node.key} {node.pipe.key}")
         # self.log(base_msg)
         # start = time.time()
         n_outputs = 0
@@ -445,6 +461,12 @@ class Worker:
         if isinstance(output, DataSetMetadata):
             output = self.ctx.merge(output)
             return output.data_block
+        if isinstance(output, ManagedDataBlock):
+            output = self.ctx.merge(output.manager.data_block)
+            return output
+        if isinstance(output, ManagedDataSet):
+            output = self.ctx.merge(output.manager.data_block)
+            return output
 
         if isinstance(output, abc.Generator):
             if runnable.pipe_interface.output.data_format_class == "DataFrameGenerator":
@@ -465,7 +487,7 @@ class Worker:
             self.ctx.metadata_session,
             self.ctx.local_memory_storage,
             output,
-            # expected_schema=runnable.pipe_interface.resolved_output_schema,
+            expected_schema=runnable.pipe_interface.resolved_output_schema(self.env),
         )
         # ldr = LocalMemoryDataRecords.from_records_object(output)
         # block = DataBlockMetadata(

@@ -37,7 +37,7 @@ Customer = create_quick_schema(
     "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "JSON")]
 )
 Metric = create_quick_schema(
-    "Metric", [("metric", "Unicode"), ("value", "Numeric(12,2")]
+    "Metric", [("metric", "Unicode"), ("value", "Numeric(12,2)")]
 )
 
 
@@ -125,17 +125,25 @@ mixed_inputs_sql = sql_pipe(
 )
 
 
-def test_incremental():
+def get_env():
     env = Environment(metadata_storage="sqlite://")
+    env.add_module(core)
+    env.add_schema(Customer)
+    env.add_schema(Metric)
+    return env
+
+
+def test_incremental():
+    env = get_env()
     g = Graph(env)
     s = env.add_storage("memory://test")
-    env.add_module(core)
     # Initial graph
     N = 2 * 4
     g.add_node("source", customer_source, config={"total_records": N})
     g.add_node("metrics", shape_metrics, inputs="source")
     # Run first time
     output = env.produce(g, "metrics", target_storage=s)
+    assert output.expected_schema_key.endswith("Metric")
     records = output.as_records_list()
     expected_records = [
         {"metric": "row_count", "value": 4},
@@ -180,11 +188,10 @@ def test_incremental():
 
 
 def test_mixed_inputs():
-    # logger.enable("dags")
-    env = Environment(metadata_storage="sqlite://")
+    logger.enable("dags")
+    env = get_env()
     g = Graph(env)
     s = env.add_storage(get_tmp_sqlite_db_url())
-    env.add_module(core)
     # Initial graph
     N = 4 * 4
     g.add_node("source", customer_source, config={"total_records": N})

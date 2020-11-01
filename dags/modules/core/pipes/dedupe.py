@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+from pandas import DataFrame
+
+from dags import DataBlock, pipe
 from dags.core.sql.pipe import sql_pipe
+# TODO: currently no-op when no unique columns specified, should probably be ALL columns
+#   but _very_ expensive. In general any deduping on non-indexed columns will be costly.
+from dags.utils.typing import T
 
 # dedupe_unique_keep_max_value = sql_pipe(
 #     name="dedupe_unique_keep_max_value",
@@ -50,14 +56,12 @@ from dags.core.sql.pipe import sql_pipe
 # )
 
 
-# TODO: currently no-op when no unique columns specified, should probably be ALL columns
-#   but _very_ expensive. In general any deduping on non-indexed columns will be costly.
-dedupe_unique_keep_newest_row = sql_pipe(
-    name="dedupe_unique_keep_newest_row",
+sql_dedupe_unique_keep_newest_row = sql_pipe(
+    name="sql_dedupe_unique_keep_newest_row",
     module="core",
     compatible_runtimes="postgres",
     sql="""
-        select -- DataBlock[T]
+        select -- :DataBlock[T]
         {% if inputs.input.realized_schema.unique_on %}
             distinct on (
                 {% for col in inputs.input.realized_schema.unique_on %}
@@ -71,7 +75,7 @@ dedupe_unique_keep_newest_row = sql_pipe(
                 {%- if not loop.last %},{% endif %}
             {% endfor %}
 
-        from input -- DataBlock[T]
+        from input -- :DataBlock[T]
         {% if inputs.input.resolved_schema.updated_at_field %}
         order by
             {% for col in inputs.input.realized_schema.unique_on %}
@@ -81,6 +85,16 @@ dedupe_unique_keep_newest_row = sql_pipe(
         {% endif %}
 """,
 )
+
+
+@pipe("dataframe_dedupe_unique_keep_newest_row", module="core")
+def dataframe_dedupe_unique_keep_newest_row(input: DataBlock[T]) -> DataFrame[T]:
+    if input.expected_schema is None or not input.expected_schema.unique_on:
+        return input.as_dataframe()  # TODO: make this a no-op
+    records = input.as_dataframe()
+    if input.expected_schema.updated_at_field_name:
+        records = records.sort_values(input.expected_schema.updated_at_field_name)
+    return records.drop_duplicates(input.expected_schema.unique_on, keep="last")
 
 
 # dedupe_test = PipeTest(

@@ -87,7 +87,7 @@ def test_flattened_graph():
         "node3__pipe_t1_to_t2",
         "node3__pipe_generic",
         "node3__dataset__dataframe_accumulator",
-        # "node3__dataset__core.dedupe_unique_keep_newest_row", # TODO: we need python dedupe
+        "node3__dataset__dataframe_dedupe_unique_keep_newest_row",
         "node3__dataset__as_dataset",
         "node7",
         "node8",
@@ -97,8 +97,8 @@ def test_flattened_graph():
     assert set(n.key for n in fg.nodes()) == nodes
     n3 = g.get_any_node("node3")
     n7 = g.get_any_node("node7")
-    assert len(fg.get_all_upstream_dependencies_in_execution_order(n7)) == 8
-    assert len(fg.get_all_nodes_in_execution_order()) == 13
+    assert len(fg.get_all_upstream_dependencies_in_execution_order(n7)) == 9
+    assert len(fg.get_all_nodes_in_execution_order()) == 14
     execution_order = [
         "node2",
         "node4",
@@ -108,7 +108,7 @@ def test_flattened_graph():
         "node3__pipe_t1_to_t2",
         "node3__pipe_generic",
         "node3__dataset__dataframe_accumulator",
-        # "node3__dataset__core.dedupe_unique_keep_newest_row",
+        "node3__dataset__dataframe_dedupe_unique_keep_newest_row",
         "node3__dataset__as_dataset",
         "node7",
         "node8",

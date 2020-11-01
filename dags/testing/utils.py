@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from pandas import DataFrame
@@ -10,6 +11,7 @@ from dags import DataBlock, Environment, Graph, Pipe, Storage
 from dags.core.module import DagsModule
 from dags.core.node import DataBlockLog, Node, PipeLog
 from dags.core.typing.inference import infer_schema_from_records_list
+from dags.core.typing.object_schema import ObjectSchema, ObjectSchemaLike
 from dags.utils.common import rand_str
 from dags.utils.data import read_csv, read_json, read_raw_string_csv
 from dags.utils.pandas import records_list_to_dataframe
@@ -27,7 +29,7 @@ def display_pipe_log(sess: Session):
         print(f"{dbl.pipe_log.pipe_key:30} {dbl.data_block_id:4} {dbl.direction}")
 
 
-def str_as_dataframe(test_data: str, module: Optional[DagsModule] = None) -> DataFrame:
+def str_as_dataframe(test_data: str, module: Optional[DagsModule] = None,) -> DataFrame:
     # TODO: add conform_dataframe_to_schema option
     if test_data.endswith(".csv"):
         if module is None:
@@ -47,6 +49,19 @@ def str_as_dataframe(test_data: str, module: Optional[DagsModule] = None) -> Dat
     return df
 
 
+@dataclass
+class DataInput:
+    data: str
+    schema: Optional[ObjectSchemaLike] = None
+    module: Optional[DagsModule] = None
+
+    def as_dataframe(self):
+        return str_as_dataframe(self.data, module=self.module)
+
+    def get_schema(self, env: Environment) -> ObjectSchema:
+        return env.get_schema(self.schema)
+
+
 def produce_pipe_output_for_static_input(
     pipe: Pipe,
     config: Dict[str, Any] = None,
@@ -63,23 +78,26 @@ def produce_pipe_output_for_static_input(
     if target_storage:
         target_storage = env.add_storage(target_storage)
     g = Graph(env)
-    input_dfs = {}
-    input_nodes = {}
+    input_datas = input
+    input_nodes: Dict[str, Node] = {}
     pi = pipe.get_interface(env)
-    if isinstance(input, str):
+    if not isinstance(input, dict):
         assert len(pi.get_non_recursive_inputs()) == 1
-        input = {pi.get_non_recursive_inputs()[0].name: input}
-    for n, inp in input.items():
-        input_dfs[n] = str_as_dataframe(inp, module)
+        input_datas = {pi.get_non_recursive_inputs()[0].name: input}
     for input in pi.inputs:
         if input.is_self_ref:
             continue
         assert input.name is not None
-        input_df = input_dfs[input.name]
+        input_data = input_datas[input.name]
+        if isinstance(input_data, str):
+            input_data = DataInput(data=input_data)
         n = g.add_node(
             f"_input_{input.name}",
             "core.extract_dataframe",
-            config={"dataframe": input_df},
+            config={
+                "dataframe": input_data.as_dataframe(),
+                "schema": input_data.schema,
+            },
         )
         input_nodes[input.name] = n
     test_node = g.add_node(f"{pipe.name}", pipe, config=config, inputs=input_nodes)

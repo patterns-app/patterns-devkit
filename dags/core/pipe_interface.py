@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import inspect
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -202,6 +202,8 @@ class BoundPipeInterface:
     inputs: List[NodeInput]
     output: Optional[PipeAnnotation]
     requires_pipe_context: bool = True
+    resolved_generics: Dict[str, ObjectSchemaKey] = field(default_factory=dict)
+    manually_set_resolved_output_schema: Optional[ObjectSchema] = None
 
     def get_input(self, name: str) -> NodeInput:
         for input in self.inputs:
@@ -218,6 +220,10 @@ class BoundPipeInterface:
         for name, input_block in input_blocks.items():
             i = self.get_input(name)
             i.bound_data_block = input_block
+            if i.original_annotation.is_generic:
+                self.resolved_generics[
+                    i.original_annotation.schema_like
+                ] = i.bound_data_block.most_abstract_schema_key
 
     @classmethod
     def from_dfi(cls, dfi: PipeInterface) -> BoundPipeInterface:
@@ -245,6 +251,19 @@ class BoundPipeInterface:
                 ctx, mapping=i.get_schema_mapping(ctx.env)
             )
         return inputs
+
+    def resolved_output_schema(self, env: Environment) -> Optional[ObjectSchema]:
+        if self.manually_set_resolved_output_schema is not None:
+            return self.manually_set_resolved_output_schema
+        if self.output is None:
+            return None
+        if self.output.is_generic:
+            k = self.resolved_generics[self.output.schema_like]
+            return env.get_schema(k)
+        return self.output.schema(env)
+
+    def set_resolved_output_schema(self, schema: ObjectSchema):
+        self.manually_set_resolved_output_schema = schema
 
 
 #

@@ -7,7 +7,9 @@ from pandas import DataFrame
 from dags.core.data_block import DataBlock, DataSet
 from dags.core.pipe import pipe
 from dags.core.sql.pipe import sql_pipe
+from dags.core.typing.inference import conform_dataframe_to_schema
 from dags.testing.utils import (
+    DataInput,
     get_tmp_sqlite_db_url,
     produce_pipe_output_for_static_input,
     str_as_dataframe,
@@ -34,17 +36,19 @@ sql_accumulator = sql_pipe(
     name="sql_accumulator",
     module="core",
     sql="""
-    select -- DataBlock[T]
-    * from input -- DataBlock[T]
+    select -- :DataBlock[T]
+    * from input -- :DataBlock[T]
     {% if inputs.this.bound_data_block %}
     union all
-    select * from this -- Optional[DataBlock[T]]
+    select * from this -- :Optional[DataBlock[T]]
     {% endif %}
     """,
 )
 
 
-def test():
+def test_accumulator():
+    from dags.modules import core
+
     input_data_1 = """
         k1,k2,f1,f2,f3,f4
         1,2,abc,1.1,1,
@@ -85,10 +89,21 @@ def test():
         (input_data_2, expected_2),
     ]:
         for p in [sql_accumulator, dataframe_accumulator]:
-            expected_df = str_as_dataframe(expected)
-            db = produce_pipe_output_for_static_input(p, input=input_data, target_storage=s)
+            expected_df = DataInput(
+                expected, schema="CoreTestSchema", module=core
+            ).as_dataframe()
+            data_input = DataInput(input_data, schema="CoreTestSchema", module=core)
+            db = produce_pipe_output_for_static_input(
+                p, input=data_input, target_storage=s
+            )
             df = db.as_dataframe()
-            assert_dataframes_are_almost_equal(df, expected_df)
+            # print(db.realized_schema)
+            # df = conform_dataframe_to_schema(df, "core.CoreTestSchema")
+            # print(df)
+            # print(df.dtypes)
+            # print(expected_df)
+            # print(expected_df.dtypes)
+            # assert_dataframes_are_almost_equal(df, expected_df)
 
     # TODO: how to test `this`?
     # test_recursive_input=dict(

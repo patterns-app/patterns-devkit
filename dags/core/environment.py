@@ -137,6 +137,9 @@ class Environment:
                 raise KeyError(schema_like)
             return schema
 
+    def add_schema(self, schema: ObjectSchema):
+        self.library.add_schema(schema)
+
     def get_generated_schema(
         self, schema_like: ObjectSchemaLike
     ) -> Optional[ObjectSchema]:
@@ -152,7 +155,7 @@ class Environment:
                 return None
             return got.as_schema()
 
-    def add_new_schema(self, schema: ObjectSchema, sess: Session):
+    def add_new_generated_schema(self, schema: ObjectSchema, sess: Session):
         if schema.key in self.library.schemas:
             # Already exists
             return

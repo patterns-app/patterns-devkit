@@ -26,7 +26,6 @@ from dags.utils.common import (
     ensure_datetime,
     ensure_time,
     is_datetime_str,
-    printd,
     rand_str,
     title_to_snake_case,
 )
@@ -366,7 +365,7 @@ def conform_records_list_to_schema(d: RecordsList, schema: ObjectSchema) -> Reco
 
 
 def conform_dataframe_to_schema(df: DataFrame, schema: ObjectSchema) -> DataFrame:
-    logger.debug(f"conforming {id(df)} to schema")
+    logger.debug(f"conforming {df.head()} to schema {schema}")
     for field in schema.fields:
         pd_type = sqlalchemy_type_to_pandas_type(field.field_type)
         try:
