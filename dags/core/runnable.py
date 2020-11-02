@@ -32,9 +32,9 @@ from dags.core.data_block import (
     DataSetMetadata,
     LocalMemoryDataRecords,
     ManagedDataBlock,
+    ManagedDataSet,
     StoredDataBlockMetadata,
     create_data_block_from_records,
-    ManagedDataSet,
 )
 from dags.core.data_formats import DataFrameGenerator, RecordsListGenerator
 from dags.core.data_formats.base import ReusableGenerator
@@ -449,9 +449,8 @@ class Worker:
     ) -> Optional[DataBlockMetadata]:
         assert runnable.pipe_interface.output is not None
         # assert runnable.pipe_interface.resolved_output_schema is not None
+        # TODO: can i return an existing DataBlock? Or do I need to create a "clone"?
         assert self.ctx.target_storage is not None
-        # TODO: check if these Metadata objects have been added to session!
-        #   also figure out what merge actually does
         if isinstance(output, StoredDataBlockMetadata):
             output = self.ctx.merge(output)
             return output.data_block

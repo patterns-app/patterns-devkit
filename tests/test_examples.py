@@ -145,6 +145,7 @@ def test_incremental():
     output = env.produce(g, "metrics", target_storage=s)
     assert output.expected_schema_key.endswith("Metric")
     records = output.as_records_list()
+    # print(DataBlockLog.summary(env))
     expected_records = [
         {"metric": "row_count", "value": 4},
         {"metric": "col_count", "value": 3},
@@ -165,6 +166,7 @@ def test_incremental():
     g.add_node("aggregate_metrics", aggregate_metrics, inputs="source")
     output = env.produce(g, "aggregate_metrics", target_storage=s)
     records = output.as_records_list()
+    # print(DataBlockLog.summary(env))
     expected_records = [
         {"metric": "row_count", "value": 8},
         {"metric": "col_count", "value": 3},
@@ -188,7 +190,7 @@ def test_incremental():
 
 
 def test_mixed_inputs():
-    logger.enable("dags")
+    # logger.enable("dags")
     env = get_env()
     g = Graph(env)
     s = env.add_storage(get_tmp_sqlite_db_url())

@@ -203,7 +203,9 @@ class BoundPipeInterface:
     output: Optional[PipeAnnotation]
     requires_pipe_context: bool = True
     resolved_generics: Dict[str, ObjectSchemaKey] = field(default_factory=dict)
-    manually_set_resolved_output_schema: Optional[ObjectSchema] = None
+    manually_set_resolved_output_schema: Optional[
+        ObjectSchema
+    ] = None  # TODO: move to PipeContext?
 
     def get_input(self, name: str) -> NodeInput:
         for input in self.inputs:

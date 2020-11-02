@@ -83,6 +83,9 @@ class LocalMemoryDataRecords:
 
 
 class DataBlockMetadata(BaseModel):  # , Generic[DT]):
+    # NOTE on block ids: we generate them dynamically so we don't have to hit a central db for a sequence
+    # BUT we MUST ensure they are monotonically ordered -- the logic of selecting the correct (most recent) DataSet
+    # block relies on strict monotonic IDs
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     # id = Column(Integer, primary_key=True, autoincrement=True)
     expected_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore

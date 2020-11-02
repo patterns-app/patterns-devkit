@@ -164,7 +164,6 @@ class DatabaseAPI:
         sdb = StoredDataBlockMetadata(
             data_block=block, storage_url=storage_url, data_format=DatabaseTableFormat,
         )
-        logger.debug(f"Creating sdb {sdb}, {sdb.id}")
         sess.add(block)
         sess.add(sdb)
         # TODO: Don't understand merge still
