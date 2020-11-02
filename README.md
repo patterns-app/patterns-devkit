@@ -1,10 +1,7 @@
 
 ![dags](https://github.com/kvh/basis/workflows/dags/badge.svg)
 
-<img src="assets/dags.png">
-
-<img src="assets/bar.png">
-
+<img src="assets/dags-logo-bar.svg">
 
 ### Modern Data Pipelines
  
