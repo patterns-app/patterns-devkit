@@ -97,6 +97,7 @@ def test_flattened_graph():
     assert set(n.key for n in fg.nodes()) == nodes
     n3 = g.get_any_node("node3")
     n7 = g.get_any_node("node7")
+    assert len(fg.get_all_upstream_dependencies_in_execution_order(n3)) == 3
     assert len(fg.get_all_upstream_dependencies_in_execution_order(n7)) == 9
     assert len(fg.get_all_nodes_in_execution_order()) == 14
     execution_order = [
@@ -119,5 +120,5 @@ def test_flattened_graph():
     #  unclear under what conditions networkx version is stable
     assert [n.key for n in fg.get_all_nodes_in_execution_order()] == execution_order
     assert (
-        fg.get_flattened_root_node_for_declared_node(n3).key == "node3__pipe_t1_to_t2"
+        fg.get_flattened_output_node_for_declared_node(n3).key == "node3__pipe_generic"
     )

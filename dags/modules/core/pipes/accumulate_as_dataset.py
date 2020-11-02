@@ -30,7 +30,7 @@ dataframe_accumulate_as_dataset = pipe_chain(
         dataframe_accumulator,
         dataframe_dedupe_unique_keep_newest_row,
         as_dataset,
-    ],  # TODO: add dedupe
+    ],
 )
 
 
@@ -38,28 +38,34 @@ def test_accumulate_as_dataset():
     from dags.modules import core
 
     input_data = """
-        k1,k2,f1,f2,f3
-        1,2,abc,1.1,1
-        1,2,def,1.1,{"1":2}
-        1,3,abc,1.1,2
-        1,4,,,"[1,2,3]"
-        2,2,1.0,2.1,"[1,2,3]"
+        k1,k2,f1,f2,f3,f4
+        1,2,abc,1.1,1,2012-01-01
+        1,2,def,1.1,{"1":2},2012-01-02
+        1,3,abc,1.1,2,2012-01-01
+        1,4,,,"[1,2,3]",2012-01-01
+        2,2,1.0,2.1,"[1,2,3]",2012-01-01
     """
     expected = """
         k1,k2,f1,f2,f3,f4
-        1,2,abc,1.1,1,
-        1,3,abc,1.1,2,
-        1,4,,,"[1,2,3]",
-        2,2,1.0,2.1,"[1,2,3]",
+        1,2,def,1.1,{"1":2},2012-01-02
+        1,3,abc,1.1,2,2012-01-01
+        1,4,,,"[1,2,3]",2012-01-01
+        2,2,1.0,2.1,"[1,2,3]",2012-01-01
     """
-    # expected_df = str_as_dataframe(expected, schema=core.schemas.CoreTestSchema)
-    expected_df = DataInput(
-        expected, schema="CoreTestSchema", module=core
-    ).as_dataframe()
     data_input = DataInput(input_data, schema="CoreTestSchema", module=core)
     s = get_tmp_sqlite_db_url()
-    for p in [sql_accumulate_as_dataset, dataframe_accumulate_as_dataset]:
-        db = produce_pipe_output_for_static_input(p, input=data_input, target_storage=s)
+    for p in [
+        # sql_accumulate_as_dataset,  # TODO: Need sqlite support to test, or non-sqlite testing db
+        dataframe_accumulate_as_dataset
+    ]:
+        db = produce_pipe_output_for_static_input(
+            p, input=data_input, target_storage=s, config={"dataset_name": "test"}
+        )
+        env = db.manager.ctx.env
+        expected_df = DataInput(
+            expected, schema="CoreTestSchema", module=core
+        ).as_dataframe(env)
         df = db.as_dataframe()
-        print(DataBlockLog.summary(db.manager.ctx.env))
-        assert_dataframes_are_almost_equal(df, expected_df)
+        assert_dataframes_are_almost_equal(
+            df, expected_df, schema=core.schemas.CoreTestSchema
+        )

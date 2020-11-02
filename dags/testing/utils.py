@@ -29,7 +29,11 @@ def display_pipe_log(sess: Session):
         print(f"{dbl.pipe_log.pipe_key:30} {dbl.data_block_id:4} {dbl.direction}")
 
 
-def str_as_dataframe(test_data: str, module: Optional[DagsModule] = None,) -> DataFrame:
+def str_as_dataframe(
+    test_data: str,
+    module: Optional[DagsModule] = None,
+    expected_schema: Optional[ObjectSchema] = None,
+) -> DataFrame:
     # TODO: add conform_dataframe_to_schema option
     if test_data.endswith(".csv"):
         if module is None:
@@ -44,8 +48,10 @@ def str_as_dataframe(test_data: str, module: Optional[DagsModule] = None,) -> Da
     else:
         # Raw str csv
         raw_records = read_raw_string_csv(test_data)
-    auto_schema = infer_schema_from_records_list(raw_records)
-    df = records_list_to_dataframe(raw_records, auto_schema)
+    if expected_schema is None:
+        auto_schema = infer_schema_from_records_list(raw_records)
+        expected_schema = auto_schema
+    df = records_list_to_dataframe(raw_records, expected_schema)
     return df
 
 
@@ -55,10 +61,13 @@ class DataInput:
     schema: Optional[ObjectSchemaLike] = None
     module: Optional[DagsModule] = None
 
-    def as_dataframe(self):
-        return str_as_dataframe(self.data, module=self.module)
+    def as_dataframe(self, env: Environment):
+        schema = None
+        if self.schema:
+            schema = env.get_schema(self.schema)
+        return str_as_dataframe(self.data, module=self.module, expected_schema=schema)
 
-    def get_schema(self, env: Environment) -> ObjectSchema:
+    def get_schema(self, env: Environment) -> Optional[ObjectSchema]:
         return env.get_schema(self.schema)
 
 
@@ -95,7 +104,7 @@ def produce_pipe_output_for_static_input(
             f"_input_{input.name}",
             "core.extract_dataframe",
             config={
-                "dataframe": input_data.as_dataframe(),
+                "dataframe": input_data.as_dataframe(env),
                 "schema": input_data.schema,
             },
         )

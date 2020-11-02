@@ -36,12 +36,12 @@ sql_accumulator = sql_pipe(
     name="sql_accumulator",
     module="core",
     sql="""
+    {% if inputs.this.bound_data_block %}
+    select * from this -- :Optional[DataBlock[T]]
+    union all
+    {% endif %}
     select -- :DataBlock[T]
     * from input -- :DataBlock[T]
-    {% if inputs.this.bound_data_block %}
-    union all
-    select * from this -- :Optional[DataBlock[T]]
-    {% endif %}
     """,
 )
 
@@ -89,21 +89,17 @@ def test_accumulator():
         (input_data_2, expected_2),
     ]:
         for p in [sql_accumulator, dataframe_accumulator]:
-            expected_df = DataInput(
-                expected, schema="CoreTestSchema", module=core
-            ).as_dataframe()
             data_input = DataInput(input_data, schema="CoreTestSchema", module=core)
             db = produce_pipe_output_for_static_input(
                 p, input=data_input, target_storage=s
             )
+            expected_df = DataInput(
+                expected, schema="CoreTestSchema", module=core
+            ).as_dataframe(db.manager.ctx.env)
             df = db.as_dataframe()
-            # print(db.realized_schema)
-            # df = conform_dataframe_to_schema(df, "core.CoreTestSchema")
-            # print(df)
-            # print(df.dtypes)
-            # print(expected_df)
-            # print(expected_df.dtypes)
-            # assert_dataframes_are_almost_equal(df, expected_df)
+            assert_dataframes_are_almost_equal(
+                df, expected_df, schema=core.schemas.CoreTestSchema
+            )
 
     # TODO: how to test `this`?
     # test_recursive_input=dict(

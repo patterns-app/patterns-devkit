@@ -264,7 +264,7 @@ class Environment:
             node_like = graph.get_any_node(node_like)
         assert isinstance(node_like, Node)
 
-        flattened_node = graph.get_flattened_graph().get_flattened_root_node_for_declared_node(
+        flattened_node = graph.get_flattened_graph().get_flattened_output_node_for_declared_node(
             node_like
         )
         logger.debug(f"Running: flattened node: {flattened_node} (from {node_like})")

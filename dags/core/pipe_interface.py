@@ -196,6 +196,25 @@ class NodeInput:
             env, self.original_annotation.schema(env)
         )
 
+    # Shortcuts
+    @property
+    def env(self) -> Optional[Environment]:
+        if self.input_node is None:
+            return None
+        return self.input_node.env
+
+    @property
+    def realized_schema(self) -> Optional[ObjectSchema]:
+        if self.bound_data_block is None or self.env is None:
+            return None
+        return self.bound_data_block.realized_schema(self.env)
+
+    @property
+    def expected_schema(self) -> Optional[ObjectSchema]:
+        if self.bound_data_block is None or self.env is None:
+            return None
+        return self.bound_data_block.expected_schema(self.env)
+
 
 @dataclass
 class BoundPipeInterface:

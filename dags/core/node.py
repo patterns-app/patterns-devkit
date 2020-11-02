@@ -344,8 +344,8 @@ class DataBlockLog(BaseModel):
         with env.session_scope() as sess:
             for dbl in sess.query(DataBlockLog).all():
                 s += f"{dbl.pipe_log.node_key:50}"
-                s += f"{str(dbl.data_block_id):20}"
-                s += f"{str(dbl.data_block.record_count):10}"
-                s += f"{dbl.direction.value:10}{str(dbl.data_block.updated_at):22}"
+                s += f"{str(dbl.data_block_id):23}"
+                s += f"{str(dbl.data_block.record_count):6}"
+                s += f"{dbl.direction.value:9}{str(dbl.data_block.updated_at):22}"
                 s += f"{dbl.data_block.expected_schema_key:20}{dbl.data_block.realized_schema_key:20}\n"
         return s

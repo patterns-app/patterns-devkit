@@ -14,7 +14,8 @@ def test_module_init():
     assert len(_test_module.schemas) >= 1
     assert len(_test_module.pipes) >= 2
 
-    logger.enable("dags")
+
+def test_core_module():
     core.run_tests()
 
 

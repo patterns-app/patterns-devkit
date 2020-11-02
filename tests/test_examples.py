@@ -190,7 +190,6 @@ def test_incremental():
 
 
 def test_mixed_inputs():
-    # logger.enable("dags")
     env = get_env()
     g = Graph(env)
     s = env.add_storage(get_tmp_sqlite_db_url())

@@ -3,68 +3,31 @@ from __future__ import annotations
 from pandas import DataFrame
 
 from dags import DataBlock, pipe
+from dags.core.node import DataBlockLog
 from dags.core.sql.pipe import sql_pipe
-# TODO: currently no-op when no unique columns specified, should probably be ALL columns
-#   but _very_ expensive. In general any deduping on non-indexed columns will be costly.
+from dags.testing.utils import (
+    DataInput,
+    get_tmp_sqlite_db_url,
+    produce_pipe_output_for_static_input,
+)
+from dags.utils.pandas import assert_dataframes_are_almost_equal
 from dags.utils.typing import T
 
-# dedupe_unique_keep_max_value = sql_pipe(
-#     name="dedupe_unique_keep_max_value",
-#     sql="""
-# select:T
-# distinct on (
-#     {% for col in inputs.input.realized_schema.fields %}
-#         {% if col.name in inputs.input.realized_schema.unique_on %}
-#             "{{ col.name }}"
-#         {% else %}
-#             {% if col.field_type.startswith("Bool") %}
-#                 bool_or("{{ col.name }}") as "{{ col.name }}"
-#             {% else %}
-#                 max("{{ col.name }}") as "{{ col.name }}"
-#             {% endif %}
-#         {% endif -%}
-#         {%- if not loop.last %},{% endif %}
-#     {% endfor %}
-# from input:T
-# group by
-#     {% for col in inputs.input.realized_schema.unique_on -%}
-#         "{{ col }}"
-#         {%- if not loop.last %},{% endif %}
-#     {% endfor %}
-# """,
-# )
+# TODO: currently no-op when no unique columns specified.
+#  In general any deduping on non-indexed columns will be costly.
 
 
-# dedupe_unique_keep_first_value = sql_pipe(
-#     name="dedupe_unique_keep_first_value",
-#     compatible_runtimes="postgres",
-#     sql="""
-# select:T
-# distinct on (
-#     {% for col in inputs.input.realized_schema.unique_on %}
-#         "{{ col }}"
-#         {%- if not loop.last %},{% endif %}
-#     {% endfor %}
-#     )
-#     {% for col in inputs.input.realized_schema.fields %}
-#         "{{ col.name }}"
-#         {%- if not loop.last %},{% endif %}
-#     {% endfor %}
-#
-# from input:T
-# """,
-# )
-
-
+# TODO: is there a generic minimal ANSI sql solution to dedupe keep newest? hmmmm
+#  Does not appear to be, only hacks that require the sort column to be unique
 sql_dedupe_unique_keep_newest_row = sql_pipe(
     name="sql_dedupe_unique_keep_newest_row",
     module="core",
-    compatible_runtimes="postgres",
+    compatible_runtimes="postgres",  # TODO: compatible engines...
     sql="""
         select -- :DataBlock[T]
-        {% if inputs.input.realized_schema.unique_on %}
+        {% if inputs.input.expected_schema and inputs.input.expected_schema.unique_on %}
             distinct on (
-                {% for col in inputs.input.realized_schema.unique_on %}
+                {% for col in inputs.input.expected_schema.unique_on %}
                     "{{ col }}"
                     {%- if not loop.last %},{% endif %}
                 {% endfor %}
@@ -76,12 +39,12 @@ sql_dedupe_unique_keep_newest_row = sql_pipe(
             {% endfor %}
 
         from input -- :DataBlock[T]
-        {% if inputs.input.resolved_schema.updated_at_field %}
+        {% if inputs.input.expected_schema.updated_at_field %}
         order by
-            {% for col in inputs.input.realized_schema.unique_on %}
+            {% for col in inputs.input.expected_schema.unique_on %}
                 "{{ col }}",
             {% endfor %}
-            "{{ inputs.input.resolved_schema.updated_at_field.name }}" desc
+            "{{ inputs.input.expected_schema.updated_at_field.name }}" desc
         {% endif %}
 """,
 )
@@ -97,34 +60,36 @@ def dataframe_dedupe_unique_keep_newest_row(input: DataBlock[T]) -> DataFrame[T]
     return records.drop_duplicates(input.expected_schema.unique_on, keep="last")
 
 
-# dedupe_test = PipeTest(
-#     pipe="core.dedupe_unique_keep_newest_row",
-#     tests=[
-#         {
-#             "name": "test_dupe",
-#             "test_data": {
-#                 "input": {
-#                     "schema": "CoreTestSchema",
-#                     "data": """
-#                         k1,k2,f1,f2,f3,f4
-#                         1,2,abc,1.1,1,2012-01-01
-#                         1,2,def,1.1,{"1":2},2012-01-02
-#                         1,3,abc,1.1,2,2012-01-01
-#                         1,4,,,"[1,2,3]",2012-01-01
-#                         2,2,1.0,2.1,"[1,2,3]",2012-01-01
-#                     """,
-#                 },
-#                 "output": {
-#                     "schema": "CoreTestSchema",
-#                     "data": """
-#                         k1,k2,f1,f2,f3,f4
-#                         1,2,def,1.1,{"1":2},2012-01-02
-#                         1,3,abc,1.1,2,2012-01-01
-#                         1,4,,,"[1,2,3]",2012-01-01
-#                         2,2,1.0,2.1,"[1,2,3]",2012-01-01
-#                     """,
-#                 },
-#             },
-#         }
-#     ],
-# )
+def test_dedupe():
+    from dags.modules import core
+
+    input_data = """
+        k1,k2,f1,f2,f3,f4
+        1,2,abc,1.1,1,2012-01-01
+        1,2,def,1.1,{"1":2},2012-01-02
+        1,3,abc,1.1,2,2012-01-01
+        1,4,,,"[1,2,3]",2012-01-01
+        2,2,1.0,2.1,"[1,2,3]",2012-01-01
+    """
+    expected = """
+        k1,k2,f1,f2,f3,f4
+        1,2,def,1.1,{"1":2},2012-01-02
+        1,3,abc,1.1,2,2012-01-01
+        1,4,,,"[1,2,3]",2012-01-01
+        2,2,1.0,2.1,"[1,2,3]",2012-01-01
+    """
+    # expected_df = str_as_dataframe(expected, schema=core.schemas.CoreTestSchema)
+    data_input = DataInput(input_data, schema="CoreTestSchema", module=core)
+    s = get_tmp_sqlite_db_url()
+    for p in [
+        # sql_dedupe_unique_keep_newest_row,
+        dataframe_dedupe_unique_keep_newest_row,
+    ]:
+        db = produce_pipe_output_for_static_input(p, input=data_input, target_storage=s)
+        expected_df = DataInput(
+            expected, schema="CoreTestSchema", module=core
+        ).as_dataframe(db.manager.ctx.env)
+        df = db.as_dataframe()
+        assert_dataframes_are_almost_equal(
+            df, expected_df, schema=core.schemas.CoreTestSchema
+        )

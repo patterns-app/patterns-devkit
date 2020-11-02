@@ -32,6 +32,7 @@ module = DagsModule(
     tests=[
         accumulator.test_accumulator,
         accumulate_as_dataset.test_accumulate_as_dataset,
+        dedupe.test_dedupe,
     ],
 )
 module.export()
