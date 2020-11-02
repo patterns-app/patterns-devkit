@@ -22,12 +22,17 @@ module = DagsModule(
         accumulate_as_dataset.sql_accumulate_as_dataset,
         accumulate_as_dataset.dataframe_accumulate_as_dataset,
         as_dataset.as_dataset,
-        dedupe.dedupe_unique_keep_newest_row,
+        dedupe.sql_dedupe_unique_keep_newest_row,
+        dedupe.dataframe_dedupe_unique_keep_newest_row,
         accumulator.sql_accumulator,
         accumulator.dataframe_accumulator,
         static.extract_dataframe,
         static.extract_csv,
     ],
-    tests=[accumulator.test, accumulate_as_dataset.test],
+    tests=[
+        accumulator.test_accumulator,
+        accumulate_as_dataset.test_accumulate_as_dataset,
+        dedupe.test_dedupe,
+    ],
 )
 module.export()

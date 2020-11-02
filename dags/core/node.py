@@ -321,7 +321,7 @@ class DataBlockLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     pipe_log_id = Column(Integer, ForeignKey(PipeLog.id), nullable=False)
     data_block_id = Column(
-        Integer, ForeignKey("dags_data_block_metadata.id"), nullable=False
+        String, ForeignKey("dags_data_block_metadata.id"), nullable=False
     )  # TODO table name ref ugly here. We can parameterize with orm constant at least, or tablename("DataBlock.id")
     direction = Column(Enum(Direction, native_enum=False), nullable=False)
     processed_at = Column(DateTime, default=func.now(), nullable=False)
@@ -343,5 +343,9 @@ class DataBlockLog(BaseModel):
         s = ""
         with env.session_scope() as sess:
             for dbl in sess.query(DataBlockLog).all():
-                s += f"{dbl.pipe_log.node_key:50}{dbl.data_block_id:20}{dbl.direction.value:10}{dbl.data_block.updated_at}\n"
+                s += f"{dbl.pipe_log.node_key:50}"
+                s += f"{str(dbl.data_block_id):23}"
+                s += f"{str(dbl.data_block.record_count):6}"
+                s += f"{dbl.direction.value:9}{str(dbl.data_block.updated_at):22}"
+                s += f"{dbl.data_block.expected_schema_key:20}{dbl.data_block.realized_schema_key:20}\n"
         return s

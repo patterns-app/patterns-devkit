@@ -1,21 +1,15 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
-from re import Match
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import sqlparse
 from dags.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMetadata
-from dags.core.data_formats import DataFormat
 from dags.core.module import DagsModule
 from dags.core.pipe import DataInterfaceType, Pipe, PipeInterface, pipe_factory
-from dags.core.pipe_interface import (
-    BadAnnotationException,
-    PipeAnnotation,
-    re_type_hint,
-)
+from dags.core.pipe_interface import BadAnnotationException, PipeAnnotation
 from dags.core.runnable import PipeContext
+from loguru import logger
 from sqlparse import tokens
 
 
@@ -201,7 +195,7 @@ class SqlPipeWrapper:
         block, sdb = db_api.create_data_block_from_sql(
             ctx.execution_context.metadata_session,
             sql,
-            # expected_schema=ctx.resolved_output_schema,
+            expected_schema=ctx.get_resolved_output_schema(),
         )
 
         return sdb
@@ -228,8 +222,7 @@ class SqlPipeWrapper:
             worker=ctx.worker,
             runnable=ctx.runnable,
             inputs={i.name: i for i in ctx.inputs},
-            # output_schema=ctx.resolved_output_schema,
-            # output_schema=ctx.realized_output_schema,
+            output_schema=ctx.get_resolved_output_schema(),
         )
         return compile_jinja_sql(sql, sql_ctx)
 

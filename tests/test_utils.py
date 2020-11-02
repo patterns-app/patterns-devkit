@@ -44,6 +44,7 @@ def test_is_datetime_str():
     assert is_datetime_str("2012/01/01")
     assert is_datetime_str("1/1/2012")
     assert is_datetime_str("2012-01-01")
+    assert is_datetime_str("2012-01-01 00:00:00")
     assert is_datetime_str("2012-01-01T00:00:00")
     assert is_datetime_str("2012-01-01T00:00:00Z")
     assert is_datetime_str("2012-01-01 00:00:00+08")

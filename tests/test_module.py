@@ -14,7 +14,9 @@ def test_module_init():
     assert len(_test_module.schemas) >= 1
     assert len(_test_module.pipes) >= 2
 
-    # core.run_tests()
+
+def test_core_module():
+    core.run_tests()
 
 
 if __name__ == "__main__":

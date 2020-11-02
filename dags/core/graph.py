@@ -245,6 +245,7 @@ class NodeGraph:
             new_g.flatten_composite_node(n)
         return new_g
 
+    # TODO: rename/factor "compiled"
     def as_networkx_graph(self, compiled: bool) -> nx.DiGraph:
         g = nx.DiGraph()
         for node in self.nodes():
@@ -269,11 +270,11 @@ class NodeGraph:
         return self.as_networkx_graph(compiled=False)
 
     # TODO: Think through how to "run" declared composite node (and do we produce datasets too?)
-    def get_flattened_root_node_for_declared_node(self, node: Node) -> Node:
+    def get_flattened_output_node_for_declared_node(self, node: Node) -> Node:
         if not self.is_flattened:
             return node
         sub_g = self.get_declared_node_subgraph(node.key)
-        node = sub_g.get_all_nodes_in_execution_order()[0]
+        node = sub_g.get_all_nodes_in_execution_order()[-1]
         return node
 
     def get_all_upstream_dependencies_in_execution_order(
@@ -282,7 +283,7 @@ class NodeGraph:
         g = self.get_compiled_networkx_graph()
         if is_declared_node and self.is_flattened:
             # Translate declared node into root sub-node
-            node = self.get_flattened_root_node_for_declared_node(node)
+            node = self.get_flattened_output_node_for_declared_node(node)
         node_keys = self._get_all_upstream_dependencies_in_execution_order(g, node.key)
         return [self.get_node(name) for name in node_keys]
 

@@ -93,4 +93,7 @@ def test_sql_pipe_interface():
     dfi = df.get_interface(env)
     assert dfi is not None
     assert len(dfi.inputs) == 1
+    assert dfi.inputs[0].is_generic
+    assert dfi.inputs[0].schema_like == "T"
+    assert dfi.output.is_generic
     assert dfi.output is not None

@@ -34,6 +34,9 @@ def extract_dataframe(ctx: PipeContext,) -> DataSet:
         # Just emit once
         return
     ctx.emit_state_value("extracted", True)
+    schema = ctx.get_config_value("schema")
+    if schema:
+        ctx.set_output_schema(schema)
     return ctx.get_config_value("dataframe")
 
 

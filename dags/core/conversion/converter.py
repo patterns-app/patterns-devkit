@@ -33,7 +33,7 @@ class StorageFormat:
     data_format: DataFormat
 
     def __str__(self):
-        return f"{self.storage_type.display()}:{self.data_format}"
+        return f"{self.storage_type.display()}:{self.data_format.__name__}"
 
 
 Conversion = Tuple[StorageFormat, StorageFormat]

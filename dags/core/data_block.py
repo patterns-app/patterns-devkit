@@ -83,8 +83,11 @@ class LocalMemoryDataRecords:
 
 
 class DataBlockMetadata(BaseModel):  # , Generic[DT]):
-    # id = Column(String, primary_key=True, default=timestamp_rand_key)
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    # NOTE on block ids: we generate them dynamically so we don't have to hit a central db for a sequence
+    # BUT we MUST ensure they are monotonically ordered -- the logic of selecting the correct (most recent) DataSet
+    # block relies on strict monotonic IDs
+    id = Column(String, primary_key=True, default=timestamp_rand_key)
+    # id = Column(Integer, primary_key=True, autoincrement=True)
     expected_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
     realized_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
     record_count = Column(Integer, nullable=True)
@@ -153,7 +156,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 
 @dataclass(frozen=True)
 class ManagedDataBlock(Generic[T]):
-    data_block_id: int
+    data_block_id: str
     expected_schema_key: ObjectSchemaKey
     realized_schema_key: ObjectSchemaKey
     manager: DataBlockManager
@@ -183,9 +186,9 @@ DataBlock = ManagedDataBlock
 
 
 class StoredDataBlockMetadata(BaseModel):
-    # id = Column(String, primary_key=True, default=timestamp_rand_key)
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    data_block_id = Column(Integer, ForeignKey(DataBlockMetadata.id), nullable=False)
+    id = Column(String, primary_key=True, default=timestamp_rand_key)
+    # id = Column(Integer, primary_key=True, autoincrement=True)
+    data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
     storage_url = Column(String, nullable=False)
     data_format: DataFormat = Column(DataFormatType, nullable=False)  # type: ignore
     # is_ephemeral = Column(Boolean, default=False) # TODO
@@ -221,8 +224,10 @@ class StoredDataBlockMetadata(BaseModel):
             raise ValueError(
                 "Trying to get StoredDataBlock name, but id is not set yet (obj must be committed to database first)"
             )
-        schema = env.get_schema(self.data_block.most_real_schema_key)
-        return f"_{schema.get_identifier()[:50]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
+        # TODO: remove env arg
+        # schema = env.get_schema(self.data_block.most_real_schema_key)
+        # return f"_{schema.get_identifier()[:50]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
+        return f"_sdb_{self.id}"
 
     def get_storage_format(self) -> StorageFormat:
         return StorageFormat(self.storage.storage_type, self.data_format)
@@ -241,12 +246,12 @@ event.listen(StoredDataBlockMetadata, "before_update", immutability_update_liste
 
 
 class DataSetMetadata(BaseModel):
-    # id = Column(String, primary_key=True, default=timestamp_rand_key)
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(String, primary_key=True, default=timestamp_rand_key)
+    # id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
     expected_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
     realized_schema_key: ObjectSchemaKey = Column(String, nullable=False)  # type: ignore
-    data_block_id = Column(Integer, ForeignKey(DataBlockMetadata.id), nullable=False)
+    data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
     # Hints
     data_block: "DataBlockMetadata"
 
@@ -279,9 +284,9 @@ class DataSetMetadata(BaseModel):
 
 @dataclass(frozen=True)
 class ManagedDataSet(Generic[T]):
-    data_set_id: int
+    data_set_id: str
     data_set_name: str
-    data_block_id: int
+    data_block_id: str
     expected_schema_key: ObjectSchemaKey
     realized_schema_key: ObjectSchemaKey
     # schema_is_validated: bool
@@ -441,7 +446,7 @@ def create_data_block_from_records(
             realized_schema = ldr.data_format.infer_schema_from_records(
                 ldr.records_object
             )
-            env.add_new_schema(realized_schema, sess)
+            env.add_new_generated_schema(realized_schema, sess)
         else:
             realized_schema = expected_schema
     realized_schema_key = realized_schema.key

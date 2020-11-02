@@ -137,6 +137,9 @@ class Environment:
                 raise KeyError(schema_like)
             return schema
 
+    def add_schema(self, schema: ObjectSchema):
+        self.library.add_schema(schema)
+
     def get_generated_schema(
         self, schema_like: ObjectSchemaLike
     ) -> Optional[ObjectSchema]:
@@ -152,7 +155,7 @@ class Environment:
                 return None
             return got.as_schema()
 
-    def add_new_schema(self, schema: ObjectSchema, sess: Session):
+    def add_new_generated_schema(self, schema: ObjectSchema, sess: Session):
         if schema.key in self.library.schemas:
             # Already exists
             return
@@ -261,7 +264,7 @@ class Environment:
             node_like = graph.get_any_node(node_like)
         assert isinstance(node_like, Node)
 
-        flattened_node = graph.get_flattened_graph().get_flattened_root_node_for_declared_node(
+        flattened_node = graph.get_flattened_graph().get_flattened_output_node_for_declared_node(
             node_like
         )
         logger.debug(f"Running: flattened node: {flattened_node} (from {node_like})")

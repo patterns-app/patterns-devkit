@@ -90,9 +90,7 @@ def convert_sdb(
         storage = select_storage(
             ctx.local_memory_storage, ctx.storages, target_storage_format
         )
-        logger.debug(
-            "CONVERSION:", conversion[0], "->", conversion[1],
-        )
+        logger.debug(f"CONVERSION: {conversion[0]} -> {conversion[1]}")
         # printd("\t", storage)
         # printd("\t", next_sdb)
         next_sdb = conversion_edge.converter_class(ctx).convert(

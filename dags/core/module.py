@@ -7,6 +7,7 @@ from io import TextIOBase
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Generator,
     Iterable,
     List,
@@ -15,7 +16,6 @@ from typing import (
     TextIO,
     Type,
     Union,
-    Callable,
 )
 
 from dags.core.component import ComponentLibrary
@@ -192,42 +192,6 @@ class DagsModule:
         # if isinstance(m, DagsModule):
         #     m = m.name
         self.dependencies.append(m)
-
-    # def add_test_case(self, test_case_like: PipeTestCaseLike):
-    #     test_case = self.process_test_case(test_case_like)
-    #     self.test_cases.extend(test_case)
-    #
-    # def process_test_case(
-    #     self, test_case_like: PipeTestCaseLike
-    # ) -> List[PipeTestCase]:
-    #     from dags.testing.pipes import (
-    #         PipeTestCaseLike,
-    #         PipeTestCase,
-    #         test_cases_from_yaml,
-    #     )
-    #
-    #     if isinstance(test_case_like, PipeTestCase):
-    #         test_cases = [test_case_like]
-    #     elif isinstance(test_case_like, str):
-    #         yml = self.read_module_file(test_case_like)
-    #         test_cases = test_cases_from_yaml(yml, self)
-    #     else:
-    #         raise TypeError(test_case_like)
-    #     return test_cases
-
-    # def get_indexable_components(self) -> Iterable[IndexableComponent]:
-    #     dti = self.schema_indexer()
-    #     si = self.provider_indexer()
-    #     dfi = self.pipe_indexer()
-    #     for schema in self.schemas.all():
-    #         for ic in dti.get_indexable_components(schema, self):
-    #             yield ic
-    #     for s in self.providers.all():
-    #         for ic in si.get_indexable_components(s, self):
-    #             yield ic
-    #     for df in self.pipes.all():
-    #         for ic in dfi.get_indexable_components(df, self):
-    #             yield ic
 
 
 DEFAULT_LOCAL_MODULE = DagsModule(DEFAULT_LOCAL_MODULE_NAME)
