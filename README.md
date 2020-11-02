@@ -1,14 +1,10 @@
 
 ![dags](https://github.com/kvh/basis/workflows/dags/badge.svg)
 
-<img src="dags.png">
+<img src="assets/dags.png">
 
-<div style="width: 100%;display: inline-flex;">
-    <div style="background: #2196F3;height: 3px; width: 100%;"></div>
-    <div style="background: #FFC107;height: 3px; width: 100%;"></div>
-    <div style="background: #4CAF50;height: 3px; width: 100%;"></div>
-    <div style="background: #e42719;height: 3px; width: 100%;"></div>
-</div>
+<img src="assets/bar.png">
+
 
 ### Modern Data Pipelines
  

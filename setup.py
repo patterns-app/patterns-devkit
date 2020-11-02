@@ -15,8 +15,8 @@ packages = [
     "dags.db",
     "dags.examples",
     "dags.logging",
+    "dags.modules",
     "dags.modules.core",
-    "dags.modules.core.external",
     "dags.modules.core.pipes",
     "dags.project",
     "dags.testing",
@@ -48,7 +48,7 @@ entry_points = {"console_scripts": ["dags = dags.cli:app"]}
 
 setup_kwargs = {
     "name": "dags",
-    "version": "0.1.1",
+    "version": "0.1.3",
     "description": "Functional Data Pipelines",
     "long_description": None,
     "author": "Ken Van Haren",
