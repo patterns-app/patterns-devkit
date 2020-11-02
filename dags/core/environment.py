@@ -232,19 +232,24 @@ class Environment:
     def produce(
         self,
         graph: Graph,
-        node_like: Union[Node, str],
+        node_like: Optional[Union[Node, str]] = None,
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> Optional[DataBlock]:
         from dags.core.node import Node
 
-        node = node_like
-        if isinstance(node, str):
-            node = graph.get_any_node(node_like)
-        assert isinstance(node, Node)
-        dependencies = graph.get_flattened_graph().get_all_upstream_dependencies_in_execution_order(
-            node
-        )
+        if node_like is not None:
+            node = node_like
+            if isinstance(node, str):
+                node = graph.get_any_node(node_like)
+            assert isinstance(node, Node)
+            dependencies = graph.get_flattened_graph().get_all_upstream_dependencies_in_execution_order(
+                node
+            )
+        else:
+            dependencies = (
+                graph.get_flattened_graph().get_all_nodes_in_execution_order()
+            )
         output = None
         for dep in dependencies:
             with self.execution(graph, **execution_kwargs) as em:

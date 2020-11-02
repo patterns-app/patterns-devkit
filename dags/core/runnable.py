@@ -162,6 +162,10 @@ class ExecutionContext:
     target_storage: Storage
     local_memory_storage: Storage
     current_runtime: Optional[Runtime] = None
+    node_timelimit_seconds: Optional[
+        int
+    ] = None  # TODO: more of a "soft" limit, could imagine a "hard" one too
+    execution_timelimit_seconds: Optional[int] = None
     logger: Optional[Callable[[str], None]] = None
 
     def clone(self, **kwargs):
@@ -174,6 +178,8 @@ class ExecutionContext:
             target_storage=self.target_storage,
             local_memory_storage=self.local_memory_storage,
             current_runtime=self.current_runtime,
+            node_timelimit_seconds=self.node_timelimit_seconds,
+            execution_timelimit_seconds=self.execution_timelimit_seconds,
             logger=logger,
         )
         args.update(**kwargs)
@@ -183,7 +189,7 @@ class ExecutionContext:
     def start_pipe_run(self, node: Node) -> Generator[RunSession, None, None]:
         assert self.current_runtime is not None, "Runtime not set"
         node_state = node.get_state(self.metadata_session) or {}
-        dfl = PipeLog(  # type: ignore
+        pl = PipeLog(  # type: ignore
             node_key=node.key,
             node_start_state=node_state,
             node_end_state=node_state,
@@ -193,14 +199,14 @@ class ExecutionContext:
             started_at=utcnow(),
         )
         try:
-            yield RunSession(dfl, self.metadata_session)
+            yield RunSession(pl, self.metadata_session)
             # Only persist state on successful run
-            dfl.persist_state(self.metadata_session)
+            pl.persist_state(self.metadata_session)
         except Exception as e:
-            dfl.set_error(e)
+            pl.set_error(e)
             raise e
         finally:
-            dfl.completed_at = utcnow()
+            pl.completed_at = utcnow()
 
     def add(self, obj: BaseModel) -> BaseModel:
         try:
@@ -285,6 +291,16 @@ class PipeContext:  # TODO: (Generic[C, S]):
 
     def emit_state(self, new_state: Dict):
         self.pipe_log.node_end_state = new_state
+
+    def should_continue(self):
+        """
+        Long running pipes should check this function periodically so
+        as to honor time limits.
+        """
+        if not self.execution_context.node_timelimit_seconds:
+            return
+        seconds_elapsed = (utcnow() - self.pipe_log.started_at).total_seconds()
+        return seconds_elapsed < self.execution_context.node_timelimit_seconds
 
 
 class ExecutionManager:

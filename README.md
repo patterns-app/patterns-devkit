@@ -3,6 +3,13 @@
 
 <img src="dags.png">
 
+<div style="width: 100%;display: inline-flex;">
+    <div style="background: #2196F3;height: 3px; width: 100%;"></div>
+    <div style="background: #FFC107;height: 3px; width: 100%;"></div>
+    <div style="background: #4CAF50;height: 3px; width: 100%;"></div>
+    <div style="background: #e42719;height: 3px; width: 100%;"></div>
+</div>
+
 ### Modern Data Pipelines
  
 Dags is a framework for building end-to-end functional data pipelines from modular components.
@@ -59,7 +66,8 @@ from dags_stripe import stripe
 from dags_bi import bi
 
 
-graph = Graph()
+env = Environment("sqlite:///dags.db")
+graph = Graph(env)
 graph.add_node(
     key="stripe_txs",
     pipe=stripe.extract_charges,
@@ -70,9 +78,7 @@ graph.add_node(
     pipe=bi.transaction_ltv_model,
     upstream="stripe_txs",
 )
-
-env = Environment("sqlite:///dags.db")
-ltv_output = env.produce(graph, "ltv_model")
+ltv_output = env.produce(graph)
 print(ltv_output.as_dataframe())
 ```
 
