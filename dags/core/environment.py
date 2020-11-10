@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from contextlib import contextmanager
 from dataclasses import asdict
@@ -44,7 +45,7 @@ class Environment:
     def __init__(
         self,
         name: str = None,
-        metadata_storage: Union["Storage", str] = DEFAULT_METADATA_STORAGE_URL,
+        metadata_storage: Union["Storage", str] = None,
         add_default_python_runtime: bool = True,
         initial_modules: List[DagsModule] = None,  # Defaults to `core` module
         event_handlers: List[EventHandler] = None,
@@ -56,7 +57,8 @@ class Environment:
         from dags.modules import core
 
         self.name = name
-        if metadata_storage == DEFAULT_METADATA_STORAGE_URL:
+        if metadata_storage is None:
+            metadata_storage = DEFAULT_METADATA_STORAGE_URL
             logger.warning(
                 f"No metadata storage specified, using default sqlite db `{DEFAULT_METADATA_STORAGE_URL}`"
             )
@@ -190,13 +192,32 @@ class Environment:
         finally:
             session.close()
 
+    def get_default_storage(self) -> Storage:
+        from dags.core.storage.storage import StorageClass
+
+        if len(self.storages) == 1:
+            return self.storages[0]
+        for s in self.storages:
+            if s.url == self.metadata_storage.url:
+                continue
+            if s.storage_class == StorageClass.MEMORY:
+                continue
+            return s
+        return self.storages[0]
+
     def get_execution_context(
         self, graph: Graph, session: Session, target_storage: Storage = None, **kwargs
     ) -> ExecutionContext:
+        from dags.core.storage.storage import StorageClass
         from dags.core.runnable import ExecutionContext
 
         if target_storage is None:
-            target_storage = self.storages[0] if self.storages else None
+            target_storage = self.get_default_storage()
+        if target_storage.storage_class == StorageClass.MEMORY:
+            logging.warning(
+                "Using MEMORY storage -- results of execution will NOT "
+                "be persisted. Add a database or file storage to persist results."
+            )
         args = dict(
             graph=graph,
             env=self,

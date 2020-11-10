@@ -2,7 +2,7 @@ import json
 import os
 import sys
 from importlib import import_module
-from typing import Any, List
+from typing import Any, List, Optional
 
 import click
 import requests
@@ -62,16 +62,16 @@ class CliAppException(Exception):
 
 @click.group(context_settings={"help_option_names": ["-h", "--help"]})
 @click.option("-d", "--debug")
+@click.option("-m", "--metadata")
 @click.pass_context
-def app(ctx, debug: bool = False):
+def app(ctx, debug: bool = False, metadata: Optional[str] = None):
     """Modern Data Pipelines"""
     logger.enable("dags")
     if debug:
         logger.add(sys.stderr, level="DEBUG")
     else:
         logger.add(sys.stderr, level="INFO")
-    # TODO some way to pass in env
-    env = Environment(metadata_storage="sqlite:///:memory:")
+    env = Environment(metadata_storage=metadata)
     try:
         env = current_env()
     except ImportError:
