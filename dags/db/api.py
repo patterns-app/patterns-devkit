@@ -222,6 +222,20 @@ class DatabaseAPI:
         meta.reflect(bind=sa_engine)
         return meta
 
+    def create_user_with_no_priviges(self, user_name: str):
+        sql = f"create user {user_name}"
+        self.execute_sql(sql)
+
+    def grant_user_priviliges(self, user_name: str, priviliges: List[str]):
+        sql = f"grant {','.join(priviliges)} on * to {user_name}"
+        self.execute_sql(sql)
+
+    def grant_read_priviliges(self, user_name: str):
+        self.grant_user_priviliges(user_name, ["select"])
+
+    def grant_write_priviliges(self, user_name: str):
+        self.grant_user_priviliges(user_name, ["select, insert, update, delete"])
+
 
 # TODO: better way to register these types of managers / apis (so someone can extend without editing
 def get_database_api_class(engine: StorageEngine) -> Type[DatabaseAPI]:
