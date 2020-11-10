@@ -1,7 +1,7 @@
 
 ![dags](https://github.com/kvh/basis/workflows/dags/badge.svg)
 
-<img src="assets/dags-logo-bar.svg">
+<img src="assets/dags-logo-simple.svg" widht="100%">
 
 ### Modern Data Pipelines
  
@@ -81,7 +81,7 @@ Key elements of Dags:
 
 #### pipe
 
-`pipe`s are the core computational unit of Dags. They are added as nodes to a pipe
+`pipes` are the core computational unit of Dags. They are added as nodes to a pipe
  graph, linking one node's output to another's input. Pipes are written in python or sql and
  can be as simple or complex as required. Below are two equivalent and valid pipes:
  
@@ -105,11 +105,11 @@ In Dags, incremental data is processed as *DataBlock*s and batch data is process
 
 #### ObjectSchema
 
-`ObjectSchema`s define data schemas that let `pipe`s specify the data structure
+`ObjectSchemas` define data schemas that let `pipes` specify the data structure
  they expect and allow them to inter-operate safely. They also
 provide a natural place for column descriptions, validation logic, deduplication
  behavior, and other metadata associated with
-a specific type of data record. You can think of `ObjectSchema`s as the equivalent of "Interfaces"
+a specific type of data record. You can think of `ObjectSchemas` as the equivalent of "Interfaces"
 in a traditional programming language paradigm -- they specify a "contract" that the underlying data
 must abide by. The Dags `ObjectSchema` system is "duck" typed and "gradually" typed -- types are both
 optional and inferred, there is no formal type hierarchy, and type compatibility can be inspected
@@ -154,7 +154,7 @@ implementations:
     value: amount
 ```
 
-`pipe`s can then declare the ObjectSchemas they expect, allowing them to specify the
+`pipes` can then declare the ObjectSchemas they expect, allowing them to specify the
  (minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
  
 ```python
@@ -190,9 +190,9 @@ should be used when the value they provide out-weighs the friction they introduc
 
 #### DataBlock
 
-A `DataBlock` is an immutable set of data records of a uniform `ObjectSchema`. `DataBlock`s are the
-basic data unit of Dags, the unit that `pipe`s take as input and ultimately produce as
-output. More precisely, `DataBlock`s are a reference to an abstract ideal of these records; in
+A `DataBlock` is an immutable set of data records of a uniform `ObjectSchema`. `DataBlocks ` are the
+basic data unit of Dags, the unit that `pipes` take as input and ultimately produce as
+output. More precisely, `DataBlocks` are a reference to an abstract ideal of these records; in
 practice, a DataBlock will be stored on one or more Storage mediums in one or more DataFormats -- a
 CSV on the local file, a JSON string in memory, or a table in a Postgres database, for example --
 Dags abstracts over specific formats and storage engines, and provides seamless
@@ -209,9 +209,9 @@ warning or, if serious enough, fail with an error.
 #### DataSet
 
 `DataBlock`s are the basic data unit of Dags -- their discrete, immutable qualities make them
-ideal for building industrial grade pipelines and complex ecosystems of `pipe`s. But
+ideal for building industrial grade pipelines and complex ecosystems of `pipes`. But
 often it is necessary or simpler to work not with incremental chunks of data, but with entire
-datasets as a whole. Dags `DataSet`s serve this purpose -- they "accumulate"
+datasets as a whole. Dags `DataSets` serve this purpose -- they "accumulate"
 DataBlocks of a uniform ObjectSchema, deduping and merging records according to specified or default
 logic, and provide a clean, named set of data records (a single `customers` table, for instance).
  
