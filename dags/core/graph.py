@@ -206,7 +206,11 @@ class NodeGraph:
                         pass
                     inputs[annotation.name] = dsn
             new_g.set_compiled_inputs(n, inputs)
-            new_g.add_node(n)
+            try:
+                new_g.add_node(n)
+            except KeyError:
+                # This happens if a Dataset Node is added above but was ALSO declared
+                pass
         return new_g
 
     def flatten_composite_node(self, node: Node):
