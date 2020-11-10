@@ -53,6 +53,12 @@ def make_graph() -> Graph:
     return g
 
 
+def test_dupe_node():
+    g = make_graph()
+    with pytest.raises(KeyError):
+        g.add_node("node1", pipe_t1_source)
+
+
 def test_declared_graph():
     g = make_graph()
     n1 = g.get_any_node("node1")
