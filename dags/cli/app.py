@@ -248,13 +248,23 @@ def reset_metadata(env: Environment):
     # TODO
     raise NotImplementedError
     with env.session_scope() as sess:
-        sess.execute("drop table dags_pipe_log        cascade;")
-        sess.execute("drop table dags_pipe_log_id_seq cascade;")
-        sess.execute("drop table dags_data_resource_log        cascade;")
-        sess.execute("drop table dags_data_resource_log_id_seq cascade;")
-        sess.execute("drop table dags_data_resource_metadata   cascade;")
-        sess.execute("drop table dags_data_set_metadata        cascade;")
-        sess.execute("drop table dags_stored_data_resource_metadata cascade;")
+        sess.execute(f"drop table {DAGS_METADATA_TABLE_PREFIX}pipe_log        cascade;")
+        sess.execute(f"drop table {DAGS_METADATA_TABLE_PREFIX}pipe_log_id_seq cascade;")
+        sess.execute(
+            f"drop table {DAGS_METADATA_TABLE_PREFIX}data_resource_log        cascade;"
+        )
+        sess.execute(
+            f"drop table {DAGS_METADATA_TABLE_PREFIX}data_resource_log_id_seq cascade;"
+        )
+        sess.execute(
+            f"drop table {DAGS_METADATA_TABLE_PREFIX}data_resource_metadata   cascade;"
+        )
+        sess.execute(
+            f"drop table {DAGS_METADATA_TABLE_PREFIX}data_set_metadata        cascade;"
+        )
+        sess.execute(
+            f"drop table {DAGS_METADATA_TABLE_PREFIX}stored_data_resource_metadata cascade;"
+        )
 
 
 @click.command("init")

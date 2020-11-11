@@ -8,6 +8,7 @@ from dags.utils.typing import T
 
 @pipe("as_dataset_sql", module="core", compatible_runtimes="database")
 def as_dataset_sql(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
+    # TODO: add test for this!
     name = ctx.get_config_value("dataset_name")
     ds = (
         ctx.execution_context.metadata_session.query(DataSetMetadata)
@@ -26,7 +27,9 @@ def as_dataset_sql(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
     ctx.worker.execute_sql(
         f"drop view if exists {name}"
     )  # TODO: downtime here while table swaps, how to handle?
-    ctx.worker.execute_sql(f"create view {name} as select * from {table.table_name}")
+    ctx.worker.execute_sql(
+        f"create view {name} as select * from {table.get_table_stmt()}"
+    )
     return ds
 
 

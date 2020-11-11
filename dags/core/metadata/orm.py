@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 
 from dags.utils.common import cf, rand_str, title_to_snake_case, utcnow
 
-DAGS_METADATA_TABLE_PREFIX = "dags_"
+DAGS_METADATA_TABLE_PREFIX = "_dags_"
 
 
 class _BaseModel:

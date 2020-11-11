@@ -13,7 +13,7 @@ from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
 from dags.core.data_block import DataBlock, DataBlockMetadata
 from dags.core.environment import Environment
-from dags.core.metadata.orm import BaseModel
+from dags.core.metadata.orm import BaseModel, DAGS_METADATA_TABLE_PREFIX
 from dags.core.pipe import Pipe, PipeLike, ensure_pipe, make_pipe, make_pipe_name
 from dags.core.pipe_interface import PipeInterface
 from loguru import logger
@@ -321,7 +321,9 @@ class DataBlockLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     pipe_log_id = Column(Integer, ForeignKey(PipeLog.id), nullable=False)
     data_block_id = Column(
-        String, ForeignKey("dags_data_block_metadata.id"), nullable=False
+        String,
+        ForeignKey(f"{DAGS_METADATA_TABLE_PREFIX}data_block_metadata.id"),
+        nullable=False,
     )  # TODO table name ref ugly here. We can parameterize with orm constant at least, or tablename("DataBlock.id")
     direction = Column(Enum(Direction, native_enum=False), nullable=False)
     processed_at = Column(DateTime, default=func.now(), nullable=False)
