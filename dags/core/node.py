@@ -13,7 +13,7 @@ from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
 from dags.core.data_block import DataBlock, DataBlockMetadata
 from dags.core.environment import Environment
-from dags.core.metadata.orm import BaseModel, DAGS_METADATA_TABLE_PREFIX
+from dags.core.metadata.orm import DAGS_METADATA_TABLE_PREFIX, BaseModel
 from dags.core.pipe import Pipe, PipeLike, ensure_pipe, make_pipe, make_pipe_name
 from dags.core.pipe_interface import PipeInterface
 from loguru import logger

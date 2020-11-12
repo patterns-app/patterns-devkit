@@ -81,19 +81,3 @@ class PostgresDatabaseAPI(DatabaseAPI):
         bulk_insert(
             eng=self.get_engine(), table_name=table_name, records=records, **kwargs
         )
-
-    def create_user_with_no_privileges(
-        self, user_name: str, password: Optional[str] = None
-    ):
-        sql = f"create user {user_name}"
-        if password:
-            sql += f" with password '{password}'"
-        self.execute_sql(sql)
-
-    def grant_user_privileges(self, user_name: str, privileges: List[str]):
-        privileges_stmt = ",".join(privileges)
-        sql = f"alter default privileges in schema public grant {privileges_stmt} on tables to {user_name}"
-        sql = f"grant {privileges_stmt} on all tables in schema public to {user_name}"
-        self.execute_sql(sql)
-        sql = f"alter default privileges in schema public grant {privileges_stmt} on tables to {user_name}"
-        self.execute_sql(sql)

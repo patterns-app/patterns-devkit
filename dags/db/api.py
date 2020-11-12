@@ -11,10 +11,10 @@ from typing import (
     Dict,
     Generator,
     List,
+    Optional,
     Tuple,
     Type,
     Union,
-    Optional,
 )
 
 import sqlalchemy
@@ -222,24 +222,6 @@ class DatabaseAPI:
         meta = MetaData()
         meta.reflect(bind=sa_engine)
         return meta
-
-    def create_user_with_no_privileges(
-        self, user_name: str, password: Optional[str] = None
-    ):
-        sql = f"create user {user_name}"
-        if password:
-            sql += f" identified by '{password}'"
-        self.execute_sql(sql)
-
-    def grant_user_privileges(self, user_name: str, priviliges: List[str]):
-        sql = f"grant {','.join(priviliges)} on * to {user_name}"
-        self.execute_sql(sql)
-
-    def grant_read_privileges(self, user_name: str):
-        self.grant_user_privileges(user_name, ["select"])
-
-    def grant_write_privileges(self, user_name: str):
-        self.grant_user_privileges(user_name, ["select, insert, update, delete"])
 
 
 # TODO: better way to register these types of managers / apis (so someone can extend without editing
