@@ -10,6 +10,7 @@ from sqlalchemy import func
 
 from dags.core.data_block import DataBlockMetadata, DataSetMetadata
 from dags.core.environment import Environment, current_env
+from dags.core.metadata.orm import DAGS_METADATA_TABLE_PREFIX
 from dags.core.node import PipeLog
 from dags.core.typing.inference import dict_to_rough_schema
 from dags.core.typing.object_schema import schema_to_yaml
