@@ -87,4 +87,4 @@ class Runtime:
         from dags.db.api import get_database_api_class
 
         db_api_cls = get_database_api_class(self.as_storage().storage_engine)
-        return db_api_cls(env, self)
+        return db_api_cls(env, self.url)

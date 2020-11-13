@@ -58,13 +58,10 @@ def conform_columns_for_insert(
 
 class DatabaseAPI:
     def __init__(
-        self,
-        env: Environment,
-        resource: Union[Runtime, Storage],
-        json_serializer: Callable = None,
+        self, env: Environment, url: str, json_serializer: Callable = None,
     ):
         self.env = env
-        self.resource = resource
+        self.url = url
         self.json_serializer = (
             json_serializer
             if json_serializer is not None
@@ -72,9 +69,8 @@ class DatabaseAPI:
         )
 
     def get_engine(self) -> sqlalchemy.engine.Engine:
-        url = self.resource.url
         eng = sqlalchemy.create_engine(
-            url, json_serializer=self.json_serializer, echo=False
+            self.url, json_serializer=self.json_serializer, echo=False
         )
         _sa_engines.append(eng)
         return eng
@@ -87,6 +83,8 @@ class DatabaseAPI:
     def execute_sql(self, sql: str) -> ResultProxy:
         logger.debug("Executing SQL:")
         logger.debug(sql)
+        print(self.url)
+        print(sql)
         with self.connection() as conn:
             return conn.execute(sql)
 
@@ -161,7 +159,7 @@ class DatabaseAPI:
             realized_schema_key=realized_schema_key,
             record_count=cnt,
         )
-        storage_url = self.resource.url
+        storage_url = self.url
         sdb = StoredDataBlockMetadata(
             data_block=block, storage_url=storage_url, data_format=DatabaseTableFormat,
         )

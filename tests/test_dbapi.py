@@ -30,7 +30,7 @@ def get_sample_records_datablock(
 def test_conn():
     env = make_test_env()
     db = env.add_storage(get_tmp_sqlite_db_url())
-    api = DatabaseAPI(env, db)
+    api = DatabaseAPI(env, db.url)
     api.get_engine()
     with api.connection() as conn:
         assert conn.execute("select 1").first()[0] == 1
@@ -40,7 +40,7 @@ def test_bulk_insert():
     env = make_test_env()
     env.add_module(core)
     db = env.add_storage(get_tmp_sqlite_db_url())
-    api = DatabaseAPI(env, db)
+    api = DatabaseAPI(env, db.url)
     sess = env.get_new_metadata_session()
     b, sb = get_sample_records_datablock(env, sess)
     output_sdb = StoredDataBlockMetadata(  # type: ignore

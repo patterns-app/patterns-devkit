@@ -112,7 +112,7 @@ class Storage:
         from dags.db.api import get_database_api_class
 
         db_api_cls = get_database_api_class(self.storage_engine)
-        return db_api_cls(env, self)
+        return db_api_cls(env, self.url)
 
     def get_file_system_api(self, env: Environment) -> FileSystemAPI:
         from dags.core.storage.file_system import get_file_system_api_class
