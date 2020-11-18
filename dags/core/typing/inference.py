@@ -181,7 +181,7 @@ def pandas_series_to_sqlalchemy_type(series: Series) -> str:
         # else:
         #     return Float(precision=53
         "Float"  # TODO: precision? Float(precision=53)?
-    elif dtype == "integer":
+    elif dtype.lower().startswith("int"):
         # if col.dtype == "int32":
         #     return Integer
         # else:
@@ -227,14 +227,12 @@ def sqlalchemy_type_to_pandas_type(satype: str) -> str:
         return "float64"  # TODO: Does np/pd support Decimal?
     if ft.startswith("double"):
         return "float64"
-    # TODO: numpy integers cannot express null/na, so we have to use float64 in general case?
-    #   (is there an alternative?)
-    #   Issue with using floats THOUGH is case where string column is mistaken for ints, then cast to
-    #   float here, then back to str as "1.0" instead of "1"
+    # Note: numpy integers cannot express null/na, so we have to use float64 in general case?
+    # FIXED: Can use pandas defined type Int64 (caps), that supports pandas.NA)
     if ft.startswith("integer"):
-        return "int32"  # See note above
+        return "Int32" 
     if ft.startswith("bigint"):
-        return "int64"  # See note above
+        return "Int64"
     if ft.startswith("boolean"):
         return "boolean"
     if (
