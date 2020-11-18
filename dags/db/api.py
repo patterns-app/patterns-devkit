@@ -48,7 +48,8 @@ def dispose_all():
 
 
 def conform_columns_for_insert(
-    records: RecordsList, columns: List[str] = None,
+    records: RecordsList,
+    columns: List[str] = None,
 ) -> List[str]:
     if columns is None:
         # Use first object's keys as columns. Assumes uniform dicts
@@ -58,7 +59,10 @@ def conform_columns_for_insert(
 
 class DatabaseAPI:
     def __init__(
-        self, env: Environment, url: str, json_serializer: Callable = None,
+        self,
+        env: Environment,
+        url: str,
+        json_serializer: Callable = None,
     ):
         self.env = env
         self.url = url
@@ -101,7 +105,9 @@ class DatabaseAPI:
             return name
         schema = sdb.get_realized_schema(self.env)
         ddl = ObjectSchemaMapper(self.env).create_table_statement(
-            schema=schema, storage_engine=sdb.storage.storage_engine, table_name=name,
+            schema=schema,
+            storage_engine=sdb.storage.storage_engine,
+            table_name=name,
         )
         self.execute_sql(ddl)
         return name
@@ -161,7 +167,9 @@ class DatabaseAPI:
         )
         storage_url = self.url
         sdb = StoredDataBlockMetadata(
-            data_block=block, storage_url=storage_url, data_format=DatabaseTableFormat,
+            data_block=block,
+            storage_url=storage_url,
+            data_format=DatabaseTableFormat,
         )
         sess.add(block)
         sess.add(sdb)

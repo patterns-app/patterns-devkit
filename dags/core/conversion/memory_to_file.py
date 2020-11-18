@@ -25,7 +25,9 @@ class MemoryToFileConverter(Converter):
     cost_level = ConversionCostLevel.DISK
 
     def _convert(
-        self, input_sdb: StoredDataBlockMetadata, output_sdb: StoredDataBlockMetadata,
+        self,
+        input_sdb: StoredDataBlockMetadata,
+        output_sdb: StoredDataBlockMetadata,
     ) -> StoredDataBlockMetadata:
         input_memory_storage = LocalMemoryStorageEngine(self.env, input_sdb.storage)
         input_ldr = input_memory_storage.get_local_memory_data_records(input_sdb)

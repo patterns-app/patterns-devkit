@@ -33,7 +33,9 @@ class MemoryToDatabaseConverter(Converter):
     cost_level = ConversionCostLevel.OVER_WIRE
 
     def _convert(
-        self, input_sdb: StoredDataBlockMetadata, output_sdb: StoredDataBlockMetadata,
+        self,
+        input_sdb: StoredDataBlockMetadata,
+        output_sdb: StoredDataBlockMetadata,
     ) -> StoredDataBlockMetadata:
         input_memory_storage = LocalMemoryStorageEngine(self.env, input_sdb.storage)
         input_ldr = input_memory_storage.get_local_memory_data_records(input_sdb)
@@ -46,7 +48,10 @@ class MemoryToDatabaseConverter(Converter):
                 raise NotImplementedError(
                     f"No inter-db migration implemented yet ({input_sdb.storage_url} to {output_sdb.storage_url})"
                 )
-        assert input_sdb.data_format in (RecordsListFormat, RecordsListGeneratorFormat,)
+        assert input_sdb.data_format in (
+            RecordsListFormat,
+            RecordsListGeneratorFormat,
+        )
         records_objects = input_ldr.records_object
         if input_sdb.data_format == RecordsListFormat:
             records_objects = [records_objects]

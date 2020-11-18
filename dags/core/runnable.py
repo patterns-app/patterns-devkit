@@ -357,7 +357,10 @@ class ExecutionManager:
                     )
                 runnable = Runnable(
                     node_key=node.key,
-                    compiled_pipe=CompiledPipe(key=node.key, pipe=df,),
+                    compiled_pipe=CompiledPipe(
+                        key=node.key,
+                        pipe=df,
+                    ),
                     pipe_interface=dfi,
                     configuration=node.config,
                 )
@@ -461,7 +464,10 @@ class Worker:
         return runnable.compiled_pipe.pipe.pipe_callable(*args, **mgd_inputs)
 
     def conform_output(
-        self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
+        self,
+        worker_session: RunSession,
+        output: DataInterfaceType,
+        runnable: Runnable,
     ) -> Optional[DataBlockMetadata]:
         assert runnable.pipe_interface.output is not None
         # assert runnable.pipe_interface.resolved_output_schema is not None

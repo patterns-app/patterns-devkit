@@ -23,7 +23,8 @@ from dags.utils.typing import T
 # (TODO: this seems like a revealing bug? need tighter definition of DataSet vs other aggregates)
 @pipe("dataframe_accumulator", module="core")
 def dataframe_accumulator(
-    input: DataBlock[T], this: Optional[DataBlock[T]] = None,
+    input: DataBlock[T],
+    this: Optional[DataBlock[T]] = None,
 ) -> DataFrame[T]:
     records = input.as_dataframe()
     if this is not None:

@@ -97,8 +97,7 @@ class Pipe:
         return self.pipe_callable(*args, **kwargs)
 
     def get_interface(self, env: Environment) -> Optional[PipeInterface]:
-        """
-        """
+        """"""
         found_dfi = self._get_pipe_interface(env)
         assert found_dfi is not None
         declared_dfi = self._get_declared_interface()
@@ -152,7 +151,10 @@ class Pipe:
         output = None
         if self.declared_output:
             output = PipeAnnotation.from_type_annotation(self.declared_output)
-        return PipeInterface(inputs=inputs, output=output,)
+        return PipeInterface(
+            inputs=inputs,
+            output=output,
+        )
 
     def source_code_language(self) -> str:
         from dags.core.sql.pipe import SqlPipeWrapper
@@ -241,7 +243,11 @@ def pipe(
     )
 
 
-def pipe_chain(name: str, pipe_chain: List[Union[PipeLike, str]], **kwargs,) -> Pipe:
+def pipe_chain(
+    name: str,
+    pipe_chain: List[Union[PipeLike, str]],
+    **kwargs,
+) -> Pipe:
     sub_funcs = []
     for fn in pipe_chain:
         if isinstance(fn, str):

@@ -456,7 +456,9 @@ def create_data_block_from_records(
         record_count=ldr.record_count,
     )
     sdb = StoredDataBlockMetadata(  # type: ignore
-        data_block=block, storage_url=local_storage.url, data_format=ldr.data_format,
+        data_block=block,
+        storage_url=local_storage.url,
+        data_format=ldr.data_format,
     )
     sess.add(block)
     sess.add(sdb)

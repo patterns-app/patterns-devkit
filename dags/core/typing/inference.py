@@ -230,7 +230,7 @@ def sqlalchemy_type_to_pandas_type(satype: str) -> str:
     # Note: numpy integers cannot express null/na, so we have to use float64 in general case?
     # FIXED: Can use pandas defined type Int64 (caps), that supports pandas.NA)
     if ft.startswith("integer"):
-        return "Int32" 
+        return "Int32"
     if ft.startswith("bigint"):
         return "Int64"
     if ft.startswith("boolean"):

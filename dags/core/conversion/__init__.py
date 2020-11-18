@@ -65,7 +65,9 @@ def convert_lowest_cost(
 
 
 def get_conversion_path_for_sdb(
-    sdb: StoredDataBlockMetadata, target_format: StorageFormat, storages: List[Storage],
+    sdb: StoredDataBlockMetadata,
+    target_format: StorageFormat,
+    storages: List[Storage],
 ) -> Optional[ConversionPath]:
     source_format = StorageFormat(sdb.storage.storage_type, sdb.data_format)
     if source_format == target_format:
@@ -73,7 +75,8 @@ def get_conversion_path_for_sdb(
         return ConversionPath()
     conversion = (source_format, target_format)
     conversion_path = get_converter_lookup().get_lowest_cost_path(
-        conversion, storages=storages,
+        conversion,
+        storages=storages,
     )
     return conversion_path
 
@@ -100,7 +103,9 @@ def convert_sdb(
 
 
 def get_converter(
-    sdb: StoredDataBlockMetadata, output_storage: Storage, output_format: DataFormat,
+    sdb: StoredDataBlockMetadata,
+    output_storage: Storage,
+    output_format: DataFormat,
 ) -> Type[Converter]:
     target_format = StorageFormat(output_storage.storage_type, output_format)
     source_format = StorageFormat(sdb.storage.storage_type, sdb.data_format)

@@ -38,14 +38,22 @@ class MemoryToMemoryConverter(Converter):
     cost_level = ConversionCostLevel.MEMORY
 
     def _convert(
-        self, input_sdb: StoredDataBlockMetadata, output_sdb: StoredDataBlockMetadata,
+        self,
+        input_sdb: StoredDataBlockMetadata,
+        output_sdb: StoredDataBlockMetadata,
     ) -> StoredDataBlockMetadata:
         input_memory_storage = LocalMemoryStorageEngine(self.env, input_sdb.storage)
         output_memory_storage = LocalMemoryStorageEngine(self.env, output_sdb.storage)
         input_ldr = input_memory_storage.get_local_memory_data_records(input_sdb)
         lookup = {
-            (DataFrameFormat, RecordsListFormat,): self.dataframe_to_records_list,
-            (RecordsListFormat, DataFrameFormat,): self.records_list_to_dataframe,
+            (
+                DataFrameFormat,
+                RecordsListFormat,
+            ): self.dataframe_to_records_list,
+            (
+                RecordsListFormat,
+                DataFrameFormat,
+            ): self.records_list_to_dataframe,
             (
                 RecordsListGeneratorFormat,
                 DataFrameFormat,

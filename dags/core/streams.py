@@ -25,8 +25,7 @@ if TYPE_CHECKING:
 
 
 class DataBlockStream:
-    """
-    """
+    """"""
 
     def __init__(
         self,
@@ -108,9 +107,16 @@ class DataBlockStream:
     def filter_unprocessed(
         self, unprocessed_by: Node, allow_cycle=False
     ) -> DataBlockStream:
-        return self.clone(unprocessed_by=unprocessed_by, allow_cycle=allow_cycle,)
+        return self.clone(
+            unprocessed_by=unprocessed_by,
+            allow_cycle=allow_cycle,
+        )
 
-    def _filter_unprocessed(self, ctx: ExecutionContext, query: Query,) -> Query:
+    def _filter_unprocessed(
+        self,
+        ctx: ExecutionContext,
+        query: Query,
+    ) -> Query:
         if not self.unprocessed_by:
             return query
         if self.allow_cycle:
@@ -138,9 +144,15 @@ class DataBlockStream:
         return [g.get_any_node(c) for c in nodes]
 
     def filter_upstream(self, upstream: Union[Node, List[Node]]) -> DataBlockStream:
-        return self.clone(upstream=ensure_list(upstream),)
+        return self.clone(
+            upstream=ensure_list(upstream),
+        )
 
-    def _filter_upstream(self, ctx: ExecutionContext, query: Query,) -> Query:
+    def _filter_upstream(
+        self,
+        ctx: ExecutionContext,
+        query: Query,
+    ) -> Query:
         if not self.upstream:
             return query
         eligible_input_drs = (
@@ -217,7 +229,10 @@ class DataBlockStream:
         return query.filter(DataBlockMetadata.id == db_id)
 
     def is_unprocessed(
-        self, ctx: ExecutionContext, block: DataBlockMetadata, node: Node,
+        self,
+        ctx: ExecutionContext,
+        block: DataBlockMetadata,
+        node: Node,
     ) -> bool:
         blocks = self.filter_unprocessed(node)
         q = blocks.get_query(ctx)

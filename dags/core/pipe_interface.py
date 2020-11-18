@@ -362,7 +362,9 @@ class PipeInterface:
                 else:
                     raise Exception(f"Invalid data pipe parameter {param}")
         dfi = PipeInterface(
-            inputs=inputs, output=output, requires_pipe_context=requires_context,
+            inputs=inputs,
+            output=output,
+            requires_pipe_context=requires_context,
         )
         dfi.validate_inputs()  # TODO: let caller handle this?
         return dfi
@@ -510,7 +512,10 @@ class NodeInterfaceManager:
         return input_data_blocks
 
     def get_input_data_block(
-        self, stream: DataBlockStream, input: NodeInput, storages: List[Storage] = None,
+        self,
+        stream: DataBlockStream,
+        input: NodeInput,
+        storages: List[Storage] = None,
     ) -> Optional[DataBlockMetadata]:
         logger.debug(f"{stream.get_count(self.ctx)} available DataBlocks")
         if storages:

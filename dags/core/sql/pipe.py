@@ -201,7 +201,8 @@ class SqlPipeWrapper:
         return sdb
 
     def get_input_table_stmts(
-        self, inputs: Dict[str, DataBlock] = None,
+        self,
+        inputs: Dict[str, DataBlock] = None,
     ) -> Dict[str, str]:
         if inputs is None:
             return {}
@@ -212,7 +213,9 @@ class SqlPipeWrapper:
         return table_stmts
 
     def get_compiled_sql(
-        self, ctx: PipeContext, inputs: Dict[str, DataBlock] = None,
+        self,
+        ctx: PipeContext,
+        inputs: Dict[str, DataBlock] = None,
     ):
         from dags.core.sql.utils import compile_jinja_sql
 
@@ -227,7 +230,8 @@ class SqlPipeWrapper:
         return compile_jinja_sql(sql, sql_ctx)
 
     def get_typed_statement(
-        self, inputs: Dict[str, DataBlock] = None,
+        self,
+        inputs: Dict[str, DataBlock] = None,
     ) -> TypedSqlStatement:
         return extract_types(self.sql, self.get_input_table_stmts(inputs))
 

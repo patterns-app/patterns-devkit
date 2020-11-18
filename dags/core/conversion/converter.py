@@ -161,7 +161,9 @@ class Converter:
         return self._convert(input_sdb, output_sdb)
 
     def _convert(
-        self, input_sdb: StoredDataBlockMetadata, output_sdb: StoredDataBlockMetadata,
+        self,
+        input_sdb: StoredDataBlockMetadata,
+        output_sdb: StoredDataBlockMetadata,
     ) -> StoredDataBlockMetadata:
         raise NotImplementedError
 
@@ -172,7 +174,10 @@ class Converter:
         output_data_format: DataFormat,
     ):
         return (
-            StorageFormat(input_sdb.storage.storage_type, input_sdb.data_format,),
+            StorageFormat(
+                input_sdb.storage.storage_type,
+                input_sdb.data_format,
+            ),
             StorageFormat(output_storage.storage_type, output_data_format),
         )
 
