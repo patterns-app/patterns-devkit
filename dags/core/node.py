@@ -116,7 +116,7 @@ class Node:
             if lang == "sql":
                 df = "core.as_dataset_sql"
             else:
-                df = "core.as_dataset"
+                df = "core.as_dataset_dataframe"
         else:
             if lang == "sql":
                 df = "core.sql_accumulate_as_dataset"

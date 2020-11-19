@@ -33,8 +33,8 @@ def as_dataset_sql(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
     return ds
 
 
-@pipe("as_dataset", module="core", compatible_runtimes="python")
-def as_dataset(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
+@pipe("as_dataset_dataframe", module="core", compatible_runtimes="python")
+def as_dataset_dataframe(ctx: PipeContext, input: DataBlock[T]) -> DataSet[T]:
     name = ctx.get_config_value("dataset_name")
     ds = (
         ctx.execution_context.metadata_session.query(DataSetMetadata)

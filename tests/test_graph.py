@@ -1,33 +1,16 @@
 from __future__ import annotations
 
-from pprint import pprint
-from typing import Callable, Dict
-
 import pytest
-from pandas import DataFrame
 
-from dags import Environment
-from dags.core.data_block import DataBlock
 from dags.core.graph import Graph
-from dags.core.node import Node
-from dags.core.pipe import Pipe, PipeInterface, PipeLike, pipe, pipe_chain
-from dags.core.pipe_interface import PipeAnnotation
-from dags.core.runnable import PipeContext
-from dags.core.runtime import RuntimeClass
-from dags.core.sql.pipe import sql_pipe
-from dags.core.streams import DataBlockStream
 from dags.modules import core
-from dags.utils.typing import T, U
 from tests.utils import (
-    TestSchema1,
-    TestSchema2,
     make_test_env,
     pipe_chain_t1_to_t2,
     pipe_dataset_input,
     pipe_dataset_output,
     pipe_generic,
     pipe_self,
-    pipe_t1_sink,
     pipe_t1_source,
     pipe_t1_to_t2,
 )
@@ -94,7 +77,7 @@ def test_flattened_graph():
         "node3__pipe_generic",
         "node3__dataset__dataframe_accumulator",
         "node3__dataset__dataframe_dedupe_unique_keep_newest_row",
-        "node3__dataset__as_dataset",
+        "node3__dataset__as_dataset_dataframe",
         "node7",
         "node8",
         "node8__dataset",
@@ -116,7 +99,7 @@ def test_flattened_graph():
         "node3__pipe_generic",
         "node3__dataset__dataframe_accumulator",
         "node3__dataset__dataframe_dedupe_unique_keep_newest_row",
-        "node3__dataset__as_dataset",
+        "node3__dataset__as_dataset_dataframe",
         "node7",
         "node8",
         "node8__dataset",
