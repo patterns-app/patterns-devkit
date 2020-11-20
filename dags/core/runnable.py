@@ -330,8 +330,6 @@ class ExecutionManager:
         return dfi_mgr.get_bound_interface()
 
     def run(self, node: Node, to_exhaustion: bool = False) -> Optional[DataBlock]:
-        if node.is_composite():
-            raise NotImplementedError
         runtime = self.select_runtime(node)
         run_ctx = self.ctx.clone(current_runtime=runtime)
         worker = Worker(run_ctx)
@@ -339,8 +337,6 @@ class ExecutionManager:
 
         # Setup for run
         base_msg = f"Running node {cf.bold(node.key)} {cf.dimmed(node.pipe.key)}"
-        if node.declared_composite_node_key is not None:
-            base_msg = " " * 8 + f" {cf.dimmed(node.pipe.key)}"
         self.log("{0:50} ".format(str(base_msg)))
         logger.debug(f"RUNNING NODE {node.key} {node.pipe.key}")
         # self.log(base_msg)
@@ -458,9 +454,6 @@ class Worker:
             )
             args.append(dfc)
         mgd_inputs = runnable.pipe_interface.inputs_as_managed_data_blocks(self.ctx)
-        assert (
-            runnable.compiled_pipe.pipe.pipe_callable is not None
-        ), f"Attempting to execute composite pipe directly {runnable.compiled_pipe.pipe}"
         return runnable.compiled_pipe.pipe.pipe_callable(*args, **mgd_inputs)
 
     def conform_output(

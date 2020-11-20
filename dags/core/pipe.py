@@ -66,16 +66,12 @@ def make_pipe_name(pipe: PipeCallable) -> str:
 class Pipe:
     name: str
     module_name: str
-    pipe_callable: Optional[
-        Callable
-    ]  # Optional since Composite DFs don't have a Callable
+    pipe_callable: Callable
     compatible_runtime_classes: List[RuntimeClass]
-    is_composite: bool = False
     config_class: Optional[Type] = None
     state_class: Optional[Type] = None
     declared_inputs: Optional[Dict[str, str]] = None
     declared_output: Optional[str] = None
-    sub_graph: List[Pipe] = field(default_factory=list)  # TODO: support proper graphs
 
     # TODO: runtime engine eg "mysql>=8.0", "python==3.7.4"  ???
     # TODO: runtime dependencies
@@ -90,10 +86,6 @@ class Pipe:
     def __call__(
         self, *args: PipeContext, **kwargs: DataInterfaceType
     ) -> Optional[DataInterfaceType]:
-        if self.is_composite:
-            raise NotImplementedError(f"Cannot call a composite Pipe {self}")
-        if self.pipe_callable is None:
-            raise
         return self.pipe_callable(*args, **kwargs)
 
     def get_interface(self, env: Environment) -> Optional[PipeInterface]:
@@ -125,18 +117,6 @@ class Pipe:
         return found_dfi
 
     def _get_pipe_interface(self, env: Environment) -> Optional[PipeInterface]:
-        if self.pipe_callable is None:
-            assert self.is_composite
-            # TODO: only supports chain
-            input = ensure_pipe(env, self.sub_graph[0])
-            output = ensure_pipe(env, self.sub_graph[-1])
-            input_interface = input.get_interface(env)
-            assert input_interface is not None
-            return PipeInterface(
-                inputs=input_interface.inputs,
-                output=output.get_interface(env).output,
-                requires_pipe_context=input_interface.requires_pipe_context,
-            )
         if hasattr(self.pipe_callable, "get_interface"):
             return self.pipe_callable.get_interface()  # type: ignore
         return PipeInterface.from_pipe_definition(self.pipe_callable)
@@ -159,27 +139,24 @@ class Pipe:
     def source_code_language(self) -> str:
         from dags.core.sql.pipe import SqlPipeWrapper
 
-        if self.pipe_callable is not None:
-            if isinstance(self.pipe_callable, SqlPipeWrapper):
-                return "sql"
+        if isinstance(self.pipe_callable, SqlPipeWrapper):
+            return "sql"
         return "python"
 
     def get_source_code(self) -> Optional[str]:
         from dags.core.sql.pipe import SqlPipeWrapper
 
         # TODO: more principled approach (can define a "get_source_code" otherwise we inspect?)
-        if self.pipe_callable is not None:
-            if isinstance(self.pipe_callable, SqlPipeWrapper):
-                return self.pipe_callable.sql
-            return inspect.getsource(self.pipe_callable)
-        return None
+        if isinstance(self.pipe_callable, SqlPipeWrapper):
+            return self.pipe_callable.sql
+        return inspect.getsource(self.pipe_callable)
 
 
 PipeLike = Union[PipeCallable, Pipe]
 
 
 def pipe_factory(
-    pipe_callable: Optional[PipeCallable],  # Composite Pipes don't have a callable
+    pipe_callable: PipeCallable,
     name: str = None,
     module: Union[DagsModule, str] = DEFAULT_LOCAL_MODULE,
     compatible_runtimes: str = None,

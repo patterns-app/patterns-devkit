@@ -80,7 +80,11 @@ def pipe_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     pass
 
 
-def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
+def df4(
+    input: DataBlock[T],
+    dr2: DataBlock[U],
+    dr3: DataBlock[U],
+) -> DataFrame[T]:
     pass
 
 
@@ -199,33 +203,6 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                 requires_pipe_context=False,
             ),
         ),
-        (
-            pipe_chain_t1_to_t2,
-            PipeInterface(
-                inputs=[
-                    PipeAnnotation(
-                        data_format_class="DataBlock",
-                        schema_like="TestSchema1",
-                        name="input",
-                        # is_iterable=False,
-                        is_generic=False,
-                        is_optional=False,
-                        is_variadic=False,
-                        original_annotation="DataBlock[TestSchema1]",
-                    )
-                ],
-                output=PipeAnnotation(
-                    data_format_class="DataFrame",
-                    schema_like="T",
-                    # is_iterable=False,
-                    is_generic=True,
-                    is_optional=False,
-                    is_variadic=False,
-                    original_annotation="DataFrame[T]",
-                ),
-                requires_pipe_context=False,
-            ),
-        ),
     ],
 )
 def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
@@ -329,7 +306,6 @@ def test_node_no_inputs():
     assert dfi.inputs == []
     assert dfi.output is not None
     assert node1.get_declared_inputs() == {}
-    assert not node1.is_composite()
 
 
 def test_node_inputs():

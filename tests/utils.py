@@ -38,7 +38,8 @@ def make_test_env(**kwargs):
         kwargs["metadata_storage"] = metadata_storage
     env = Environment(initial_modules=[], **kwargs)
     test_module = DagsModule(
-        "_test", schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
+        "_test",
+        schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
     )
     env.add_module(test_module)
     return env
@@ -91,7 +92,9 @@ def pipe_t1_source(ctx: PipeContext) -> DataFrame[TestSchema1]:
     pass
 
 
-pipe_chain_t1_to_t2 = pipe_chain("pipe_chain_t1_to_t2", [pipe_t1_to_t2, pipe_generic])
+pipe_chain_t1_to_t2 = (
+    pipe_t1_to_t2  # pipe_chain("pipe_chain_t1_to_t2", [pipe_t1_to_t2, pipe_generic])
+)
 
 
 def pipe_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:

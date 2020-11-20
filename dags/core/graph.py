@@ -36,7 +36,6 @@ class Graph:
         self.env = env
         self._declared_graph = NodeGraph(declared_nodes)
         self._declared_graph_with_dataset_nodes: Optional[NodeGraph] = None
-        self._flattened_graph: Optional[NodeGraph] = None
         # self._compiled_input_nodes: Optional[
         #     Dict[str, Dict[str, NodeLike]]
         # ] = None
@@ -60,7 +59,6 @@ class Graph:
 
     def invalidate_computed_graphs(self):
         self._declared_graph_with_dataset_nodes = None
-        self._flattened_graph = None
         # self._compiled_input_nodes = None
 
     def get_declared_node(self, key: NodeLike) -> Node:
@@ -77,11 +75,7 @@ class Graph:
             return self._declared_graph.get_node(key)
         except KeyError:
             pass
-        try:
-            return self.get_declared_graph_with_dataset_nodes().get_node(key)
-        except KeyError:
-            pass
-        return self.get_flattened_graph().get_node(key)
+        return self.get_declared_graph_with_dataset_nodes().get_node(key)
 
     def get_declared_graph_with_dataset_nodes(self) -> NodeGraph:
         if self._declared_graph_with_dataset_nodes is not None:
@@ -90,12 +84,6 @@ class Graph:
             self._declared_graph.with_dataset_nodes()
         )
         return self._declared_graph_with_dataset_nodes
-
-    def get_flattened_graph(self) -> NodeGraph:
-        if self._flattened_graph is not None:
-            return self._flattened_graph
-        self._flattened_graph = self.get_declared_graph_with_dataset_nodes().flatten()
-        return self._flattened_graph
 
     def validate_graph(self) -> bool:
         # TODO
@@ -110,10 +98,8 @@ class NodeGraph:
     def __init__(
         self,
         nodes: Iterable[Node] = None,
-        is_flattened: bool = False,
         compiled_inputs: Dict[str, Dict[str, Node]] = None,
     ):
-        self.is_flattened = is_flattened
         self._nodes: Dict[str, Node] = {}
         self._compiled_inputs: Dict[str, Dict[str, Node]] = compiled_inputs or {}
         if nodes:
@@ -149,8 +135,6 @@ class NodeGraph:
         )
 
     def set_compiled_inputs(self, node: Node, inputs: Dict[str, NodeLike]):
-        if node.is_composite():
-            return self.set_compiled_inputs(node.get_input_node(), inputs)
         self._compiled_inputs[node.key] = {
             name: self.get_node_like(n) for name, n in inputs.items()
         }
@@ -158,21 +142,8 @@ class NodeGraph:
     def get_compiled_inputs(self, node: Node) -> Dict[str, Node]:
         return self._compiled_inputs.get(node.key, node.get_declared_input_nodes())
 
-    def get_declared_node_subgraph(self, declared_node_key: str) -> NodeGraph:
-        if declared_node_key in self._nodes:
-            return NodeGraph([self.get_node(declared_node_key)])
-        sub_nodes = []
-        for n in self.nodes():
-            if (
-                n.declared_composite_node_key
-                and n.declared_composite_node_key == declared_node_key
-            ):
-                sub_nodes.append(n)
-        return NodeGraph(sub_nodes)
-
     def declared_input_nodes(self, node: Node) -> Dict[str, Node]:
         raw_inputs = copy(node.get_declared_inputs())
-        # inputs = copy(n.get_declared_input_nodes())
         inputs: Dict[str, Node] = {}
         for name, inp in raw_inputs.items():
             if isinstance(inp, str):
@@ -199,54 +170,21 @@ class NodeGraph:
                         annotation.name is not None
                     )  # inputs should always have a parameter name!
                     input_node = inputs[annotation.name]
-                    dsn = input_node.create_dataset_node()
-                    try:
-                        new_g.add_node(dsn)
-                    except KeyError:
-                        pass
-                    inputs[annotation.name] = dsn
+                    ds_nodes = input_node.create_dataset_nodes()
+                    if ds_nodes:
+                        try:
+                            for dsn in ds_nodes:
+                                new_g.add_node(dsn)
+                        except KeyError:
+                            pass
+                        input_node = ds_nodes[-1]
+                    inputs[annotation.name] = input_node
             new_g.set_compiled_inputs(n, inputs)
             try:
                 new_g.add_node(n)
             except KeyError:
                 # This happens if a Dataset Node is added above but was ALSO declared
                 pass
-        return new_g
-
-    def flatten_composite_node(self, node: Node):
-        # TODO: this changes the *nodes'* state, not ideal, need to make sure you are working with copy
-        # One option, always a favorite, is to make frozen DC
-        if not node.is_composite():
-            return
-        # Add new child nodes
-        for sub_n in node.get_sub_nodes():
-            self.add_node(sub_n)
-        # Remove composite, we are done with it
-        self.remove_node(node)
-        # Replace any input references with new output node
-        output_node = node.get_output_node()
-        for n in self.nodes():
-            input_names = {
-                name: inp.key for name, inp in self.get_compiled_inputs(n).items()
-            }
-            for input_name, input_node_key in input_names.items():
-                if input_node_key == node.key:
-                    inputs = self.get_compiled_inputs(n)
-                    inputs[input_name] = output_node
-                    self.set_compiled_inputs(n, inputs)
-                    break
-        # Finally, recurse
-        for sub_n in node.get_sub_nodes():
-            self.flatten_composite_node(sub_n)
-
-    def flatten(self) -> NodeGraph:
-        """
-        Note, this _modifies_ the existing declared Nodes (by setting their `compiled_inputs` attribute)
-        AND creates a new graph with extra / swapped sub-nodes from composite pipes
-        """
-        new_g = self.copy(is_flattened=True)
-        for n in list(new_g.nodes()):
-            new_g.flatten_composite_node(n)
         return new_g
 
     # TODO: rename/factor "compiled"
@@ -273,21 +211,10 @@ class NodeGraph:
     def get_declared_networkx_graph(self) -> nx.DiGraph:
         return self.as_networkx_graph(compiled=False)
 
-    # TODO: Think through how to "run" declared composite node (and do we produce datasets too?)
-    def get_flattened_output_node_for_declared_node(self, node: Node) -> Node:
-        if not self.is_flattened:
-            return node
-        sub_g = self.get_declared_node_subgraph(node.key)
-        node = sub_g.get_all_nodes_in_execution_order()[-1]
-        return node
-
     def get_all_upstream_dependencies_in_execution_order(
-        self, node: Node, is_declared_node: bool = True
+        self, node: Node
     ) -> List[Node]:
         g = self.get_compiled_networkx_graph()
-        if is_declared_node and self.is_flattened:
-            # Translate declared node into root sub-node
-            node = self.get_flattened_output_node_for_declared_node(node)
         node_keys = self._get_all_upstream_dependencies_in_execution_order(g, node.key)
         return [self.get_node(name) for name in node_keys]
 

@@ -264,12 +264,12 @@ class Environment:
             if isinstance(node, str):
                 node = graph.get_any_node(node_like)
             assert isinstance(node, Node)
-            dependencies = graph.get_flattened_graph().get_all_upstream_dependencies_in_execution_order(
+            dependencies = graph.get_declared_graph_with_dataset_nodes().get_all_upstream_dependencies_in_execution_order(
                 node
             )
         else:
             dependencies = (
-                graph.get_flattened_graph().get_all_nodes_in_execution_order()
+                graph.get_declared_graph_with_dataset_nodes().get_all_nodes_in_execution_order()
             )
         output = None
         for dep in dependencies:
@@ -290,17 +290,14 @@ class Environment:
             node_like = graph.get_any_node(node_like)
         assert isinstance(node_like, Node)
 
-        flattened_node = (
-            graph.get_flattened_graph().get_flattened_output_node_for_declared_node(
-                node_like
-            )
-        )
-        logger.debug(f"Running: flattened node: {flattened_node} (from {node_like})")
+        logger.debug(f"Running: {node_like}")
         with self.execution(graph, **execution_kwargs) as em:
-            return em.run(flattened_node, to_exhaustion=to_exhaustion)
+            return em.run(node_like, to_exhaustion=to_exhaustion)
 
     def run_graph(self, graph, to_exhaustion: bool = True, **execution_kwargs: Any):
-        nodes = graph.get_flattened_graph().get_all_nodes_in_execution_order()
+        nodes = (
+            graph.get_declared_graph_with_dataset_nodes().get_all_nodes_in_execution_order()
+        )
         for node in nodes:
             with self.execution(graph, **execution_kwargs) as em:
                 em.run(node, to_exhaustion=to_exhaustion)

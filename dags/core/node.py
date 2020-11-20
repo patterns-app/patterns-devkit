@@ -39,8 +39,8 @@ def create_node(
     upstream: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,  # Synonym
     dataset_name: Optional[str] = None,
     config: Optional[Dict[str, Any]] = None,
-    declared_composite_node_key: str = None,
     schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
+    output_alias: Optional[str] = None,
 ):
     config = config or {}
     env = graph.env
@@ -50,7 +50,6 @@ def create_node(
         pipe = make_pipe(pipe)
     interface = pipe.get_interface(env)
     _declared_inputs: Dict[str, NodeLike] = {}
-    _sub_nodes: List[Node] = []
     n = Node(
         env=graph.env,
         graph=graph,
@@ -59,18 +58,14 @@ def create_node(
         config=config,
         _dataset_name=dataset_name,
         interface=interface,
-        declared_composite_node_key=declared_composite_node_key,
         _declared_inputs=_declared_inputs,
-        _sub_nodes=_sub_nodes,
         _declared_schema_mapping=schema_mapping,
+        output_alias=output_alias,
     )
     inputs = inputs or upstream
     if inputs is not None:
         for i, v in interface.assign_inputs(inputs).items():
             n._declared_inputs[i] = v
-    if n.is_composite():
-        for sub_n in list(build_composite_nodes(n)):
-            n._sub_nodes.append(sub_n)
     return n
 
 
@@ -83,10 +78,8 @@ class Node:
     config: Dict[str, Any]
     interface: PipeInterface
     _declared_inputs: Dict[str, NodeLike]
-    # _compiled_inputs: Optional[Dict[str, Node]] = None
+    output_alias: Optional[str] = None
     _dataset_name: Optional[str] = None
-    declared_composite_node_key: Optional[str] = None
-    _sub_nodes: Optional[List[Node]] = None
     _declared_schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None
 
     def __repr__(self):
@@ -107,37 +100,54 @@ class Node:
     def get_dataset_name(self) -> str:
         return self._dataset_name or self.key
 
-    def create_dataset_node(self, node_key: str = None) -> Node:
+    def get_alias(self) -> str:
+        if self.output_alias:
+            return self.output_alias
+        if self.output_is_dataset():
+            return self.get_dataset_name()
+        return f"{self.key}_latest"
+
+    def output_is_dataset(self) -> bool:
+        return self.get_interface().output.data_format_class == "DataSet"
+
+    def create_dataset_nodes(self) -> List[Node]:
         dfi = self.get_interface()
         if dfi.output is None:
             raise
+        if self.output_is_dataset():
+            return []
+        # TODO: how do we choose runtime? just using lang for now
         lang = self.pipe.source_code_language()
-        if dfi.output.data_format_class == "DataSet":
-            if lang == "sql":
-                df = "core.as_dataset_sql"
-            else:
-                df = "core.as_dataset_dataframe"
+        if lang == "sql":
+            df_accum = "core.sql_accumulator"
+            df_dedupe = "core.sql_dedupe_unique_keep_newest_row"
         else:
-            if lang == "sql":
-                df = "core.sql_accumulate_as_dataset"
-            else:
-                df = "core.dataframe_accumulate_as_dataset"
-        dsn = create_node(
+            df_accum = "core.dataframe_accumulator"
+            df_dedupe = "core.dataframe_dedupe_unique_keep_newest_row"
+        accum = create_node(
             self.graph,
-            key=node_key or self.get_dataset_node_key(),
-            pipe=self.env.get_pipe(df),
-            config={"dataset_name": self.get_dataset_name()},
-            inputs=self,
+            key=f"{self.key}__accumulator",
+            pipe=self.env.get_pipe(df_accum),
+            upstream=self,
         )
-        logger.debug(f"Adding DataSet node {dsn}")
-        return dsn
+        dedupe = create_node(
+            self.graph,
+            key=f"{self.key}__dedupe",
+            pipe=self.env.get_pipe(df_dedupe),
+            upstream=accum,
+            output_alias=self.get_dataset_name(),
+        )
+        logger.debug(f"Adding DataSet nodes {[accum, dedupe]}")
+        return [accum, dedupe]
 
     def get_interface(self) -> PipeInterface:
         return self.interface
 
     def get_compiled_input_nodes(self) -> Dict[str, Node]:
         # Just a convenience function
-        return self.graph.get_flattened_graph().get_compiled_inputs(self)
+        return self.graph.get_declared_graph_with_dataset_nodes().get_compiled_inputs(
+            self
+        )
 
     def get_declared_input_nodes(self) -> Dict[str, Node]:
         return inputs_as_nodes(self.graph, self.get_declared_inputs())
@@ -156,24 +166,6 @@ class Node:
         if isinstance(v, dict):
             return self._declared_schema_mapping.get(input_name)
         raise TypeError(self._declared_schema_mapping)
-
-    def get_sub_nodes(self) -> Optional[Iterable[Node]]:
-        return self._sub_nodes
-
-    def get_output_node(self) -> Node:
-        if self.is_composite():
-            assert self._sub_nodes
-            return self._sub_nodes[-1].get_output_node()
-        return self
-
-    def get_input_node(self) -> Node:
-        if self.is_composite():
-            assert self._sub_nodes
-            return self._sub_nodes[0].get_input_node()
-        return self
-
-    def is_composite(self) -> bool:
-        return self.pipe.is_composite
 
     def as_stream(self) -> DataBlockStream:
         from dags.core.streams import DataBlockStream
@@ -197,41 +189,41 @@ class Node:
         return block.as_managed_data_block(ctx)
 
 
-def build_composite_nodes(n: Node) -> Iterable[Node]:
-    if not n.pipe.is_composite:
-        raise
-    nodes = []
-    # TODO: this just supports chains for now, not arbitrary sub-graph
-    # (hard to imagine totally unconstrained sub-graph, but if we restrict
-    # to one input and one output, straightforward to support arbitrary interior)
-    # Multiple inputs would take some thought. No concept of multiple outputs in Dags
-    raw_inputs = list(n.get_declared_inputs().values())
-    assert len(raw_inputs) == 1, "Composite pipes take one input"
-    input_node = raw_inputs[0]
-    created_nodes = {}
-    for fn in n.pipe.sub_graph:
-        fn = ensure_pipe(n.env, fn)
-        child_fn_name = make_pipe_name(fn)
-        child_node_key = f"{n.key}__{child_fn_name}"  # TODO: could be name clash since we don't include module name here
-        try:
-            if child_node_key in created_nodes:
-                node = created_nodes[child_node_key]
-            else:
-                node = n.graph.get_declared_node(child_node_key)
-        except KeyError:
-            node = create_node(
-                graph=n.graph,
-                key=child_node_key,
-                pipe=fn,
-                config=n.config,
-                inputs=input_node,
-                declared_composite_node_key=n.declared_composite_node_key
-                or n.key,  # Handle nested composite pipes
-            )
-            created_nodes[node.key] = node
-        nodes.append(node)
-        input_node = node
-    return nodes
+# def build_composite_nodes(n: Node) -> Iterable[Node]:
+#     if not n.pipe.is_composite:
+#         raise
+#     nodes = []
+#     # TODO: this just supports chains for now, not arbitrary sub-graph
+#     # (hard to imagine totally unconstrained sub-graph, but if we restrict
+#     # to one input and one output, straightforward to support arbitrary interior)
+#     # Multiple inputs would take some thought. No concept of multiple outputs in Dags
+#     raw_inputs = list(n.get_declared_inputs().values())
+#     assert len(raw_inputs) == 1, "Composite pipes take one input"
+#     input_node = raw_inputs[0]
+#     created_nodes = {}
+#     for fn in n.pipe.sub_graph:
+#         fn = ensure_pipe(n.env, fn)
+#         child_fn_name = make_pipe_name(fn)
+#         child_node_key = f"{n.key}__{child_fn_name}"  # TODO: could be name clash since we don't include module name here
+#         try:
+#             if child_node_key in created_nodes:
+#                 node = created_nodes[child_node_key]
+#             else:
+#                 node = n.graph.get_declared_node(child_node_key)
+#         except KeyError:
+#             node = create_node(
+#                 graph=n.graph,
+#                 key=child_node_key,
+#                 pipe=fn,
+#                 config=n.config,
+#                 inputs=input_node,
+#                 declared_composite_node_key=n.declared_composite_node_key
+#                 or n.key,  # Handle nested composite pipes
+#             )
+#             created_nodes[node.key] = node
+#         nodes.append(node)
+#         input_node = node
+#     return nodes
 
 
 class NodeState(BaseModel):

@@ -22,7 +22,7 @@ def make_graph() -> Graph:
     g = Graph(env)
     g.add_node("node1", pipe_t1_source)
     g.add_node("node2", pipe_t1_source)
-    g.add_node("node3", pipe_chain_t1_to_t2, inputs="node1")
+    g.add_node("node3", pipe_t1_to_t2, inputs="node1")
     g.add_node("node4", pipe_t1_to_t2, inputs="node2")
     g.add_node("node5", pipe_generic, inputs="node4")
     g.add_node("node6", pipe_self, inputs="node4")
@@ -49,12 +49,18 @@ def test_declared_graph():
     n4 = g.get_any_node("node4")
     n5 = g.get_any_node("node5")
     assert len(list(g.declared_nodes())) == 9
-    assert g.get_flattened_graph().get_all_upstream_dependencies_in_execution_order(
+    assert g.get_declared_graph_with_dataset_nodes().get_all_upstream_dependencies_in_execution_order(
         n1
-    ) == [n1]
-    assert g.get_flattened_graph().get_all_upstream_dependencies_in_execution_order(
+    ) == [
+        n1
+    ]
+    assert g.get_declared_graph_with_dataset_nodes().get_all_upstream_dependencies_in_execution_order(
         n5
-    ) == [n2, n4, n5]
+    ) == [
+        n2,
+        n4,
+        n5,
+    ]
 
 
 def test_dataset_nodes():
@@ -63,51 +69,42 @@ def test_dataset_nodes():
     assert len(list(dg.nodes())) == 11
 
 
-def test_flattened_graph():
+def test_make_graph():
     g = make_graph()
     # dg = g.get_declared_graph_with_dataset_nodes()
-    fg = g.get_flattened_graph()
+    fg = g.get_declared_graph_with_dataset_nodes()
     nodes = {
         "node2",
         "node4",
         "node6",
         "node5",
         "node1",
-        "node3__pipe_t1_to_t2",
-        "node3__pipe_generic",
-        "node3__dataset__dataframe_accumulator",
-        "node3__dataset__dataframe_dedupe_unique_keep_newest_row",
-        "node3__dataset__as_dataset_dataframe",
+        "node3",
+        "node3__accumulator",
+        "node3__dedupe",
         "node7",
         "node8",
-        "node8__dataset",
         "node9",
     }
     assert set(n.key for n in fg.nodes()) == nodes
     n3 = g.get_any_node("node3")
     n7 = g.get_any_node("node7")
-    assert len(fg.get_all_upstream_dependencies_in_execution_order(n3)) == 3
-    assert len(fg.get_all_upstream_dependencies_in_execution_order(n7)) == 9
-    assert len(fg.get_all_nodes_in_execution_order()) == 14
+    assert len(fg.get_all_upstream_dependencies_in_execution_order(n3)) == 2
+    assert len(fg.get_all_upstream_dependencies_in_execution_order(n7)) == 7
+    assert len(fg.get_all_nodes_in_execution_order()) == 11
     execution_order = [
         "node2",
         "node4",
         "node6",
         "node5",
         "node1",
-        "node3__pipe_t1_to_t2",
-        "node3__pipe_generic",
-        "node3__dataset__dataframe_accumulator",
-        "node3__dataset__dataframe_dedupe_unique_keep_newest_row",
-        "node3__dataset__as_dataset_dataframe",
-        "node7",
+        "node3",
         "node8",
-        "node8__dataset",
         "node9",
+        "node3__accumulator",
+        "node3__dedupe",
+        "node7",
     ]
     # TODO: topographical sort is not unique
     #  unclear under what conditions networkx version is stable
     assert [n.key for n in fg.get_all_nodes_in_execution_order()] == execution_order
-    assert (
-        fg.get_flattened_output_node_for_declared_node(n3).key == "node3__pipe_generic"
-    )
