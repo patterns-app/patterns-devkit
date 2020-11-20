@@ -255,6 +255,7 @@ class Environment:
         graph: Graph,
         node_like: Optional[Union[Node, str]] = None,
         to_exhaustion: bool = True,
+        with_dataset: bool = False,
         **execution_kwargs: Any,
     ) -> Optional[DataBlock]:
         from dags.core.node import Node
@@ -267,6 +268,10 @@ class Environment:
             dependencies = graph.get_declared_graph_with_dataset_nodes().get_all_upstream_dependencies_in_execution_order(
                 node
             )
+            if with_dataset:
+                dependencies.extend(
+                    [graph.get_any_node(n) for n in node.get_dataset_node_keys()]
+                )
         else:
             dependencies = (
                 graph.get_declared_graph_with_dataset_nodes().get_all_nodes_in_execution_order()
@@ -276,6 +281,21 @@ class Environment:
             with self.execution(graph, **execution_kwargs) as em:
                 output = em.run(dep, to_exhaustion=to_exhaustion)
         return output
+
+    def produce_dataset(
+        self,
+        graph: Graph,
+        node_like: Optional[Union[Node, str]] = None,
+        to_exhaustion: bool = True,
+        **execution_kwargs: Any,
+    ):
+        return self.produce(
+            graph,
+            node_like,
+            to_exhaustion=to_exhaustion,
+            with_dataset=True,
+            **execution_kwargs,
+        )
 
     def run_node(
         self,

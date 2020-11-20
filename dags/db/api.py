@@ -87,8 +87,6 @@ class DatabaseAPI:
     def execute_sql(self, sql: str) -> ResultProxy:
         logger.debug("Executing SQL:")
         logger.debug(sql)
-        print(self.url)
-        print(sql)
         with self.connection() as conn:
             return conn.execute(sql)
 

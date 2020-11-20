@@ -36,7 +36,7 @@ def make_test_env(**kwargs):
         url = "sqlite://"
         metadata_storage = Storage.from_url(url)
         kwargs["metadata_storage"] = metadata_storage
-    env = Environment(initial_modules=[], **kwargs)
+    env = Environment(**kwargs)
     test_module = DagsModule(
         "_test",
         schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],

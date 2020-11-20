@@ -68,6 +68,7 @@ VALID_DATA_INTERFACE_TYPES = [
     "RecordsListGenerator",
     "DataFrameGenerator",
     "DatabaseTableRef",
+    "Any",  # TODO: does this work?
     # TODO: is this list just a list of formats? which ones are valid i/o to Pipes?
     # TODO: also, are DataBlocks and DataSets the only valid *input* types? A bit confusing to end user I think
     # "DatabaseCursor",
@@ -329,12 +330,28 @@ class BoundPipeInterface:
 #     )
 
 
+def make_default_output_annotation():
+    return PipeAnnotation.create(
+        data_format_class="Any",
+        schema_like="Any",
+    )
+
+
 @dataclass
 class PipeInterface:
     inputs: List[PipeAnnotation]
     output: Optional[PipeAnnotation]
     requires_pipe_context: bool = True
     # is_bound: bool = False
+
+    @classmethod
+    def create(cls, **kwargs) -> PipeInterface:
+        output = kwargs.get("output")
+        if output is None:
+            kwargs["output"] = make_default_output_annotation()
+        pi = cls(**kwargs)  # type: ignore
+        pi.validate_inputs()  # TODO: let caller handle this if they want?
+        return pi
 
     @classmethod
     def from_pipe_definition(cls, df: PipeCallable) -> PipeInterface:
@@ -361,13 +378,11 @@ class PipeInterface:
                     requires_context = True
                 else:
                     raise Exception(f"Invalid data pipe parameter {param}")
-        dfi = PipeInterface(
+        return cls.create(
             inputs=inputs,
             output=output,
             requires_pipe_context=requires_context,
         )
-        dfi.validate_inputs()  # TODO: let caller handle this?
-        return dfi
 
     def get_input(self, name: str) -> PipeAnnotation:
         for input in self.inputs:

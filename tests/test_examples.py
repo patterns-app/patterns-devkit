@@ -188,6 +188,15 @@ def test_incremental():
     output = env.produce(g, "aggregate_metrics_sql", target_storage=sdb)
     assert output is None
 
+    # Test dataset output
+    output = env.produce_dataset(g, "aggregate_metrics_sql", target_storage=sdb)
+    alias = "aggregate_metrics_sql"
+    row_cnt = sdb.get_database_api(env).count(alias)
+    assert row_cnt == 1
+    alias = "aggregate_metrics_sql__latest"
+    row_cnt = sdb.get_database_api(env).count(alias)
+    assert row_cnt == 1
+
 
 def test_mixed_inputs():
     env = get_env()

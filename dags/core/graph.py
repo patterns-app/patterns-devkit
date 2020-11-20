@@ -158,6 +158,13 @@ class NodeGraph:
     def with_dataset_nodes(self) -> NodeGraph:
         new_g = NodeGraph()
         for n in list(self.nodes()):
+            if n.create_dataset:
+                ds_nodes = n.create_dataset_nodes()
+                try:
+                    for dsn in ds_nodes:
+                        new_g.add_node(dsn)
+                except KeyError:
+                    pass
             dfi = n.get_interface()
             inputs = self.declared_input_nodes(n)
             for annotation in dfi.inputs:

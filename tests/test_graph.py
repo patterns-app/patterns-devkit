@@ -49,24 +49,20 @@ def test_declared_graph():
     n4 = g.get_any_node("node4")
     n5 = g.get_any_node("node5")
     assert len(list(g.declared_nodes())) == 9
-    assert g.get_declared_graph_with_dataset_nodes().get_all_upstream_dependencies_in_execution_order(
-        n1
-    ) == [
-        n1
-    ]
-    assert g.get_declared_graph_with_dataset_nodes().get_all_upstream_dependencies_in_execution_order(
-        n5
-    ) == [
+    dg = g.get_declared_graph_with_dataset_nodes()
+    assert dg.get_all_upstream_dependencies_in_execution_order(n1) == [n1]
+    assert dg.get_all_upstream_dependencies_in_execution_order(n5) == [
         n2,
         n4,
         n5,
     ]
 
 
-def test_dataset_nodes():
-    g = make_graph()
-    dg = g.get_declared_graph_with_dataset_nodes()
-    assert len(list(dg.nodes())) == 13
+# Redundant
+# def test_dataset_nodes():
+#     g = make_graph()
+#     dg = g.get_declared_graph_with_dataset_nodes()
+#     assert len(list(dg.nodes())) == 27
 
 
 def test_make_graph():
@@ -80,21 +76,24 @@ def test_make_graph():
         "node5",
         "node1",
         "node3",
-        "node3__accumulator",
-        "node3__dedupe",
+        # "node3__accumulator",
+        # "node3__dedupe",
         "node7",
         "node8",
-        "node8__accumulator",
-        "node8__dedupe",
+        # "node8__accumulator",
+        # "node8__dedupe",
         "node9",
     }
+    for n in list(nodes):
+        nodes.update(g.get_any_node(n).get_dataset_node_keys())
     assert set(n.key for n in fg.nodes()) == nodes
     n3 = g.get_any_node("node3")
     n7 = g.get_any_node("node7")
     assert len(fg.get_all_upstream_dependencies_in_execution_order(n3)) == 2
     assert len(fg.get_all_upstream_dependencies_in_execution_order(n7)) == 7
-    assert len(fg.get_all_nodes_in_execution_order()) == 13
-    execution_order = [
+    assert len(fg.get_all_nodes_in_execution_order()) == len(nodes)
+    execution_order = [n.key for n in fg.get_all_nodes_in_execution_order()]
+    expected_execution_order = [
         "node2",
         "node4",
         "node6",
@@ -109,6 +108,8 @@ def test_make_graph():
         "node3__dedupe",
         "node7",
     ]
-    # TODO: topographical sort is not unique
-    #  unclear under what conditions networkx version is stable
-    assert [n.key for n in fg.get_all_nodes_in_execution_order()] == execution_order
+    # TODO: graph sort not stable!
+    for i, n in enumerate(expected_execution_order[:-1]):
+        assert execution_order.index(n) < execution_order.index(
+            expected_execution_order[i + 1]
+        )

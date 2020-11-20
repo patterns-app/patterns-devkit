@@ -41,6 +41,7 @@ def create_node(
     config: Optional[Dict[str, Any]] = None,
     schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
     output_alias: Optional[str] = None,
+    create_dataset: bool = True,
 ):
     config = config or {}
     env = graph.env
@@ -61,6 +62,7 @@ def create_node(
         _declared_inputs=_declared_inputs,
         _declared_schema_mapping=schema_mapping,
         output_alias=output_alias,
+        create_dataset=create_dataset,
     )
     inputs = inputs or upstream
     if inputs is not None:
@@ -78,6 +80,7 @@ class Node:
     config: Dict[str, Any]
     interface: PipeInterface
     _declared_inputs: Dict[str, NodeLike]
+    create_dataset: bool = True
     output_alias: Optional[str] = None
     _dataset_name: Optional[str] = None
     _declared_schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None
@@ -94,9 +97,6 @@ class Node:
             return state.state
         return None
 
-    def get_dataset_node_key(self) -> str:
-        return f"{self.key}__dataset"
-
     def get_dataset_name(self) -> str:
         return self._dataset_name or self.key
 
@@ -105,11 +105,17 @@ class Node:
             return self.output_alias
         if self.output_is_dataset():
             return self.get_dataset_name()
-        return f"{self.key}_latest"
+        return f"{self.key}__latest"
 
     def output_is_dataset(self) -> bool:
         return False
         # return self.get_interface().output.data_format_class == "DataSet"
+
+    def get_dataset_node_keys(self):
+        return [
+            f"{self.key}__accumulator",
+            f"{self.key}__dedupe",
+        ]
 
     def create_dataset_nodes(self) -> List[Node]:
         dfi = self.get_interface()
@@ -125,15 +131,16 @@ class Node:
         else:
             df_accum = "core.dataframe_accumulator"
             df_dedupe = "core.dataframe_dedupe_unique_keep_newest_row"
+        accum_key, dedupe_key = self.get_dataset_node_keys()
         accum = create_node(
             self.graph,
-            key=f"{self.key}__accumulator",
+            key=accum_key,
             pipe=self.env.get_pipe(df_accum),
             upstream=self,
         )
         dedupe = create_node(
             self.graph,
-            key=f"{self.key}__dedupe",
+            key=dedupe_key,
             pipe=self.env.get_pipe(df_dedupe),
             upstream=accum,
             output_alias=self.get_dataset_name(),

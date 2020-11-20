@@ -10,7 +10,11 @@ from dags.core.graph import Graph
 from dags.core.module import DEFAULT_LOCAL_MODULE_NAME
 from dags.core.node import Node, create_node
 from dags.core.pipe import Pipe, PipeInterface, PipeLike, pipe
-from dags.core.pipe_interface import NodeInterfaceManager, PipeAnnotation
+from dags.core.pipe_interface import (
+    NodeInterfaceManager,
+    PipeAnnotation,
+    make_default_output_annotation,
+)
 from dags.core.runnable import PipeContext
 from dags.core.runtime import RuntimeClass
 from dags.core.sql.pipe import sql_pipe
@@ -106,7 +110,7 @@ def df4(
                         original_annotation="DataBlock[TestSchema1]",
                     )
                 ],
-                output=None,
+                output=make_default_output_annotation(),
                 requires_pipe_context=True,
             ),
         ),
@@ -321,7 +325,7 @@ def test_node_inputs():
     dfi = node1.get_interface()
     dfi = node1.get_interface()
     assert len(dfi.inputs) == 1
-    assert dfi.output is None
+    assert dfi.output == make_default_output_annotation()
     assert list(node1.get_declared_inputs().keys()) == ["input"]
     # assert node1.get_input("input").get_upstream(env)[0] is node
 
