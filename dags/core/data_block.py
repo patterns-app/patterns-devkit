@@ -240,6 +240,9 @@ class StoredDataBlockMetadata(BaseModel):
             return self.data_block.record_count
         return self.storage.get_manager(env).record_count(self)
 
+    def create_alias(self, env: Environment, alias: str):
+        return self.storage.get_manager(env).create_alias(self, alias)
+
 
 event.listen(DataBlockMetadata, "before_update", immutability_update_listener)
 event.listen(StoredDataBlockMetadata, "before_update", immutability_update_listener)

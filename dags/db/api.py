@@ -112,6 +112,10 @@ class DatabaseAPI:
         self.execute_sql(ddl)
         return name
 
+    def create_alias(self, from_stmt: str, to: str):  # TODO: rename to overwrite_alias?
+        self.execute_sql(f"drop view if exists {to}")
+        self.execute_sql(f"create view {to} as select * from {from_stmt}")
+
     def rename_table(self, table_name: str, new_name: str):
         self.execute_sql(f"alter table {table_name} rename to {new_name}")
 

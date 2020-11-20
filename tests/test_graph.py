@@ -66,7 +66,7 @@ def test_declared_graph():
 def test_dataset_nodes():
     g = make_graph()
     dg = g.get_declared_graph_with_dataset_nodes()
-    assert len(list(dg.nodes())) == 11
+    assert len(list(dg.nodes())) == 13
 
 
 def test_make_graph():
@@ -84,6 +84,8 @@ def test_make_graph():
         "node3__dedupe",
         "node7",
         "node8",
+        "node8__accumulator",
+        "node8__dedupe",
         "node9",
     }
     assert set(n.key for n in fg.nodes()) == nodes
@@ -91,7 +93,7 @@ def test_make_graph():
     n7 = g.get_any_node("node7")
     assert len(fg.get_all_upstream_dependencies_in_execution_order(n3)) == 2
     assert len(fg.get_all_upstream_dependencies_in_execution_order(n7)) == 7
-    assert len(fg.get_all_nodes_in_execution_order()) == 11
+    assert len(fg.get_all_nodes_in_execution_order()) == 13
     execution_order = [
         "node2",
         "node4",
@@ -100,6 +102,8 @@ def test_make_graph():
         "node1",
         "node3",
         "node8",
+        "node8__accumulator",
+        "node8__dedupe",
         "node9",
         "node3__accumulator",
         "node3__dedupe",

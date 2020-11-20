@@ -410,6 +410,10 @@ class ExecutionManager:
     #             em.run(dep, to_exhaustion=True)
 
 
+def ensure_alias(node: Node, sdb: StoredDataBlockMetadata):
+    sdb.storage.get_manager(node.env).create_alias(sdb, node.get_alias())
+
+
 class Worker:
     def __init__(self, ctx: ExecutionContext):
         self.env = ctx.env
@@ -427,10 +431,13 @@ class Worker:
                 assert (
                     self.ctx.target_storage is not None
                 ), "Must specify target storage for output"
-                output_block = self.conform_output(run_session, output, runnable)
+                output_sdb = self.conform_output(run_session, output, runnable)
+                output_block = None
                 # assert output_block is not None, output    # Output block may be none if empty generator
-                if output_block is not None:
+                if output_sdb is not None:
+                    output_block = output_sdb.data_block
                     run_session.log_output(output_block)
+                    ensure_alias(node, output_sdb)
 
             for input in runnable.pipe_interface.inputs:
                 # assert input.bound_data_block is not None, input
@@ -461,48 +468,49 @@ class Worker:
         worker_session: RunSession,
         output: DataInterfaceType,
         runnable: Runnable,
-    ) -> Optional[DataBlockMetadata]:
+    ) -> Optional[StoredDataBlockMetadata]:
         assert runnable.pipe_interface.output is not None
         # assert runnable.pipe_interface.resolved_output_schema is not None
         # TODO: can i return an existing DataBlock? Or do I need to create a "clone"?
         assert self.ctx.target_storage is not None
         if isinstance(output, StoredDataBlockMetadata):
             output = self.ctx.merge(output)
-            return output.data_block
-        if isinstance(output, DataBlockMetadata):
-            output = self.ctx.merge(output)
             return output
-        if isinstance(output, DataSetMetadata):
-            output = self.ctx.merge(output)
-            return output.data_block
-        if isinstance(output, ManagedDataBlock):
-            output = self.ctx.merge(output.manager.data_block)
-            return output
-        if isinstance(output, ManagedDataSet):
-            output = self.ctx.merge(output.manager.data_block)
-            return output
-
-        if isinstance(output, abc.Generator):
-            if runnable.pipe_interface.output.data_format_class == "DataFrameGenerator":
-                output = DataFrameGenerator(output)
-            elif (
-                runnable.pipe_interface.output.data_format_class
-                == "RecordsListGenerator"
-            ):
-                output = RecordsListGenerator(output)
-            else:
-                TypeError(output)
-            output = cast(ReusableGenerator, output)
-            if output.get_one() is None:
-                # Empty generator
-                return None
-        block, sdb = create_data_block_from_records(
-            self.env,
-            self.ctx.metadata_session,
-            self.ctx.local_memory_storage,
-            output,
-            expected_schema=runnable.pipe_interface.resolved_output_schema(self.env),
-        )
+        elif isinstance(output, DataBlockMetadata):
+            raise NotImplementedError
+        elif isinstance(output, DataSetMetadata):
+            raise NotImplementedError
+        elif isinstance(output, ManagedDataBlock):
+            raise NotImplementedError
+        elif isinstance(output, ManagedDataSet):
+            raise NotImplementedError
+        else:
+            if isinstance(output, abc.Generator):
+                if (
+                    runnable.pipe_interface.output.data_format_class
+                    == "DataFrameGenerator"
+                ):
+                    output = DataFrameGenerator(output)
+                elif (
+                    runnable.pipe_interface.output.data_format_class
+                    == "RecordsListGenerator"
+                ):
+                    output = RecordsListGenerator(output)
+                else:
+                    TypeError(output)
+                output = cast(ReusableGenerator, output)
+                if output.get_one() is None:
+                    # Empty generator
+                    return None
+            block, sdb = create_data_block_from_records(
+                self.env,
+                self.ctx.metadata_session,
+                self.ctx.local_memory_storage,
+                output,
+                expected_schema=runnable.pipe_interface.resolved_output_schema(
+                    self.env
+                ),
+            )
         # ldr = LocalMemoryDataRecords.from_records_object(output)
         # block = DataBlockMetadata(
         #     schema_key=runnable.pipe_interface.output_schema.name
@@ -526,7 +534,7 @@ class Worker:
             self.ctx.target_storage,
             self.ctx.target_storage.natural_storage_format,
         )
-        return block
+        return sdb
 
     # TODO: where does this sql stuff really belong?
     def get_connection(self) -> sqlalchemy.engine.Engine:

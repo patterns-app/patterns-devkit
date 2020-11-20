@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from pandas import DataFrame
 
-from dags import DataSet
+from dags import RecordsList
 from dags.core.pipe import pipe
 from dags.core.runnable import PipeContext
 from dags.core.typing.object_schema import ObjectSchemaLike
@@ -28,7 +28,9 @@ class ExtractDataFrameConfig:
     config_class=ExtractDataFrameConfig,
     state_class=LocalExtractState,
 )
-def extract_dataframe(ctx: PipeContext,) -> DataSet:
+def extract_dataframe(
+    ctx: PipeContext,
+) -> DataFrame:
     extracted = ctx.get_state_value("extracted")
     if extracted:
         # Just emit once
@@ -52,7 +54,9 @@ class ExtractLocalCSVConfig:
     config_class=ExtractLocalCSVConfig,
     state_class=LocalExtractState,
 )
-def extract_csv(ctx: PipeContext,) -> DataSet:
+def extract_csv(
+    ctx: PipeContext,
+) -> RecordsList:
     extracted = ctx.get_state_value("extracted")
     if extracted:
         # Static resource, if already emitted, return

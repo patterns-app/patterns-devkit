@@ -135,6 +135,9 @@ class StorageManager:
     def record_count(self, stored_data_block: StoredDataBlockMetadata) -> Optional[int]:
         raise NotImplementedError
 
+    def create_alias(self, stored_data_block: StoredDataBlockMetadata, alias: str):
+        raise NotImplementedError
+
 
 class MemoryStorageManager(StorageManager):
     @property
@@ -151,6 +154,9 @@ class MemoryStorageManager(StorageManager):
             stored_data_block
         ).record_count
 
+    def create_alias(self, stored_data_block: StoredDataBlockMetadata, alias: str):
+        pass
+
 
 # TODO: are this Manager classes doing anything? Seems like we have an extra layer here: API -> Manager -> Storage
 class DatabaseStorageManager(StorageManager):
@@ -166,6 +172,9 @@ class DatabaseStorageManager(StorageManager):
             return None
         return self.database.count(stored_data_block.get_name(self.env))
 
+    def create_alias(self, stored_data_block: StoredDataBlockMetadata, alias: str):
+        self.database.create_alias(stored_data_block.get_name(self.env), alias)
+
 
 class FileSystemStorageManager(StorageManager):
     @property
@@ -180,6 +189,9 @@ class FileSystemStorageManager(StorageManager):
         if not self.exists(stored_data_block):
             return None
         return None
+
+    def create_alias(self, stored_data_block: StoredDataBlockMetadata, alias: str):
+        self.file_system.create_alias(stored_data_block.get_name(self.env), alias)
 
 
 manager_lookup: Dict[StorageClass, Type[StorageManager]] = {

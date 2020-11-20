@@ -59,6 +59,13 @@ class FileSystemAPI:
                     lines.append(j + "\n")
                 f.writelines(lines)
 
+    def create_alias(self, from_name: str, to_name: str):
+        try:
+            os.remove(to_name)
+        except FileNotFoundError:
+            pass
+        os.symlink(from_name, to_name)
+
 
 # TODO: better way to register these types of managers / apis (so someone can extend without editing
 def get_file_system_api_class(engine: StorageEngine) -> Type[FileSystemAPI]:

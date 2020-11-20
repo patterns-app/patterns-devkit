@@ -108,14 +108,15 @@ class Node:
         return f"{self.key}_latest"
 
     def output_is_dataset(self) -> bool:
-        return self.get_interface().output.data_format_class == "DataSet"
+        return False
+        # return self.get_interface().output.data_format_class == "DataSet"
 
     def create_dataset_nodes(self) -> List[Node]:
         dfi = self.get_interface()
         if dfi.output is None:
             raise
-        if self.output_is_dataset():
-            return []
+        # if self.output_is_dataset():
+        #     return []
         # TODO: how do we choose runtime? just using lang for now
         lang = self.pipe.source_code_language()
         if lang == "sql":
