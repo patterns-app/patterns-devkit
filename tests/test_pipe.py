@@ -49,15 +49,15 @@ from tests.utils import (
             ),
         ),
         (
-            "DataSet[Type]",
+            "DataFrame[Type]",
             PipeAnnotation(
-                data_format_class="DataSet",
+                data_format_class="DataFrame",
                 schema_like="Type",
                 # is_iterable=False,
                 is_generic=False,
                 is_optional=False,
                 is_variadic=False,
-                original_annotation="DataSet[Type]",
+                original_annotation="DataFrame[Type]",
             ),
         ),
         (
@@ -219,7 +219,7 @@ def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
     else:
         raise
     assert val == expected
-    node = create_node(g, "_test", pipe, inputs="mock")
+    node = create_node(g, "_test", pipe, upstream="mock")
     assert node.get_interface() == expected
 
 
@@ -266,10 +266,10 @@ def test_inputs():
     env = make_test_env()
     g = Graph(env)
     g.add_node("node1", pipe_t1_source)
-    n2 = g.add_node("node2", pipe_t1_to_t2, inputs={"input": "node1"})
+    n2 = g.add_node("node2", pipe_t1_to_t2, upstream={"input": "node1"})
     dfi = n2.get_interface()
     assert dfi is not None
-    n3 = g.add_node("node3", pipe_chain_t1_to_t2, inputs="node1")
+    n3 = g.add_node("node3", pipe_chain_t1_to_t2, upstream="node1")
     dfi = n3.get_interface()
     assert dfi is not None
 
@@ -320,8 +320,8 @@ def test_node_inputs():
     df = pipe(pipe_t1_sink)
     with pytest.raises(Exception):
         # Bad input
-        create_node(g, "node_fail", df, input="Turname")  # type: ignore
-    node1 = create_node(g, "node1", df, inputs=node)
+        create_node(g, "node_fail", df, inputs="Turname")  # type: ignore
+    node1 = create_node(g, "node1", df, upstream=node)
     dfi = node1.get_interface()
     dfi = node1.get_interface()
     assert len(dfi.inputs) == 1

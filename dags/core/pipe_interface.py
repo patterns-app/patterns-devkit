@@ -18,12 +18,7 @@ from typing import (
 
 import networkx as nx
 
-from dags.core.data_block import (
-    DataBlock,
-    DataBlockMetadata,
-    DataSetMetadata,
-    ManagedDataBlock,
-)
+from dags.core.data_block import DataBlock, DataBlockMetadata, ManagedDataBlock
 from dags.core.environment import Environment
 from dags.core.typing.object_schema import (
     ObjectSchema,
@@ -62,7 +57,6 @@ re_type_hint = re.compile(
 
 VALID_DATA_INTERFACE_TYPES = [
     "DataBlock",
-    "DataSet",
     "DataFrame",
     "RecordsList",
     "RecordsListGenerator",
@@ -98,10 +92,6 @@ class PipeAnnotation:
     original_annotation: Optional[str] = None
     input_node: Optional[Node] = None
     bound_data_block: Optional[DataBlockMetadata] = None
-
-    @property
-    def is_dataset(self) -> bool:
-        return self.data_format_class == "DataSet"
 
     @classmethod
     def create(cls, **kwargs) -> PipeAnnotation:
@@ -397,19 +387,20 @@ class PipeInterface:
         return {i.name: i for i in self.inputs if i.name}
 
     def validate_inputs(self):
-        # TODO: review this validation. what do we want to check for?
-        data_block_seen = False
-        for annotation in self.inputs:
-            if (
-                annotation.data_format_class == "DataBlock"
-                and not annotation.is_optional
-            ):
-                if data_block_seen:
-                    raise Exception(
-                        "Only one uncorrelated DataBlock input allowed to a Pipe."
-                        "Correlate the inputs or use a DataSet"
-                    )
-                data_block_seen = True
+        pass
+        # TODO: Up to user to ensure their graph makes sense for pipe?
+        # data_block_seen = False
+        # for annotation in self.inputs:
+        #     if (
+        #         annotation.data_format_class == "DataBlock"
+        #         and not annotation.is_optional
+        #     ):
+        #         if data_block_seen:
+        #             raise Exception(
+        #                 "Only one uncorrelated DataBlock input allowed to a Pipe."
+        #                 "Correlate the inputs or use a DataSet"
+        #             )
+        #         data_block_seen = True
 
     def assign_inputs(
         self, inputs: Union[NodeLike, Dict[str, NodeLike]]
@@ -445,7 +436,7 @@ class NodeInterfaceManager:
     ) -> BoundPipeInterface:
         i = BoundPipeInterface.from_dfi(self.dfi)
         # TODO: dry (see below)
-        inputs = self.node.get_compiled_input_nodes()
+        inputs = self.node.get_declared_input_nodes()
         for input in i.inputs:
             if input.original_annotation.is_self_ref:
                 inputs["this"] = self.node
@@ -460,7 +451,7 @@ class NodeInterfaceManager:
 
     def get_connected_interface(self) -> BoundPipeInterface:
         i = BoundPipeInterface.from_dfi(self.dfi)
-        inputs = self.node.get_compiled_input_nodes()
+        inputs = self.node.get_declared_input_nodes()
         for input in i.inputs:
             if input.original_annotation.is_self_ref:
                 inputs["this"] = self.node

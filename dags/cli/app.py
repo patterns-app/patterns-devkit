@@ -8,7 +8,7 @@ import click
 import requests
 from sqlalchemy import func
 
-from dags.core.data_block import DataBlockMetadata, DataSetMetadata
+from dags.core.data_block import DataBlockMetadata
 from dags.core.environment import Environment, current_env
 from dags.core.metadata.orm import DAGS_METADATA_TABLE_PREFIX
 from dags.core.node import PipeLog
@@ -185,7 +185,9 @@ def list_pipes(env: Environment):
     with env.session_scope() as sess:
         query = (
             sess.query(
-                PipeLog.node_key, func.count(PipeLog.id), func.max(PipeLog.started_at),
+                PipeLog.node_key,
+                func.count(PipeLog.id),
+                func.max(PipeLog.started_at),
             )
             .group_by(PipeLog.node_key)
             .all()

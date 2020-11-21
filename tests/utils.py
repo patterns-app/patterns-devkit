@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pandas import DataFrame
 
-from dags.core.data_block import DataBlock, DataSet
+from dags.core.data_block import DataBlock
 from dags.core.environment import Environment
 from dags.core.graph import Graph
 from dags.core.module import DagsModule
@@ -101,14 +101,16 @@ def pipe_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
     pass
 
 
-def pipe_dataset_input(
-    input: DataBlock[T], other_ds_t2: DataSet[TestSchema2] = None
+def pipe_multiple_input(
+    input: DataBlock[T], other_t2: DataBlock[TestSchema2] = None
 ) -> DataFrame[T]:
     pass
 
 
-def pipe_dataset_output(input: DataBlock[T]) -> DataSet[T]:
-    pass
+#
+#
+# def pipe_dataset_output(input: DataBlock[T]) -> DataSet[T]:
+#     pass
 
 
 sample_records = [

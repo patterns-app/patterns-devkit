@@ -7,7 +7,11 @@ import sqlparse
 from dags.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.module import DagsModule
 from dags.core.pipe import DataInterfaceType, Pipe, PipeInterface, pipe_factory
-from dags.core.pipe_interface import BadAnnotationException, PipeAnnotation
+from dags.core.pipe_interface import (
+    BadAnnotationException,
+    PipeAnnotation,
+    make_default_output_annotation,
+)
 from dags.core.runnable import PipeContext
 from loguru import logger
 from sqlparse import tokens
@@ -49,7 +53,7 @@ def make_typed_statement_from_parse(
         except BadAnnotationException:
             pass
     if output is None:
-        output = PipeAnnotation.create(data_format_class="DataSet")
+        output = make_default_output_annotation()
     inputs = []
     for name, ann in table_identifier_annotations.items():
         if ann:
@@ -59,7 +63,7 @@ def make_typed_statement_from_parse(
                 continue
             except BadAnnotationException:
                 pass
-        inputs.append(PipeAnnotation.create(name=name, data_format_class="DataSet"))
+        inputs.append(PipeAnnotation.create(name=name, data_format_class="DataBlock"))
     return TypedSqlStatement(
         cleaned_sql="".join(new_sql),
         interface=PipeInterface(inputs=inputs, output=output),

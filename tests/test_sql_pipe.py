@@ -7,7 +7,7 @@ from tests.utils import make_test_env
 def test_sql_pipe_interface():
     env = make_test_env()
     sql = """select 1 from from t1 -- :DataBlock[T1]
-        join t2 on t1.a = t2.b left join t3 -- :DataSet[T2]
+        join t2 on t1.a = t2.b left join t3 -- :DataBlock[T2]
         on"""
     df = sql_pipe("s1", sql)
     dfi = df.get_interface(env)
@@ -21,10 +21,10 @@ def test_sql_pipe_interface():
     assert dfi.inputs[1].name == "t2"
     assert dfi.inputs[2].schema_like == "T2"
     assert dfi.inputs[2].name == "t3"
-    assert dfi.inputs[2].data_format_class == "DataSet"
+    assert dfi.inputs[2].data_format_class == "DataBlock"
     assert dfi.output is not None
 
-    sql = """select -- :DataSet[T]
+    sql = """select -- :DataBlock[T]
         1
         from -- comment inbetween
         input
@@ -35,7 +35,7 @@ def test_sql_pipe_interface():
     assert len(dfi.inputs) == 2
     assert dfi.output is not None
     assert dfi.output.schema_like == "T"
-    assert dfi.output.data_format_class == "DataSet"
+    assert dfi.output.data_format_class == "DataBlock"
 
     sql = """select 1, 'not a commment -- nope'
         from -- comment inbetween

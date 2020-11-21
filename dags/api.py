@@ -1,4 +1,4 @@
-from .core.data_block import DataBlock, DataSet
+from .core.data_block import DataBlock
 from .core.data_formats import (
     DataFormat,
     DataFrameGenerator,

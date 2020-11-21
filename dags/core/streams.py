@@ -5,13 +5,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
 from sqlalchemy import and_, not_
 from sqlalchemy.orm import Query
 
-from dags.core.data_block import (
-    DataBlock,
-    DataBlockMetadata,
-    DataSetMetadata,
-    StoredDataBlockMetadata,
-    create_data_block_from_records,
-)
+from dags.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.environment import Environment
 from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, Node, PipeLog
@@ -141,7 +135,7 @@ class DataBlockStream:
         nodes = ensure_list(self.upstream)
         if not nodes:
             return []
-        return [g.get_any_node(c) for c in nodes]
+        return [g.get_node(c) for c in nodes]
 
     def filter_upstream(self, upstream: Union[Node, List[Node]]) -> DataBlockStream:
         return self.clone(
@@ -195,20 +189,6 @@ class DataBlockStream:
 
     def filter_storage(self, storage: Storage) -> DataBlockStream:
         return self.filter_storages(ensure_list(storage))
-
-    def filter_dataset(self, dataset_name: Optional[str] = None) -> DataBlockStream:
-        # TODO: support more than one
-        names = None
-        if dataset_name:
-            names = [dataset_name]
-        return self.clone(data_sets=names, data_sets_only=True)
-
-    def _filter_datasets(self, ctx: ExecutionContext, query: Query) -> Query:
-        if self.data_sets_only:
-            query = query.join(DataSetMetadata)
-        if not self.data_sets:
-            return query
-        return query.filter(DataSetMetadata.name.in_(self.data_sets))  # type: ignore
 
     def filter_data_block(
         self, data_block: Union[DataBlockMetadata, DataBlock, str]

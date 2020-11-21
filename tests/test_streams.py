@@ -2,11 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from dags.core.data_block import (
-    DataBlockMetadata,
-    DataSetMetadata,
-    StoredDataBlockMetadata,
-)
+from dags.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, PipeLog
 from dags.core.streams import DataBlockStream
@@ -42,12 +38,12 @@ class TestStreams:
             expected_schema_key="_test.TestSchema2",
             realized_schema_key="_test.TestSchema2",
         )
-        self.ds1db1 = DataSetMetadata(
-            data_block=self.dr1t1,
-            name="dataset1",
-            expected_schema_key="_test.TestSchema1",
-            realized_schema_key="_test.TestSchema1",
-        )
+        # self.ds1db1 = DataSetMetadata(
+        #     data_block=self.dr1t1,
+        #     name="dataset1",
+        #     expected_schema_key="_test.TestSchema1",
+        #     realized_schema_key="_test.TestSchema1",
+        # )
         self.node_source = self.g.add_node("pipe_source", pipe_t1_source)
         self.node1 = self.g.add_node("pipe1", pipe_t1_sink)
         self.node2 = self.g.add_node("pipe2", pipe_t1_to_t2)
@@ -57,7 +53,7 @@ class TestStreams:
         self.dr2t1 = ctx.merge(self.dr2t1)
         self.dr1t2 = ctx.merge(self.dr1t2)
         self.dr2t2 = ctx.merge(self.dr2t2)
-        self.ds1db1 = ctx.merge(self.ds1db1)
+        # self.ds1db1 = ctx.merge(self.ds1db1)
 
     def test_stream_unprocessed_pristine(self):
         s = DataBlockStream(upstream=self.node_source)
@@ -71,7 +67,9 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            pipe_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl])
 
@@ -86,13 +84,19 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            pipe_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         dfl2 = PipeLog(
-            node_key=self.node1.key, pipe_key=self.node1.pipe.key, runtime_url="test",
+            node_key=self.node1.key,
+            pipe_key=self.node1.pipe.key,
+            runtime_url="test",
         )
         drl2 = DataBlockLog(
-            pipe_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
+            pipe_log=dfl2,
+            data_block=self.dr1t1,
+            direction=Direction.INPUT,
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
@@ -111,13 +115,19 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            pipe_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         dfl2 = PipeLog(
-            node_key=self.node1.key, pipe_key=self.node1.pipe.key, runtime_url="test",
+            node_key=self.node1.key,
+            pipe_key=self.node1.pipe.key,
+            runtime_url="test",
         )
         drl2 = DataBlockLog(
-            pipe_log=dfl2, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            pipe_log=dfl2,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
@@ -136,7 +146,9 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            pipe_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl])
 
@@ -155,14 +167,16 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            pipe_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            pipe_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl])
 
-        s = DataBlockStream(upstream=self.node_source)
-        s = s.filter_unprocessed(self.node1)
-        s = s.filter_dataset("dataset1")
-        assert s.get_next(self.ctx) == self.dr1t1
+        # s = DataBlockStream(upstream=self.node_source)
+        # s = s.filter_unprocessed(self.node1)
+        # s = s.filter_dataset("dataset1")
+        # assert s.get_next(self.ctx) == self.dr1t1
 
     # Deprecated for now
     # def test_stream_records_object(self):

@@ -1,7 +1,7 @@
 from dags.core.module import DagsModule
 
 from ...core.typing.object_schema import ConflictBehavior, ObjectSchema
-from .pipes import accumulator, as_dataset, dedupe, static
+from .pipes import accumulator, dedupe, static
 
 AnyType = ObjectSchema(
     name="Any",
@@ -21,8 +21,8 @@ module = DagsModule(
     pipes=[
         # accumulate_as_dataset.sql_accumulate_as_dataset,
         # accumulate_as_dataset.dataframe_accumulate_as_dataset,
-        as_dataset.as_dataset_dataframe,
-        as_dataset.as_dataset_sql,
+        # as_dataset.as_dataset_dataframe,
+        # as_dataset.as_dataset_sql,
         dedupe.sql_dedupe_unique_keep_newest_row,
         dedupe.dataframe_dedupe_unique_keep_newest_row,
         accumulator.sql_accumulator,

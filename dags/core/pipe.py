@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Uni
 
 from pandas import DataFrame
 
-from dags.core.data_block import DataBlock, DataBlockMetadata, DataSet, DataSetMetadata
+from dags.core.data_block import DataBlock, DataBlockMetadata
 from dags.core.data_formats import DatabaseTableRef, RecordsList
 from dags.core.module import DEFAULT_LOCAL_MODULE, DagsModule
 from dags.core.pipe_interface import PipeAnnotation, PipeInterface
@@ -33,9 +33,7 @@ DataInterfaceType = Union[
     RecordsList,
     DatabaseTableRef,
     DataBlockMetadata,
-    DataSetMetadata,
     DataBlock,
-    DataSet,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 

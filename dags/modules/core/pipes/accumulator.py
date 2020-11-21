@@ -4,7 +4,7 @@ from typing import Optional
 
 from pandas import DataFrame
 
-from dags.core.data_block import DataBlock, DataSet
+from dags.core.data_block import DataBlock
 from dags.core.pipe import pipe
 from dags.core.sql.pipe import sql_pipe
 from dags.core.typing.inference import conform_dataframe_to_schema

@@ -84,8 +84,8 @@ class LocalMemoryDataRecords:
 
 class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     # NOTE on block ids: we generate them dynamically so we don't have to hit a central db for a sequence
-    # BUT we MUST ensure they are monotonically ordered -- the logic of selecting the correct (most recent) DataSet
-    # block relies on strict monotonic IDs
+    # BUT we MUST ensure they are monotonically ordered -- the logic of selecting the correct (most recent)
+    # block relies on strict monotonic IDs in some scenarios
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     # id = Column(Integer, primary_key=True, autoincrement=True)
     expected_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
@@ -93,9 +93,6 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     record_count = Column(Integer, nullable=True)
     # Other metadata? created_by_job? last_processed_at?
     deleted = Column(Boolean, default=False)
-    data_sets: RelationshipProperty = relationship(
-        "DataSetMetadata", backref="data_block"
-    )
     stored_data_blocks: RelationshipProperty = relationship(
         "StoredDataBlockMetadata", backref="data_block", lazy="dynamic"
     )
@@ -246,77 +243,6 @@ class StoredDataBlockMetadata(BaseModel):
 
 event.listen(DataBlockMetadata, "before_update", immutability_update_listener)
 event.listen(StoredDataBlockMetadata, "before_update", immutability_update_listener)
-
-
-class DataSetMetadata(BaseModel):
-    id = Column(String, primary_key=True, default=timestamp_rand_key)
-    # id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String, nullable=False)
-    expected_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
-    realized_schema_key: ObjectSchemaKey = Column(String, nullable=False)  # type: ignore
-    data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
-    # Hints
-    data_block: "DataBlockMetadata"
-
-    # __mapper_args__ = {
-    #     "polymorphic_identity": True,
-    # }
-
-    def __repr__(self):
-        return self._repr(
-            id=self.id,
-            name=self.name,
-            expected_schema_key=self.expected_schema_key,
-            realized_schema_key=self.realized_schema_key,
-            data_block=self.data_block,
-        )
-
-    def as_managed_data_block(
-        self, ctx: ExecutionContext, mapping: Optional[SchemaMapping] = None
-    ):
-        mgr = DataBlockManager(ctx, self, schema_mapping=mapping)
-        return ManagedDataSet(
-            data_set_id=self.id,
-            data_set_name=self.name,
-            data_block_id=self.data_block_id,
-            expected_schema_key=self.expected_schema_key,
-            realized_schema_key=self.realized_schema_key,
-            manager=mgr,
-        )
-
-
-@dataclass(frozen=True)
-class ManagedDataSet(Generic[T]):
-    data_set_id: str
-    data_set_name: str
-    data_block_id: str
-    expected_schema_key: ObjectSchemaKey
-    realized_schema_key: ObjectSchemaKey
-    # schema_is_validated: bool
-    manager: DataBlockManager
-
-    def as_dataframe(self) -> DataFrame:
-        return self.manager.as_dataframe()
-
-    def as_records_list(self) -> RecordsList:
-        return self.manager.as_records_list()
-
-    def as_table(self) -> DatabaseTableRef:
-        return self.manager.as_table()
-
-    def as_format(self, fmt: DataFormat) -> Any:
-        return self.manager.as_format(fmt)
-
-    @property
-    def expected_schema(self) -> Optional[ObjectSchema]:
-        return self.manager.get_expected_schema()
-
-    @property
-    def realized_schema(self) -> Optional[ObjectSchema]:
-        return self.manager.get_realized_schema()
-
-
-DataSet = ManagedDataSet
 
 
 class DataBlockManager:

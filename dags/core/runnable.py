@@ -29,10 +29,8 @@ from dags.core.conversion import convert_lowest_cost
 from dags.core.data_block import (
     DataBlock,
     DataBlockMetadata,
-    DataSetMetadata,
     LocalMemoryDataRecords,
     ManagedDataBlock,
-    ManagedDataSet,
     StoredDataBlockMetadata,
     create_data_block_from_records,
 )
@@ -421,7 +419,7 @@ class Worker:
 
     def run(self, runnable: Runnable) -> Optional[DataBlockMetadata]:
         output_block: Optional[DataBlockMetadata] = None
-        node = self.ctx.graph.get_any_node(runnable.node_key)
+        node = self.ctx.graph.get_node(runnable.node_key)
         with self.ctx.start_pipe_run(node) as run_session:
             output = self.execute_pipe(runnable, run_session)
             if output is not None:
@@ -478,11 +476,7 @@ class Worker:
             return output
         elif isinstance(output, DataBlockMetadata):
             raise NotImplementedError
-        elif isinstance(output, DataSetMetadata):
-            raise NotImplementedError
         elif isinstance(output, ManagedDataBlock):
-            raise NotImplementedError
-        elif isinstance(output, ManagedDataSet):
             raise NotImplementedError
         else:
             if isinstance(output, abc.Generator):

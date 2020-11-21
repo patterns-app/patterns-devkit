@@ -28,20 +28,19 @@ NodeLike = Union[str, "Node"]
 
 
 def inputs_as_nodes(graph: Graph, inputs: Dict[str, NodeLike]):
-    return {name: graph.get_any_node(dnl) for name, dnl in inputs.items()}
+    return {name: graph.get_node(dnl) for name, dnl in inputs.items()}
 
 
 def create_node(
     graph: Graph,
     key: str,
     pipe: Union[PipeLike, str],
-    inputs: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,
     upstream: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,  # Synonym
-    dataset_name: Optional[str] = None,
     config: Optional[Dict[str, Any]] = None,
     schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
     output_alias: Optional[str] = None,
     create_dataset: bool = True,
+    dataset_name: Optional[str] = None,
 ):
     config = config or {}
     env = graph.env
@@ -57,16 +56,15 @@ def create_node(
         key=key,
         pipe=pipe,
         config=config,
-        _dataset_name=dataset_name,
         interface=interface,
         _declared_inputs=_declared_inputs,
         _declared_schema_mapping=schema_mapping,
         output_alias=output_alias,
         create_dataset=create_dataset,
+        _dataset_name=dataset_name,
     )
-    inputs = inputs or upstream
-    if inputs is not None:
-        for i, v in interface.assign_inputs(inputs).items():
+    if upstream is not None:
+        for i, v in interface.assign_inputs(upstream).items():
             n._declared_inputs[i] = v
     return n
 
@@ -97,65 +95,53 @@ class Node:
             return state.state
         return None
 
-    def get_dataset_name(self) -> str:
-        return self._dataset_name or self.key
-
+    # def get_dataset_name(self) -> str:
+    #     return self._dataset_name or self.key
+    #
     def get_alias(self) -> str:
         if self.output_alias:
             return self.output_alias
-        if self.output_is_dataset():
-            return self.get_dataset_name()
         return f"{self.key}__latest"
 
-    def output_is_dataset(self) -> bool:
-        return False
-        # return self.get_interface().output.data_format_class == "DataSet"
-
-    def get_dataset_node_keys(self):
-        return [
-            f"{self.key}__accumulator",
-            f"{self.key}__dedupe",
-        ]
-
-    def create_dataset_nodes(self) -> List[Node]:
-        dfi = self.get_interface()
-        if dfi.output is None:
-            raise
-        # if self.output_is_dataset():
-        #     return []
-        # TODO: how do we choose runtime? just using lang for now
-        lang = self.pipe.source_code_language()
-        if lang == "sql":
-            df_accum = "core.sql_accumulator"
-            df_dedupe = "core.sql_dedupe_unique_keep_newest_row"
-        else:
-            df_accum = "core.dataframe_accumulator"
-            df_dedupe = "core.dataframe_dedupe_unique_keep_newest_row"
-        accum_key, dedupe_key = self.get_dataset_node_keys()
-        accum = create_node(
-            self.graph,
-            key=accum_key,
-            pipe=self.env.get_pipe(df_accum),
-            upstream=self,
-        )
-        dedupe = create_node(
-            self.graph,
-            key=dedupe_key,
-            pipe=self.env.get_pipe(df_dedupe),
-            upstream=accum,
-            output_alias=self.get_dataset_name(),
-        )
-        logger.debug(f"Adding DataSet nodes {[accum, dedupe]}")
-        return [accum, dedupe]
+    # def get_dataset_node_keys(self):
+    #     return [
+    #         f"{self.key}__accumulator",
+    #         f"{self.key}__dedupe",
+    #     ]
+    #
+    # def create_dataset_nodes(self) -> List[Node]:
+    #     dfi = self.get_interface()
+    #     if dfi.output is None:
+    #         raise
+    #     # if self.output_is_dataset():
+    #     #     return []
+    #     # TODO: how do we choose runtime? just using lang for now
+    #     lang = self.pipe.source_code_language()
+    #     if lang == "sql":
+    #         df_accum = "core.sql_accumulator"
+    #         df_dedupe = "core.sql_dedupe_unique_keep_newest_row"
+    #     else:
+    #         df_accum = "core.dataframe_accumulator"
+    #         df_dedupe = "core.dataframe_dedupe_unique_keep_newest_row"
+    #     accum_key, dedupe_key = self.get_dataset_node_keys()
+    #     accum = create_node(
+    #         self.graph,
+    #         key=accum_key,
+    #         pipe=self.env.get_pipe(df_accum),
+    #         upstream=self,
+    #     )
+    #     dedupe = create_node(
+    #         self.graph,
+    #         key=dedupe_key,
+    #         pipe=self.env.get_pipe(df_dedupe),
+    #         upstream=accum,
+    #         output_alias=self.get_dataset_name(),
+    #     )
+    #     logger.debug(f"Adding DataSet nodes {[accum, dedupe]}")
+    #     return [accum, dedupe]
 
     def get_interface(self) -> PipeInterface:
         return self.interface
-
-    def get_compiled_input_nodes(self) -> Dict[str, Node]:
-        # Just a convenience function
-        return self.graph.get_declared_graph_with_dataset_nodes().get_compiled_inputs(
-            self
-        )
 
     def get_declared_input_nodes(self) -> Dict[str, Node]:
         return inputs_as_nodes(self.graph, self.get_declared_inputs())

@@ -263,19 +263,16 @@ class Environment:
         if node_like is not None:
             node = node_like
             if isinstance(node, str):
-                node = graph.get_any_node(node_like)
+                node = graph.get_node(node_like)
             assert isinstance(node, Node)
-            dependencies = graph.get_declared_graph_with_dataset_nodes().get_all_upstream_dependencies_in_execution_order(
-                node
-            )
+            dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
             if with_dataset:
-                dependencies.extend(
-                    [graph.get_any_node(n) for n in node.get_dataset_node_keys()]
-                )
+                raise NotImplementedError
+                # dependencies.extend(
+                #     [graph.get_node(n) for n in node.get_dataset_node_keys()]
+                # )
         else:
-            dependencies = (
-                graph.get_declared_graph_with_dataset_nodes().get_all_nodes_in_execution_order()
-            )
+            dependencies = graph.get_all_nodes_in_execution_order()
         output = None
         for dep in dependencies:
             with self.execution(graph, **execution_kwargs) as em:
@@ -307,17 +304,17 @@ class Environment:
         from dags.core.node import Node
 
         if isinstance(node_like, str):
-            node_like = graph.get_any_node(node_like)
+            node_like = graph.get_node(node_like)
         assert isinstance(node_like, Node)
 
         logger.debug(f"Running: {node_like}")
         with self.execution(graph, **execution_kwargs) as em:
             return em.run(node_like, to_exhaustion=to_exhaustion)
 
-    def run_graph(self, graph, to_exhaustion: bool = True, **execution_kwargs: Any):
-        nodes = (
-            graph.get_declared_graph_with_dataset_nodes().get_all_nodes_in_execution_order()
-        )
+    def run_graph(
+        self, graph: Graph, to_exhaustion: bool = True, **execution_kwargs: Any
+    ):
+        nodes = graph.get_all_nodes_in_execution_order()
         for node in nodes:
             with self.execution(graph, **execution_kwargs) as em:
                 em.run(node, to_exhaustion=to_exhaustion)

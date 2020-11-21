@@ -4,7 +4,7 @@ from dags import Environment
 from dags.core.node import DataBlockLog
 from dags.core.pipe import Pipe, pipe_chain
 from dags.modules.core.pipes.accumulator import dataframe_accumulator, sql_accumulator
-from dags.modules.core.pipes.as_dataset import as_dataset_dataframe, as_dataset_sql
+# from dags.modules.core.pipes.as_dataset import as_dataset_dataframe, as_dataset_sql
 from dags.modules.core.pipes.dedupe import (
     dataframe_dedupe_unique_keep_newest_row,
     sql_dedupe_unique_keep_newest_row,
@@ -20,7 +20,7 @@ from dags.utils.pandas import assert_dataframes_are_almost_equal
 sql_accumulate_as_dataset = pipe_chain(
     name="sql_accumulate_as_dataset",
     module="core",
-    pipe_chain=[sql_accumulator, sql_dedupe_unique_keep_newest_row, as_dataset_sql],
+    pipe_chain=[sql_accumulator, sql_dedupe_unique_keep_newest_row],
 )
 
 dataframe_accumulate_as_dataset = pipe_chain(
@@ -29,7 +29,6 @@ dataframe_accumulate_as_dataset = pipe_chain(
     pipe_chain=[
         dataframe_accumulator,
         dataframe_dedupe_unique_keep_newest_row,
-        as_dataset_dataframe,
     ],
 )
 
