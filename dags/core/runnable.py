@@ -66,7 +66,7 @@ from dags.utils.typing import C, S
 from loguru import logger
 
 if TYPE_CHECKING:
-    from dags.core.graph import Graph
+    from dags.core.graph import Graph, GraphMetadata
 
 
 class Language(Enum):
@@ -185,9 +185,16 @@ class ExecutionContext:
 
     @contextmanager
     def start_pipe_run(self, node: Node) -> Generator[RunSession, None, None]:
+        from dags.core.graph import GraphMetadata
+
         assert self.current_runtime is not None, "Runtime not set"
         node_state = node.get_state(self.metadata_session) or {}
+        new_graph_meta = node.graph.get_metadata_obj()
+        graph_meta = self.metadata_session.query(GraphMetadata).get(new_graph_meta.hash)
+        if graph_meta is None:
+            graph_meta = self.metadata_session.merge(new_graph_meta)
         pl = PipeLog(  # type: ignore
+            graph_id=graph_meta.hash,
             node_key=node.key,
             node_start_state=node_state,
             node_end_state=node_state,

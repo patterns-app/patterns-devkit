@@ -22,6 +22,7 @@ class TestStreams:
         self.ctx = ctx
         self.env = ctx.env
         self.g = Graph(self.env)
+        self.graph = self.g.get_metadata_obj()
         self.dr1t1 = DataBlockMetadata(
             expected_schema_key="_test.TestSchema1",
             realized_schema_key="_test.TestSchema1",
@@ -53,6 +54,7 @@ class TestStreams:
         self.dr2t1 = ctx.merge(self.dr2t1)
         self.dr1t2 = ctx.merge(self.dr1t2)
         self.dr2t2 = ctx.merge(self.dr2t2)
+        self.graph = ctx.merge(self.graph)
         # self.ds1db1 = ctx.merge(self.ds1db1)
 
     def test_stream_unprocessed_pristine(self):
@@ -62,6 +64,7 @@ class TestStreams:
 
     def test_stream_unprocessed_eligible(self):
         dfl = PipeLog(
+            graph_id=self.graph.hash,
             node_key=self.node_source.key,
             pipe_key=self.node_source.pipe.key,
             runtime_url="test",
@@ -79,6 +82,7 @@ class TestStreams:
 
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = PipeLog(
+            graph_id=self.graph.hash,
             node_key=self.node_source.key,
             pipe_key=self.node_source.pipe.key,
             runtime_url="test",
@@ -89,6 +93,7 @@ class TestStreams:
             direction=Direction.OUTPUT,
         )
         dfl2 = PipeLog(
+            graph_id=self.graph.hash,
             node_key=self.node1.key,
             pipe_key=self.node1.pipe.key,
             runtime_url="test",
@@ -110,6 +115,7 @@ class TestStreams:
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
         dfl = PipeLog(
+            graph_id=self.graph.hash,
             node_key=self.node_source.key,
             pipe_key=self.node_source.pipe.key,
             runtime_url="test",
@@ -120,6 +126,7 @@ class TestStreams:
             direction=Direction.OUTPUT,
         )
         dfl2 = PipeLog(
+            graph_id=self.graph.hash,
             node_key=self.node1.key,
             pipe_key=self.node1.pipe.key,
             runtime_url="test",
@@ -141,6 +148,7 @@ class TestStreams:
 
     def test_stream_unprocessed_eligible_schema(self):
         dfl = PipeLog(
+            graph_id=self.graph.hash,
             node_key=self.node_source.key,
             pipe_key=self.node_source.pipe.key,
             runtime_url="test",
@@ -162,6 +170,7 @@ class TestStreams:
 
     def test_stream_unprocessed_eligible_dataset(self):
         dfl = PipeLog(
+            graph_id=self.graph.hash,
             node_key=self.node_source.key,
             pipe_key=self.node_source.pipe.key,
             runtime_url="test",

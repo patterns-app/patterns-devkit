@@ -267,10 +267,9 @@ class Environment:
             assert isinstance(node, Node)
             dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
             if with_dataset:
-                raise NotImplementedError
-                # dependencies.extend(
-                #     [graph.get_node(n) for n in node.get_dataset_node_keys()]
-                # )
+                dependencies.extend(
+                    [graph.get_node(n) for n in node.get_dataset_node_keys()]
+                )
         else:
             dependencies = graph.get_all_nodes_in_execution_order()
         output = None

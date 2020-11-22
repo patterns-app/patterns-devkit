@@ -17,10 +17,14 @@ from typing import (
 )
 
 import networkx as nx
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, event, or_
+from sqlalchemy.orm import RelationshipProperty, Session, relationship
+from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum
 
+from dags.core.metadata.orm import BaseModel
 from dags.core.node import Node, NodeLike, create_node, inputs_as_nodes
 from dags.core.pipe import PipeLike
-from dags.utils.common import remove_dupes
+from dags.utils.common import md5_hash, remove_dupes
 from loguru import logger
 
 if TYPE_CHECKING:
@@ -29,6 +33,21 @@ if TYPE_CHECKING:
 
 class NodeDoesNotExist(KeyError):
     pass
+
+
+class GraphMetadata(BaseModel):
+    hash = Column(String, primary_key=True)
+    adjacency = Column(JSON)
+
+    def __repr__(self):
+        return self._repr(
+            id=self.id,
+            hash=self.hash,
+        )
+
+
+def hash_adjacency(adjacency: List[Tuple[str, Dict]]) -> str:
+    return md5_hash(str(adjacency))
 
 
 class Graph:
@@ -42,6 +61,11 @@ class Graph:
     def __str__(self):
         s = "Nodes:\n------\n" + "\n".join(self._nodes.keys())
         return s
+
+    def get_metadata_obj(self) -> GraphMetadata:
+        g = self.as_nx_graph()
+        adjacency = list(g.adjacency())
+        return GraphMetadata(hash=hash_adjacency(adjacency), adjacency=adjacency)
 
     def add_node(self, key: str, pipe: Union[PipeLike, str], **kwargs: Any) -> Node:
         from dags.core.node import Node

@@ -21,7 +21,7 @@ from loguru import logger
 if TYPE_CHECKING:
     from dags.core.runnable import ExecutionContext
     from dags.core.streams import DataBlockStream
-    from dags.core.graph import Graph
+    from dags.core.graph import Graph, GraphMetadata
 
 
 NodeLike = Union[str, "Node"]
@@ -95,50 +95,50 @@ class Node:
             return state.state
         return None
 
-    # def get_dataset_name(self) -> str:
-    #     return self._dataset_name or self.key
-    #
+    def get_dataset_name(self) -> str:
+        return self._dataset_name or self.key
+
     def get_alias(self) -> str:
         if self.output_alias:
             return self.output_alias
         return f"{self.key}__latest"
 
-    # def get_dataset_node_keys(self):
-    #     return [
-    #         f"{self.key}__accumulator",
-    #         f"{self.key}__dedupe",
-    #     ]
-    #
-    # def create_dataset_nodes(self) -> List[Node]:
-    #     dfi = self.get_interface()
-    #     if dfi.output is None:
-    #         raise
-    #     # if self.output_is_dataset():
-    #     #     return []
-    #     # TODO: how do we choose runtime? just using lang for now
-    #     lang = self.pipe.source_code_language()
-    #     if lang == "sql":
-    #         df_accum = "core.sql_accumulator"
-    #         df_dedupe = "core.sql_dedupe_unique_keep_newest_row"
-    #     else:
-    #         df_accum = "core.dataframe_accumulator"
-    #         df_dedupe = "core.dataframe_dedupe_unique_keep_newest_row"
-    #     accum_key, dedupe_key = self.get_dataset_node_keys()
-    #     accum = create_node(
-    #         self.graph,
-    #         key=accum_key,
-    #         pipe=self.env.get_pipe(df_accum),
-    #         upstream=self,
-    #     )
-    #     dedupe = create_node(
-    #         self.graph,
-    #         key=dedupe_key,
-    #         pipe=self.env.get_pipe(df_dedupe),
-    #         upstream=accum,
-    #         output_alias=self.get_dataset_name(),
-    #     )
-    #     logger.debug(f"Adding DataSet nodes {[accum, dedupe]}")
-    #     return [accum, dedupe]
+    def get_dataset_node_keys(self):
+        return [
+            f"{self.key}__accumulator",
+            f"{self.key}__dedupe",
+        ]
+
+    def create_dataset_nodes(self) -> List[Node]:
+        dfi = self.get_interface()
+        if dfi.output is None:
+            raise
+        # if self.output_is_dataset():
+        #     return []
+        # TODO: how do we choose runtime? just using lang for now
+        lang = self.pipe.source_code_language()
+        if lang == "sql":
+            df_accum = "core.sql_accumulator"
+            df_dedupe = "core.sql_dedupe_unique_keep_newest_row"
+        else:
+            df_accum = "core.dataframe_accumulator"
+            df_dedupe = "core.dataframe_dedupe_unique_keep_newest_row"
+        accum_key, dedupe_key = self.get_dataset_node_keys()
+        accum = create_node(
+            self.graph,
+            key=accum_key,
+            pipe=self.env.get_pipe(df_accum),
+            upstream=self,
+        )
+        dedupe = create_node(
+            self.graph,
+            key=dedupe_key,
+            pipe=self.env.get_pipe(df_dedupe),
+            upstream=accum,
+            output_alias=self.get_dataset_name(),
+        )
+        logger.debug(f"Adding DataSet nodes {[accum, dedupe]}")
+        return [accum, dedupe]
 
     def get_interface(self) -> PipeInterface:
         return self.interface
@@ -240,9 +240,12 @@ def get_state(sess: Session, node_key: str) -> Optional[Dict]:
 
 class PipeLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    node_key = Column(
-        String, nullable=False
-    )  # TODO / FIXME: node_key is only unique to a graph now, not an env. Hmmmm
+    graph_id = Column(
+        Integer,
+        ForeignKey(f"{DAGS_METADATA_TABLE_PREFIX}graph_metadata.hash"),
+        nullable=False,
+    )
+    node_key = Column(String, nullable=False)
     node_start_state = Column(JSON, nullable=True)
     node_end_state = Column(JSON, nullable=True)
     pipe_key = Column(String, nullable=False)
@@ -255,10 +258,12 @@ class PipeLog(BaseModel):
     data_block_logs: RelationshipProperty = relationship(
         "DataBlockLog", backref="pipe_log"
     )
+    graph: "GraphMetadata"
 
     def __repr__(self):
         return self._repr(
             id=self.id,
+            graph_id=self.graph_id,
             node_key=self.node_key,
             pipe_key=self.pipe_key,
             runtime_url=self.runtime_url,
@@ -313,7 +318,7 @@ class DataBlockLog(BaseModel):
         String,
         ForeignKey(f"{DAGS_METADATA_TABLE_PREFIX}data_block_metadata.id"),
         nullable=False,
-    )  # TODO table name ref ugly here. We can parameterize with orm constant at least, or tablename("DataBlock.id")
+    )
     direction = Column(Enum(Direction, native_enum=False), nullable=False)
     processed_at = Column(DateTime, default=func.now(), nullable=False)
     # Hints
