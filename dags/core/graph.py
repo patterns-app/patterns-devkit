@@ -90,6 +90,9 @@ class Graph:
         assert isinstance(key, str)
         return self._nodes[key]
 
+    def has_node(self, key: str) -> bool:
+        return key in self._nodes
+
     def get_node_like(self, node_like: NodeLike) -> Node:
         if isinstance(node_like, Node):
             return node_like
@@ -102,6 +105,22 @@ class Graph:
     #     return Graph(
     #         env=self.env, nodes=self._nodes.values()
     #     )
+
+    def get_or_create_dataset_nodes(self, node: Node) -> List[Node]:
+        keys = node.get_dataset_node_keys()
+        ds_nodes = []
+        for k in keys:
+            try:
+                ds_nodes.append(self.get_node(k))
+            except KeyError:
+                break
+        else:
+            return ds_nodes
+
+        ds_nodes = node.create_dataset_nodes()
+        for dsn in ds_nodes:
+            self._add_node(dsn)
+        return ds_nodes
 
     def validate_graph(self) -> bool:
         # TODO

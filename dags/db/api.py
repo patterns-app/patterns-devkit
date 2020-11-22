@@ -138,7 +138,11 @@ class DatabaseAPI:
         self.execute_sql(insert_sql)
 
     def create_data_block_from_sql(
-        self, sess: Session, sql: str, expected_schema: ObjectSchema = None
+        self,
+        sess: Session,
+        sql: str,
+        expected_schema: ObjectSchema = None,
+        created_by_node_key: str = None,
     ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
         tmp_name = f"_tmp_{rand_str(10)}".lower()
         sql = self.clean_sub_sql(sql)
@@ -166,6 +170,7 @@ class DatabaseAPI:
             expected_schema_key=expected_schema_key,
             realized_schema_key=realized_schema_key,
             record_count=cnt,
+            created_by_node_key=created_by_node_key,
         )
         storage_url = self.url
         sdb = StoredDataBlockMetadata(

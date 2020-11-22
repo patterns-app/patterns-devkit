@@ -200,6 +200,7 @@ class SqlPipeWrapper:
             ctx.execution_context.metadata_session,
             sql,
             expected_schema=ctx.get_resolved_output_schema(),
+            created_by_node_key=ctx.runnable.node_key,
         )
 
         return sdb

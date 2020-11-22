@@ -84,6 +84,11 @@ def snake_to_title_case(s: str) -> str:
     return s2
 
 
+def as_identifier(s: str) -> str:
+    # make db-compatible identifier from str
+    return re.sub(r"\W+", "_", s).lower().strip("_")
+
+
 UNAMBIGUOUS_ALPHA = "abcdefghjkmnpqrstuvwxyz"
 UNAMBIGUOUS_CHARACTERS = UNAMBIGUOUS_ALPHA + UNAMBIGUOUS_ALPHA.upper() + string.digits
 
@@ -355,7 +360,10 @@ def profile_stmt(stmt: str, globals: Dict, locals: Dict):
     from pstats import SortKey
 
     cProfile.runctx(
-        stmt, globals=globals, locals=locals, filename="profile.stats",
+        stmt,
+        globals=globals,
+        locals=locals,
+        filename="profile.stats",
     )
     p = pstats.Stats("profile.stats")
     p.strip_dirs().sort_stats(SortKey.CUMULATIVE).print_stats(100)

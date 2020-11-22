@@ -155,6 +155,7 @@ class MemoryStorageManager(StorageManager):
         ).record_count
 
     def create_alias(self, stored_data_block: StoredDataBlockMetadata, alias: str):
+        # No op? # TODO
         pass
 
 

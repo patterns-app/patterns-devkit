@@ -404,6 +404,9 @@ class ExecutionManager:
 
 
 def ensure_alias(node: Node, sdb: StoredDataBlockMetadata):
+    logger.debug(
+        f"Creating alias {node.get_alias()} for node {node.key} on storage {sdb.storage_url}"
+    )
     sdb.storage.get_manager(node.env).create_alias(sdb, node.get_alias())
 
 
@@ -499,17 +502,17 @@ class Worker:
                 expected_schema=runnable.pipe_interface.resolved_output_schema(
                     self.env
                 ),
+                created_by_node_key=runnable.node_key,
             )
 
         # TODO: check if existing storage_format is compatible with target storage, instead of using natural (no need to convert then)
         # Place output in target storage
-        convert_lowest_cost(
+        return convert_lowest_cost(
             self.ctx,
             sdb,
             self.ctx.target_storage,
             self.ctx.target_storage.natural_storage_format,
         )
-        return sdb
 
     # TODO: where does this sql stuff really belong?
     def get_connection(self) -> sqlalchemy.engine.Engine:

@@ -32,6 +32,7 @@ from dags.core.typing.object_schema import (
     SchemaMapping,
     is_any,
 )
+from dags.utils.common import as_identifier
 from dags.utils.typing import T
 from loguru import logger
 
@@ -91,6 +92,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     expected_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
     realized_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
     record_count = Column(Integer, nullable=True)
+    created_by_node_key = Column(String, nullable=True)
     # Other metadata? created_by_job? last_processed_at?
     deleted = Column(Boolean, default=False)
     stored_data_blocks: RelationshipProperty = relationship(
@@ -224,7 +226,8 @@ class StoredDataBlockMetadata(BaseModel):
         # TODO: remove env arg
         # schema = env.get_schema(self.data_block.most_real_schema_key)
         # return f"_{schema.get_identifier()[:50]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
-        return f"_sdb_{self.id}"
+        node_key = self.data_block.created_by_node_key or ""
+        return as_identifier(f"{node_key[:40]}_{self.id}")
 
     def get_storage_format(self) -> StorageFormat:
         return StorageFormat(self.storage.storage_type, self.data_format)
@@ -363,6 +366,7 @@ def create_data_block_from_records(
     records: Any,
     expected_schema: ObjectSchema = None,
     realized_schema: ObjectSchema = None,
+    created_by_node_key: str = None,
 ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
     from dags.core.storage.storage import LocalMemoryStorageEngine
 
@@ -383,6 +387,7 @@ def create_data_block_from_records(
         expected_schema_key=expected_schema_key,
         realized_schema_key=realized_schema_key,
         record_count=ldr.record_count,
+        created_by_node_key=created_by_node_key,
     )
     sdb = StoredDataBlockMetadata(  # type: ignore
         data_block=block,
