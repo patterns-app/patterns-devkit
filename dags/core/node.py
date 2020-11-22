@@ -241,7 +241,7 @@ def get_state(sess: Session, node_key: str) -> Optional[Dict]:
 class PipeLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     graph_id = Column(
-        Integer,
+        String,
         ForeignKey(f"{DAGS_METADATA_TABLE_PREFIX}graph_metadata.hash"),
         nullable=False,
     )

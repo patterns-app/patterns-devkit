@@ -402,18 +402,6 @@ class ExecutionManager:
         last_output = new_session.merge(last_output)
         return last_output.as_managed_data_block(self.ctx)  # type: ignore # (mypy does not know merge() is safe)
 
-    #
-    # def produce(
-    #         self, node_like: Union[ConfiguredPipe, str]
-    # ) -> Optional[DataBlock]:
-    #     if isinstance(node_like, str):
-    #         node_like = self.env.get_node(node_like)
-    #     assert isinstance(node_like, ConfiguredPipe)
-    #     dependencies = get_all_upstream_dependencies_in_execution_order(self.env, node_like)
-    #     for dep in dependencies:
-    #         with self.env.execution() as em:
-    #             em.run(dep, to_exhaustion=True)
-
 
 def ensure_alias(node: Node, sdb: StoredDataBlockMetadata):
     sdb.storage.get_manager(node.env).create_alias(sdb, node.get_alias())
@@ -512,20 +500,6 @@ class Worker:
                     self.env
                 ),
             )
-        # ldr = LocalMemoryDataRecords.from_records_object(output)
-        # block = DataBlockMetadata(
-        #     schema_key=runnable.pipe_interface.output_schema.name
-        # )
-        # sdb = StoredDataBlockMetadata(  # type: ignore
-        #     data_block=block,
-        #     storage_url=self.ctx.local_memory_storage.url,
-        #     data_format=ldr.data_format,
-        # )
-        # block = self.ctx.add(block)
-        # sdb = self.ctx.add(sdb)
-        # LocalMemoryStorageEngine(
-        #     self.env, self.ctx.local_memory_storage
-        # ).store_local_memory_data_records(sdb, ldr)
 
         # TODO: check if existing storage_format is compatible with target storage, instead of using natural (no need to convert then)
         # Place output in target storage
