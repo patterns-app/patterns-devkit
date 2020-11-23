@@ -227,7 +227,7 @@ class StoredDataBlockMetadata(BaseModel):
         # schema = env.get_schema(self.data_block.most_real_schema_key)
         # return f"_{schema.get_identifier()[:50]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
         node_key = self.data_block.created_by_node_key or ""
-        return as_identifier(f"{node_key[:40]}_{self.id}")
+        return as_identifier(f"_{node_key[:40]}_{self.id}")
 
     def get_storage_format(self) -> StorageFormat:
         return StorageFormat(self.storage.storage_type, self.data_format)

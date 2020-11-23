@@ -18,6 +18,8 @@ from dags.core.pipe import Pipe, PipeLike, ensure_pipe, make_pipe, make_pipe_nam
 from dags.core.pipe_interface import PipeInterface
 from loguru import logger
 
+from dags.utils.common import as_identifier
+
 if TYPE_CHECKING:
     from dags.core.runnable import ExecutionContext
     from dags.core.streams import DataBlockStream
@@ -100,8 +102,12 @@ class Node:
 
     def get_alias(self) -> str:
         if self.output_alias:
-            return self.output_alias
-        return f"{self.key}__latest"
+            ident = self.output_alias
+        else:
+            ident = f"_{self.key}__latest"
+        return as_identifier(
+            ident
+        )  # TODO: this logic should be storage api specific! and then shared back?
 
     def get_dataset_node_keys(self):
         return [
