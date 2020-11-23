@@ -167,18 +167,19 @@ def list_data_blocks(env: Environment):
 
 
 def list_data_sets(env: Environment):
-    with env.session_scope() as sess:
-        query = sess.query(DataSetMetadata).order_by(DataSetMetadata.created_at)
-        headers = ["Name", "BaseType", "Stored"]
-        rows = [
-            [
-                r.name,
-                r.data_block.expected_schema_key,
-                r.data_block.stored_data_blocks.count(),
-            ]
-            for r in query
-        ]
-    echo_table(headers, rows)
+    raise NotImplementedError
+    # with env.session_scope() as sess:
+    #     # query = sess.query(DataSetMetadata).order_by(DataSetMetadata.created_at)
+    #     headers = ["Name", "BaseType", "Stored"]
+    #     rows = [
+    #         [
+    #             r.name,
+    #             r.data_block.expected_schema_key,
+    #             r.data_block.stored_data_blocks.count(),
+    #         ]
+    #         for r in query
+    #     ]
+    # echo_table(headers, rows)
 
 
 def list_pipes(env: Environment):
