@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from dags.core.data_block import Alias
 from dags.core.data_formats import RecordsList
 from dags.core.graph import Graph
 from dags.core.pipe_interface import NodeInterfaceManager
@@ -38,7 +39,11 @@ def test_worker():
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
-    r = Runnable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
+    r = Runnable(
+        node.key,
+        CompiledPipe(node.pipe.key, node.pipe),
+        bdfi,
+    )
     output = w.run(r)
     assert output is None
 
@@ -53,12 +58,22 @@ def test_worker_output():
     ec = env.get_execution_context(
         g, sess, current_runtime=rt, target_storage=env.storages[0]
     )
-    node = g.add_node("node", pipe_dl_source)
+    output_alias = "node_output"
+    node = g.add_node("node", pipe_dl_source, output_alias=output_alias)
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
-    r = Runnable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
+    r = Runnable(
+        node.key,
+        CompiledPipe(node.pipe.key, node.pipe),
+        bdfi,
+    )
     outputblock = w.run(r)
     assert outputblock is not None
     block = outputblock.as_managed_data_block(ec)
     assert block.as_records_list() == mock_dl_output
+    # Test alias was created correctly
+    assert (
+        sess.query(Alias).filter(Alias.alias == output_alias).first().data_block_id
+        == block.data_block_id
+    )

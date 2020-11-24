@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from dags.core.conversion import convert_lowest_cost
 from dags.core.data_block import (
+    Alias,
     DataBlock,
     DataBlockMetadata,
     LocalMemoryDataRecords,
@@ -403,11 +404,11 @@ class ExecutionManager:
         return last_output.as_managed_data_block(self.ctx)  # type: ignore # (mypy does not know merge() is safe)
 
 
-def ensure_alias(node: Node, sdb: StoredDataBlockMetadata):
+def ensure_alias(node: Node, sdb: StoredDataBlockMetadata) -> Alias:
     logger.debug(
         f"Creating alias {node.get_alias()} for node {node.key} on storage {sdb.storage_url}"
     )
-    sdb.storage.get_manager(node.env).create_alias(sdb, node.get_alias())
+    return sdb.create_alias(node.env, node.get_alias())
 
 
 class Worker:
@@ -433,7 +434,8 @@ class Worker:
                 if output_sdb is not None:
                     output_block = output_sdb.data_block
                     run_session.log_output(output_block)
-                    ensure_alias(node, output_sdb)
+                    alias = ensure_alias(node, output_sdb)
+                    alias = self.ctx.merge(alias)
 
             for input in runnable.pipe_interface.inputs:
                 # assert input.bound_data_block is not None, input
