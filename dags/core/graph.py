@@ -63,8 +63,7 @@ class Graph:
         return s
 
     def get_metadata_obj(self) -> GraphMetadata:
-        g = self.as_nx_graph()
-        adjacency = list(g.adjacency())
+        adjacency = self.adjacency_list()
         return GraphMetadata(hash=hash_adjacency(adjacency), adjacency=adjacency)
 
     def add_node(self, key: str, pipe: Union[PipeLike, str], **kwargs: Any) -> Node:
@@ -143,6 +142,9 @@ class Graph:
                 g.add_edge(input_node.key, node.key)
             # TODO: self ref edge?
         return g
+
+    def adjacency_list(self):
+        return list(self.as_nx_graph().adjacency())
 
     def get_all_upstream_dependencies_in_execution_order(
         self, node: Node

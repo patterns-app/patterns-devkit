@@ -42,7 +42,7 @@ VARCHAR_MAX_LEN = (
 
 
 def get_highest_precedence_sa_type(types: List[str]) -> str:
-    for t in type_precendence:
+    for t in type_dominance:
         if t in types:
             return t
     return types[0]
@@ -68,7 +68,7 @@ def get_sample(
     return sample
 
 
-# type_precendence = [
+# type_dominance = [
 #     "JSON",
 #     "UnicodeText",
 #     "Unicode",
@@ -250,10 +250,10 @@ def sqlalchemy_type_to_pandas_type(satype: str) -> str:
 # NB: list is a bit counter-intuitive. since types are converted as aggressively as possible,
 # higher precedence here means *less specific* types, since there were some values we couldn't
 # convert to more specific type.
-type_precendence = [
-    "JSON",  # JSON is least specific type, can handle most sub-types as special case
+type_dominance = [
     "UnicodeText",
     "Unicode",
+    "JSON",
     "DateTime",  # The way we convert datetimes is pretty aggressive, so this could lead to false positives
     "Numeric",
     "Float",

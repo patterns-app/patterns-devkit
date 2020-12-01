@@ -36,36 +36,6 @@ class StringEnum(Enum):
         return self.value
 
 
-# class SubclassRegistryMeta(type):
-#     _subclass_registry: Dict[str, Type[ClassStrEnum]] = {}
-#
-#     def __new__(meta, name, bases, class_dict):
-#         cls = type.__new__(meta, name, bases, class_dict)
-#         if bases:  # Don't register abstract base
-#             meta._subclass_registry[cls.__name__] = cls
-#         return cls
-#
-#
-# class ClassStrEnum(metaclass=SubclassRegistryMeta):
-#     _subclass_registry: Dict[str, Type[ClassStrEnum]] = {}
-#     value: str
-#
-#     __members__: typing.OrderedDict[str, Type[DataFormat]] = OrderedDict()
-#
-#     def __str__(self) -> str:
-#         return self.__class__.__name__
-#
-#     def __hash__(self):
-#         return hash(str(self))
-#
-#     def to_str(self):
-#         return str(self)
-#
-#     @classmethod
-#     def from_str(cls, s: str) -> ClassStrEnum:
-#         return
-
-
 def title_to_snake_case(s: str) -> str:
     return re.sub(r"([a-z])([A-Z])", r"\1_\2", s).lower()
 

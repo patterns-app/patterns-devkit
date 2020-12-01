@@ -240,10 +240,11 @@ class DatabaseAPI:
 # TODO: better way to register these types of managers / apis (so someone can extend without editing
 def get_database_api_class(engine: StorageEngine) -> Type[DatabaseAPI]:
     from dags.db.postgres import PostgresDatabaseAPI
+    from dags.db.mysql import MysqlDatabaseAPI
 
     return {
         StorageEngine.POSTGRES: PostgresDatabaseAPI,
-        # StorageEngine.MYSQL: MysqlDatabaseAPI, # TODO
+        StorageEngine.MYSQL: MysqlDatabaseAPI,  # TODO
     }.get(engine, DatabaseAPI)
 
 
@@ -283,4 +284,5 @@ def drop_db(url: str, database_name: str):
 def drop_sqlite_db(url: str, database_name: str):
     if database_name == ":memory:":
         return
-    os.remove(database_name)
+    db_path = url[10:]
+    os.remove(db_path)

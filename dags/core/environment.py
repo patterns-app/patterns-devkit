@@ -239,6 +239,7 @@ class Environment:
             graph, session, target_storage=target_storage, **kwargs
         )
         em = ExecutionManager(ec)
+        logger.debug(f"executing on graph {graph.adjacency_list()}")
         try:
             yield em
             session.commit()
