@@ -11,7 +11,6 @@ try:
 
     MYSQL_SUPPORTED = True
 except ImportError:
-
     pass
 
 

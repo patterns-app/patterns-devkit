@@ -86,7 +86,7 @@ def test_schema_inference():
     )  # TODO: what do we want this to be? Probably Unicode, SQL can't handle invalid date
     assert field_types["c"] == "BigInteger"
     assert field_types["d"] == "JSON"
-    assert field_types["e"] == "JSON"
+    assert field_types["e"] == "Unicode"
     assert field_types["f"] == "Unicode"
     assert field_types["g"] == "BigInteger"
     assert field_types["h"] == "UnicodeText"
