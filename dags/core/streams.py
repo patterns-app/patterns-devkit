@@ -9,6 +9,7 @@ from dags.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMe
 from dags.core.environment import Environment
 from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, Node, PipeLog
+from dags.core.pipe_interface import get_schema_mapping
 from dags.core.storage.storage import Storage
 from dags.core.typing.object_schema import ObjectSchema, ObjectSchemaLike, SchemaMapping
 from dags.utils.common import ensure_list
@@ -233,9 +234,17 @@ class DataBlockStreamBuilder:
         return self.get_query(ctx).all()
 
     def as_managed_stream(
-        self, ctx: ExecutionContext, schema_mapping: Optional[SchemaMapping]
+        self,
+        ctx: ExecutionContext,
+        expected_schema: Optional[ObjectSchema] = None,
+        declared_schema_mapping: Optional[SchemaMapping] = None,
     ) -> ManagedDataBlockStream:
-        return ManagedDataBlockStream(ctx, self, schema_mapping)
+        return ManagedDataBlockStream(
+            ctx,
+            self,
+            expected_schema=expected_schema,
+            declared_schema_mapping=declared_schema_mapping,
+        )
 
 
 class ManagedDataBlockStream:
@@ -243,24 +252,45 @@ class ManagedDataBlockStream:
         self,
         ctx: ExecutionContext,
         stream: DataBlockStreamBuilder,
-        schema_mapping: Optional[SchemaMapping] = None,
+        expected_schema: Optional[ObjectSchema] = None,
+        declared_schema_mapping: Optional[Dict[str, str]] = None,
     ):
         self.ctx = ctx
         self.stream = stream
-        self.schema_mapping = schema_mapping
+        self.expected_schema = expected_schema
+        self.declared_schema_mapping = declared_schema_mapping
         self._blocks = self.stream.get_query(self.ctx)
-        self._used_blocks: List[DataBlockMetadata] = []
+        self._emitted_blocks: List[DataBlockMetadata] = []
+        self._emitted_managed_blocks: List[DataBlock] = []
 
     def next(self) -> Optional[DataBlock]:
         db = next(self._blocks)
-        self._used_blocks.append(db)
-        return db.as_managed_data_block(self.ctx, schema_mapping=self.schema_mapping)
+        self._emitted_blocks.append(db)
+        schema_mapping = get_schema_mapping(
+            self.ctx.env,
+            db,
+            expected_schema=self.expected_schema,
+            declared_schema_mapping=self.declared_schema_mapping,
+        )
+        mdb = db.as_managed_data_block(self.ctx, schema_mapping=schema_mapping)
+        self._emitted_managed_blocks.append(mdb)
+        return mdb
+
+    def get_emitted_blocks(self) -> List[DataBlockMetadata]:
+        return self._emitted_blocks
+
+    def get_emitted_managed_blocks(self) -> List[DataBlock]:
+        return self._emitted_managed_blocks
+
+    def count(self) -> int:
+        # Non-consuming
+        return self._blocks.count()
 
 
 DataBlockStream = ManagedDataBlockStream
 
 DataBlockStreamable = Union[DataBlockStreamBuilder, Node]
-InputStreams = Dict[str, DataBlockStreamBuilder]
+InputStreams = Dict[str, DataBlockStream]
 InputBlocks = Dict[str, DataBlockMetadata]
 
 

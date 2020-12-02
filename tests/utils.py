@@ -53,23 +53,24 @@ def make_test_execution_context(**kwargs):
     )
     env = make_test_env()
     g = Graph(env)
-    args = dict(
-        graph=g,
-        env=env,
-        runtimes=[
-            Runtime(
-                url="python://local",
-                runtime_class=RuntimeClass.PYTHON,
-                runtime_engine=RuntimeEngine.LOCAL,
-            )
-        ],
-        storages=[s],
-        local_memory_storage=s,
-        target_storage=s,
-        metadata_session=env.get_new_metadata_session(),
-    )
-    args.update(**kwargs)
-    return ExecutionContext(**args)
+    with env.session_scope() as sess:
+        args = dict(
+            graph=g,
+            env=env,
+            runtimes=[
+                Runtime(
+                    url="python://local",
+                    runtime_class=RuntimeClass.PYTHON,
+                    runtime_engine=RuntimeEngine.LOCAL,
+                )
+            ],
+            storages=[s],
+            local_memory_storage=s,
+            target_storage=s,
+            metadata_session=sess,
+        )
+        args.update(**kwargs)
+        return ExecutionContext(**args)
 
 
 def make_test_execution_manager(**kwargs):

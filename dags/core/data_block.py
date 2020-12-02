@@ -180,6 +180,10 @@ class ManagedDataBlock(Generic[T]):
     def realized_schema(self) -> Optional[ObjectSchema]:
         return self.manager.get_realized_schema()
 
+    @property
+    def most_abstract_schema(self) -> Optional[ObjectSchema]:
+        return self.manager.get_most_abstract_schema()
+
 
 DataBlock = ManagedDataBlock
 
@@ -289,6 +293,11 @@ class DataBlockManager:
         if self.data_block.expected_schema_key is None:
             return None
         return self.ctx.env.get_schema(self.data_block.expected_schema_key)
+
+    def get_most_abstract_schema(self) -> Optional[ObjectSchema]:
+        if self.data_block.most_abstract_schema_key is None:
+            return None
+        return self.ctx.env.get_schema(self.data_block.most_abstract_schema_key)
 
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFrameFormat)

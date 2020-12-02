@@ -44,13 +44,12 @@ from dags.core.pipe import (
     DataInterfaceType,
     InputExhaustedException,
     Pipe,
-    PipeInterface,
 )
 from dags.core.pipe_interface import (
-    BoundPipeInterface,
-    NodeInput,
     NodeInterfaceManager,
-    PipeAnnotation,
+    StreamInput,
+    resolve_output_generic,
+    BoundInterface,
 )
 from dags.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from dags.core.storage.storage import LocalMemoryStorageEngine, Storage
@@ -124,7 +123,7 @@ class Runnable:
     node_key: str
     compiled_pipe: CompiledPipe
     # runtime_specification: RuntimeSpecification # TODO: support this
-    pipe_interface: BoundPipeInterface
+    bound_interface: BoundInterface
     configuration: Dict = field(default_factory=dict)
 
 
@@ -256,26 +255,26 @@ class PipeContext:  # TODO: (Generic[C, S]):
     execution_context: ExecutionContext
     worker: Worker
     runnable: Runnable
-    inputs: List[NodeInput]
+    inputs: List[StreamInput]
     pipe_log: PipeLog
     # state: Dict = field(default_factory=dict)
     # emitted_states: List[Dict] = field(default_factory=list)
     # resolved_output_schema: Optional[ObjectSchema] = None
     # realized_output_schema: Optional[ObjectSchema]
 
-    def get_resolved_output_schema(self) -> Optional[ObjectSchema]:
-        return self.runnable.pipe_interface.resolved_output_schema(
-            self.execution_context.env
-        )
-
-    def set_resolved_output_schema(self, schema: ObjectSchema):
-        self.runnable.pipe_interface.set_resolved_output_schema(schema)
-
-    def set_output_schema(self, schema_like: ObjectSchemaLike):
-        if not schema_like:
-            return
-        schema = self.execution_context.env.get_schema(schema_like)
-        self.set_resolved_output_schema(schema)
+    # def get_resolved_output_schema(self) -> Optional[ObjectSchema]:
+    #     return self.runnable.bound_interface.resolved_output_schema(
+    #         self.execution_context.env
+    #     )
+    #
+    # def set_resolved_output_schema(self, schema: ObjectSchema):
+    #     self.runnable.bound_interface.set_resolved_output_schema(schema)
+    #
+    # def set_output_schema(self, schema_like: ObjectSchemaLike):
+    #     if not schema_like:
+    #         return
+    #     schema = self.execution_context.env.get_schema(schema_like)
+    #     self.set_resolved_output_schema(schema)
 
     def get_config_value(self, key: str, default: Any = None) -> Any:
         return self.runnable.configuration.get(key, default)
@@ -387,7 +386,7 @@ class ExecutionManager:
                 key=node.key,
                 pipe=pipe,
             ),
-            pipe_interface=interface_mgr.get_bound_stream_interface(),
+            bound_interface=interface_mgr.get_bound_stream_interface(),
             configuration=node.config,
         )
         return worker.run(runnable)
@@ -409,7 +408,22 @@ class Worker:
         output_block: Optional[DataBlockMetadata] = None
         node = self.ctx.graph.get_node(runnable.node_key)
         with self.ctx.start_pipe_run(node) as run_session:
-            output = self.execute_pipe(runnable, run_session)
+            pipe_ctx = PipeContext(
+                self.ctx,
+                worker=self,
+                runnable=runnable,
+                inputs=runnable.bound_interface.inputs,
+                pipe_log=run_session.pipe_log,
+            )
+            pipe_args = []
+            if runnable.bound_interface.requires_pipe_context:
+                pipe_args.append(pipe_ctx)
+            pipe_inputs = runnable.bound_interface.inputs_as_kwargs()
+            pipe_kwargs = pipe_inputs
+            # Actually run the pipe
+            output = runnable.compiled_pipe.pipe.pipe_callable(
+                *pipe_args, **pipe_kwargs
+            )
             if output is not None:
                 # assert (
                 #     runnable.pipe_interface.resolved_output_schema is not None
@@ -417,7 +431,7 @@ class Worker:
                 assert (
                     self.ctx.target_storage is not None
                 ), "Must specify target storage for output"
-                output_sdb = self.conform_output(run_session, output, runnable)
+                output_sdb = self.handle_output(run_session, output, runnable)
                 output_block = None
                 # assert output_block is not None, output    # Output block may be none if empty generator
                 if output_sdb is not None:
@@ -426,39 +440,21 @@ class Worker:
                     alias = ensure_alias(node, output_sdb)
                     alias = self.ctx.merge(alias)
 
-            for input in runnable.pipe_interface.inputs:
-                # assert input.bound_data_block is not None, input
-                if input.bound_data_block is not None:
-                    run_session.log_input(input.bound_data_block)
+            for input in runnable.bound_interface.inputs:
+                if input.bound_stream is not None:
+                    for db in input.bound_stream.get_emitted_blocks():
+                        run_session.log_input(db)
         return output_block
 
-    def execute_pipe(
-        self, runnable: Runnable, run_session: RunSession
-    ) -> DataInterfaceType:
-        args = []
-        if runnable.pipe_interface.requires_pipe_context:
-            dfc = PipeContext(
-                self.ctx,
-                worker=self,
-                runnable=runnable,
-                inputs=runnable.pipe_interface.inputs,
-                pipe_log=run_session.pipe_log,
-                # resolved_output_schema=runnable.pipe_interface.resolved_output_schema,
-                # realized_output_schema=runnable.pipe_interface.realized_output_schema,
-            )
-            args.append(dfc)
-        mgd_inputs = runnable.pipe_interface.inputs_as_managed_data_blocks(self.ctx)
-        return runnable.compiled_pipe.pipe.pipe_callable(*args, **mgd_inputs)
-
-    def conform_output(
+    def handle_output(
         self,
         worker_session: RunSession,
         output: DataInterfaceType,
         runnable: Runnable,
     ) -> Optional[StoredDataBlockMetadata]:
-        assert runnable.pipe_interface.output is not None
-        # assert runnable.pipe_interface.resolved_output_schema is not None
+        assert runnable.bound_interface.output is not None
         # TODO: can i return an existing DataBlock? Or do I need to create a "clone"?
+        #   Answer: ok to return as is (just mark it as 'output' in DBL)
         assert self.ctx.target_storage is not None
         if isinstance(output, StoredDataBlockMetadata):
             output = self.ctx.merge(output)
@@ -468,14 +464,15 @@ class Worker:
         elif isinstance(output, ManagedDataBlock):
             raise NotImplementedError
         else:
+            # TODO: handle generic generator "Generator" (or call it "Stream" or "OutputStream"?)
             if isinstance(output, abc.Generator):
                 if (
-                    runnable.pipe_interface.output.data_format_class
+                    runnable.bound_interface.output.data_format_class
                     == "DataFrameGenerator"
                 ):
                     output = DataFrameGenerator(output)
                 elif (
-                    runnable.pipe_interface.output.data_format_class
+                    runnable.bound_interface.output.data_format_class
                     == "RecordsListGenerator"
                 ):
                     output = RecordsListGenerator(output)
@@ -485,14 +482,15 @@ class Worker:
                 if output.get_one() is None:
                     # Empty generator
                     return None
+            resolved_output_schema = resolve_output_generic(
+                runnable.bound_interface.inputs, runnable.bound_interface.output
+            )
             block, sdb = create_data_block_from_records(
                 self.env,
                 self.ctx.metadata_session,
                 self.ctx.local_memory_storage,
                 output,
-                expected_schema=runnable.pipe_interface.resolved_output_schema(
-                    self.env
-                ),
+                expected_schema=resolved_output_schema,
                 created_by_node_key=runnable.node_key,
             )
 

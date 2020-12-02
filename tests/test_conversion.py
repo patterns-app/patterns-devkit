@@ -189,6 +189,9 @@ class TestConversions:
         )
         assert self.sdb.data_format == RecordsListFormat
 
+    def tearDown(self):
+        self.sess.close_all()
+
     def test_memory_to_file(self):
         g = Graph(self.env)
         ec = self.env.get_execution_context(g, self.sess)

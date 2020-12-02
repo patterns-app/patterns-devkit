@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import inspect
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
@@ -88,31 +88,17 @@ class Pipe:
 
     def get_interface(self, env: Environment) -> Optional[PipeInterface]:
         """"""
-        found_dfi = self._get_pipe_interface(env)
-        assert found_dfi is not None
-        declared_dfi = self._get_declared_interface()
-        declared_dfi.requires_pipe_context = (
-            found_dfi.requires_pipe_context
-        )  # TODO: or require explicit?
-        # Override any found annotations with declared ones
-        # for input in declared_dfi.inputs:
-        #     try:
-        #         found_input = found_dfi.get_input(input.name)
-        #         found_input.data_format_class = input.data_format_class
-        #         found_input.schema_like = input.schema_like
-        #     except KeyError:
-        #         found_dfi.inputs.append(input)
-        # if declared_dfi.output:
-        #     if found_dfi.output:
-        #         found_dfi.output.data_format_class = (
-        #             declared_dfi.output.data_format_class
-        #         )
-        #         found_dfi.output.schema_like = declared_dfi.output.schema_like
-        #     else:
-        #         found_dfi.output = declared_dfi.output
-        if self.declared_output is not None or self.declared_inputs is not None:
-            return declared_dfi
-        return found_dfi
+        found_interface = self._get_pipe_interface(env)
+        assert found_interface is not None
+        declared_interface = self._get_declared_interface()
+        # Merge found and declared
+        found = asdict(found_interface)
+        declared = asdict(declared_interface)
+        if declared["inputs"] is not None:
+            found["inputs"] = declared["inputs"]
+        if declared["output"] is not None:
+            found["output"] = declared["output"]
+        return PipeInterface(**found)
 
     def _get_pipe_interface(self, env: Environment) -> Optional[PipeInterface]:
         if hasattr(self.pipe_callable, "get_interface"):
