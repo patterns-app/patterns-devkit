@@ -61,7 +61,10 @@ def create_node(
         pipe = env.get_pipe(pipe)
     else:
         pipe = make_pipe(pipe)
+    print("create")
+    print(pipe)
     interface = pipe.get_interface(env)
+    print(interface)
     schema_mapping = interface.assign_mapping(schema_mapping)
     _declared_inputs: Dict[str, DeclaredNodeLikeInput] = {}
     n = Node(
@@ -80,7 +83,8 @@ def create_node(
     if upstream is not None:
         for name, node_like in interface.assign_inputs(upstream).items():
             n._declared_inputs[name] = DeclaredNodeLikeInput(
-                node_like=node_like, declared_schema_mapping=schema_mapping.get(name)
+                node_like=node_like,
+                declared_schema_mapping=(schema_mapping or {}).get(name),
             )
     return n
 

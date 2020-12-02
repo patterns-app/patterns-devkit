@@ -13,11 +13,14 @@ from dags.core.pipe import Pipe, PipeInterface, PipeLike, pipe
 from dags.core.pipe_interface import (
     NodeInterfaceManager,
     PipeAnnotation,
+    StreamInput,
     make_default_output_annotation,
+    get_schema_mapping,
 )
 from dags.core.runnable import PipeContext
 from dags.core.runtime import RuntimeClass
 from dags.core.sql.pipe import sql_pipe
+from dags.core.streams import block_as_stream
 from dags.modules import core
 from dags.utils.typing import T, U
 from tests.utils import (
@@ -218,6 +221,8 @@ def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
         val = PipeInterface.from_pipe_definition(pipe)
     else:
         raise
+    print(pipe)
+    print(val)
     assert val == expected
     node = create_node(g, "_test", pipe, upstream="mock")
     assert node.get_interface() == expected
@@ -235,10 +240,16 @@ def test_declared_schema_mapping():
         expected_schema_key="_test.TestSchema1",
         realized_schema_key="_test.TestSchema1",
     )
-    bpi = im.get_bound_interface({"input": block})
-    assert len(bpi.inputs) == 1
-    input = bpi.inputs[0]
-    schema_mapping = input.get_schema_mapping(env)
+    # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), mapping)
+    # bi = im.get_bound_stream_interface({"input": stream})
+    # assert len(bi.inputs) == 1
+    # input: StreamInput = bi.inputs[0]
+    schema_mapping = get_schema_mapping(
+        env,
+        block,
+        expected_schema=pi.inputs[0].schema(env),
+        declared_schema_mapping=mapping,
+    )
     assert schema_mapping.as_dict() == mapping
 
 
@@ -255,11 +266,18 @@ def test_natural_schema_mapping():
         expected_schema_key="_test.TestSchema1",
         realized_schema_key="_test.TestSchema1",
     )
-    bpi = im.get_bound_interface({"input": block})
-    assert len(bpi.inputs) == 1
-    input = bpi.inputs[0]
-    schema_mapping = input.get_schema_mapping(env)
+    schema_mapping = get_schema_mapping(
+        env,
+        block,
+        expected_schema=pi.inputs[0].schema(env),
+        declared_schema_mapping=mapping,
+    )
     assert schema_mapping.as_dict() == mapping
+    # bpi = im.get_bound_stream_interface({"input": block})
+    # assert len(bpi.inputs) == 1
+    # input = bpi.inputs[0]
+    # schema_mapping = input.get_schema_mapping(env)
+    # assert schema_mapping.as_dict() == mapping
 
 
 def test_inputs():

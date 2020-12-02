@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import abc
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple, Type
 
 import sqlalchemy as sa
 from pandas import DataFrame
@@ -29,6 +29,7 @@ from dags.core.typing.inference import infer_schema_from_records_list
 from dags.core.typing.object_schema import (
     ObjectSchema,
     ObjectSchemaKey,
+    ObjectSchemaLike,
     SchemaMapping,
     is_any,
 )
@@ -54,10 +55,15 @@ class LocalMemoryDataRecords:
     data_format: DataFormat
     records_object: Any  # TODO: only eligible types: DataFrame, RecordsList, table name (str)
     record_count: Optional[int] = None
+    expected_schema: Optional[ObjectSchemaLike] = None
 
     @classmethod
     def from_records_object(
-        cls, obj: Any, data_format: DataFormat = None, record_count: int = None
+        cls,
+        obj: Any,
+        data_format: DataFormat = None,
+        record_count: int = None,
+        expected_schema: Optional[ObjectSchemaLike] = None,
     ) -> LocalMemoryDataRecords:
         if data_format is None:
             data_format = get_data_format_of_object(obj)
@@ -67,7 +73,10 @@ class LocalMemoryDataRecords:
         if record_count is None:
             record_count = data_format.get_record_count(obj)
         return LocalMemoryDataRecords(
-            data_format=data_format, records_object=obj, record_count=record_count
+            data_format=data_format,
+            records_object=obj,
+            record_count=record_count,
+            expected_schema=expected_schema,
         )
 
     def copy(self) -> LocalMemoryDataRecords:
@@ -76,11 +85,29 @@ class LocalMemoryDataRecords:
             data_format=self.data_format,
             record_count=self.record_count,
             records_object=records_object,
+            expected_schema=self.expected_schema,
         )
 
     @property
     def record_count_display(self):
         return self.record_count if self.record_count is not None else "Unknown"
+
+
+DataRecordsObject = LocalMemoryDataRecords
+
+
+def as_records(
+    records_object: Any,
+    data_format: Type = None,
+    record_count: int = None,
+    schema: ObjectSchemaLike = None,
+) -> DataRecordsObject:
+    return LocalMemoryDataRecords.from_records_object(
+        records_object,
+        data_format=data_format,
+        record_count=record_count,
+        expected_schema=schema,
+    )
 
 
 class DataBlockMetadata(BaseModel):  # , Generic[DT]):
@@ -124,9 +151,9 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.expected_schema_key)
 
     def as_managed_data_block(
-        self, ctx: ExecutionContext, mapping: Optional[SchemaMapping] = None
+        self, ctx: ExecutionContext, schema_mapping: Optional[SchemaMapping] = None
     ):
-        mgr = DataBlockManager(ctx, self, schema_mapping=mapping)
+        mgr = DataBlockManager(ctx, self, schema_mapping=schema_mapping)
         return ManagedDataBlock(
             data_block_id=self.id,
             expected_schema_key=self.expected_schema_key,
@@ -323,6 +350,7 @@ class DataBlockManager:
     def get_or_create_local_stored_data_block(
         self, target_format: DataFormat
     ) -> StoredDataBlockMetadata:
+        # TODO: this is a beast, diminish it
         from dags.core.conversion import (
             StorageFormat,
             get_conversion_path_for_sdb,
@@ -399,7 +427,10 @@ def create_data_block_from_records(
     if not expected_schema:
         expected_schema = env.get_schema("Any")
     expected_schema_key = expected_schema.key
-    ldr = LocalMemoryDataRecords.from_records_object(records)
+    if isinstance(records, LocalMemoryDataRecords):
+        ldr = records
+    else:
+        ldr = LocalMemoryDataRecords.from_records_object(records)
     if not realized_schema:
         if is_any(expected_schema):
             realized_schema = ldr.data_format.infer_schema_from_records(

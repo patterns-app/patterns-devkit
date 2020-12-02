@@ -59,14 +59,16 @@ re_type_hint = re.compile(
 
 VALID_DATA_INTERFACE_TYPES = [
     "Stream",
-    "DataBlockStream" "Block",
+    "DataBlockStream",
+    "Block",
     "DataBlock",
     "DataFrame",
     "RecordsList",
     "RecordsListGenerator",
     "DataFrameGenerator",
     "DatabaseTableRef",
-    "Any",  # TODO: does this work?
+    "DataRecordsObject",
+    "Any",
     # TODO: is this list just a list of formats? which ones are valid i/o to Pipes?
     # TODO: also, are DataBlocks and DataSets the only valid *input* types? A bit confusing to end user I think
     # "DatabaseCursor",
@@ -204,7 +206,9 @@ class PipeInterface:
                 inputs.append(a)
             except TypeError:
                 # Not a DataBlock/Set
-                if param.annotation == "PipeContext":
+                if (
+                    param.annotation == "PipeContext" or name == "ctx"
+                ):  # TODO: hidden constants
                     requires_context = True
                 else:
                     raise Exception(f"Invalid data pipe parameter {param}")
@@ -243,6 +247,8 @@ class PipeInterface:
         #         data_block_seen = True
 
     def assign_inputs(self, inputs: Union[T, Dict[str, T]]) -> Dict[str, T]:
+        print("assign")
+        print(self)
         if not isinstance(inputs, dict):
             assert (
                 len(self.get_non_recursive_inputs()) == 1
@@ -326,14 +332,23 @@ class ConnectedInterface:
     def bind(self, input_streams: InputStreams) -> BoundInterface:
         inputs = []
         for node_input in self.inputs:
-            d = asdict(node_input)
-            d["is_stream"] = node_input.annotation.is_stream
             dbs = input_streams.get(node_input.name)
+            bound_stream = None
+            bound_block = None
             if dbs is not None:
-                d["bound_stream"] = dbs
+                bound_stream = dbs
                 if not node_input.annotation.is_stream:
-                    d["bound_block"] = dbs.next()
-            inputs.append(StreamInput(**d))
+                    bound_block = dbs.next()
+            si = StreamInput(
+                name=node_input.name,
+                annotation=node_input.annotation,
+                declared_schema_mapping=node_input.declared_schema_mapping,
+                input_node=node_input.input_node,
+                is_stream=node_input.annotation.is_stream,
+                bound_stream=bound_stream,
+                bound_block=bound_block,
+            )
+            inputs.append(si)
         return BoundInterface(
             inputs=inputs,
             output=self.output,
@@ -379,18 +394,16 @@ class BoundInterface:
             if i.bound_stream is not None
         }
 
-
-def resolve_output_generic(
-    inputs: List[StreamInput], output_annotation: PipeAnnotation
-) -> Optional[ObjectSchema]:
-    assert output_annotation.is_generic
-    output_generic = output_annotation.schema_like
-    for input in inputs:
-        if not input.annotation.is_generic:
-            continue
-        if input.annotation.schema_like == output_generic:
-            return input.get_resolved_schema()
-    raise Exception(f"Unable to resolve generic '{output_generic}'")
+    def resolve_output_generic(self, env: Environment) -> Optional[ObjectSchema]:
+        if not self.output.is_generic:
+            return self.output.schema(env)
+        output_generic = self.output.schema_like
+        for input in self.inputs:
+            if not input.annotation.is_generic:
+                continue
+            if input.annotation.schema_like == output_generic:
+                return input.get_resolved_schema()
+        raise Exception(f"Unable to resolve generic '{output_generic}'")
 
 
 def get_schema_mapping(
@@ -528,7 +541,7 @@ class NodeInterfaceManager:
             strict_storages  # Only pull datablocks from given storages
         )
 
-    def get_bound_stream_interface(
+    def get_bound_interface(
         self, input_db_streams: Optional[InputStreams] = None
     ) -> BoundInterface:
         ci = self.get_connected_interface()

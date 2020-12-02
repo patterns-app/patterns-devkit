@@ -135,11 +135,11 @@ class Graph:
             g.add_node(node.key)
             inputs = node.get_declared_input_nodes()
             for input_node in inputs.values():
-                if input_node.key not in self._nodes:
+                if input_node.node.key not in self._nodes:
                     # Don't include nodes not in graph (could be a sub-graph)
                     continue
-                g.add_node(input_node.key)
-                g.add_edge(input_node.key, node.key)
+                g.add_node(input_node.node.key)
+                g.add_edge(input_node.node.key, node.key)
             # TODO: self ref edge?
         return g
 

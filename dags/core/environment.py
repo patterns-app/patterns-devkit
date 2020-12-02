@@ -41,6 +41,7 @@ class Environment:
     storages: List[Storage]
     metadata_storage: Storage
     event_handlers: List[EventHandler]
+    session: Session
 
     def __init__(
         self,
@@ -89,6 +90,7 @@ class Environment:
         self.event_handlers = event_handlers or []
         self._local_memory_storage = new_local_memory_storage()
         self.add_storage(self._local_memory_storage)
+        self.session = self.get_new_metadata_session()
 
     def initialize_metadata_database(self):
         from dags.core.metadata.listeners import add_persisting_sdb_listener
@@ -221,7 +223,7 @@ class Environment:
         args = dict(
             graph=graph,
             env=self,
-            metadata_session=session,
+            metadata_session=self.session,
             runtimes=self.runtimes,
             storages=self.storages,
             target_storage=target_storage,
@@ -234,22 +236,22 @@ class Environment:
     def execution(self, graph: Graph, target_storage: Storage = None, **kwargs):
         from dags.core.runnable import ExecutionManager
 
-        session = self.Session()
+        tx = self.session.begin()
         ec = self.get_execution_context(
-            graph, session, target_storage=target_storage, **kwargs
+            graph, self.session, target_storage=target_storage, **kwargs
         )
         em = ExecutionManager(ec)
         logger.debug(f"executing on graph {graph.adjacency_list()}")
         try:
             yield em
-            session.commit()
+            tx.commit()
         except Exception as e:
-            session.rollback()
+            tx.rollback()
             raise e
         finally:
             # TODO:
             # self.validate_and_clean_data_blocks(delete_intermediate=True)
-            session.close()
+            tx.close()
 
     def produce(
         self,

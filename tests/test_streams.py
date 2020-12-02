@@ -60,7 +60,7 @@ class TestStreams:
     def test_stream_unprocessed_pristine(self):
         s = DataBlockStreamBuilder(upstream=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_next(self.ctx) is None
+        assert s.get_query(self.ctx).first() is None
 
     def test_stream_unprocessed_eligible(self):
         dfl = PipeLog(
@@ -78,7 +78,7 @@ class TestStreams:
 
         s = DataBlockStreamBuilder(upstream=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_next(self.ctx) == self.dr1t1
+        assert s.get_query(self.ctx).first() == self.dr1t1
 
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = PipeLog(
@@ -107,7 +107,7 @@ class TestStreams:
 
         s = DataBlockStreamBuilder(upstream=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_next(self.ctx) is None
+        assert s.get_query(self.ctx).first() is None
 
     def test_stream_unprocessed_ineligible_already_output(self):
         """
@@ -140,11 +140,11 @@ class TestStreams:
 
         s = DataBlockStreamBuilder(upstream=self.node_source)
         s1 = s.filter_unprocessed(self.node1)
-        assert s1.get_next(self.ctx) is None
+        assert s1.get_query(self.ctx).first() is None
 
         # But ok with self reference
         s2 = s.filter_unprocessed(self.node1, allow_cycle=True)
-        assert s2.get_next(self.ctx) == self.dr1t1
+        assert s2.get_query(self.ctx).first() == self.dr1t1
 
     def test_stream_unprocessed_eligible_schema(self):
         dfl = PipeLog(
@@ -162,11 +162,11 @@ class TestStreams:
 
         s = DataBlockStreamBuilder(upstream=self.node_source, schema="TestSchema1")
         s = s.filter_unprocessed(self.node1)
-        assert s.get_next(self.ctx) == self.dr1t1
+        assert s.get_query(self.ctx).first() == self.dr1t1
 
         s = DataBlockStreamBuilder(upstream=self.node_source, schema="TestSchema2")
         s = s.filter_unprocessed(self.node1)
-        assert s.get_next(self.ctx) is None
+        assert s.get_query(self.ctx).first() is None
 
     def test_stream_unprocessed_eligible_dataset(self):
         dfl = PipeLog(

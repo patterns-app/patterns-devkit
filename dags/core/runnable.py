@@ -40,17 +40,8 @@ from dags.core.data_formats.base import ReusableGenerator
 from dags.core.environment import Environment
 from dags.core.metadata.orm import BaseModel
 from dags.core.node import DataBlockLog, Direction, Node, PipeLog, get_state
-from dags.core.pipe import (
-    DataInterfaceType,
-    InputExhaustedException,
-    Pipe,
-)
-from dags.core.pipe_interface import (
-    NodeInterfaceManager,
-    StreamInput,
-    resolve_output_generic,
-    BoundInterface,
-)
+from dags.core.pipe import DataInterfaceType, InputExhaustedException, Pipe
+from dags.core.pipe_interface import BoundInterface, NodeInterfaceManager, StreamInput
 from dags.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from dags.core.storage.storage import LocalMemoryStorageEngine, Storage
 from dags.core.typing.object_schema import ObjectSchema, ObjectSchemaLike
@@ -375,7 +366,9 @@ class ExecutionManager:
             return None
         # new_session = self.env.get_new_metadata_session()
         # last_output = new_session.merge(last_output)
-        return last_output.as_managed_data_block(self.ctx)
+        with self.env.session_scope() as sess:
+            last_output = sess.merge(last_output)
+            return last_output.as_managed_data_block(self.ctx)
 
     def _run(self, node: Node, worker: Worker):
         interface_mgr = self.get_node_interface_manager(node)
@@ -386,7 +379,7 @@ class ExecutionManager:
                 key=node.key,
                 pipe=pipe,
             ),
-            bound_interface=interface_mgr.get_bound_stream_interface(),
+            bound_interface=interface_mgr.get_bound_interface(),
             configuration=node.config,
         )
         return worker.run(runnable)
@@ -458,6 +451,7 @@ class Worker:
         assert self.ctx.target_storage is not None
         if isinstance(output, StoredDataBlockMetadata):
             output = self.ctx.merge(output)
+            # TODO is it in local storage tho? we skip conversion below...
             return output
         elif isinstance(output, DataBlockMetadata):
             raise NotImplementedError
@@ -482,8 +476,8 @@ class Worker:
                 if output.get_one() is None:
                     # Empty generator
                     return None
-            resolved_output_schema = resolve_output_generic(
-                runnable.bound_interface.inputs, runnable.bound_interface.output
+            resolved_output_schema = runnable.bound_interface.resolve_output_generic(
+                self.env
             )
             block, sdb = create_data_block_from_records(
                 self.env,

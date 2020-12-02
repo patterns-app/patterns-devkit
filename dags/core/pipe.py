@@ -92,13 +92,17 @@ class Pipe:
         assert found_interface is not None
         declared_interface = self._get_declared_interface()
         # Merge found and declared
-        found = asdict(found_interface)
-        declared = asdict(declared_interface)
-        if declared["inputs"] is not None:
-            found["inputs"] = declared["inputs"]
-        if declared["output"] is not None:
-            found["output"] = declared["output"]
-        return PipeInterface(**found)
+        inputs = found_interface.inputs
+        output = found_interface.output
+        if declared_interface.inputs:
+            inputs = declared_interface.inputs
+        if declared_interface.output is not None:
+            output = declared_interface.output
+        return PipeInterface(
+            inputs=inputs,
+            output=output,
+            requires_pipe_context=found_interface.requires_pipe_context,
+        )
 
     def _get_pipe_interface(self, env: Environment) -> Optional[PipeInterface]:
         if hasattr(self.pipe_callable, "get_interface"):

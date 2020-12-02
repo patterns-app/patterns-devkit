@@ -237,7 +237,7 @@ class DataBlockStreamBuilder:
         self,
         ctx: ExecutionContext,
         expected_schema: Optional[ObjectSchema] = None,
-        declared_schema_mapping: Optional[SchemaMapping] = None,
+        declared_schema_mapping: Optional[Dict[str, str]] = None,
     ) -> ManagedDataBlockStream:
         return ManagedDataBlockStream(
             ctx,
@@ -245,6 +245,20 @@ class DataBlockStreamBuilder:
             expected_schema=expected_schema,
             declared_schema_mapping=declared_schema_mapping,
         )
+
+
+def block_as_stream_builder(data_block: DataBlockMetadata) -> DataBlockStreamBuilder:
+    return DataBlockStreamBuilder(data_block=data_block)
+
+
+def block_as_stream(
+    data_block: DataBlockMetadata,
+    ctx: ExecutionContext,
+    expected_schema: Optional[ObjectSchema] = None,
+    declared_schema_mapping: Optional[Dict[str, str]] = None,
+) -> DataBlockStream:
+    stream = block_as_stream_builder(data_block)
+    return stream.as_managed_stream(ctx, expected_schema, declared_schema_mapping)
 
 
 class ManagedDataBlockStream:
@@ -259,7 +273,7 @@ class ManagedDataBlockStream:
         self.stream = stream
         self.expected_schema = expected_schema
         self.declared_schema_mapping = declared_schema_mapping
-        self._blocks = self.stream.get_query(self.ctx)
+        self._blocks = (b for b in self.stream.get_query(self.ctx))
         self._emitted_blocks: List[DataBlockMetadata] = []
         self._emitted_managed_blocks: List[DataBlock] = []
 
@@ -284,7 +298,7 @@ class ManagedDataBlockStream:
 
     def count(self) -> int:
         # Non-consuming
-        return self._blocks.count()
+        return self.stream.get_count(self.ctx)
 
 
 DataBlockStream = ManagedDataBlockStream
