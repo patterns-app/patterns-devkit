@@ -7,19 +7,17 @@ from pandas import DataFrame
 from dags.core.data_block import DataBlock
 from dags.core.pipe import pipe
 from dags.core.sql.pipe import sql_pipe
-from dags.core.typing.inference import conform_dataframe_to_schema
 from dags.testing.utils import (
     DataInput,
     get_tmp_sqlite_db_url,
     produce_pipe_output_for_static_input,
-    str_as_dataframe,
 )
 from dags.utils.pandas import assert_dataframes_are_almost_equal
 from dags.utils.typing import T
 
 
-@pipe("dataframe_accumulator", module="core")
-def dataframe_accumulator(
+@pipe("latest", module="core")
+def latest(
     input: DataBlock[T],
     this: Optional[DataBlock[T]] = None,
 ) -> DataFrame[T]:

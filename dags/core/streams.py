@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Set, Union
 
 from sqlalchemy import and_, not_
 from sqlalchemy.orm import Query
@@ -10,7 +10,7 @@ from dags.core.environment import Environment
 from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, Node, PipeLog
 from dags.core.storage.storage import Storage
-from dags.core.typing.object_schema import ObjectSchema, ObjectSchemaLike
+from dags.core.typing.object_schema import ObjectSchema, ObjectSchemaLike, SchemaMapping
 from dags.utils.common import ensure_list
 from loguru import logger
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from dags.core.runnable import ExecutionContext
 
 
-class DataBlockStream:
+class DataBlockStreamBuilder:
     """"""
 
     def __init__(
@@ -29,8 +29,6 @@ class DataBlockStream:
         schema: ObjectSchemaLike = None,
         storage: Storage = None,
         unprocessed_by: Node = None,
-        data_sets: List[str] = None,
-        data_sets_only: bool = False,
         data_block: Union[DataBlockMetadata, DataBlock, str] = None,
         allow_cycle: bool = False,
         most_recent_first: bool = False,
@@ -46,8 +44,6 @@ class DataBlockStream:
         self.upstream = upstream
         self.schemas = schemas
         self.storages = storages
-        self.data_sets = data_sets
-        self.data_sets_only = data_sets_only
         self.data_block = data_block
         self.unprocessed_by = unprocessed_by
         self.allow_cycle = allow_cycle
@@ -60,13 +56,11 @@ class DataBlockStream:
                 i if isinstance(i, str) else i.key for i in ensure_list(self.upstream)
             ]
             s += f"inputs={inputs}"
-        if self.data_sets:
-            s += " datasets={self.datasets}"
         s += ")"
         return s
 
     def _base_query(self) -> Query:
-        return Query(DataBlockMetadata)
+        return Query(DataBlockMetadata).order_by(DataBlockMetadata.id)
 
     def get_query(self, ctx: ExecutionContext) -> Query:
         q = self._base_query()
@@ -78,29 +72,25 @@ class DataBlockStream:
             q = self._filter_storages(ctx, q)
         if self.unprocessed_by is not None:
             q = self._filter_unprocessed(ctx, q)
-        if self.data_sets is not None:
-            q = self._filter_datasets(ctx, q)
         if self.data_block is not None:
             q = self._filter_data_block(ctx, q)
         return q.with_session(ctx.metadata_session)
 
-    def clone(self, **kwargs) -> DataBlockStream:
+    def clone(self, **kwargs) -> DataBlockStreamBuilder:
         args = dict(
             upstream=self.upstream,
             schemas=self.schemas,
             storages=self.storages,
             unprocessed_by=self.unprocessed_by,
-            data_sets=self.data_sets,
-            data_sets_only=self.data_sets_only,
             allow_cycle=self.allow_cycle,
             most_recent_first=self.most_recent_first,
         )
         args.update(**kwargs)
-        return DataBlockStream(**args)  # type: ignore
+        return DataBlockStreamBuilder(**args)  # type: ignore
 
     def filter_unprocessed(
         self, unprocessed_by: Node, allow_cycle=False
-    ) -> DataBlockStream:
+    ) -> DataBlockStreamBuilder:
         return self.clone(
             unprocessed_by=unprocessed_by,
             allow_cycle=allow_cycle,
@@ -137,7 +127,9 @@ class DataBlockStream:
             return []
         return [g.get_node(c) for c in nodes]
 
-    def filter_upstream(self, upstream: Union[Node, List[Node]]) -> DataBlockStream:
+    def filter_upstream(
+        self, upstream: Union[Node, List[Node]]
+    ) -> DataBlockStreamBuilder:
         return self.clone(
             upstream=ensure_list(upstream),
         )
@@ -164,7 +156,7 @@ class DataBlockStream:
         dts = ensure_list(self.schemas)
         return [env.get_schema(d) for d in dts]
 
-    def filter_schemas(self, schemas: List[ObjectSchemaLike]) -> DataBlockStream:
+    def filter_schemas(self, schemas: List[ObjectSchemaLike]) -> DataBlockStreamBuilder:
         return self.clone(schemas=schemas)
 
     def _filter_schemas(self, ctx: ExecutionContext, query: Query) -> Query:
@@ -174,10 +166,10 @@ class DataBlockStream:
             DataBlockMetadata.expected_schema_key.in_([d.key for d in self.get_schemas(ctx.env)])  # type: ignore
         )
 
-    def filter_schema(self, schema: ObjectSchemaLike) -> DataBlockStream:
+    def filter_schema(self, schema: ObjectSchemaLike) -> DataBlockStreamBuilder:
         return self.filter_schemas(ensure_list(schema))
 
-    def filter_storages(self, storages: List[Storage]) -> DataBlockStream:
+    def filter_storages(self, storages: List[Storage]) -> DataBlockStreamBuilder:
         return self.clone(storages=storages)
 
     def _filter_storages(self, ctx: ExecutionContext, query: Query) -> Query:
@@ -187,12 +179,12 @@ class DataBlockStream:
             StoredDataBlockMetadata.storage_url.in_([s.url for s in self.storages])  # type: ignore
         )
 
-    def filter_storage(self, storage: Storage) -> DataBlockStream:
+    def filter_storage(self, storage: Storage) -> DataBlockStreamBuilder:
         return self.filter_storages(ensure_list(storage))
 
     def filter_data_block(
         self, data_block: Union[DataBlockMetadata, DataBlock, str]
-    ) -> DataBlockStream:
+    ) -> DataBlockStreamBuilder:
         return self.clone(data_block=data_block)
 
     def _filter_data_block(self, ctx: ExecutionContext, query: Query) -> Query:
@@ -218,21 +210,21 @@ class DataBlockStream:
         q = blocks.get_query(ctx)
         return q.filter(DataBlockMetadata.id == block.id).count() > 0
 
-    def get_next(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:
-        order_by = DataBlockMetadata.updated_at
-        if self.most_recent_first:
-            order_by = order_by.desc()
-        return (
-            self.get_query(ctx).order_by(order_by).first()
-        )  # Ordered by creation id (order created in) (since blocks are immutable)
+    # def get_next(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:
+    #     order_by = DataBlockMetadata.updated_at
+    #     # if self.most_recent_first:
+    #     #     order_by = order_by.desc()
+    #     return self.get_query(
+    #         ctx
+    #     ).first()  # Ordered by creation id (order created in) (since blocks are immutable)
 
-    def get_most_recent(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:
-        return (
-            # self.get_query(ctx).order_by(DataBlockMetadata.updated_at.desc()).first()
-            self.get_query(ctx)
-            .order_by(DataBlockMetadata.id.desc())
-            .first()  # We use auto-inc ID instead of timestamp since timestamps can collide
-        )
+    # def get_most_recent(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:
+    #     return (
+    #         # self.get_query(ctx).order_by(DataBlockMetadata.updated_at.desc()).first()
+    #         self.get_query(ctx)
+    #         .order_by(DataBlockMetadata.id.desc())
+    #         .first()  # We use auto-inc ID instead of timestamp since timestamps can collide
+    #     )
 
     def get_count(self, ctx: ExecutionContext) -> int:
         return self.get_query(ctx).count()
@@ -240,14 +232,37 @@ class DataBlockStream:
     def get_all(self, ctx: ExecutionContext) -> List[DataBlockMetadata]:
         return self.get_query(ctx).all()
 
+    def as_managed_stream(
+        self, ctx: ExecutionContext, schema_mapping: Optional[SchemaMapping]
+    ) -> ManagedDataBlockStream:
+        return ManagedDataBlockStream(ctx, self, schema_mapping)
 
-DataBlockStreamable = Union[DataBlockStream, Node]
-DataBlockStreamLike = Union[DataBlockStreamable, str]
-PipeNodeRawInput = Any  # Union[DataBlockStreamLike, Dict[str, DataBlockStreamLike]] + records object formats # TODO
-PipeNodeInput = Union[DataBlockStreamable, Dict[str, DataBlockStreamable]]
-InputStreams = Union[DataBlockStream, Dict[str, DataBlockStream]]
+
+class ManagedDataBlockStream:
+    def __init__(
+        self,
+        ctx: ExecutionContext,
+        stream: DataBlockStreamBuilder,
+        schema_mapping: Optional[SchemaMapping] = None,
+    ):
+        self.ctx = ctx
+        self.stream = stream
+        self.schema_mapping = schema_mapping
+        self._blocks = self.stream.get_query(self.ctx)
+        self._used_blocks: List[DataBlockMetadata] = []
+
+    def next(self) -> Optional[DataBlock]:
+        db = next(self._blocks)
+        self._used_blocks.append(db)
+        return db.as_managed_data_block(self.ctx, schema_mapping=self.schema_mapping)
+
+
+DataBlockStream = ManagedDataBlockStream
+
+DataBlockStreamable = Union[DataBlockStreamBuilder, Node]
+InputStreams = Dict[str, DataBlockStreamBuilder]
 InputBlocks = Dict[str, DataBlockMetadata]
 
 
-def ensure_data_stream(s: DataBlockStreamable) -> DataBlockStream:
-    return s if isinstance(s, DataBlockStream) else s.as_stream()
+def ensure_data_stream_builder(s: DataBlockStreamable) -> DataBlockStreamBuilder:
+    return s if isinstance(s, DataBlockStreamBuilder) else s.as_stream()

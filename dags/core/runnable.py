@@ -331,9 +331,8 @@ class ExecutionManager:
             f"No compatible runtime available for {node} (runtime class {compatible_runtimes} required)"
         )
 
-    def get_bound_pipe_interface(self, node: Node) -> BoundPipeInterface:
-        dfi_mgr = NodeInterfaceManager(self.ctx, node)
-        return dfi_mgr.get_bound_interface()
+    def get_node_interface_manager(self, node: Node) -> NodeInterfaceManager:
+        return NodeInterfaceManager(self.ctx, node)
 
     def run(self, node: Node, to_exhaustion: bool = False) -> Optional[DataBlock]:
         runtime = self.select_runtime(node)
@@ -351,40 +350,16 @@ class ExecutionManager:
         n_runs = 0
         try:
             while True:
-                dfi = self.get_bound_pipe_interface(node)
-                df = node.pipe
-                if df is None:
-                    raise NotImplementedError(
-                        f"No pipe definition found for {node.pipe.key} and runtime {runtime.runtime_class}"
-                    )
-                runnable = Runnable(
-                    node_key=node.key,
-                    compiled_pipe=CompiledPipe(
-                        key=node.key,
-                        pipe=df,
-                    ),
-                    pipe_interface=dfi,
-                    configuration=node.config,
-                )
-                last_output = worker.run(runnable)
+                last_output = self._run(node, worker)
                 n_runs += 1
                 if last_output is not None:
                     n_outputs += 1
                 if (
-                    not to_exhaustion or not dfi.inputs
+                    not to_exhaustion or not node.get_interface().inputs
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     # (they are responsible for creating their own generators)
                     break
-                # This below could work, but some sources may always return a
-                # result (eg datetime strictly equal edge case), and this would
-                # be infinite loop in that case
-                # if not dfi.inputs:
-                #     # No inputs, it is a data source (extractor), we stop when it produces no more output?
-                #     if last_output is None:
-                #         break
-                # spinner.text = f"{base_msg}: {cf.blue}{cf.bold(n_outputs)} {cf.dimmed_blue}DataBlocks output{cf.reset} {cf.dimmed}{(time.time() - start):.1f}s{cf.reset}"
             self.log(cf.success(success_symbol + "\n"))
-            # spinner.stop_and_persist(symbol=cf.success(success_symbol))
         except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
             logger.debug(cf.warning("    Input Exhausted"))
             if e.args:
@@ -399,9 +374,23 @@ class ExecutionManager:
 
         if last_output is None:
             return None
-        new_session = self.env.get_new_metadata_session()
-        last_output = new_session.merge(last_output)
-        return last_output.as_managed_data_block(self.ctx)  # type: ignore # (mypy does not know merge() is safe)
+        # new_session = self.env.get_new_metadata_session()
+        # last_output = new_session.merge(last_output)
+        return last_output.as_managed_data_block(self.ctx)
+
+    def _run(self, node: Node, worker: Worker):
+        interface_mgr = self.get_node_interface_manager(node)
+        pipe = node.pipe
+        runnable = Runnable(
+            node_key=node.key,
+            compiled_pipe=CompiledPipe(
+                key=node.key,
+                pipe=pipe,
+            ),
+            pipe_interface=interface_mgr.get_bound_stream_interface(),
+            configuration=node.config,
+        )
+        return worker.run(runnable)
 
 
 def ensure_alias(node: Node, sdb: StoredDataBlockMetadata) -> Alias:

@@ -15,22 +15,33 @@ from dags.core.data_block import DataBlock, DataBlockMetadata
 from dags.core.environment import Environment
 from dags.core.metadata.orm import DAGS_METADATA_TABLE_PREFIX, BaseModel
 from dags.core.pipe import Pipe, PipeLike, ensure_pipe, make_pipe, make_pipe_name
-from dags.core.pipe_interface import PipeInterface
-from loguru import logger
-
+from dags.core.pipe_interface import (
+    DeclaredNodeInput,
+    DeclaredNodeLikeInput,
+    PipeInterface,
+)
 from dags.utils.common import as_identifier
+from loguru import logger
 
 if TYPE_CHECKING:
     from dags.core.runnable import ExecutionContext
-    from dags.core.streams import DataBlockStream
+    from dags.core.streams import DataBlockStreamBuilder
     from dags.core.graph import Graph, GraphMetadata
 
 
 NodeLike = Union[str, "Node"]
 
 
-def inputs_as_nodes(graph: Graph, inputs: Dict[str, NodeLike]):
-    return {name: graph.get_node(dnl) for name, dnl in inputs.items()}
+def inputs_as_nodes(
+    graph: Graph, inputs: Dict[str, DeclaredNodeLikeInput]
+) -> Dict[str, DeclaredNodeInput]:
+    return {
+        name: DeclaredNodeInput(
+            node=graph.get_node(dnl.node_like),
+            declared_schema_mapping=dnl.declared_schema_mapping,
+        )
+        for name, dnl in inputs.items()
+    }
 
 
 def create_node(
@@ -51,7 +62,8 @@ def create_node(
     else:
         pipe = make_pipe(pipe)
     interface = pipe.get_interface(env)
-    _declared_inputs: Dict[str, NodeLike] = {}
+    schema_mapping = interface.assign_mapping(schema_mapping)
+    _declared_inputs: Dict[str, DeclaredNodeLikeInput] = {}
     n = Node(
         env=graph.env,
         graph=graph,
@@ -66,8 +78,10 @@ def create_node(
         _dataset_name=dataset_name,
     )
     if upstream is not None:
-        for i, v in interface.assign_inputs(upstream).items():
-            n._declared_inputs[i] = v
+        for name, node_like in interface.assign_inputs(upstream).items():
+            n._declared_inputs[name] = DeclaredNodeLikeInput(
+                node_like=node_like, declared_schema_mapping=schema_mapping.get(name)
+            )
     return n
 
 
@@ -79,11 +93,11 @@ class Node:
     pipe: Pipe
     config: Dict[str, Any]
     interface: PipeInterface
-    _declared_inputs: Dict[str, NodeLike]
+    _declared_inputs: Dict[str, DeclaredNodeLikeInput]
     create_dataset: bool = True
     output_alias: Optional[str] = None
     _dataset_name: Optional[str] = None
-    _declared_schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None
+    _declared_schema_mapping: Optional[Dict[str, Dict[str, str]]] = None
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(key={self.key}, pipe={self.pipe.key})>"
@@ -149,28 +163,19 @@ class Node:
     def get_interface(self) -> PipeInterface:
         return self.interface
 
-    def get_declared_input_nodes(self) -> Dict[str, Node]:
+    def get_declared_input_nodes(self) -> Dict[str, DeclaredNodeInput]:
         return inputs_as_nodes(self.graph, self.get_declared_inputs())
 
-    def get_declared_inputs(self) -> Dict[str, NodeLike]:
+    def get_declared_inputs(self) -> Dict[str, DeclaredNodeLikeInput]:
         return self._declared_inputs or {}
 
     def get_schema_mapping_for_input(self, input_name: str) -> Optional[Dict[str, str]]:
-        if not self._declared_schema_mapping:
-            return None
-        v = list(self._declared_schema_mapping.values())[0]
-        if isinstance(v, str):
-            # Just one mapping, so should be one input
-            assert len(self.interface.inputs) == 1
-            return self._declared_schema_mapping
-        if isinstance(v, dict):
-            return self._declared_schema_mapping.get(input_name)
-        raise TypeError(self._declared_schema_mapping)
+        return self._declared_schema_mapping.get(input_name)
 
-    def as_stream(self) -> DataBlockStream:
-        from dags.core.streams import DataBlockStream
+    def as_stream(self) -> DataBlockStreamBuilder:
+        from dags.core.streams import DataBlockStreamBuilder
 
-        return DataBlockStream(upstream=self)
+        return DataBlockStreamBuilder(upstream=self)
 
     def get_latest_output(self, ctx: ExecutionContext) -> Optional[DataBlock]:
         block = (
@@ -187,43 +192,6 @@ class Node:
         if block is None:
             return None
         return block.as_managed_data_block(ctx)
-
-
-# def build_composite_nodes(n: Node) -> Iterable[Node]:
-#     if not n.pipe.is_composite:
-#         raise
-#     nodes = []
-#     # TODO: this just supports chains for now, not arbitrary sub-graph
-#     # (hard to imagine totally unconstrained sub-graph, but if we restrict
-#     # to one input and one output, straightforward to support arbitrary interior)
-#     # Multiple inputs would take some thought. No concept of multiple outputs in Dags
-#     raw_inputs = list(n.get_declared_inputs().values())
-#     assert len(raw_inputs) == 1, "Composite pipes take one input"
-#     input_node = raw_inputs[0]
-#     created_nodes = {}
-#     for fn in n.pipe.sub_graph:
-#         fn = ensure_pipe(n.env, fn)
-#         child_fn_name = make_pipe_name(fn)
-#         child_node_key = f"{n.key}__{child_fn_name}"  # TODO: could be name clash since we don't include module name here
-#         try:
-#             if child_node_key in created_nodes:
-#                 node = created_nodes[child_node_key]
-#             else:
-#                 node = n.graph.get_declared_node(child_node_key)
-#         except KeyError:
-#             node = create_node(
-#                 graph=n.graph,
-#                 key=child_node_key,
-#                 pipe=fn,
-#                 config=n.config,
-#                 inputs=input_node,
-#                 declared_composite_node_key=n.declared_composite_node_key
-#                 or n.key,  # Handle nested composite pipes
-#             )
-#             created_nodes[node.key] = node
-#         nodes.append(node)
-#         input_node = node
-#     return nodes
 
 
 class NodeState(BaseModel):

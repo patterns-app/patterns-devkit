@@ -5,7 +5,7 @@ import pytest
 from dags.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, PipeLog
-from dags.core.streams import DataBlockStream
+from dags.core.streams import DataBlockStreamBuilder
 from tests.utils import (
     TestSchema1,
     make_test_execution_context,
@@ -58,7 +58,7 @@ class TestStreams:
         # self.ds1db1 = ctx.merge(self.ds1db1)
 
     def test_stream_unprocessed_pristine(self):
-        s = DataBlockStream(upstream=self.node_source)
+        s = DataBlockStreamBuilder(upstream=self.node_source)
         s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) is None
 
@@ -76,7 +76,7 @@ class TestStreams:
         )
         self.sess.add_all([dfl, drl])
 
-        s = DataBlockStream(upstream=self.node_source)
+        s = DataBlockStreamBuilder(upstream=self.node_source)
         s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) == self.dr1t1
 
@@ -105,7 +105,7 @@ class TestStreams:
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
-        s = DataBlockStream(upstream=self.node_source)
+        s = DataBlockStreamBuilder(upstream=self.node_source)
         s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) is None
 
@@ -138,7 +138,7 @@ class TestStreams:
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
-        s = DataBlockStream(upstream=self.node_source)
+        s = DataBlockStreamBuilder(upstream=self.node_source)
         s1 = s.filter_unprocessed(self.node1)
         assert s1.get_next(self.ctx) is None
 
@@ -160,11 +160,11 @@ class TestStreams:
         )
         self.sess.add_all([dfl, drl])
 
-        s = DataBlockStream(upstream=self.node_source, schema="TestSchema1")
+        s = DataBlockStreamBuilder(upstream=self.node_source, schema="TestSchema1")
         s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) == self.dr1t1
 
-        s = DataBlockStream(upstream=self.node_source, schema="TestSchema2")
+        s = DataBlockStreamBuilder(upstream=self.node_source, schema="TestSchema2")
         s = s.filter_unprocessed(self.node1)
         assert s.get_next(self.ctx) is None
 

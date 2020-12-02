@@ -29,6 +29,7 @@ from dags.core.typing.object_schema import (
     is_generic,
 )
 from dags.utils.common import printd
+from dags.utils.typing import T
 from loguru import logger
 
 if TYPE_CHECKING:
@@ -41,10 +42,11 @@ if TYPE_CHECKING:
     from dags.core.runnable import ExecutionContext
     from dags.core.streams import (
         InputBlocks,
-        DataBlockStream,
+        DataBlockStreamBuilder,
         ensure_data_stream,
         PipeNodeInput,
         InputStreams,
+        DataBlockStream,
     )
 
 
@@ -79,7 +81,7 @@ class GenericSchemaException(Exception):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class PipeAnnotation:
     data_format_class: str
     schema_like: ObjectSchemaLike
@@ -90,8 +92,6 @@ class PipeAnnotation:
     is_optional: bool = False
     is_self_ref: bool = False
     original_annotation: Optional[str] = None
-    input_node: Optional[Node] = None
-    bound_data_block: Optional[DataBlockMetadata] = None
 
     @classmethod
     def create(cls, **kwargs) -> PipeAnnotation:
@@ -156,170 +156,6 @@ class PipeAnnotation:
         return self.schema(env).key
 
 
-@dataclass
-class NodeInput:
-    name: str
-    original_annotation: PipeAnnotation
-    declared_schema_mapping: Optional[Dict[str, str]] = None
-    input_node: Optional[Node] = None
-    bound_data_block: Optional[DataBlockMetadata] = None
-
-    def get_schema_mapping(self, env: Environment) -> Optional[SchemaMapping]:
-        if self.bound_data_block is None:
-            return None
-        if self.declared_schema_mapping:
-            # If we are given a declared mapping, then that overrides a natural mapping
-            return SchemaMapping(
-                mapping=self.declared_schema_mapping,
-                from_schema=self.bound_data_block.realized_schema(env),
-            )
-        if (
-            self.bound_data_block.expected_schema_key is None
-            or self.original_annotation.is_generic
-        ):
-            # If block has no expected schema, then we can't map
-            # Or if input is generic, then no mapping required
-            #   TODO: Above is NOT necessarily true, this is why we need to compute the "specific" / "resolved" schema
-            #         so we can know what the actual expected schema is and map to that if possible/required.
-            #         Specification logic is commented out below
-            return None
-        return self.bound_data_block.expected_schema(env).get_mapping_to(
-            env, self.original_annotation.schema(env)
-        )
-
-    # Shortcuts
-    @property
-    def env(self) -> Optional[Environment]:
-        if self.input_node is None:
-            return None
-        return self.input_node.env
-
-    @property
-    def realized_schema(self) -> Optional[ObjectSchema]:
-        if self.bound_data_block is None or self.env is None:
-            return None
-        return self.bound_data_block.realized_schema(self.env)
-
-    @property
-    def expected_schema(self) -> Optional[ObjectSchema]:
-        if self.bound_data_block is None or self.env is None:
-            return None
-        return self.bound_data_block.expected_schema(self.env)
-
-
-@dataclass
-class BoundPipeInterface:
-    inputs: List[NodeInput]
-    output: Optional[PipeAnnotation]
-    requires_pipe_context: bool = True
-    resolved_generics: Dict[str, ObjectSchemaKey] = field(default_factory=dict)
-    manually_set_resolved_output_schema: Optional[
-        ObjectSchema
-    ] = None  # TODO: move to PipeContext?
-
-    def get_input(self, name: str) -> NodeInput:
-        for input in self.inputs:
-            if input.name == name:
-                return input
-        raise KeyError(name)
-
-    def connect(self, input_nodes: Dict[str, Node]):
-        for name, input_node in input_nodes.items():
-            i = self.get_input(name)
-            i.input_node = input_node
-
-    def bind(self, input_blocks: Dict[str, DataBlockMetadata]):
-        for name, input_block in input_blocks.items():
-            i = self.get_input(name)
-            i.bound_data_block = input_block
-            if i.original_annotation.is_generic:
-                self.resolved_generics[
-                    i.original_annotation.schema_like
-                ] = i.bound_data_block.most_abstract_schema_key
-
-    @classmethod
-    def from_dfi(cls, dfi: PipeInterface) -> BoundPipeInterface:
-        return BoundPipeInterface(
-            inputs=[NodeInput(name=a.name, original_annotation=a) for a in dfi.inputs],
-            output=dfi.output,
-            requires_pipe_context=dfi.requires_pipe_context,
-        )
-
-    def inputs_as_kwargs(self):
-        return {
-            i.name: i.bound_data_block
-            for i in self.inputs
-            if i.bound_data_block is not None
-        }
-
-    def inputs_as_managed_data_blocks(
-        self, ctx: ExecutionContext
-    ) -> Dict[str, ManagedDataBlock]:
-        inputs: Dict[str, ManagedDataBlock] = {}
-        for i in self.inputs:
-            if i.bound_data_block is None:
-                continue
-            inputs[i.name] = i.bound_data_block.as_managed_data_block(
-                ctx, mapping=i.get_schema_mapping(ctx.env)
-            )
-        return inputs
-
-    def resolved_output_schema(self, env: Environment) -> Optional[ObjectSchema]:
-        if self.manually_set_resolved_output_schema is not None:
-            return self.manually_set_resolved_output_schema
-        if self.output is None:
-            return None
-        if self.output.is_generic:
-            k = self.resolved_generics[self.output.schema_like]
-            return env.get_schema(k)
-        return self.output.schema(env)
-
-    def set_resolved_output_schema(self, schema: ObjectSchema):
-        self.manually_set_resolved_output_schema = schema
-
-
-#
-#     def bind_and_specify_schemas(self, env: Environment, input_blocks: InputBlocks):
-#         if self.is_bound:
-#             raise Exception("Already bound")
-#         realized_generics: Dict[str, ObjectSchema] = {}
-#         for name, input_block in input_blocks.items():
-#             i = self.get_input(name)
-#             i.bound_data_block = input_block
-#             i.realized_schema = env.get_schema(input_block.realized_schema_key)
-#             if i.original_annotation.is_generic:
-#                 assert isinstance(i.original_annotation.schema_like, str)
-#                 realized_generics[i.original_annotation.schema_like] = i.realized_schema
-#         if (
-#             self.output is not None
-#             and is_any(self.resolved_output_schema)
-#             and self.output.is_generic
-#         ):
-#             # Further specify resolved type now that we have something concrete for Any
-#             # TODO: man this is too complex. how do we simplify different type levels
-#             assert isinstance(self.output.schema_like, str)
-#             self.resolved_output_schema = realized_generics[self.output.schema_like]
-#         self.is_bound = True
-#
-#     def as_kwargs(self):
-#         if not self.is_bound:
-#             raise Exception("Interface not bound")
-#         return {i.name: i.bound_data_block for i in self.inputs}
-
-# @classmethod
-# def from_pipe_inteface(cls, dfi: PipeInterface, input_blocks: InputBlocks) -> BoundPipeInterface:
-#     inputs = []
-#     for name, input in input_blocks.items():
-#         i = dfi.get_input(name)
-#
-#
-#     return BoundPipeInterface(
-#         inputs=inputs,
-#         output=dfi.output,
-#         requires_pipe_context=dfi.requires_pipe_context,
-#     )
-
-
 def make_default_output_annotation():
     return PipeAnnotation.create(
         data_format_class="Any",
@@ -327,12 +163,11 @@ def make_default_output_annotation():
     )
 
 
-@dataclass
+@dataclass(frozen=True)
 class PipeInterface:
     inputs: List[PipeAnnotation]
     output: Optional[PipeAnnotation]
     requires_pipe_context: bool = True
-    # is_bound: bool = False
 
     @classmethod
     def create(cls, **kwargs) -> PipeInterface:
@@ -402,9 +237,7 @@ class PipeInterface:
         #             )
         #         data_block_seen = True
 
-    def assign_inputs(
-        self, inputs: Union[NodeLike, Dict[str, NodeLike]]
-    ) -> Dict[str, NodeLike]:
+    def assign_inputs(self, inputs: Union[T, Dict[str, T]]) -> Dict[str, T]:
         if not isinstance(inputs, dict):
             assert (
                 len(self.get_non_recursive_inputs()) == 1
@@ -414,6 +247,289 @@ class PipeInterface:
             i.name for i in self.get_non_recursive_inputs()
         ), f"{inputs}  {self.get_non_recursive_inputs()}"
         return inputs
+
+    def assign_mapping(
+        self, declared_schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]]
+    ) -> Optional[Dict[str, Dict[str, str]]]:
+        if not declared_schema_mapping:
+            return None
+        v = list(declared_schema_mapping.values())[0]
+        if isinstance(v, str):
+            # Just one mapping, so should be one input
+            assert (
+                len(self.get_non_recursive_inputs()) == 1
+            ), f"Wrong number of mappings"
+            return {self.get_non_recursive_inputs()[0].name: declared_schema_mapping}
+        if isinstance(v, dict):
+            return declared_schema_mapping
+        raise TypeError(declared_schema_mapping)
+
+    def connect(self, input_nodes: Dict[str, DeclaredNodeInput]) -> ConnectedInterface:
+        return ConnectedInterface(
+            inputs=[
+                NodeInput(
+                    name=name,
+                    annotation=self.get_input(name),
+                    input_node=node_input.node,
+                    declared_schema_mapping=node_input.declared_schema_mapping,
+                )
+                for name, node_input in input_nodes.items()
+            ],
+            output=self.output,
+            requires_pipe_context=self.requires_pipe_context,
+        )
+
+
+@dataclass(frozen=True)
+class DeclaredNodeLikeInput:
+    node_like: NodeLike
+    declared_schema_mapping: Optional[Dict[str, str]] = None
+
+
+@dataclass(frozen=True)
+class DeclaredNodeInput:
+    node: Node
+    declared_schema_mapping: Optional[Dict[str, str]] = None
+
+
+@dataclass(frozen=True)
+class NodeInput:
+    name: str
+    annotation: PipeAnnotation
+    declared_schema_mapping: Optional[Dict[str, str]] = None
+    input_node: Optional[Node] = None
+
+    @property
+    def env(self) -> Optional[Environment]:
+        if self.input_node is None:
+            return None
+        return self.input_node.env
+
+
+@dataclass(frozen=True)
+class ConnectedInterface:
+    inputs: List[NodeInput]
+    output: Optional[PipeAnnotation]
+    requires_pipe_context: bool = True
+
+    def get_input(self, name: str) -> NodeInput:
+        for input in self.inputs:
+            if input.name == name:
+                return input
+        raise KeyError(name)
+
+    def bind(self, input_streams: InputStreams) -> BoundStreamInterface:
+        inputs = []
+        for name, dbs in input_streams.items():
+            node_input = self.get_input(name)
+            d = asdict(node_input)
+            d["bound_data_block_stream"] = dbs
+            inputs.append(StreamInput(**d))
+        return BoundStreamInterface(
+            inputs=inputs,
+            output=self.output,
+            requires_pipe_context=self.requires_pipe_context,
+        )
+
+
+@dataclass(frozen=True)
+class StreamInput:
+    name: str
+    annotation: PipeAnnotation
+    declared_schema_mapping: Optional[Dict[str, str]] = None
+    input_node: Optional[Node] = None
+    bound_data_block_stream: Optional[DataBlockStream] = None
+
+
+@dataclass(frozen=True)
+class BoundStreamInterface:
+    inputs: List[StreamInput]
+    output: Optional[PipeAnnotation]
+    requires_pipe_context: bool = True
+    resolved_generics: Dict[str, ObjectSchemaKey] = field(default_factory=dict)
+
+    def as_block_interface(self) -> BoundBlockInterface:
+        inputs: List[BlockInput] = []
+        for stream_input in self.inputs:
+            d = asdict(stream_input)
+            dbs = d.pop("bound_data_block_stream")
+            d["bound_data_block"] = dbs.next()
+            bi = BlockInput(**d)
+            inputs.append(bi)
+        return BoundBlockInterface(
+            inputs=inputs,
+            output=self.output,
+            requires_pipe_context=self.requires_pipe_context,
+            resolved_generics=self.resolved_generics,
+        )
+
+
+@dataclass(frozen=True)
+class BlockInput:
+    name: str
+    annotation: PipeAnnotation
+    declared_schema_mapping: Optional[Dict[str, str]] = None
+    input_node: Optional[Node] = None
+    bound_data_block: Optional[DataBlock] = None
+
+
+@dataclass(frozen=True)
+class BoundBlockInterface:
+    inputs: List[BlockInput]
+    output: Optional[PipeAnnotation]
+    requires_pipe_context: bool = True
+    resolved_generics: Dict[str, ObjectSchemaKey] = field(default_factory=dict)
+
+
+def get_schema_mapping(input: BlockInput, env: Environment) -> Optional[SchemaMapping]:
+    if input.bound_data_block is None:
+        return None
+    if input.declared_schema_mapping:
+        # If we are given a declared mapping, then that overrides a natural mapping
+        return SchemaMapping(
+            mapping=input.declared_schema_mapping,
+            from_schema=input.bound_data_block.realized_schema,
+        )
+    if (
+        input.bound_data_block.expected_schema_key is None
+        or input.annotation.is_generic
+    ):
+        # If block has no expected schema, then we can't map
+        # Or if input is generic, then no mapping required
+        #   TODO: Above is NOT necessarily true, this is why we need to compute the "specific" / "resolved" schema
+        #         so we can know what the actual expected schema is and map to that if possible/required.
+        #         Specification logic is commented out below
+        return None
+    return input.bound_data_block.expected_schema.get_mapping_to(
+        env, input.annotation.schema(env)
+    )
+
+
+@dataclass
+class NodeInput:
+    name: str
+    annotation: PipeAnnotation
+    declared_schema_mapping: Optional[Dict[str, str]] = None
+    input_node: Optional[Node] = None
+    bound_data_block_stream: Optional[DataBlockStreamBuilder] = None
+
+    @property
+    def env(self) -> Optional[Environment]:
+        if self.input_node is None:
+            return None
+        return self.input_node.env
+
+    # @property
+    # def realized_schema(self) -> Optional[ObjectSchema]:
+    #     if self.bound_data_block is None or self.env is None:
+    #         return None
+    #     return self.bound_data_block.realized_schema(self.env)
+    #
+    # @property
+    # def expected_schema(self) -> Optional[ObjectSchema]:
+    #     if self.bound_data_block is None or self.env is None:
+    #         return None
+    #     return self.bound_data_block.expected_schema(self.env)
+
+
+@dataclass
+class BoundPipeInterface:
+    inputs: List[NodeInput]
+    output: Optional[PipeAnnotation]
+    requires_pipe_context: bool = True
+    resolved_generics: Dict[str, ObjectSchemaKey] = field(default_factory=dict)
+    manually_set_resolved_output_schema: Optional[
+        ObjectSchema
+    ] = None  # TODO: move to PipeContext?
+
+    def get_input(self, name: str) -> NodeInput:
+        for input in self.inputs:
+            if input.name == name:
+                return input
+        raise KeyError(name)
+
+    def connect(self, input_nodes: Dict[str, Node]):
+        for name, input_node in input_nodes.items():
+            i = self.get_input(name)
+            i.input_node = input_node
+
+    def bind(self, input_block_streams: Dict[str, DataBlockStreamBuilder]):
+        for name, dbs in input_block_streams.items():
+            i = self.get_input(name)
+            i.bound_data_block_stream = dbs
+            if i.annotation.is_generic:
+                self.resolved_generics[
+                    i.annotation.schema_like
+                ] = i.bound_data_block.most_abstract_schema_key
+
+    @classmethod
+    def from_dfi(cls, dfi: PipeInterface) -> BoundPipeInterface:
+        return BoundPipeInterface(
+            inputs=[NodeInput(name=a.name, original_annotation=a) for a in dfi.inputs],
+            output=dfi.output,
+            requires_pipe_context=dfi.requires_pipe_context,
+        )
+
+    # def inputs_as_kwargs(self):
+    #     return {
+    #         i.name: i.bound_data_block
+    #         for i in self.inputs
+    #         if i.bound_data_block is not None
+    #     }
+    #
+    # def inputs_as_managed_data_blocks(
+    #     self, ctx: ExecutionContext
+    # ) -> Dict[str, ManagedDataBlock]:
+    #     inputs: Dict[str, ManagedDataBlock] = {}
+    #     for i in self.inputs:
+    #         if i.bound_data_block is None:
+    #             continue
+    #         inputs[i.name] = i.bound_data_block.as_managed_data_block(
+    #             ctx, mapping=i.get_schema_mapping(ctx.env)
+    #         )
+    #     return inputs
+
+    def resolved_output_schema(self, env: Environment) -> Optional[ObjectSchema]:
+        if self.manually_set_resolved_output_schema is not None:
+            return self.manually_set_resolved_output_schema
+        if self.output is None:
+            return None
+        if self.output.is_generic:
+            k = self.resolved_generics[self.output.schema_like]
+            return env.get_schema(k)
+        return self.output.schema(env)
+
+    def set_resolved_output_schema(self, schema: ObjectSchema):
+        self.manually_set_resolved_output_schema = schema
+
+
+#
+#     def bind_and_specify_schemas(self, env: Environment, input_blocks: InputBlocks):
+#         if self.is_bound:
+#             raise Exception("Already bound")
+#         realized_generics: Dict[str, ObjectSchema] = {}
+#         for name, input_block in input_blocks.items():
+#             i = self.get_input(name)
+#             i.bound_data_block = input_block
+#             i.realized_schema = env.get_schema(input_block.realized_schema_key)
+#             if i.original_annotation.is_generic:
+#                 assert isinstance(i.original_annotation.schema_like, str)
+#                 realized_generics[i.original_annotation.schema_like] = i.realized_schema
+#         if (
+#             self.output is not None
+#             and is_any(self.resolved_output_schema)
+#             and self.output.is_generic
+#         ):
+#             # Further specify resolved type now that we have something concrete for Any
+#             # TODO: man this is too complex. how do we simplify different type levels
+#             assert isinstance(self.output.schema_like, str)
+#             self.resolved_output_schema = realized_generics[self.output.schema_like]
+#         self.is_bound = True
+#
+#     def as_kwargs(self):
+#         if not self.is_bound:
+#             raise Exception("Interface not bound")
+#         return {i.name: i.bound_data_block for i in self.inputs}
 
 
 class NodeInterfaceManager:
@@ -426,48 +542,52 @@ class NodeInterfaceManager:
         self.env = ctx.env
         self.ctx = ctx
         self.node = node
-        self.dfi = self.node.get_interface()
+        self.pipe_interface: PipeInterface = self.node.get_interface()
         self.strict_storages = (
             strict_storages  # Only pull datablocks from given storages
         )
 
-    def get_bound_interface(
-        self, input_data_blocks: Optional[InputBlocks] = None
-    ) -> BoundPipeInterface:
-        i = BoundPipeInterface.from_dfi(self.dfi)
-        # TODO: dry (see below)
+    def get_bound_stream_interface(
+        self, input_db_streams: Optional[InputStreams] = None
+    ) -> BoundStreamInterface:
+        ci = self.get_connected_interface()
         inputs = self.node.get_declared_input_nodes()
-        for input in i.inputs:
-            if input.original_annotation.is_self_ref:
-                inputs["this"] = self.node
-            input.declared_schema_mapping = self.node.get_schema_mapping_for_input(
-                input.name
-            )
-        i.connect(inputs)
-        if input_data_blocks is None:
-            input_data_blocks = self.get_input_data_blocks()
-        i.bind(input_data_blocks)
-        return i
+        if input_db_streams is None:
+            input_db_streams = self.get_input_data_block_streams()
+        return ci.bind(input_db_streams)
 
-    def get_connected_interface(self) -> BoundPipeInterface:
-        i = BoundPipeInterface.from_dfi(self.dfi)
+    def get_bound_block_interface(
+        self, input_data_blocks: Optional[InputBlocks] = None
+    ) -> BoundBlockInterface:
+        if input_data_blocks is not None:
+            raise NotImplementedError
+        bsi = self.get_bound_stream_interface()
+        return bsi.as_block_interface()
+
+    def get_connected_interface(self) -> ConnectedInterface:
         inputs = self.node.get_declared_input_nodes()
-        for input in i.inputs:
-            if input.original_annotation.is_self_ref:
-                inputs["this"] = self.node
-        i.connect(inputs)
-        return i
+        # Add "this" if it has a self-ref (TODO: a bit hidden down here no?)
+        for annotation in self.pipe_interface.inputs:
+            if annotation.is_self_ref:
+                inputs["this"] = DeclaredNodeInput(
+                    node=self.node,
+                    declared_schema_mapping=self.node.get_schema_mapping_for_input(
+                        "this"
+                    ),
+                )
+        ci = self.pipe_interface.connect(inputs)
+        return ci
 
     def is_input_required(self, annotation: PipeAnnotation) -> bool:
         if annotation.is_optional:
             return False
         return True
 
-    def get_input_data_blocks(self) -> InputBlocks:
-        from dags.core.streams import ensure_data_stream
+    def get_input_data_block_streams(self) -> InputStreams:
+        from dags.core.streams import ensure_data_stream_builder
         from dags.core.pipe import InputExhaustedException
 
-        input_data_blocks: InputBlocks = {}
+        input_streams: InputStreams = {}
         any_unprocessed = False
         for input in self.get_connected_interface().inputs:
             node_or_stream = input.input_node
@@ -475,13 +595,15 @@ class NodeInterfaceManager:
             logger.debug(
                 f"Getting input block for `{input.name}` from {node_or_stream}"
             )
-            stream = ensure_data_stream(node_or_stream)
-            block: Optional[DataBlockMetadata] = self.get_input_data_block(
-                stream, input, self.ctx.all_storages if self.strict_storages else None
+            stream_builder = ensure_data_stream_builder(node_or_stream)
+            stream_builder = self._build_stream(
+                stream_builder,
+                input,
+                self.ctx.all_storages if self.strict_storages else None,
             )
-            if block is not None:
-                logger.debug(f"Found: {block}")
-                logger.debug(list(block.stored_data_blocks.all()))
+            # if block is not None:
+            #     logger.debug(f"Found: {block}")
+            #     logger.debug(list(block.stored_data_blocks.all()))
 
             """
             Inputs are considered "Exhausted" if:
@@ -491,60 +613,41 @@ class NodeInterfaceManager:
 
             In other words, if ANY block stream is empty, bail out. If ALL DS streams are empty, bail
             """
-            if block is None:
+            if stream_builder.get_count(self.ctx) == 0:
                 logger.debug(
-                    f"Couldnt find eligible DataBlocks for input `{input.name}` from {stream}"
+                    f"Couldnt find eligible DataBlocks for input `{input.name}` from {stream_builder}"
                 )
-                if not input.original_annotation.is_optional:
+                if not input.annotation.is_optional:
                     # print(actual_input_node, annotation, storages)
                     raise InputExhaustedException(
-                        f"    Required input '{input.name}'={stream} to Pipe '{self.node.key}' is empty"
+                        f"    Required input '{input.name}'={stream_builder} to Pipe '{self.node.key}' is empty"
                     )
             else:
-                input_data_blocks[input.name] = block
-            if input.original_annotation.data_format_class == "DataBlock":
-                any_unprocessed = True
-            elif input.original_annotation.data_format_class == "DataSet":
-                if block is not None:
-                    any_unprocessed = any_unprocessed or stream.is_unprocessed(
-                        self.ctx, block, self.node
-                    )
-            else:
-                raise NotImplementedError
+                input_streams[input.name] = stream_builder.as_managed_stream(
+                    self.ctx, input.declared_schema_mapping
+                )
+            any_unprocessed = True
 
-        if input_data_blocks and not any_unprocessed:
+        if input_streams and not any_unprocessed:
             raise InputExhaustedException("All inputs exhausted")
 
-        return input_data_blocks
+        return input_streams
 
-    def get_input_data_block(
+    def _build_stream(
         self,
-        stream: DataBlockStream,
+        stream_builder: DataBlockStreamBuilder,
         input: NodeInput,
         storages: List[Storage] = None,
-    ) -> Optional[DataBlockMetadata]:
-        logger.debug(f"{stream.get_count(self.ctx)} available DataBlocks")
+    ) -> DataBlockStreamBuilder:
+        logger.debug(f"{stream_builder.get_count(self.ctx)} available DataBlocks")
         if storages:
-            stream = stream.filter_storages(storages)
+            stream_builder = stream_builder.filter_storages(storages)
             logger.debug(
-                f"{stream.get_count(self.ctx)} available DataBlocks in storages {storages}"
+                f"{stream_builder.get_count(self.ctx)} available DataBlocks in storages {storages}"
             )
-        block: Optional[DataBlockMetadata]
-        logger.debug(f"Finding unprocessed input for: {stream}")
-        if input.original_annotation.data_format_class in ("DataBlock",):
-            stream = stream.filter_unprocessed(
-                self.node, allow_cycle=input.original_annotation.is_self_ref
-            )
-            logger.debug(f"{stream.get_count(self.ctx)} unprocessed DataBlocks")
-            block = stream.get_next(self.ctx)
-        elif input.original_annotation.data_format_class == "DataSet":
-            logger.debug("Finding DataSet")
-            stream = stream.filter_dataset()
-            block = stream.get_most_recent(self.ctx)
-            # TODO: someday probably pass in actual DataSet (not underlying block) to pipe that asks
-            #   for it (might want to use `name`, for instance). and then just proxy
-            #   through to underlying block
-        else:
-            raise NotImplementedError
-
-        return block
+        logger.debug(f"Finding unprocessed input for: {stream_builder}")
+        stream_builder = stream_builder.filter_unprocessed(
+            self.node, allow_cycle=input.annotation.is_self_ref
+        )
+        logger.debug(f"{stream_builder.get_count(self.ctx)} unprocessed DataBlocks")
+        return stream_builder
