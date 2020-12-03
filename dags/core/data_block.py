@@ -251,9 +251,11 @@ class StoredDataBlockMetadata(BaseModel):
 
     def get_name(self, env: Environment) -> str:
         if self.data_block_id is None or self.id is None:
-            raise ValueError(
-                "Trying to get StoredDataBlock name, but id is not set yet (obj must be committed to database first)"
-            )
+            env.session.flush([self])
+            self = env.session.merge(self)
+            # raise ValueError(
+            #     "Trying to get StoredDataBlock name, but id is not set yet (obj must be committed to database first)"
+            # )
         # TODO: remove env arg
         # schema = env.get_schema(self.data_block.most_real_schema_key)
         # return f"_{schema.get_identifier()[:50]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
@@ -424,19 +426,22 @@ def create_data_block_from_records(
 ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
     from dags.core.storage.storage import LocalMemoryStorageEngine
 
+    if isinstance(records, LocalMemoryDataRecords):
+        ldr = records
+        # Important: override expected schema with LDR entry if it exists (the schema was EXPLICITLY ADDED by pipe on purpose)
+        if ldr.expected_schema is not None:
+            expected_schema = env.get_schema(ldr.expected_schema)
+    else:
+        ldr = LocalMemoryDataRecords.from_records_object(records)
     if not expected_schema:
         expected_schema = env.get_schema("Any")
     expected_schema_key = expected_schema.key
-    if isinstance(records, LocalMemoryDataRecords):
-        ldr = records
-    else:
-        ldr = LocalMemoryDataRecords.from_records_object(records)
     if not realized_schema:
         if is_any(expected_schema):
             realized_schema = ldr.data_format.infer_schema_from_records(
                 ldr.records_object
             )
-            env.add_new_generated_schema(realized_schema, sess)
+            env.add_new_generated_schema(realized_schema)
         else:
             realized_schema = expected_schema
     realized_schema_key = realized_schema.key

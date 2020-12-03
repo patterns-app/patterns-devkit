@@ -61,10 +61,7 @@ def create_node(
         pipe = env.get_pipe(pipe)
     else:
         pipe = make_pipe(pipe)
-    print("create")
-    print(pipe)
     interface = pipe.get_interface(env)
-    print(interface)
     schema_mapping = interface.assign_mapping(schema_mapping)
     _declared_inputs: Dict[str, DeclaredNodeLikeInput] = {}
     n = Node(
@@ -174,7 +171,7 @@ class Node:
         return self._declared_inputs or {}
 
     def get_schema_mapping_for_input(self, input_name: str) -> Optional[Dict[str, str]]:
-        return self._declared_schema_mapping.get(input_name)
+        return (self._declared_schema_mapping or {}).get(input_name)
 
     def as_stream(self) -> DataBlockStreamBuilder:
         from dags.core.streams import DataBlockStreamBuilder
@@ -315,11 +312,10 @@ class DataBlockLog(BaseModel):
     @classmethod
     def summary(cls, env: Environment) -> str:
         s = ""
-        with env.session_scope() as sess:
-            for dbl in sess.query(DataBlockLog).all():
-                s += f"{dbl.pipe_log.node_key:50}"
-                s += f"{str(dbl.data_block_id):23}"
-                s += f"{str(dbl.data_block.record_count):6}"
-                s += f"{dbl.direction.value:9}{str(dbl.data_block.updated_at):22}"
-                s += f"{dbl.data_block.expected_schema_key:20}{dbl.data_block.realized_schema_key:20}\n"
+        for dbl in env.session.query(DataBlockLog).all():
+            s += f"{dbl.pipe_log.node_key:50}"
+            s += f"{str(dbl.data_block_id):23}"
+            s += f"{str(dbl.data_block.record_count):6}"
+            s += f"{dbl.direction.value:9}{str(dbl.data_block.updated_at):22}"
+            s += f"{dbl.data_block.expected_schema_key:20}{dbl.data_block.realized_schema_key:20}\n"
         return s

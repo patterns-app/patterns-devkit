@@ -20,6 +20,14 @@ Dags brings the best practices learned over the last 60 years in software to the
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
 scale from laptop to AWS cluster.
 
+
+Modern Data Pipelines
+Camber is a framework for building end-to-end functional data pipelines from modular components. Camber abstracts over underlying database, runtime, and storage resources with functional, type-aware data graphs that operate on streams of immutable datablocks. These graphs are composed of discrete snaps written in python or SQL that operate on datablocks and connect to form end-to-end data pipelines, from API extraction to SQL transformation to analysis, modeling, and visualization.
+
+Cambersnaps optionally expose type interfaces, called dtypes, that describe the structure, data types, and semantics of the expected input and output data. These type interfaces allow the Camber community to build an ecosystem of interoperable components that power instant "plug and play" pipelines.
+
+Camber brings the best practices learned over the last 60 years in software to the world of data, with the goal of global collaboration, reproducible byte-perfect results, and performance at any scale from laptop to AWS cluster.
+
 ### Features:
 
  - **Reusable modules and components** - There are hundreds of `pipes` and `schemas` ready to
@@ -258,3 +266,21 @@ its associated metadata database contain all the "state" of a Dags project. If y
 
 Developing new Dags components is straightforward and can be done as part of a Dags `module` or as
 a standalone component. 
+
+
+## Type system
+
+Data blocks have three associated schemas:
+ - inferred schema - the structure and datatypes automatically inferred from the actual data
+ . inference is hard and prone to error and discrepancies
+ - nominal schema - the schema that was declared (or resolved for generics) in the pipe graph
+ - realized schema - the schema that was ultimately used to physically store the data on a specific
+   storage (the schema used to create a database table, for instance)
+  
+The realized schema is determined by the following factors:
+ - The setting of CAST_TO_SCHEMA to one of "hard", "soft", or "none"
+ - The discrepancies, if any, between the inferred schema and the nominal schema
+ 
+
+The following table gives the logic for possible behavior of realized schema:
+

@@ -199,7 +199,9 @@ class SqlPipeWrapper:
         block, sdb = db_api.create_data_block_from_sql(
             ctx.execution_context.metadata_session,
             sql,
-            expected_schema=ctx.get_resolved_output_schema(),
+            expected_schema=ctx.runnable.bound_interface.resolve_output_schema(
+                ctx.worker.env
+            ),
             created_by_node_key=ctx.runnable.node_key,
         )
 
@@ -230,7 +232,9 @@ class SqlPipeWrapper:
             worker=ctx.worker,
             runnable=ctx.runnable,
             inputs={i.name: i for i in ctx.inputs},
-            output_schema=ctx.get_resolved_output_schema(),
+            output_schema=ctx.runnable.bound_interface.resolve_output_schema(
+                ctx.worker.env
+            ),
         )
         return compile_jinja_sql(sql, sql_ctx)
 

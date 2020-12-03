@@ -194,7 +194,7 @@ class TestConversions:
 
     def test_memory_to_file(self):
         g = Graph(self.env)
-        ec = self.env.get_execution_context(g, self.sess)
+        ec = self.env.get_execution_context(g)
         for fmt in (DelimitedFileFormat, JsonListFileFormat):
             out_sdb = convert_lowest_cost(ec, self.sdb, self.fs, fmt)
             assert out_sdb.data_format == fmt
@@ -208,7 +208,7 @@ class TestConversions:
     def test_memory_to_database(self):
         g = Graph(self.env)
         database = self.env.add_storage(get_tmp_sqlite_db_url())
-        ec = self.env.get_execution_context(g, self.sess)
+        ec = self.env.get_execution_context(g)
         out_sdb = convert_lowest_cost(ec, self.sdb, database, DatabaseTableFormat)
         assert out_sdb.data_format == DatabaseTableFormat
         assert out_sdb.get_expected_schema(self.env) is TestSchema4

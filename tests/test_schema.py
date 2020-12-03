@@ -97,16 +97,14 @@ def test_generated_schema():
     new_schema = infer_schema_from_records_list(sample_records)
     got = GeneratedObjectSchema(key=new_schema.key, definition=asdict(new_schema))
     env = make_test_env()
-    with env.session_scope() as sess:
-        sess.add(got)
-    with env.session_scope() as sess:
-        got = (
-            sess.query(GeneratedObjectSchema)
-            .filter(GeneratedObjectSchema.key == new_schema.key)
-            .first()
-        )
-        got_schema = got.as_schema()
-        assert asdict(got_schema) == asdict(new_schema)
+    env.session.add(got)
+    got = (
+        env.session.query(GeneratedObjectSchema)
+        .filter(GeneratedObjectSchema.key == new_schema.key)
+        .first()
+    )
+    got_schema = got.as_schema()
+    assert asdict(got_schema) == asdict(new_schema)
     assert env.get_generated_schema(new_schema.key).key == new_schema.key
     assert env.get_generated_schema("pizza") is None
 

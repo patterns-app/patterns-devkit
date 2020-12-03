@@ -46,24 +46,21 @@ def _test_db_bulk_insert(test_db_url, api_cls: Type[DatabaseAPI]):
     env.add_module(core)
     db = env.add_storage(test_db_url)
     api = api_cls(env, test_db_url)
-    with env.session_scope() as sess:
-        b, sb = get_sample_records_datablock(env, sess)
-        output_sdb = StoredDataBlockMetadata(  # type: ignore
-            data_block=b,
-            data_format=DatabaseTableFormat,
-            storage_url=db.url,
+    b, sb = get_sample_records_datablock(env, env.session)
+    output_sdb = StoredDataBlockMetadata(  # type: ignore
+        data_block=b,
+        data_format=DatabaseTableFormat,
+        storage_url=db.url,
+    )
+    env.session.add(output_sdb)
+    env.session.commit()
+    api.bulk_insert_records_list(output_sdb, sample_records)
+    assert api.count(output_sdb.get_name(env)) == 4
+    with api.connection() as conn:
+        assert (
+            conn.execute(f"select count(*) from {output_sdb.get_name(env)}").first()[0]
+            == 4
         )
-        sess.add(output_sdb)
-        sess.commit()
-        api.bulk_insert_records_list(output_sdb, sample_records)
-        assert api.count(output_sdb.get_name(env)) == 4
-        with api.connection() as conn:
-            assert (
-                conn.execute(
-                    f"select count(*) from {output_sdb.get_name(env)}"
-                ).first()[0]
-                == 4
-            )
 
 
 def test_sqlite_bulk_insert():

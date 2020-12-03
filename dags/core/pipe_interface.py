@@ -276,16 +276,23 @@ class PipeInterface:
         raise TypeError(declared_schema_mapping)
 
     def connect(self, input_nodes: Dict[str, DeclaredNodeInput]) -> ConnectedInterface:
+        inputs = []
+        for annotation in self.inputs:
+            input_node = None
+            mapping = None
+            dni = input_nodes.get(annotation.name)
+            if dni:
+                input_node = dni.node
+                mapping = dni.declared_schema_mapping
+            ni = NodeInput(
+                name=annotation.name,
+                annotation=annotation,
+                input_node=input_node,
+                declared_schema_mapping=mapping,
+            )
+            inputs.append(ni)
         return ConnectedInterface(
-            inputs=[
-                NodeInput(
-                    name=name,
-                    annotation=self.get_input(name),
-                    input_node=node_input.node,
-                    declared_schema_mapping=node_input.declared_schema_mapping,
-                )
-                for name, node_input in input_nodes.items()
-            ],
+            inputs=inputs,
             output=self.output,
             requires_pipe_context=self.requires_pipe_context,
         )
@@ -385,7 +392,7 @@ class BoundInterface:
     inputs: List[StreamInput]
     output: Optional[PipeAnnotation]
     requires_pipe_context: bool = True
-    resolved_generics: Dict[str, ObjectSchemaKey] = field(default_factory=dict)
+    # resolved_generics: Dict[str, ObjectSchemaKey] = field(default_factory=dict)
 
     def inputs_as_kwargs(self) -> Dict[str, Union[DataBlock, DataBlockStream]]:
         return {
@@ -394,7 +401,7 @@ class BoundInterface:
             if i.bound_stream is not None
         }
 
-    def resolve_output_generic(self, env: Environment) -> Optional[ObjectSchema]:
+    def resolve_output_schema(self, env: Environment) -> Optional[ObjectSchema]:
         if not self.output.is_generic:
             return self.output.schema(env)
         output_generic = self.output.schema_like

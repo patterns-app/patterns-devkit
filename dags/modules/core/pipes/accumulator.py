@@ -30,6 +30,7 @@ def dataframe_accumulator(
     return records
 
 
+# TODO: this is no-op if "this" is empty... is there a way to shortcut?
 sql_accumulator = sql_pipe(
     name="sql_accumulator",
     module="core",

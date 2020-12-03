@@ -14,8 +14,8 @@ from dags.core.pipe_interface import (
     NodeInterfaceManager,
     PipeAnnotation,
     StreamInput,
-    make_default_output_annotation,
     get_schema_mapping,
+    make_default_output_annotation,
 )
 from dags.core.runnable import PipeContext
 from dags.core.runtime import RuntimeClass
@@ -221,11 +221,28 @@ def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
         val = PipeInterface.from_pipe_definition(pipe)
     else:
         raise
-    print(pipe)
-    print(val)
     assert val == expected
     node = create_node(g, "_test", pipe, upstream="mock")
     assert node.get_interface() == expected
+
+
+def test_generic_schema_resolution():
+    ec = make_test_execution_context()
+    env = ec.env
+    g = Graph(env)
+    n1 = g.add_node("node1", pipe_generic)
+    pi = n1.get_interface()
+    im = NodeInterfaceManager(ctx=ec, node=n1)
+    block = DataBlockMetadata(
+        expected_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema2",
+    )
+    env.session.add(block)
+    env.session.flush([block])
+    stream = block_as_stream(block, ec)
+    bi = im.get_bound_interface({"input": stream})
+    assert len(bi.inputs) == 1
+    assert bi.resolve_output_schema(env) is TestSchema1
 
 
 def test_declared_schema_mapping():

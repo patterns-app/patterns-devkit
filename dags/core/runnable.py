@@ -153,7 +153,7 @@ class ExecutionContext:
     current_runtime: Optional[Runtime] = None
     node_timelimit_seconds: Optional[
         int
-    ] = None  # TODO: more of a "soft" limit, could imagine a "hard" one too
+    ] = None  # TODO: this is a "soft" limit, could imagine a "hard" one too
     execution_timelimit_seconds: Optional[int] = None
     logger: Optional[Callable[[str], None]] = None
 
@@ -366,9 +366,8 @@ class ExecutionManager:
             return None
         # new_session = self.env.get_new_metadata_session()
         # last_output = new_session.merge(last_output)
-        with self.env.session_scope() as sess:
-            last_output = sess.merge(last_output)
-            return last_output.as_managed_data_block(self.ctx)
+        last_output = self.env.session.merge(last_output)
+        return last_output.as_managed_data_block(self.ctx)
 
     def _run(self, node: Node, worker: Worker):
         interface_mgr = self.get_node_interface_manager(node)
@@ -476,8 +475,11 @@ class Worker:
                 if output.get_one() is None:
                     # Empty generator
                     return None
-            resolved_output_schema = runnable.bound_interface.resolve_output_generic(
+            resolved_output_schema = runnable.bound_interface.resolve_output_schema(
                 self.env
+            )
+            logger.debug(
+                f"Resolved output schema {resolved_output_schema} {runnable.bound_interface}"
             )
             block, sdb = create_data_block_from_records(
                 self.env,

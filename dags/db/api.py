@@ -162,7 +162,7 @@ class DatabaseAPI:
         expected_schema_key = expected_schema.key
         if is_any(expected_schema):
             realized_schema = infer_schema_from_db_table(self, tmp_name)
-            self.env.add_new_generated_schema(realized_schema, sess)
+            self.env.add_new_generated_schema(realized_schema)
         else:
             realized_schema = expected_schema
         realized_schema_key = realized_schema.key

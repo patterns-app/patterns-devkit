@@ -32,48 +32,51 @@ def pipe_error() -> RecordsList[TestSchema1]:
 def test_worker():
     env = make_test_env()
     g = Graph(env)
-    with env.session_scope() as sess:
-        rt = env.runtimes[0]
-        ec = env.get_execution_context(g, sess, current_runtime=rt)
-        node = g.add_node("node", pipe_t1_source)
-        w = Worker(ec)
-        dfi_mgr = NodeInterfaceManager(ec, node)
-        bdfi = dfi_mgr.get_bound_interface()
-        r = Runnable(
-            node.key,
-            CompiledPipe(node.pipe.key, node.pipe),
-            bdfi,
-        )
-        output = w.run(r)
-        assert output is None
+    rt = env.runtimes[0]
+    ec = env.get_execution_context(g, current_runtime=rt)
+    node = g.add_node("node", pipe_t1_source)
+    w = Worker(ec)
+    dfi_mgr = NodeInterfaceManager(ec, node)
+    bdfi = dfi_mgr.get_bound_interface()
+    r = Runnable(
+        node.key,
+        CompiledPipe(node.pipe.key, node.pipe),
+        bdfi,
+    )
+    output = w.run(r)
+    assert output is None
 
 
 def test_worker_output():
     env = make_test_env()
     env.add_module(core)
     g = Graph(env)
-    with env.session_scope() as sess:
-        env.add_storage("memory://test")
-        rt = env.runtimes[0]
-        ec = env.get_execution_context(
-            g, sess, current_runtime=rt, target_storage=env.storages[0]
-        )
-        output_alias = "node_output"
-        node = g.add_node("node", pipe_dl_source, output_alias=output_alias)
-        w = Worker(ec)
-        dfi_mgr = NodeInterfaceManager(ec, node)
-        bdfi = dfi_mgr.get_bound_interface()
-        r = Runnable(
-            node.key,
-            CompiledPipe(node.pipe.key, node.pipe),
-            bdfi,
-        )
-        outputblock = w.run(r)
-        assert outputblock is not None
-        block = outputblock.as_managed_data_block(ec)
-        assert block.as_records_list() == mock_dl_output
-        # Test alias was created correctly
-        assert (
-            sess.query(Alias).filter(Alias.alias == output_alias).first().data_block_id
-            == block.data_block_id
-        )
+    env.add_storage("memory://test")
+    rt = env.runtimes[0]
+    ec = env.get_execution_context(
+        g, current_runtime=rt, target_storage=env.storages[0]
+    )
+    output_alias = "node_output"
+    node = g.add_node("node", pipe_dl_source, output_alias=output_alias)
+    w = Worker(ec)
+    dfi_mgr = NodeInterfaceManager(ec, node)
+    bdfi = dfi_mgr.get_bound_interface()
+    r = Runnable(
+        node.key,
+        CompiledPipe(node.pipe.key, node.pipe),
+        bdfi,
+    )
+    outputblock = w.run(r)
+    assert outputblock is not None
+    block = outputblock.as_managed_data_block(ec)
+    assert block.as_records_list() == mock_dl_output
+    assert block.expected_schema is TestSchema1
+    assert len(block.realized_schema.fields) == len(TestSchema1.fields)
+    # Test alias was created correctly
+    assert (
+        env.session.query(Alias)
+        .filter(Alias.alias == output_alias)
+        .first()
+        .data_block_id
+        == block.data_block_id
+    )

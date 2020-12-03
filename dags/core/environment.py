@@ -153,18 +153,19 @@ class Environment:
             key = schema_like.key
         else:
             raise TypeError(schema_like)
-        with self.session_scope() as sess:
-            got = sess.query(GeneratedObjectSchema).get(key)
-            if got is None:
-                return None
-            return got.as_schema()
+        got = self.session.query(GeneratedObjectSchema).get(key)
+        if got is None:
+            return None
+        return got.as_schema()
 
-    def add_new_generated_schema(self, schema: ObjectSchema, sess: Session):
+    def add_new_generated_schema(self, schema: ObjectSchema):
         if schema.key in self.library.schemas:
             # Already exists
             return
         got = GeneratedObjectSchema(key=schema.key, definition=asdict(schema))
-        sess.add(got)
+        self.session.add(got)
+        self.session.flush([got])
+        self.session.merge(got)
         self.library.add_schema(schema)
 
     def all_schemas(self) -> List[ObjectSchema]:
@@ -208,7 +209,7 @@ class Environment:
         return self.storages[0]
 
     def get_execution_context(
-        self, graph: Graph, session: Session, target_storage: Storage = None, **kwargs
+        self, graph: Graph, target_storage: Storage = None, **kwargs
     ) -> ExecutionContext:
         from dags.core.storage.storage import StorageClass
         from dags.core.runnable import ExecutionContext
@@ -236,22 +237,20 @@ class Environment:
     def execution(self, graph: Graph, target_storage: Storage = None, **kwargs):
         from dags.core.runnable import ExecutionManager
 
-        tx = self.session.begin()
-        ec = self.get_execution_context(
-            graph, self.session, target_storage=target_storage, **kwargs
-        )
+        self.session.begin_nested()
+        ec = self.get_execution_context(graph, target_storage=target_storage, **kwargs)
         em = ExecutionManager(ec)
         logger.debug(f"executing on graph {graph.adjacency_list()}")
         try:
             yield em
-            tx.commit()
+            self.session.commit()
         except Exception as e:
-            tx.rollback()
+            self.session.rollback()
             raise e
         finally:
             # TODO:
             # self.validate_and_clean_data_blocks(delete_intermediate=True)
-            tx.close()
+            self.session.close()
 
     def produce(
         self,
@@ -354,43 +353,40 @@ class Environment:
     def validate_and_clean_data_blocks(
         self, delete_memory=True, delete_intermediate=False, force: bool = False
     ):
-        with self.session_scope() as sess:
-            from dags.core.data_block import (
-                DataBlockMetadata,
-                StoredDataBlockMetadata,
+        from dags.core.data_block import (
+            DataBlockMetadata,
+            StoredDataBlockMetadata,
+        )
+
+        if delete_memory:
+            deleted = (
+                self.session.query(StoredDataBlockMetadata)
+                .filter(StoredDataBlockMetadata.storage_url.startswith("memory:"))
+                .delete(False)
             )
+            print(f"{deleted} Memory StoredDataBlocks deleted")
 
-            if delete_memory:
-                deleted = (
-                    sess.query(StoredDataBlockMetadata)
-                    .filter(StoredDataBlockMetadata.storage_url.startswith("memory:"))
-                    .delete(False)
+        for block in self.session.query(DataBlockMetadata).filter(
+            ~DataBlockMetadata.stored_data_blocks.any()
+        ):
+            print(f"#{block.id} {block.expected_schema_key} is orphaned! SAD")
+        if delete_intermediate:
+            # TODO: does no checking if they are unprocessed or not...
+            if not force:
+                d = input(
+                    "Are you sure you want to delete ALL intermediate DataBlocks? There is no undoing this operation. y/N?"
                 )
-                print(f"{deleted} Memory StoredDataBlocks deleted")
-
-            for block in sess.query(DataBlockMetadata).filter(
-                ~DataBlockMetadata.stored_data_blocks.any()
-            ):
-                print(f"#{block.id} {block.expected_schema_key} is orphaned! SAD")
-            if delete_intermediate:
-                # TODO: does no checking if they are unprocessed or not...
-                if not force:
-                    d = input(
-                        "Are you sure you want to delete ALL intermediate DataBlocks? There is no undoing this operation. y/N?"
-                    )
-                    if not d or d.lower()[0] != "y":
-                        return
-                # Delete blocks with no DataSet
-                cnt = (
-                    sess.query(DataBlockMetadata)
-                    .filter(
-                        ~DataBlockMetadata.data_sets.any(),
-                    )
-                    .update(
-                        {DataBlockMetadata.deleted: True}, synchronize_session=False
-                    )
+                if not d or d.lower()[0] != "y":
+                    return
+            # Delete blocks with no DataSet
+            cnt = (
+                self.session.query(DataBlockMetadata)
+                .filter(
+                    ~DataBlockMetadata.data_sets.any(),
                 )
-                print(f"{cnt} intermediate DataBlocks deleted")
+                .update({DataBlockMetadata.deleted: True}, synchronize_session=False)
+            )
+            print(f"{cnt} intermediate DataBlocks deleted")
 
     def add_event_handler(self, eh: EventHandler):
         self.event_handlers.append(eh)

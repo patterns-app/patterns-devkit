@@ -175,7 +175,13 @@ class ObjectSchema:
             d["on_conflict"] = ConflictBehavior(oc)
         fields = []
         for f in d["fields"]:
-            fields.append(build_field_type_from_dict(f))
+            if isinstance(f, dict):
+                f = build_field_type_from_dict(f)
+            elif isinstance(f, Field):
+                pass
+            else:
+                raise ValueError(f)
+            fields.append(f)
         d["fields"] = fields
         return ObjectSchema(**d)
 
@@ -252,8 +258,7 @@ def clean_keys(d: dict) -> dict:
 
 
 def clean_raw_schema_defintion(raw_def: dict) -> dict:
-    """
-    """
+    """"""
     raw_def = clean_keys(raw_def)
     raw_fields = raw_def.pop("fields", {})
     raw_def["fields"] = []
