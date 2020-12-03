@@ -32,7 +32,7 @@ def display_pipe_log(sess: Session):
 def str_as_dataframe(
     test_data: str,
     module: Optional[DagsModule] = None,
-    expected_schema: Optional[ObjectSchema] = None,
+    nominal_schema: Optional[ObjectSchema] = None,
 ) -> DataFrame:
     # TODO: add conform_dataframe_to_schema option
     if test_data.endswith(".csv"):
@@ -48,10 +48,10 @@ def str_as_dataframe(
     else:
         # Raw str csv
         raw_records = read_raw_string_csv(test_data)
-    if expected_schema is None:
+    if nominal_schema is None:
         auto_schema = infer_schema_from_records_list(raw_records)
-        expected_schema = auto_schema
-    df = records_list_to_dataframe(raw_records, expected_schema)
+        nominal_schema = auto_schema
+    df = records_list_to_dataframe(raw_records, nominal_schema)
     return df
 
 
@@ -65,7 +65,7 @@ class DataInput:
         schema = None
         if self.schema:
             schema = env.get_schema(self.schema)
-        return str_as_dataframe(self.data, module=self.module, expected_schema=schema)
+        return str_as_dataframe(self.data, module=self.module, nominal_schema=schema)
 
     def get_schema(self, env: Environment) -> Optional[ObjectSchema]:
         return env.get_schema(self.schema)

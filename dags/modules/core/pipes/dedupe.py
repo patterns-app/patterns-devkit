@@ -25,9 +25,9 @@ sql_dedupe_unique_keep_newest_row = sql_pipe(
     compatible_runtimes="postgres",  # TODO: compatible engines...
     sql="""
         select -- :DataBlock[T]
-        {% if inputs.input.expected_schema and inputs.input.expected_schema.unique_on %}
+        {% if inputs.input.nominal_schema and inputs.input.nominal_schema.unique_on %}
             distinct on (
-                {% for col in inputs.input.expected_schema.unique_on %}
+                {% for col in inputs.input.nominal_schema.unique_on %}
                     "{{ col }}"
                     {%- if not loop.last %},{% endif %}
                 {% endfor %}
@@ -39,12 +39,12 @@ sql_dedupe_unique_keep_newest_row = sql_pipe(
             {% endfor %}
 
         from input -- :DataBlock[T]
-        {% if inputs.input.expected_schema.updated_at_field %}
+        {% if inputs.input.nominal_schema.updated_at_field %}
         order by
-            {% for col in inputs.input.expected_schema.unique_on %}
+            {% for col in inputs.input.nominal_schema.unique_on %}
                 "{{ col }}",
             {% endfor %}
-            "{{ inputs.input.expected_schema.updated_at_field.name }}" desc
+            "{{ inputs.input.nominal_schema.updated_at_field.name }}" desc
         {% endif %}
 """,
 )
@@ -52,12 +52,12 @@ sql_dedupe_unique_keep_newest_row = sql_pipe(
 
 @pipe("dataframe_dedupe_unique_keep_newest_row", module="core")
 def dataframe_dedupe_unique_keep_newest_row(input: DataBlock[T]) -> DataFrame[T]:
-    if input.expected_schema is None or not input.expected_schema.unique_on:
+    if input.nominal_schema is None or not input.nominal_schema.unique_on:
         return input.as_dataframe()  # TODO: make this a no-op
     records = input.as_dataframe()
-    if input.expected_schema.updated_at_field_name:
-        records = records.sort_values(input.expected_schema.updated_at_field_name)
-    return records.drop_duplicates(input.expected_schema.unique_on, keep="last")
+    if input.nominal_schema.updated_at_field_name:
+        records = records.sort_values(input.nominal_schema.updated_at_field_name)
+    return records.drop_duplicates(input.nominal_schema.unique_on, keep="last")
 
 
 def test_dedupe():

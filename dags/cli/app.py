@@ -157,7 +157,7 @@ def list_data_blocks(env: Environment):
         rows = [
             [
                 r.id,
-                r.expected_schema_key,
+                r.nominal_schema_key,
                 r.created_by(sess),
                 r.stored_data_blocks.count(),
             ]

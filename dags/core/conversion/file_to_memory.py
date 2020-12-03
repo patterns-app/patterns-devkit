@@ -42,7 +42,7 @@ class FileToMemoryConverter(Converter):
             if input_sdb.data_format == DelimitedFileFormat:
                 with input_api.open(input_sdb) as f:
                     output_records = conform_records_list_to_schema(
-                        read_csv(f.readlines()), input_sdb.get_realized_schema(self.env)
+                        read_csv(f.readlines()), input_sdb.realized_schema(self.env)
                     )
             elif input_sdb.data_format == JsonListFileFormat:
                 with input_api.open(input_sdb) as f:
@@ -86,7 +86,7 @@ class FileToMemoryConverter(Converter):
                         chunk.append(line)
                         line = f.readline()
                     yield conform_records_list_to_schema(
-                        read_csv(chunk), input_sdb.get_realized_schema(self.env)
+                        read_csv(chunk), input_sdb.realized_schema(self.env)
                     )
 
         return RecordsListGenerator(generate_chunks(input_sdb))

@@ -234,7 +234,7 @@ def test_generic_schema_resolution():
     pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        expected_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
         realized_schema_key="_test.TestSchema2",
     )
     env.session.add(block)
@@ -242,7 +242,7 @@ def test_generic_schema_resolution():
     stream = block_as_stream(block, ec)
     bi = im.get_bound_interface({"input": stream})
     assert len(bi.inputs) == 1
-    assert bi.resolve_output_schema(env) is TestSchema1
+    assert bi.resolve_nominal_output_schema(env) is TestSchema1
 
 
 def test_declared_schema_mapping():
@@ -254,7 +254,7 @@ def test_declared_schema_mapping():
     pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        expected_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
         realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), mapping)
@@ -264,7 +264,7 @@ def test_declared_schema_mapping():
     schema_mapping = get_schema_mapping(
         env,
         block,
-        expected_schema=pi.inputs[0].schema(env),
+        declared_schema=pi.inputs[0].schema(env),
         declared_schema_mapping=mapping,
     )
     assert schema_mapping.as_dict() == mapping
@@ -280,13 +280,13 @@ def test_natural_schema_mapping():
     pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        expected_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
         realized_schema_key="_test.TestSchema1",
     )
     schema_mapping = get_schema_mapping(
         env,
         block,
-        expected_schema=pi.inputs[0].schema(env),
+        declared_schema=pi.inputs[0].schema(env),
         declared_schema_mapping=mapping,
     )
     assert schema_mapping.as_dict() == mapping

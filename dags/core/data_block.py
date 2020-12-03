@@ -55,7 +55,7 @@ class LocalMemoryDataRecords:
     data_format: DataFormat
     records_object: Any  # TODO: only eligible types: DataFrame, RecordsList, table name (str)
     record_count: Optional[int] = None
-    expected_schema: Optional[ObjectSchemaLike] = None
+    nominal_schema: Optional[ObjectSchemaLike] = None
 
     @classmethod
     def from_records_object(
@@ -63,7 +63,7 @@ class LocalMemoryDataRecords:
         obj: Any,
         data_format: DataFormat = None,
         record_count: int = None,
-        expected_schema: Optional[ObjectSchemaLike] = None,
+        nominal_schema: Optional[ObjectSchemaLike] = None,
     ) -> LocalMemoryDataRecords:
         if data_format is None:
             data_format = get_data_format_of_object(obj)
@@ -76,7 +76,7 @@ class LocalMemoryDataRecords:
             data_format=data_format,
             records_object=obj,
             record_count=record_count,
-            expected_schema=expected_schema,
+            nominal_schema=nominal_schema,
         )
 
     def copy(self) -> LocalMemoryDataRecords:
@@ -85,7 +85,7 @@ class LocalMemoryDataRecords:
             data_format=self.data_format,
             record_count=self.record_count,
             records_object=records_object,
-            expected_schema=self.expected_schema,
+            nominal_schema=self.nominal_schema,
         )
 
     @property
@@ -106,7 +106,7 @@ def as_records(
         records_object,
         data_format=data_format,
         record_count=record_count,
-        expected_schema=schema,
+        nominal_schema=schema,
     )
 
 
@@ -116,7 +116,8 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     # block relies on strict monotonic IDs in some scenarios
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     # id = Column(Integer, primary_key=True, autoincrement=True)
-    expected_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
+    inferred_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
+    nominal_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
     realized_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
     record_count = Column(Integer, nullable=True)
     created_by_node_key = Column(String, nullable=True)
@@ -132,23 +133,19 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     def __repr__(self):
         return self._repr(
             id=self.id,
-            expected_schema_key=self.expected_schema_key,
+            inferred_schema_key=self.inferred_schema_key,
+            nominal_schema_key=self.nominal_schema_key,
             realized_schema_key=self.realized_schema_key,
         )
 
-    @property
-    def most_real_schema_key(self) -> ObjectSchemaKey:
-        return self.realized_schema_key or self.expected_schema_key
+    def inferred_schema(self, env: Environment) -> ObjectSchema:
+        return env.get_schema(self.inferred_schema_key)
 
-    @property
-    def most_abstract_schema_key(self) -> ObjectSchemaKey:
-        return self.expected_schema_key or self.realized_schema_key
+    def nominal_schema(self, env: Environment) -> ObjectSchema:
+        return env.get_schema(self.nominal_schema_key)
 
     def realized_schema(self, env: Environment) -> ObjectSchema:
         return env.get_schema(self.realized_schema_key)
-
-    def expected_schema(self, env: Environment) -> ObjectSchema:
-        return env.get_schema(self.expected_schema_key)
 
     def as_managed_data_block(
         self, ctx: ExecutionContext, schema_mapping: Optional[SchemaMapping] = None
@@ -156,7 +153,8 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         mgr = DataBlockManager(ctx, self, schema_mapping=schema_mapping)
         return ManagedDataBlock(
             data_block_id=self.id,
-            expected_schema_key=self.expected_schema_key,
+            inferred_schema_key=self.inferred_schema_key,
+            nominal_schema_key=self.nominal_schema_key,
             realized_schema_key=self.realized_schema_key,
             manager=mgr,
         )
@@ -183,7 +181,8 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 @dataclass(frozen=True)
 class ManagedDataBlock(Generic[T]):
     data_block_id: str
-    expected_schema_key: ObjectSchemaKey
+    inferred_schema_key: ObjectSchemaKey
+    nominal_schema_key: ObjectSchemaKey
     realized_schema_key: ObjectSchemaKey
     manager: DataBlockManager
 
@@ -200,16 +199,16 @@ class ManagedDataBlock(Generic[T]):
         return self.manager.as_format(fmt)
 
     @property
-    def expected_schema(self) -> Optional[ObjectSchema]:
-        return self.manager.get_expected_schema()
+    def inferred_schema(self) -> Optional[ObjectSchema]:
+        return self.manager.inferred_schema()
+
+    @property
+    def nominal_schema(self) -> Optional[ObjectSchema]:
+        return self.manager.nominal_schema()
 
     @property
     def realized_schema(self) -> Optional[ObjectSchema]:
-        return self.manager.get_realized_schema()
-
-    @property
-    def most_abstract_schema(self) -> Optional[ObjectSchema]:
-        return self.manager.get_most_abstract_schema()
+        return self.manager.realized_schema()
 
 
 DataBlock = ManagedDataBlock
@@ -233,15 +232,20 @@ class StoredDataBlockMetadata(BaseModel):
             storage_url=self.storage_url,
         )
 
-    def get_realized_schema(self, env: Environment) -> Optional[ObjectSchema]:
+    def inferred_schema(self, env: Environment) -> Optional[ObjectSchema]:
+        if self.data_block.inferred_schema_key is None:
+            return None
+        return env.get_schema(self.data_block.inferred_schema_key)
+
+    def nominal_schema(self, env: Environment) -> Optional[ObjectSchema]:
+        if self.data_block.nominal_schema_key is None:
+            return None
+        return env.get_schema(self.data_block.nominal_schema_key)
+
+    def realized_schema(self, env: Environment) -> Optional[ObjectSchema]:
         if self.data_block.realized_schema_key is None:
             return None
         return env.get_schema(self.data_block.realized_schema_key)
-
-    def get_expected_schema(self, env: Environment) -> Optional[ObjectSchema]:
-        if self.data_block.expected_schema_key is None:
-            return None
-        return env.get_schema(self.data_block.expected_schema_key)
 
     @property
     def storage(self) -> Storage:
@@ -257,8 +261,6 @@ class StoredDataBlockMetadata(BaseModel):
             #     "Trying to get StoredDataBlock name, but id is not set yet (obj must be committed to database first)"
             # )
         # TODO: remove env arg
-        # schema = env.get_schema(self.data_block.most_real_schema_key)
-        # return f"_{schema.get_identifier()[:50]}_{self.id}"  # TODO: max table name lengths in other engines? (63 in postgres)
         node_key = self.data_block.created_by_node_key or ""
         return as_identifier(f"_{node_key[:40]}_{self.id}")
 
@@ -313,20 +315,20 @@ class DataBlockManager:
     def __str__(self):
         return f"DRM: {self.data_block}, Local: {self.ctx.local_memory_storage}, rest: {self.ctx.storages}"
 
-    def get_realized_schema(self) -> Optional[ObjectSchema]:
+    def inferred_schema(self) -> Optional[ObjectSchema]:
+        if self.data_block.inferred_schema_key is None:
+            return None
+        return self.ctx.env.get_schema(self.data_block.inferred_schema_key)
+
+    def nominal_schema(self) -> Optional[ObjectSchema]:
+        if self.data_block.nominal_schema_key is None:
+            return None
+        return self.ctx.env.get_schema(self.data_block.nominal_schema_key)
+
+    def realized_schema(self) -> Optional[ObjectSchema]:
         if self.data_block.realized_schema_key is None:
             return None
         return self.ctx.env.get_schema(self.data_block.realized_schema_key)
-
-    def get_expected_schema(self) -> Optional[ObjectSchema]:
-        if self.data_block.expected_schema_key is None:
-            return None
-        return self.ctx.env.get_schema(self.data_block.expected_schema_key)
-
-    def get_most_abstract_schema(self) -> Optional[ObjectSchema]:
-        if self.data_block.most_abstract_schema_key is None:
-            return None
-        return self.ctx.env.get_schema(self.data_block.most_abstract_schema_key)
 
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFrameFormat)
@@ -417,11 +419,10 @@ class DataBlockManager:
 
 def create_data_block_from_records(
     env: Environment,
-    sess: Session,
     local_storage: Storage,
     records: Any,
-    expected_schema: ObjectSchema = None,
-    realized_schema: ObjectSchema = None,
+    nominal_schema: ObjectSchema = None,
+    inferred_schema: ObjectSchema = None,
     created_by_node_key: str = None,
 ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
     from dags.core.storage.storage import LocalMemoryStorageEngine
@@ -429,24 +430,32 @@ def create_data_block_from_records(
     if isinstance(records, LocalMemoryDataRecords):
         ldr = records
         # Important: override expected schema with LDR entry if it exists (the schema was EXPLICITLY ADDED by pipe on purpose)
-        if ldr.expected_schema is not None:
-            expected_schema = env.get_schema(ldr.expected_schema)
+        if ldr.nominal_schema is not None:
+            nominal_schema = env.get_schema(ldr.nominal_schema)
     else:
         ldr = LocalMemoryDataRecords.from_records_object(records)
-    if not expected_schema:
-        expected_schema = env.get_schema("Any")
-    expected_schema_key = expected_schema.key
-    if not realized_schema:
-        if is_any(expected_schema):
-            realized_schema = ldr.data_format.infer_schema_from_records(
+    if not nominal_schema:
+        nominal_schema = env.get_schema("Any")
+    nominal_schema_key = nominal_schema.key
+    realized_schema: ObjectSchema
+    # TODO: add logic for type casting settings (do we do inference or not, etc)
+    #    goes in its own module, all about casting types (when to merge fields, when to downcast, etc) see table in readme
+    if is_any(nominal_schema):
+        if not inferred_schema:
+            inferred_schema = ldr.data_format.infer_schema_from_records(
                 ldr.records_object
             )
-            env.add_new_generated_schema(realized_schema)
-        else:
-            realized_schema = expected_schema
+            env.add_new_generated_schema(inferred_schema)
+        realized_schema = inferred_schema
+    else:
+        realized_schema = nominal_schema
     realized_schema_key = realized_schema.key
+    inferred_schema_key = None
+    if inferred_schema is not None:
+        inferred_schema_key = inferred_schema.key
     block = DataBlockMetadata(
-        expected_schema_key=expected_schema_key,
+        inferred_schema_key=inferred_schema_key,
+        nominal_schema_key=nominal_schema_key,
         realized_schema_key=realized_schema_key,
         record_count=ldr.record_count,
         created_by_node_key=created_by_node_key,
@@ -456,12 +465,9 @@ def create_data_block_from_records(
         storage_url=local_storage.url,
         data_format=ldr.data_format,
     )
-    sess.add(block)
-    sess.add(sdb)
-    # Sqlalchemy is a bit finnicky with getting objects live in the right session?
-    # I don't understand why these merges should be necessary... but they appear to be
-    block = sess.merge(block)
-    sdb = sess.merge(sdb)
+    env.session.add(block)
+    env.session.add(sdb)
+    env.session.flush([block, sdb])
     LocalMemoryStorageEngine(env, local_storage).store_local_memory_data_records(
         sdb, ldr
     )

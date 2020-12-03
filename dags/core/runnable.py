@@ -475,18 +475,17 @@ class Worker:
                 if output.get_one() is None:
                     # Empty generator
                     return None
-            resolved_output_schema = runnable.bound_interface.resolve_output_schema(
-                self.env
+            nominal_output_schema = (
+                runnable.bound_interface.resolve_nominal_output_schema(self.env)
             )
             logger.debug(
-                f"Resolved output schema {resolved_output_schema} {runnable.bound_interface}"
+                f"Resolved output schema {nominal_output_schema} {runnable.bound_interface}"
             )
             block, sdb = create_data_block_from_records(
                 self.env,
-                self.ctx.metadata_session,
                 self.ctx.local_memory_storage,
                 output,
-                expected_schema=resolved_output_schema,
+                nominal_schema=nominal_output_schema,
                 created_by_node_key=runnable.node_key,
             )
 

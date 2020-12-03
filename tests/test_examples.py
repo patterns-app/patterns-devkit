@@ -143,7 +143,7 @@ def test_incremental():
     g.add_node("metrics", shape_metrics, upstream="source")
     # Run first time
     output = env.produce(g, "metrics", target_storage=s)
-    assert output.expected_schema_key.endswith("Metric")
+    assert output.nominal_schema_key.endswith("Metric")
     records = output.as_records_list()
     # print(DataBlockLog.summary(env))
     expected_records = [

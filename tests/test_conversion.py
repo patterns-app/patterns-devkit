@@ -165,7 +165,7 @@ class TestConversions:
         self.fs = self.env.add_storage(f"file://{dir}")
         # self.pg = self.env.add_storage("sqlite://")
         self.db = DataBlockMetadata(
-            expected_schema_key="_test.TestSchema4",
+            nominal_schema_key="_test.TestSchema4",
             realized_schema_key="_test.TestSchema4",
         )
         self.records = [
@@ -182,10 +182,9 @@ class TestConversions:
         self.sess = self.env.get_new_metadata_session()
         self.db, self.sdb = create_data_block_from_records(
             self.env,
-            self.sess,
             self.local_storage,
             self.records,
-            expected_schema=TestSchema4,
+            nominal_schema=TestSchema4,
         )
         assert self.sdb.data_format == RecordsListFormat
 
@@ -198,8 +197,8 @@ class TestConversions:
         for fmt in (DelimitedFileFormat, JsonListFileFormat):
             out_sdb = convert_lowest_cost(ec, self.sdb, self.fs, fmt)
             assert out_sdb.data_format == fmt
-            assert out_sdb.get_expected_schema(self.env) is TestSchema4
-            assert out_sdb.get_realized_schema(self.env) is TestSchema4
+            assert out_sdb.nominal_schema(self.env) is TestSchema4
+            assert out_sdb.realized_schema(self.env) is TestSchema4
             fsapi = self.fs.get_file_system_api(self.env)
             assert fsapi.exists(out_sdb)
             db = out_sdb.data_block.as_managed_data_block(ec)
@@ -211,8 +210,8 @@ class TestConversions:
         ec = self.env.get_execution_context(g)
         out_sdb = convert_lowest_cost(ec, self.sdb, database, DatabaseTableFormat)
         assert out_sdb.data_format == DatabaseTableFormat
-        assert out_sdb.get_expected_schema(self.env) is TestSchema4
-        assert out_sdb.get_realized_schema(self.env) is TestSchema4
+        assert out_sdb.nominal_schema(self.env) is TestSchema4
+        assert out_sdb.realized_schema(self.env) is TestSchema4
         assert database.get_database_api(self.env).exists(out_sdb.get_name(self.env))
         db = out_sdb.data_block.as_managed_data_block(ec)
         assert db.as_records_list() == self.records_full

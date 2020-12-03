@@ -317,5 +317,5 @@ class DataBlockLog(BaseModel):
             s += f"{str(dbl.data_block_id):23}"
             s += f"{str(dbl.data_block.record_count):6}"
             s += f"{dbl.direction.value:9}{str(dbl.data_block.updated_at):22}"
-            s += f"{dbl.data_block.expected_schema_key:20}{dbl.data_block.realized_schema_key:20}\n"
+            s += f"{dbl.data_block.nominal_schema_key:20}{dbl.data_block.realized_schema_key:20}\n"
         return s

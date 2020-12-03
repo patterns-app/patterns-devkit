@@ -373,17 +373,17 @@ class StreamInput:
     bound_stream: Optional[DataBlockStream] = None
     bound_block: Optional[DataBlock] = None
 
-    def get_resolved_schema(self) -> Optional[ObjectSchema]:
+    def get_bound_nominal_schema(self) -> Optional[ObjectSchema]:
         # TODO: what is this and what is this called? "resolved"?
         if self.bound_block:
-            return self.bound_block.most_abstract_schema
+            return self.bound_block.nominal_schema
         if self.bound_stream:
             emitted = self.bound_stream.get_emitted_managed_blocks()
             if not emitted:
                 if self.bound_stream.count():
                     logger.warning(f"No blocks emitted yet from non-empty stream")
                 return None
-            return emitted[0].most_abstract_schema
+            return emitted[0].nominal_schema
         return None
 
 
@@ -401,7 +401,7 @@ class BoundInterface:
             if i.bound_stream is not None
         }
 
-    def resolve_output_schema(self, env: Environment) -> Optional[ObjectSchema]:
+    def resolve_nominal_output_schema(self, env: Environment) -> Optional[ObjectSchema]:
         if not self.output.is_generic:
             return self.output.schema(env)
         output_generic = self.output.schema_like
@@ -409,14 +409,14 @@ class BoundInterface:
             if not input.annotation.is_generic:
                 continue
             if input.annotation.schema_like == output_generic:
-                return input.get_resolved_schema()
+                return input.get_bound_nominal_schema()
         raise Exception(f"Unable to resolve generic '{output_generic}'")
 
 
 def get_schema_mapping(
     env: Environment,
     data_block: DataBlockMetadata,
-    expected_schema: Optional[ObjectSchema] = None,
+    declared_schema: Optional[ObjectSchema] = None,
     declared_schema_mapping: Optional[Dict[str, str]] = None,
 ) -> Optional[SchemaMapping]:
     if declared_schema_mapping:
@@ -425,11 +425,11 @@ def get_schema_mapping(
             mapping=declared_schema_mapping,
             from_schema=data_block.realized_schema(env),
         )
-    if expected_schema is None:
+    if declared_schema is None or is_any(declared_schema):
         # Nothing expected, so no mapping needed
         return None
     # Otherwise map found schema to expected schema
-    return data_block.expected_schema(env).get_mapping_to(env, expected_schema)
+    return data_block.realized_schema(env).get_mapping_to(env, declared_schema)
 
 
 #
@@ -616,12 +616,12 @@ class NodeInterfaceManager:
                     )
             else:
                 try:
-                    expected_schema = input.annotation.schema(self.env)
+                    declared_schema = input.annotation.schema(self.env)
                 except GenericSchemaException:
-                    expected_schema = None
+                    declared_schema = None
                 input_streams[input.name] = stream_builder.as_managed_stream(
                     self.ctx,
-                    expected_schema=expected_schema,
+                    declared_schema=declared_schema,
                     declared_schema_mapping=input.declared_schema_mapping,
                 )
             any_unprocessed = True

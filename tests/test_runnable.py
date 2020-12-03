@@ -70,7 +70,7 @@ def test_worker_output():
     assert outputblock is not None
     block = outputblock.as_managed_data_block(ec)
     assert block.as_records_list() == mock_dl_output
-    assert block.expected_schema is TestSchema1
+    assert block.nominal_schema is TestSchema1
     assert len(block.realized_schema.fields) == len(TestSchema1.fields)
     # Test alias was created correctly
     assert (

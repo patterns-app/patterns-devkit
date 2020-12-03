@@ -101,7 +101,7 @@ class DatabaseAPI:
         name = sdb.get_name(self.env)
         if self.exists(name):
             return name
-        schema = sdb.get_realized_schema(self.env)
+        schema = sdb.realized_schema(self.env)
         ddl = ObjectSchemaMapper(self.env).create_table_statement(
             schema=schema,
             storage_engine=sdb.storage.storage_engine,
@@ -139,9 +139,9 @@ class DatabaseAPI:
 
     def create_data_block_from_sql(
         self,
-        sess: Session,
         sql: str,
-        expected_schema: ObjectSchema = None,
+        nominal_schema: ObjectSchema = None,
+        inferred_schema: ObjectSchema = None,
         created_by_node_key: str = None,
     ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
         tmp_name = f"_tmp_{rand_str(10)}".lower()
@@ -156,18 +156,20 @@ class DatabaseAPI:
         """
         self.execute_sql(create_sql)
         cnt = self.count(tmp_name)
+        # TODO: realized schema logic (but consolidate in once place obvs)
         # TODO: DRY this with other "create_data_block"
-        if not expected_schema:
-            expected_schema = self.env.get_schema("Any")
-        expected_schema_key = expected_schema.key
-        if is_any(expected_schema):
-            realized_schema = infer_schema_from_db_table(self, tmp_name)
-            self.env.add_new_generated_schema(realized_schema)
+        if not nominal_schema:
+            nominal_schema = self.env.get_schema("Any")
+        if is_any(nominal_schema):
+            inferred_schema = infer_schema_from_db_table(self, tmp_name)
+            self.env.add_new_generated_schema(inferred_schema)
+            realized_schema = inferred_schema
         else:
-            realized_schema = expected_schema
+            realized_schema = nominal_schema
         realized_schema_key = realized_schema.key
         block = DataBlockMetadata(
-            expected_schema_key=expected_schema_key,
+            inferred_schema_key=inferred_schema.key if inferred_schema else None,
+            nominal_schema_key=nominal_schema.key,
             realized_schema_key=realized_schema_key,
             record_count=cnt,
             created_by_node_key=created_by_node_key,
@@ -178,11 +180,9 @@ class DatabaseAPI:
             storage_url=storage_url,
             data_format=DatabaseTableFormat,
         )
-        sess.add(block)
-        sess.add(sdb)
-        # TODO: Don't understand merge still
-        block = sess.merge(block)
-        sdb = sess.merge(sdb)
+        self.env.session.add(block)
+        self.env.session.add(sdb)
+        self.env.session.flush([block, sdb])
         # TODO: would be great to validate that a block/SDB resource is named right, or even to record the name
         #   eg what if we change the naming logic at some point...?  attr on SDB: storage_name or something
         self.rename_table(tmp_name, sdb.get_name(self.env))

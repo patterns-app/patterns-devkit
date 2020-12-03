@@ -28,7 +28,7 @@ def get_sample_records_datablock(
     env: Environment, sess
 ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
     return create_data_block_from_records(
-        env, sess, new_local_memory_storage(), sample_records
+        env, local_storage=new_local_memory_storage(), records=sample_records
     )
 
 

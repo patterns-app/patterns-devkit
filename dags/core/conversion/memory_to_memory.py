@@ -74,7 +74,7 @@ class MemoryToMemoryConverter(Converter):
         try:
             output_records_object = lookup[
                 (input_sdb.data_format, output_sdb.data_format)
-            ](input_ldr.records_object, input_sdb.get_realized_schema(self.env))
+            ](input_ldr.records_object, input_sdb.realized_schema(self.env))
         except KeyError:
             raise NotImplementedError((input_sdb.data_format, output_sdb.data_format))
         output_ldr = LocalMemoryDataRecords.from_records_object(output_records_object)

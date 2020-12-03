@@ -38,7 +38,7 @@ class FileSystemAPI:
         stored_data_block: StoredDataBlockMetadata,
         records_iterable: Iterable[RecordsList],
     ):
-        output_schema = stored_data_block.get_realized_schema(self.env)
+        output_schema = stored_data_block.realized_schema(self.env)
         columns = [f.name for f in output_schema.fields]
         with self.open(stored_data_block, "w") as f:
             append = False

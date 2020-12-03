@@ -164,7 +164,7 @@ class DataBlockStreamBuilder:
         if not self.schemas:
             return query
         return query.filter(
-            DataBlockMetadata.expected_schema_key.in_([d.key for d in self.get_schemas(ctx.env)])  # type: ignore
+            DataBlockMetadata.nominal_schema_key.in_([d.key for d in self.get_schemas(ctx.env)])  # type: ignore
         )
 
     def filter_schema(self, schema: ObjectSchemaLike) -> DataBlockStreamBuilder:
@@ -236,13 +236,13 @@ class DataBlockStreamBuilder:
     def as_managed_stream(
         self,
         ctx: ExecutionContext,
-        expected_schema: Optional[ObjectSchema] = None,
+        declared_schema: Optional[ObjectSchema] = None,
         declared_schema_mapping: Optional[Dict[str, str]] = None,
     ) -> ManagedDataBlockStream:
         return ManagedDataBlockStream(
             ctx,
             self,
-            expected_schema=expected_schema,
+            declared_schema=declared_schema,
             declared_schema_mapping=declared_schema_mapping,
         )
 
@@ -254,11 +254,11 @@ def block_as_stream_builder(data_block: DataBlockMetadata) -> DataBlockStreamBui
 def block_as_stream(
     data_block: DataBlockMetadata,
     ctx: ExecutionContext,
-    expected_schema: Optional[ObjectSchema] = None,
+    declared_schema: Optional[ObjectSchema] = None,
     declared_schema_mapping: Optional[Dict[str, str]] = None,
 ) -> DataBlockStream:
     stream = block_as_stream_builder(data_block)
-    return stream.as_managed_stream(ctx, expected_schema, declared_schema_mapping)
+    return stream.as_managed_stream(ctx, declared_schema, declared_schema_mapping)
 
 
 class ManagedDataBlockStream:
@@ -266,12 +266,12 @@ class ManagedDataBlockStream:
         self,
         ctx: ExecutionContext,
         stream: DataBlockStreamBuilder,
-        expected_schema: Optional[ObjectSchema] = None,
+        declared_schema: Optional[ObjectSchema] = None,
         declared_schema_mapping: Optional[Dict[str, str]] = None,
     ):
         self.ctx = ctx
         self.stream = stream
-        self.expected_schema = expected_schema
+        self.declared_schema = declared_schema
         self.declared_schema_mapping = declared_schema_mapping
         self._blocks = (b for b in self.stream.get_query(self.ctx))
         self._emitted_blocks: List[DataBlockMetadata] = []
@@ -283,7 +283,7 @@ class ManagedDataBlockStream:
         schema_mapping = get_schema_mapping(
             self.ctx.env,
             db,
-            expected_schema=self.expected_schema,
+            declared_schema=self.declared_schema,
             declared_schema_mapping=self.declared_schema_mapping,
         )
         mdb = db.as_managed_data_block(self.ctx, schema_mapping=schema_mapping)

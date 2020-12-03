@@ -24,19 +24,19 @@ class TestStreams:
         self.g = Graph(self.env)
         self.graph = self.g.get_metadata_obj()
         self.dr1t1 = DataBlockMetadata(
-            expected_schema_key="_test.TestSchema1",
+            nominal_schema_key="_test.TestSchema1",
             realized_schema_key="_test.TestSchema1",
         )
         self.dr2t1 = DataBlockMetadata(
-            expected_schema_key="_test.TestSchema1",
+            nominal_schema_key="_test.TestSchema1",
             realized_schema_key="_test.TestSchema1",
         )
         self.dr1t2 = DataBlockMetadata(
-            expected_schema_key="_test.TestSchema2",
+            nominal_schema_key="_test.TestSchema2",
             realized_schema_key="_test.TestSchema2",
         )
         self.dr2t2 = DataBlockMetadata(
-            expected_schema_key="_test.TestSchema2",
+            nominal_schema_key="_test.TestSchema2",
             realized_schema_key="_test.TestSchema2",
         )
         # self.ds1db1 = DataSetMetadata(
