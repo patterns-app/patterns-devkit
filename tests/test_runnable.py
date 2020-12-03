@@ -10,6 +10,7 @@ from dags.core.runnable import CompiledPipe, Runnable, RunSession, Worker
 from dags.modules import core
 from tests.utils import (
     TestSchema1,
+    TestSchema4,
     make_test_env,
     make_test_execution_context,
     pipe_generic,
@@ -18,14 +19,14 @@ from tests.utils import (
     pipe_t1_to_t2,
 )
 
-mock_dl_output = [{1: 2}, {2: 3}]
+mock_dl_output = [{"f1": 2}, {"f2": 3}]
 
 
-def pipe_dl_source() -> RecordsList[TestSchema1]:
+def pipe_dl_source() -> RecordsList[TestSchema4]:
     return mock_dl_output
 
 
-def pipe_error() -> RecordsList[TestSchema1]:
+def pipe_error() -> RecordsList[TestSchema4]:
     raise Exception("pipe FAIL")
 
 
@@ -70,8 +71,8 @@ def test_worker_output():
     assert outputblock is not None
     block = outputblock.as_managed_data_block(ec)
     assert block.as_records_list() == mock_dl_output
-    assert block.nominal_schema is TestSchema1
-    assert len(block.realized_schema.fields) == len(TestSchema1.fields)
+    assert block.nominal_schema is TestSchema4
+    assert len(block.realized_schema.fields) == len(TestSchema4.fields)
     # Test alias was created correctly
     assert (
         env.session.query(Alias)

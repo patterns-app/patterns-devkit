@@ -159,6 +159,9 @@ class ObjectSchema:
         # TODO: relationships
         raise NameError
 
+    def field_names(self) -> List[str]:
+        return [f.name for f in self.fields]
+
     @property
     def updated_at_field(self) -> Optional[Field]:
         if self.updated_at_field_name:

@@ -165,7 +165,6 @@ class Environment:
         got = GeneratedObjectSchema(key=schema.key, definition=asdict(schema))
         self.session.add(got)
         self.session.flush([got])
-        self.session.merge(got)
         self.library.add_schema(schema)
 
     def all_schemas(self) -> List[ObjectSchema]:

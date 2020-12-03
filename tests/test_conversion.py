@@ -198,7 +198,10 @@ class TestConversions:
             out_sdb = convert_lowest_cost(ec, self.sdb, self.fs, fmt)
             assert out_sdb.data_format == fmt
             assert out_sdb.nominal_schema(self.env) is TestSchema4
-            assert out_sdb.realized_schema(self.env) is TestSchema4
+            assert (
+                out_sdb.realized_schema(self.env).field_names()
+                == TestSchema4.field_names()
+            )  # TODO: really probably want "is" here as well, but we have inferred type as BigInteger and nominal type as Integer...
             fsapi = self.fs.get_file_system_api(self.env)
             assert fsapi.exists(out_sdb)
             db = out_sdb.data_block.as_managed_data_block(ec)
@@ -211,7 +214,9 @@ class TestConversions:
         out_sdb = convert_lowest_cost(ec, self.sdb, database, DatabaseTableFormat)
         assert out_sdb.data_format == DatabaseTableFormat
         assert out_sdb.nominal_schema(self.env) is TestSchema4
-        assert out_sdb.realized_schema(self.env) is TestSchema4
+        assert (
+            out_sdb.realized_schema(self.env).field_names() == TestSchema4.field_names()
+        )
         assert database.get_database_api(self.env).exists(out_sdb.get_name(self.env))
         db = out_sdb.data_block.as_managed_data_block(ec)
         assert db.as_records_list() == self.records_full

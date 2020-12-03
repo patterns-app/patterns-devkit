@@ -25,6 +25,7 @@ from dags.core.data_formats.records_list import RecordsList, RecordsListFormat
 from dags.core.environment import Environment
 from dags.core.metadata.listeners import immutability_update_listener
 from dags.core.metadata.orm import BaseModel, timestamp_rand_key
+from dags.core.typing.casting import cast_to_realized_schema
 from dags.core.typing.inference import infer_schema_from_records_list
 from dags.core.typing.object_schema import (
     ObjectSchema,
@@ -436,27 +437,23 @@ def create_data_block_from_records(
         ldr = LocalMemoryDataRecords.from_records_object(records)
     if not nominal_schema:
         nominal_schema = env.get_schema("Any")
-    nominal_schema_key = nominal_schema.key
-    realized_schema: ObjectSchema
-    # TODO: add logic for type casting settings (do we do inference or not, etc)
-    #    goes in its own module, all about casting types (when to merge fields, when to downcast, etc) see table in readme
-    if is_any(nominal_schema):
-        if not inferred_schema:
-            inferred_schema = ldr.data_format.infer_schema_from_records(
-                ldr.records_object
-            )
-            env.add_new_generated_schema(inferred_schema)
-        realized_schema = inferred_schema
-    else:
-        realized_schema = nominal_schema
-    realized_schema_key = realized_schema.key
-    inferred_schema_key = None
-    if inferred_schema is not None:
-        inferred_schema_key = inferred_schema.key
+    if not inferred_schema:
+        inferred_schema = ldr.data_format.infer_schema_from_records(ldr.records_object)
+        env.add_new_generated_schema(inferred_schema)
+    realized_schema = cast_to_realized_schema(inferred_schema, nominal_schema)
+    # if is_any(nominal_schema):
+    #     if not inferred_schema:
+    #         inferred_schema = ldr.data_format.infer_schema_from_records(
+    #             ldr.records_object
+    #         )
+    #         env.add_new_generated_schema(inferred_schema)
+    #     realized_schema = inferred_schema
+    # else:
+    #     realized_schema = nominal_schema
     block = DataBlockMetadata(
-        inferred_schema_key=inferred_schema_key,
-        nominal_schema_key=nominal_schema_key,
-        realized_schema_key=realized_schema_key,
+        inferred_schema_key=inferred_schema.key if inferred_schema else None,
+        nominal_schema_key=nominal_schema.key,
+        realized_schema_key=realized_schema.key,
         record_count=ldr.record_count,
         created_by_node_key=created_by_node_key,
     )

@@ -29,6 +29,7 @@ from dags.core.environment import Environment
 from dags.core.runtime import Runtime
 from dags.core.sql.utils import ObjectSchemaMapper
 from dags.core.storage.storage import Storage, StorageEngine
+from dags.core.typing.casting import cast_to_realized_schema
 from dags.core.typing.inference import infer_schema_from_db_table
 from dags.core.typing.object_schema import ObjectSchema, is_any
 from dags.utils.common import DagsJSONEncoder, printd, rand_str, title_to_snake_case
@@ -156,21 +157,22 @@ class DatabaseAPI:
         """
         self.execute_sql(create_sql)
         cnt = self.count(tmp_name)
-        # TODO: realized schema logic (but consolidate in once place obvs)
-        # TODO: DRY this with other "create_data_block"
         if not nominal_schema:
             nominal_schema = self.env.get_schema("Any")
-        if is_any(nominal_schema):
+        if not inferred_schema:
             inferred_schema = infer_schema_from_db_table(self, tmp_name)
             self.env.add_new_generated_schema(inferred_schema)
-            realized_schema = inferred_schema
-        else:
-            realized_schema = nominal_schema
-        realized_schema_key = realized_schema.key
+        realized_schema = cast_to_realized_schema(inferred_schema, nominal_schema)
+        # if is_any(nominal_schema):
+        #     inferred_schema = infer_schema_from_db_table(self, tmp_name)
+        #     self.env.add_new_generated_schema(inferred_schema)
+        #     realized_schema = inferred_schema
+        # else:
+        #     realized_schema = nominal_schema
         block = DataBlockMetadata(
             inferred_schema_key=inferred_schema.key if inferred_schema else None,
             nominal_schema_key=nominal_schema.key,
-            realized_schema_key=realized_schema_key,
+            realized_schema_key=realized_schema.key,
             record_count=cnt,
             created_by_node_key=created_by_node_key,
         )

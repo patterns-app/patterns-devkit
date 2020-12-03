@@ -71,12 +71,11 @@ class MemoryToMemoryConverter(Converter):
                 RecordsListFormat,
             ): self.dataframe_generator_to_records_list,
         }
-        try:
-            output_records_object = lookup[
-                (input_sdb.data_format, output_sdb.data_format)
-            ](input_ldr.records_object, input_sdb.realized_schema(self.env))
-        except KeyError:
+        if (input_sdb.data_format, output_sdb.data_format) not in lookup:
             raise NotImplementedError((input_sdb.data_format, output_sdb.data_format))
+        output_records_object = lookup[(input_sdb.data_format, output_sdb.data_format)](
+            input_ldr.records_object, input_sdb.realized_schema(self.env)
+        )
         output_ldr = LocalMemoryDataRecords.from_records_object(output_records_object)
         output_memory_storage.store_local_memory_data_records(output_sdb, output_ldr)
         return output_sdb
