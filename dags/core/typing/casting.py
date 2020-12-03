@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 from dataclasses import asdict
 from enum import Enum
 from functools import total_ordering
+from typing import TYPE_CHECKING
 
 from dags.core.typing.object_schema import (
     ConflictBehavior,
@@ -9,6 +12,10 @@ from dags.core.typing.object_schema import (
     create_quick_field,
     create_quick_schema,
 )
+from loguru import logger
+
+if TYPE_CHECKING:
+    from dags import Environment
 
 
 @total_ordering
@@ -52,22 +59,30 @@ def has_subset_fields(sub: ObjectSchema, supr: ObjectSchema) -> bool:
 
 
 def update_matching_field_definitions(
-    schema: ObjectSchema, update_with_schema: ObjectSchema
+    env: Environment, schema: ObjectSchema, update_with_schema: ObjectSchema
 ) -> ObjectSchema:
-    schema_dict = asdict(schema)
     fields = []
+    modified = False
     for f in schema.fields:
         new_f = f
         try:
             new_f = update_with_schema.get_field(f.name)
+            modified = True
         except NameError:
             pass
         fields.append(new_f)
+    if not modified:
+        return schema
+    schema_dict = asdict(schema)
+    schema_dict["name"] = f"{schema.name}_with_{update_with_schema.name}"
     schema_dict["fields"] = fields
-    return ObjectSchema.from_dict(schema_dict)
+    updated = ObjectSchema.from_dict(schema_dict)
+    env.add_new_generated_schema(updated)
+    return updated
 
 
 def cast_to_realized_schema(
+    env: Environment,
     inferred_schema: ObjectSchema,
     nominal_schema: ObjectSchema,
     cast_level: CastToSchemaLevel = CastToSchemaLevel.SOFT,
@@ -76,7 +91,9 @@ def cast_to_realized_schema(
         return nominal_schema
     if has_subset_fields(nominal_schema, inferred_schema):
         if cast_level < CastToSchemaLevel.HARD:
-            return update_matching_field_definitions(inferred_schema, nominal_schema)
+            return update_matching_field_definitions(
+                env, inferred_schema, nominal_schema
+            )
         else:
             return nominal_schema
     else:

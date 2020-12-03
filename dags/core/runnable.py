@@ -367,6 +367,7 @@ class ExecutionManager:
         # new_session = self.env.get_new_metadata_session()
         # last_output = new_session.merge(last_output)
         last_output = self.env.session.merge(last_output)
+        logger.debug(f"*DONE* RUNNING NODE {node.key} {node.pipe.key}")
         return last_output.as_managed_data_block(self.ctx)
 
     def _run(self, node: Node, worker: Worker):
@@ -444,6 +445,7 @@ class Worker:
         output: DataInterfaceType,
         runnable: Runnable,
     ) -> Optional[StoredDataBlockMetadata]:
+        logger.debug("HANDLING OUTPUT")
         assert runnable.bound_interface.output is not None
         # TODO: can i return an existing DataBlock? Or do I need to create a "clone"?
         #   Answer: ok to return as is (just mark it as 'output' in DBL)

@@ -196,6 +196,9 @@ class SqlPipeWrapper:
         db_api = ctx.execution_context.current_runtime.get_database_api(
             ctx.execution_context.env
         )
+        logger.debug(
+            f"Resolved in sql pipe {ctx.runnable.bound_interface.resolve_nominal_output_schema( ctx.worker.env )}"
+        )
         block, sdb = db_api.create_data_block_from_sql(
             sql,
             nominal_schema=ctx.runnable.bound_interface.resolve_nominal_output_schema(

@@ -159,6 +159,7 @@ class Environment:
         return got.as_schema()
 
     def add_new_generated_schema(self, schema: ObjectSchema):
+        logger.debug(f"Adding new generated schema {schema}")
         if schema.key in self.library.schemas:
             # Already exists
             return

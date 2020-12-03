@@ -16,6 +16,7 @@ from dags.testing.utils import (
 )
 from dags.utils.pandas import assert_dataframes_are_almost_equal
 from dags.utils.typing import T
+from loguru import logger
 
 
 @pipe("dataframe_accumulator", module="core")
@@ -92,9 +93,12 @@ def test_accumulator():
             db = produce_pipe_output_for_static_input(
                 p, input=data_input, target_storage=s
             )
+            logger.debug(db)
+            logger.debug("TEST df conversion")
             expected_df = DataInput(
                 expected, schema="CoreTestSchema", module=core
             ).as_dataframe(db.manager.ctx.env)
+            logger.debug("TEST df conversion 2")
             df = db.as_dataframe()
             assert_dataframes_are_almost_equal(
                 df, expected_df, schema=core.schemas.CoreTestSchema

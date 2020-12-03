@@ -46,7 +46,7 @@ class DatabaseToMemoryConverter(Converter):
         if output_sdb.data_format == DatabaseTableRefFormat:
             output_records = DatabaseTableRef(name, storage_url=input_sdb.storage_url)
         elif output_sdb.data_format == DatabaseCursorFormat:
-            output_records = db_conn.execute(select_sql)
+            output_records = db_conn.execute(select_sql)  # TODO: close this connection?
         # Note: We are not using Pandas type inference generally (it has poor null support)
         #   so can't use read_sql or any other read_* method
         #   so we let this go through DB -> RECORDS_LIST -> DATAFRAME conversion path for now

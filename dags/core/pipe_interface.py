@@ -247,8 +247,6 @@ class PipeInterface:
         #         data_block_seen = True
 
     def assign_inputs(self, inputs: Union[T, Dict[str, T]]) -> Dict[str, T]:
-        print("assign")
-        print(self)
         if not isinstance(inputs, dict):
             assert (
                 len(self.get_non_recursive_inputs()) == 1
@@ -409,7 +407,10 @@ class BoundInterface:
             if not input.annotation.is_generic:
                 continue
             if input.annotation.schema_like == output_generic:
-                return input.get_bound_nominal_schema()
+                schema = input.get_bound_nominal_schema()
+                # We check if None -- there may be more than one input with same generic, we'll take any that are resolvable
+                if schema is not None:
+                    return schema
         raise Exception(f"Unable to resolve generic '{output_generic}'")
 
 
@@ -579,6 +580,7 @@ class NodeInterfaceManager:
         from dags.core.streams import ensure_data_stream_builder
         from dags.core.pipe import InputExhaustedException
 
+        logger.debug(f"GETTING INPUTS for {self.node.key}")
         input_streams: InputStreams = {}
         any_unprocessed = False
         for input in self.get_connected_interface().inputs:

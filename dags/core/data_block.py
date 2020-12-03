@@ -218,6 +218,7 @@ DataBlock = ManagedDataBlock
 class StoredDataBlockMetadata(BaseModel):
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     # id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=True)
     data_block_id = Column(String, ForeignKey(DataBlockMetadata.id), nullable=False)
     storage_url = Column(String, nullable=False)
     data_format: DataFormat = Column(DataFormatType, nullable=False)  # type: ignore
@@ -255,15 +256,15 @@ class StoredDataBlockMetadata(BaseModel):
         return Storage.from_url(self.storage_url)
 
     def get_name(self, env: Environment) -> str:
+        if self.name:
+            return self.name
         if self.data_block_id is None or self.id is None:
             env.session.flush([self])
             self = env.session.merge(self)
-            # raise ValueError(
-            #     "Trying to get StoredDataBlock name, but id is not set yet (obj must be committed to database first)"
-            # )
-        # TODO: remove env arg
         node_key = self.data_block.created_by_node_key or ""
-        return as_identifier(f"_{node_key[:40]}_{self.id}")
+        self.name = as_identifier(f"_{node_key[:40]}_{self.id}")
+        env.session.flush([self])
+        return self.name
 
     def get_storage_format(self) -> StorageFormat:
         return StorageFormat(self.storage.storage_type, self.data_format)
@@ -286,8 +287,8 @@ class StoredDataBlockMetadata(BaseModel):
         return a
 
 
-event.listen(DataBlockMetadata, "before_update", immutability_update_listener)
-event.listen(StoredDataBlockMetadata, "before_update", immutability_update_listener)
+# event.listen(DataBlockMetadata, "before_update", immutability_update_listener)
+# event.listen(StoredDataBlockMetadata, "before_update", immutability_update_listener)
 
 
 class Alias(BaseModel):
@@ -355,7 +356,7 @@ class DataBlockManager:
     def get_or_create_local_stored_data_block(
         self, target_format: DataFormat
     ) -> StoredDataBlockMetadata:
-        # TODO: this is a beast, diminish it
+        # TODO: this is a beast, tame it
         from dags.core.conversion import (
             StorageFormat,
             get_conversion_path_for_sdb,
@@ -428,9 +429,10 @@ def create_data_block_from_records(
 ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
     from dags.core.storage.storage import LocalMemoryStorageEngine
 
+    logger.debug("CREATING DATA BLOCK")
     if isinstance(records, LocalMemoryDataRecords):
         ldr = records
-        # Important: override expected schema with LDR entry if it exists (the schema was EXPLICITLY ADDED by pipe on purpose)
+        # Important: override nominal schema with LDR entry if it exists (the schema was EXPLICITLY ADDED by pipe on purpose)
         if ldr.nominal_schema is not None:
             nominal_schema = env.get_schema(ldr.nominal_schema)
     else:
@@ -440,7 +442,7 @@ def create_data_block_from_records(
     if not inferred_schema:
         inferred_schema = ldr.data_format.infer_schema_from_records(ldr.records_object)
         env.add_new_generated_schema(inferred_schema)
-    realized_schema = cast_to_realized_schema(inferred_schema, nominal_schema)
+    realized_schema = cast_to_realized_schema(env, inferred_schema, nominal_schema)
     # if is_any(nominal_schema):
     #     if not inferred_schema:
     #         inferred_schema = ldr.data_format.infer_schema_from_records(

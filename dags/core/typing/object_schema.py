@@ -51,9 +51,10 @@ class Field:
     description: Optional[str] = None
 
 
+@dataclass(frozen=True)
 class Validator:
     # TODO
-    pass
+    name: Optional[str] = None
 
 
 ObjectSchemaKey = str

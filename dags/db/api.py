@@ -145,6 +145,7 @@ class DatabaseAPI:
         inferred_schema: ObjectSchema = None,
         created_by_node_key: str = None,
     ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
+        logger.debug("CREATING DATA BLOCK from sql")
         tmp_name = f"_tmp_{rand_str(10)}".lower()
         sql = self.clean_sub_sql(sql)
         create_sql = f"""
@@ -162,7 +163,9 @@ class DatabaseAPI:
         if not inferred_schema:
             inferred_schema = infer_schema_from_db_table(self, tmp_name)
             self.env.add_new_generated_schema(inferred_schema)
-        realized_schema = cast_to_realized_schema(inferred_schema, nominal_schema)
+        realized_schema = cast_to_realized_schema(
+            self.env, inferred_schema, nominal_schema
+        )
         # if is_any(nominal_schema):
         #     inferred_schema = infer_schema_from_db_table(self, tmp_name)
         #     self.env.add_new_generated_schema(inferred_schema)
