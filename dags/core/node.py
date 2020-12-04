@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import enum
 import traceback
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from sqlalchemy.orm import Session, relationship
@@ -16,8 +16,8 @@ from dags.core.environment import Environment
 from dags.core.metadata.orm import DAGS_METADATA_TABLE_PREFIX, BaseModel
 from dags.core.pipe import Pipe, PipeLike, ensure_pipe, make_pipe, make_pipe_name
 from dags.core.pipe_interface import (
-    DeclaredNodeInput,
-    DeclaredNodeLikeInput,
+    DeclaredStreamInput,
+    DeclaredStreamLikeInput,
     PipeInterface,
 )
 from dags.utils.common import as_identifier
@@ -25,64 +25,90 @@ from loguru import logger
 
 if TYPE_CHECKING:
     from dags.core.runnable import ExecutionContext
-    from dags.core.streams import DataBlockStreamBuilder
-    from dags.core.graph import Graph, GraphMetadata
+    from dags.core.streams import StreamBuilder, StreamLike
+    from dags.core.graph import Graph, GraphMetadata, DeclaredGraph
+
+NodeLike = Union[str, "Node", "DeclaredNode"]
+NodeBase = Union["Node", "DeclaredNode"]
 
 
-NodeLike = Union[str, "Node"]
+def ensure_stream(stream_like: StreamLike) -> StreamBuilder:
+    from dags.core.streams import StreamBuilder, StreamLike
+
+    if isinstance(stream_like, StreamBuilder):
+        return stream_like
+    if isinstance(stream_like, DeclaredNode) or isinstance(stream_like, Node):
+        return stream_like.as_stream_builder()
+    if isinstance(stream_like, str):
+        return StreamBuilder(nodes=[stream_like])
 
 
-def inputs_as_nodes(
-    graph: Graph, inputs: Dict[str, DeclaredNodeLikeInput]
-) -> Dict[str, DeclaredNodeInput]:
-    return {
-        name: DeclaredNodeInput(
-            node=graph.get_node(dnl.node_like),
-            declared_schema_mapping=dnl.declared_schema_mapping,
-        )
-        for name, dnl in inputs.items()
-    }
+@dataclass(frozen=True)
+class DeclaredNode:
+    key: str
+    pipe: Union[PipeLike, str]
+    config: Dict[str, Any] = field(default_factory=dict)
+    upstream: Union[StreamLike, Dict[str, StreamLike]] = field(default_factory=dict)
+    output_alias: Optional[str] = None
+    # create_dataset: bool = True
+    # dataset_name: Optional[str] = None
+    schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(key={self.key}, pipe={self.pipe})>"
+
+    def __hash__(self):
+        return hash(self.key)
+
+    def as_stream_builder(self) -> StreamBuilder:
+        from dags.core.streams import StreamBuilder
+
+        return StreamBuilder(nodes=self)
+
+    def instantiate(self, env: Environment, g: Graph = None) -> Node:
+        from dags.core.graph import Graph
+
+        if g is None:
+            g = Graph(env)
+        return instantiate_node(env, g, self)
 
 
-def create_node(
+node = DeclaredNode
+
+
+def instantiate_node(
+    env: Environment,
     graph: Graph,
-    key: str,
-    pipe: Union[PipeLike, str],
-    upstream: Optional[Union[NodeLike, Dict[str, NodeLike]]] = None,  # Synonym
-    config: Optional[Dict[str, Any]] = None,
-    schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
-    output_alias: Optional[str] = None,
-    create_dataset: bool = True,
-    dataset_name: Optional[str] = None,
+    declared_node: DeclaredNode,
 ):
-    config = config or {}
-    env = graph.env
-    if isinstance(pipe, str):
-        pipe = env.get_pipe(pipe)
+    if isinstance(declared_node.pipe, str):
+        pipe = env.get_pipe(declared_node.pipe)
     else:
-        pipe = make_pipe(pipe)
-    interface = pipe.get_interface(env)
-    schema_mapping = interface.assign_mapping(schema_mapping)
-    _declared_inputs: Dict[str, DeclaredNodeLikeInput] = {}
-    n = Node(
-        env=graph.env,
-        graph=graph,
-        key=key,
-        pipe=pipe,
-        config=config,
-        interface=interface,
-        _declared_inputs=_declared_inputs,
-        _declared_schema_mapping=schema_mapping,
-        output_alias=output_alias,
-        create_dataset=create_dataset,
-        _dataset_name=dataset_name,
-    )
-    if upstream is not None:
-        for name, node_like in interface.assign_inputs(upstream).items():
-            n._declared_inputs[name] = DeclaredNodeLikeInput(
-                node_like=node_like,
+        pipe = make_pipe(declared_node.pipe)
+    interface = pipe.get_interface()
+    schema_mapping = interface.assign_mapping(declared_node.schema_mapping)
+    declared_inputs: Dict[str, DeclaredStreamInput] = {}
+    if declared_node.upstream is not None:
+        for name, stream_like in interface.assign_inputs(
+            declared_node.upstream
+        ).items():
+            declared_inputs[name] = DeclaredStreamInput(
+                stream=ensure_stream(stream_like),
                 declared_schema_mapping=(schema_mapping or {}).get(name),
             )
+    n = Node(
+        env=env,
+        graph=graph,
+        key=declared_node.key,
+        pipe=pipe,
+        config=declared_node.config,
+        interface=interface,
+        declared_inputs=declared_inputs,
+        declared_schema_mapping=schema_mapping,
+        output_alias=declared_node.output_alias,
+        # create_dataset=declared_node.create_dataset,
+        # _dataset_name=declared_node.dataset_name,
+    )
     return n
 
 
@@ -94,11 +120,11 @@ class Node:
     pipe: Pipe
     config: Dict[str, Any]
     interface: PipeInterface
-    _declared_inputs: Dict[str, DeclaredNodeLikeInput]
-    create_dataset: bool = True
+    declared_inputs: Dict[str, DeclaredStreamInput]
     output_alias: Optional[str] = None
-    _dataset_name: Optional[str] = None
-    _declared_schema_mapping: Optional[Dict[str, Dict[str, str]]] = None
+    declared_schema_mapping: Optional[Dict[str, Dict[str, str]]] = None
+    # create_dataset: bool = True
+    # _dataset_name: Optional[str] = None
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(key={self.key}, pipe={self.pipe.key})>"
@@ -112,8 +138,8 @@ class Node:
             return state.state
         return None
 
-    def get_dataset_name(self) -> str:
-        return self._dataset_name or self.key
+    # def get_dataset_name(self) -> str:
+    #     return self._dataset_name or self.key
 
     def get_alias(self) -> str:
         if self.output_alias:
@@ -124,59 +150,53 @@ class Node:
             ident
         )  # TODO: this logic should be storage api specific! and then shared back?
 
-    def get_dataset_node_keys(self):
-        return [
-            f"{self.key}__accumulator",
-            f"{self.key}__dedupe",
-        ]
-
-    def create_dataset_nodes(self) -> List[Node]:
-        dfi = self.get_interface()
-        if dfi.output is None:
-            raise
-        # if self.output_is_dataset():
-        #     return []
-        # TODO: how do we choose runtime? just using lang for now
-        lang = self.pipe.source_code_language()
-        if lang == "sql":
-            df_accum = "core.sql_accumulator"
-            df_dedupe = "core.sql_dedupe_unique_keep_newest_row"
-        else:
-            df_accum = "core.dataframe_accumulator"
-            df_dedupe = "core.dataframe_dedupe_unique_keep_newest_row"
-        accum_key, dedupe_key = self.get_dataset_node_keys()
-        accum = create_node(
-            self.graph,
-            key=accum_key,
-            pipe=self.env.get_pipe(df_accum),
-            upstream=self,
-        )
-        dedupe = create_node(
-            self.graph,
-            key=dedupe_key,
-            pipe=self.env.get_pipe(df_dedupe),
-            upstream=accum,
-            output_alias=self.get_dataset_name(),
-        )
-        logger.debug(f"Adding DataSet nodes {[accum, dedupe]}")
-        return [accum, dedupe]
+    # def get_dataset_node_keys(self):
+    #     return [
+    #         f"{self.key}__accumulator",
+    #         f"{self.key}__dedupe",
+    #     ]
+    #
+    # def create_dataset_nodes(self) -> List[Node]:
+    #     pi = self.get_interface()
+    #     if pi.output is None:
+    #         raise
+    #     # if self.output_is_dataset():
+    #     #     return []
+    #     # TODO: how do we choose runtime? just using lang for now
+    #     lang = self.pipe.source_code_language()
+    #     if lang == "sql":
+    #         df_accum = "core.sql_accumulator"
+    #         df_dedupe = "core.sql_dedupe_unique_keep_newest_row"
+    #     else:
+    #         df_accum = "core.dataframe_accumulator"
+    #         df_dedupe = "core.dataframe_dedupe_unique_keep_newest_row"
+    #     accum_key, dedupe_key = self.get_dataset_node_keys()
+    #     accum = create_node(
+    #         self.graph,
+    #         key=accum_key,
+    #         pipe=self.env.get_pipe(df_accum),
+    #         upstream=self,
+    #     )
+    #     dedupe = create_node(
+    #         self.graph,
+    #         key=dedupe_key,
+    #         pipe=self.env.get_pipe(df_dedupe),
+    #         upstream=accum,
+    #         output_alias=self.get_dataset_name(),
+    #     )
+    #     logger.debug(f"Adding DataSet nodes {[accum, dedupe]}")
+    #     return [accum, dedupe]
 
     def get_interface(self) -> PipeInterface:
         return self.interface
 
-    def get_declared_input_nodes(self) -> Dict[str, DeclaredNodeInput]:
-        return inputs_as_nodes(self.graph, self.get_declared_inputs())
-
-    def get_declared_inputs(self) -> Dict[str, DeclaredNodeLikeInput]:
-        return self._declared_inputs or {}
-
     def get_schema_mapping_for_input(self, input_name: str) -> Optional[Dict[str, str]]:
-        return (self._declared_schema_mapping or {}).get(input_name)
+        return (self.declared_schema_mapping or {}).get(input_name)
 
-    def as_stream(self) -> DataBlockStreamBuilder:
-        from dags.core.streams import DataBlockStreamBuilder
+    def as_stream_builder(self) -> StreamBuilder:
+        from dags.core.streams import StreamBuilder
 
-        return DataBlockStreamBuilder(upstream=self)
+        return StreamBuilder(nodes=self)
 
     def get_latest_output(self, ctx: ExecutionContext) -> Optional[DataBlock]:
         block = (

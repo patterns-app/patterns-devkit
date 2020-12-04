@@ -68,6 +68,8 @@ class DataInput:
         return str_as_dataframe(self.data, module=self.module, nominal_schema=schema)
 
     def get_schema(self, env: Environment) -> Optional[ObjectSchema]:
+        if not self.schema:
+            return None
         return env.get_schema(self.schema)
 
 
@@ -89,7 +91,7 @@ def produce_pipe_output_for_static_input(
     g = Graph(env)
     input_datas = input
     input_nodes: Dict[str, Node] = {}
-    pi = pipe.get_interface(env)
+    pi = pipe.get_interface()
     if not isinstance(input, dict):
         assert len(pi.get_non_recursive_inputs()) == 1
         input_datas = {pi.get_non_recursive_inputs()[0].name: input}
@@ -100,7 +102,7 @@ def produce_pipe_output_for_static_input(
         input_data = input_datas[input.name]
         if isinstance(input_data, str):
             input_data = DataInput(data=input_data)
-        n = g.add_node(
+        n = g.create_node(
             f"_input_{input.name}",
             "core.extract_dataframe",
             config={
@@ -109,5 +111,5 @@ def produce_pipe_output_for_static_input(
             },
         )
         input_nodes[input.name] = n
-    test_node = g.add_node(f"{pipe.name}", pipe, config=config, upstream=input_nodes)
+    test_node = g.create_node(f"{pipe.name}", pipe, config=config, upstream=input_nodes)
     return env.produce(g, test_node, to_exhaustion=False, target_storage=target_storage)

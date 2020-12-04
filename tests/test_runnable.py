@@ -35,7 +35,7 @@ def test_worker():
     g = Graph(env)
     rt = env.runtimes[0]
     ec = env.get_execution_context(g, current_runtime=rt)
-    node = g.add_node("node", pipe_t1_source)
+    node = g.create_node("node", pipe_t1_source)
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
@@ -58,7 +58,7 @@ def test_worker_output():
         g, current_runtime=rt, target_storage=env.storages[0]
     )
     output_alias = "node_output"
-    node = g.add_node("node", pipe_dl_source, output_alias=output_alias)
+    node = g.create_node("node", pipe_dl_source, output_alias=output_alias)
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()

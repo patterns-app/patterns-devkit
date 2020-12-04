@@ -19,13 +19,13 @@ def make_graph() -> Graph:
     env = make_test_env()
     env.add_module(core)
     g = Graph(env)
-    g.add_node("node1", pipe_t1_source)
-    g.add_node("node2", pipe_t1_source)
-    g.add_node("node3", pipe_t1_to_t2, upstream="node1")
-    g.add_node("node4", pipe_t1_to_t2, upstream="node2")
-    g.add_node("node5", pipe_generic, upstream="node4")
-    g.add_node("node6", pipe_self, upstream="node4")
-    g.add_node(
+    g.create_node("node1", pipe_t1_source)
+    g.create_node("node2", pipe_t1_source)
+    g.create_node("node3", pipe_t1_to_t2, upstream="node1")
+    g.create_node("node4", pipe_t1_to_t2, upstream="node2")
+    g.create_node("node5", pipe_generic, upstream="node4")
+    g.create_node("node6", pipe_self, upstream="node4")
+    g.create_node(
         "node7", pipe_multiple_input, upstream={"input": "node4", "other_t2": "node3"}
     )
     return g
@@ -34,7 +34,7 @@ def make_graph() -> Graph:
 def test_dupe_node():
     g = make_graph()
     with pytest.raises(KeyError):
-        g.add_node("node1", pipe_t1_source)
+        g.create_node("node1", pipe_t1_source)
 
 
 def test_declared_graph():

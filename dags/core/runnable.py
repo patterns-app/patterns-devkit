@@ -472,8 +472,7 @@ class Worker:
                 ):
                     output = RecordsListGenerator(output)
                 else:
-                    TypeError(output)
-                output = cast(ReusableGenerator, output)
+                    output = ReusableGenerator(output)
                 if output.get_one() is None:
                     # Empty generator
                     return None

@@ -61,17 +61,6 @@ ObjectSchemaKey = str
 ObjectSchemaName = str
 
 
-# Too much, just use str
-# @dataclass(frozen=True)
-# class ObjectSchemaName:
-#     name: str
-#     module: Optional[str] = None
-#
-#     @classmethod
-#     def from_str(cls, k: str) -> ObjectSchemaName:
-#         return ObjectSchemaName(*k.split(".")[::-1])
-
-
 @dataclass(frozen=True)
 class Relationship:
     name: str

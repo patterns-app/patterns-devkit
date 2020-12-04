@@ -92,7 +92,7 @@ class DatabaseAPI:
             return conn.execute(sql)
 
     @contextmanager
-    def execute_sql_result(self, sql: str) -> ResultProxy:
+    def execute_sql_result(self, sql: str) -> Generator[ResultProxy, None, None]:
         logger.debug("Executing SQL:")
         logger.debug(sql)
         with self.connection() as conn:

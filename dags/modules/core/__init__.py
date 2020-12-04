@@ -19,10 +19,6 @@ module = DagsModule(
     py_module_name=__name__,
     schemas=[AnyType, "schemas/core_test_type.yml"],
     pipes=[
-        # accumulate_as_dataset.sql_accumulate_as_dataset,
-        # accumulate_as_dataset.dataframe_accumulate_as_dataset,
-        # as_dataset.as_dataset_dataframe,
-        # as_dataset.as_dataset_sql,
         dedupe.sql_dedupe_unique_keep_newest_row,
         dedupe.dataframe_dedupe_unique_keep_newest_row,
         accumulator.sql_accumulator,
@@ -32,7 +28,6 @@ module = DagsModule(
     ],
     tests=[
         accumulator.test_accumulator,
-        # accumulate_as_dataset.test_accumulate_as_dataset,
         dedupe.test_dedupe,
     ],
 )

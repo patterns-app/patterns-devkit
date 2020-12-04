@@ -5,7 +5,7 @@ import pytest
 from dags.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, PipeLog
-from dags.core.streams import DataBlockStreamBuilder
+from dags.core.streams import StreamBuilder
 from tests.utils import (
     TestSchema1,
     make_test_execution_context,
@@ -45,10 +45,10 @@ class TestStreams:
         #     expected_schema_key="_test.TestSchema1",
         #     realized_schema_key="_test.TestSchema1",
         # )
-        self.node_source = self.g.add_node("pipe_source", pipe_t1_source)
-        self.node1 = self.g.add_node("pipe1", pipe_t1_sink)
-        self.node2 = self.g.add_node("pipe2", pipe_t1_to_t2)
-        self.node3 = self.g.add_node("pipe3", pipe_generic)
+        self.node_source = self.g.create_node("pipe_source", pipe_t1_source)
+        self.node1 = self.g.create_node("pipe1", pipe_t1_sink, upstream="pipe_source")
+        self.node2 = self.g.create_node("pipe2", pipe_t1_to_t2, upstream="pipe_source")
+        self.node3 = self.g.create_node("pipe3", pipe_generic, upstream="pipe_source")
         self.sess = ctx.metadata_session
         self.dr1t1 = ctx.merge(self.dr1t1)
         self.dr2t1 = ctx.merge(self.dr2t1)
@@ -58,7 +58,7 @@ class TestStreams:
         # self.ds1db1 = ctx.merge(self.ds1db1)
 
     def test_stream_unprocessed_pristine(self):
-        s = DataBlockStreamBuilder(upstream=self.node_source)
+        s = StreamBuilder(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
         assert s.get_query(self.ctx).first() is None
 
@@ -76,7 +76,7 @@ class TestStreams:
         )
         self.sess.add_all([dfl, drl])
 
-        s = DataBlockStreamBuilder(upstream=self.node_source)
+        s = StreamBuilder(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
         assert s.get_query(self.ctx).first() == self.dr1t1
 
@@ -105,7 +105,7 @@ class TestStreams:
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
-        s = DataBlockStreamBuilder(upstream=self.node_source)
+        s = StreamBuilder(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
         assert s.get_query(self.ctx).first() is None
 
@@ -138,7 +138,7 @@ class TestStreams:
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
-        s = DataBlockStreamBuilder(upstream=self.node_source)
+        s = StreamBuilder(nodes=self.node_source)
         s1 = s.filter_unprocessed(self.node1)
         assert s1.get_query(self.ctx).first() is None
 
@@ -160,11 +160,11 @@ class TestStreams:
         )
         self.sess.add_all([dfl, drl])
 
-        s = DataBlockStreamBuilder(upstream=self.node_source, schema="TestSchema1")
+        s = StreamBuilder(nodes=self.node_source, schema="TestSchema1")
         s = s.filter_unprocessed(self.node1)
         assert s.get_query(self.ctx).first() == self.dr1t1
 
-        s = DataBlockStreamBuilder(upstream=self.node_source, schema="TestSchema2")
+        s = StreamBuilder(nodes=self.node_source, schema="TestSchema2")
         s = s.filter_unprocessed(self.node1)
         assert s.get_query(self.ctx).first() is None
 

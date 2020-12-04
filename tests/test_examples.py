@@ -28,7 +28,7 @@ def test_example():
     env.add_storage("memory://test")
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
-    g.add_node("n1", "extract_dataframe", config={"dataframe": df})
+    g.create_node("n1", "extract_dataframe", config={"dataframe": df})
     output = env.produce(g, "n1")
     assert_almost_equal(output.as_dataframe(), df)
 
@@ -139,8 +139,8 @@ def test_incremental():
     s = env.add_storage("memory://test")
     # Initial graph
     N = 2 * 4
-    g.add_node("source", customer_source, config={"total_records": N})
-    g.add_node("metrics", shape_metrics, upstream="source")
+    g.create_node("source", customer_source, config={"total_records": N})
+    g.create_node("metrics", shape_metrics, upstream="source")
     # Run first time
     output = env.produce(g, "metrics", target_storage=s)
     assert output.nominal_schema_key.endswith("Metric")
@@ -164,7 +164,7 @@ def test_incremental():
 
 
 #     # Now test DataSet aggregation
-#     g.add_node("aggregate_metrics", aggregate_metrics, upstream="source")
+#     g.create_node("aggregate_metrics", aggregate_metrics, upstream="source")
 #     output = env.produce(g, "aggregate_metrics", target_storage=s)
 #     records = output.as_records_list()
 #     # print(DataBlockLog.summary(env))
@@ -179,7 +179,7 @@ def test_incremental():
 #
 #     # And test DataSet aggregation in SQL
 #     sdb = env.add_storage(get_tmp_sqlite_db_url())
-#     g.add_node("aggregate_metrics_sql", aggregate_metrics_sql, upstream="source")
+#     g.create_node("aggregate_metrics_sql", aggregate_metrics_sql, upstream="source")
 #     output = env.produce(g, "aggregate_metrics_sql", target_storage=sdb)
 #     records = output.as_records_list()
 #     expected_records = [{"metric": "row_count", "value": 8}]
@@ -205,8 +205,8 @@ def test_incremental():
 #     s = env.add_storage(get_tmp_sqlite_db_url())
 #     # Initial graph
 #     N = 4 * 4
-#     g.add_node("source", customer_source, config={"total_records": N})
-#     g.add_node("aggregate_metrics", aggregate_metrics, upstream="source")
+#     g.create_node("source", customer_source, config={"total_records": N})
+#     g.create_node("aggregate_metrics", aggregate_metrics, upstream="source")
 #     output = env.produce(g, "aggregate_metrics", target_storage=s)
 #     records = output.as_records_list()
 #     expected_records = [
@@ -215,12 +215,12 @@ def test_incremental():
 #     ]
 #     assert records == expected_records
 #     # Mixed inputs
-#     g.add_node(
+#     g.create_node(
 #         "mixed_inputs",
 #         mixed_inputs_sql,
 #         upstream={"input": "source", "metrics": "aggregate_metrics"},
 #     )
-#     g.add_node(
+#     g.create_node(
 #         "dataset_inputs",
 #         dataset_inputs_sql,
 #         upstream={"input": "source", "metrics": "aggregate_metrics"},

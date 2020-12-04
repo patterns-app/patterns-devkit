@@ -114,7 +114,7 @@ class ComponentLibrary:
             self.add_module_name(k)
 
     def get_view(self, d: Dict) -> AttrDict:
-        ad = AttrDict()
+        ad: AttrDict = AttrDict()
         for k, p in d.items():
             ad[k] = p
             ad[k.split(".")[-1]] = p  # TODO: module precedence

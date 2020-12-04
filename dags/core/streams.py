@@ -8,7 +8,14 @@ from sqlalchemy.orm import Query
 from dags.core.data_block import DataBlock, DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.environment import Environment
 from dags.core.graph import Graph
-from dags.core.node import DataBlockLog, Direction, Node, PipeLog
+from dags.core.node import (
+    DataBlockLog,
+    DeclaredNode,
+    Direction,
+    Node,
+    NodeLike,
+    PipeLog,
+)
 from dags.core.pipe_interface import get_schema_mapping
 from dags.core.storage.storage import Storage
 from dags.core.typing.object_schema import ObjectSchema, ObjectSchemaLike, SchemaMapping
@@ -19,12 +26,12 @@ if TYPE_CHECKING:
     from dags.core.runnable import ExecutionContext
 
 
-class DataBlockStreamBuilder:
+class StreamBuilder:
     """"""
 
     def __init__(
         self,
-        upstream: Union[Node, List[Node]] = None,
+        nodes: Union[NodeLike, List[NodeLike]] = None,
         schemas: List[ObjectSchemaLike] = None,
         storages: List[Storage] = None,
         schema: ObjectSchemaLike = None,
@@ -42,7 +49,7 @@ class DataBlockStreamBuilder:
             assert storages is None
             storages = [storage]
         # TODO: make all these private?
-        self.upstream = upstream
+        self.nodes = nodes
         self.schemas = schemas
         self.storages = storages
         self.data_block = data_block
@@ -52,9 +59,9 @@ class DataBlockStreamBuilder:
 
     def __str__(self):
         s = "Stream("
-        if self.upstream:
+        if self.nodes:
             inputs = [
-                i if isinstance(i, str) else i.key for i in ensure_list(self.upstream)
+                i if isinstance(i, str) else i.key for i in ensure_list(self.nodes)
             ]
             s += f"inputs={inputs}"
         s += ")"
@@ -65,7 +72,7 @@ class DataBlockStreamBuilder:
 
     def get_query(self, ctx: ExecutionContext) -> Query:
         q = self._base_query()
-        if self.upstream is not None:
+        if self.nodes is not None:
             q = self._filter_upstream(ctx, q)
         if self.schemas is not None:
             q = self._filter_schemas(ctx, q)
@@ -77,9 +84,9 @@ class DataBlockStreamBuilder:
             q = self._filter_data_block(ctx, q)
         return q.with_session(ctx.metadata_session)
 
-    def clone(self, **kwargs) -> DataBlockStreamBuilder:
+    def clone(self, **kwargs) -> StreamBuilder:
         args = dict(
-            upstream=self.upstream,
+            nodes=self.nodes,
             schemas=self.schemas,
             storages=self.storages,
             unprocessed_by=self.unprocessed_by,
@@ -87,11 +94,20 @@ class DataBlockStreamBuilder:
             most_recent_first=self.most_recent_first,
         )
         args.update(**kwargs)
-        return DataBlockStreamBuilder(**args)  # type: ignore
+        return StreamBuilder(**args)  # type: ignore
+
+    def source_node_keys(self) -> List[str]:
+        keys: List[str] = []
+        for n in ensure_list(self.nodes):
+            if isinstance(n, str):
+                keys.append(n)
+            else:
+                keys.append(n.key)
+        return keys
 
     def filter_unprocessed(
         self, unprocessed_by: Node, allow_cycle=False
-    ) -> DataBlockStreamBuilder:
+    ) -> StreamBuilder:
         return self.clone(
             unprocessed_by=unprocessed_by,
             allow_cycle=allow_cycle,
@@ -123,14 +139,12 @@ class DataBlockStreamBuilder:
         return query.filter(not_(DataBlockMetadata.id.in_(already_processed_drs)))
 
     def get_upstream(self, g: Graph) -> List[Node]:
-        nodes = ensure_list(self.upstream)
+        nodes = ensure_list(self.nodes)
         if not nodes:
             return []
         return [g.get_node(c) for c in nodes]
 
-    def filter_upstream(
-        self, upstream: Union[Node, List[Node]]
-    ) -> DataBlockStreamBuilder:
+    def filter_upstream(self, upstream: Union[Node, List[Node]]) -> StreamBuilder:
         return self.clone(
             upstream=ensure_list(upstream),
         )
@@ -140,7 +154,7 @@ class DataBlockStreamBuilder:
         ctx: ExecutionContext,
         query: Query,
     ) -> Query:
-        if not self.upstream:
+        if not self.nodes:
             return query
         eligible_input_drs = (
             Query(DataBlockLog.data_block_id)
@@ -157,7 +171,7 @@ class DataBlockStreamBuilder:
         dts = ensure_list(self.schemas)
         return [env.get_schema(d) for d in dts]
 
-    def filter_schemas(self, schemas: List[ObjectSchemaLike]) -> DataBlockStreamBuilder:
+    def filter_schemas(self, schemas: List[ObjectSchemaLike]) -> StreamBuilder:
         return self.clone(schemas=schemas)
 
     def _filter_schemas(self, ctx: ExecutionContext, query: Query) -> Query:
@@ -167,10 +181,10 @@ class DataBlockStreamBuilder:
             DataBlockMetadata.nominal_schema_key.in_([d.key for d in self.get_schemas(ctx.env)])  # type: ignore
         )
 
-    def filter_schema(self, schema: ObjectSchemaLike) -> DataBlockStreamBuilder:
+    def filter_schema(self, schema: ObjectSchemaLike) -> StreamBuilder:
         return self.filter_schemas(ensure_list(schema))
 
-    def filter_storages(self, storages: List[Storage]) -> DataBlockStreamBuilder:
+    def filter_storages(self, storages: List[Storage]) -> StreamBuilder:
         return self.clone(storages=storages)
 
     def _filter_storages(self, ctx: ExecutionContext, query: Query) -> Query:
@@ -180,12 +194,12 @@ class DataBlockStreamBuilder:
             StoredDataBlockMetadata.storage_url.in_([s.url for s in self.storages])  # type: ignore
         )
 
-    def filter_storage(self, storage: Storage) -> DataBlockStreamBuilder:
+    def filter_storage(self, storage: Storage) -> StreamBuilder:
         return self.filter_storages(ensure_list(storage))
 
     def filter_data_block(
         self, data_block: Union[DataBlockMetadata, DataBlock, str]
-    ) -> DataBlockStreamBuilder:
+    ) -> StreamBuilder:
         return self.clone(data_block=data_block)
 
     def _filter_data_block(self, ctx: ExecutionContext, query: Query) -> Query:
@@ -247,8 +261,8 @@ class DataBlockStreamBuilder:
         )
 
 
-def block_as_stream_builder(data_block: DataBlockMetadata) -> DataBlockStreamBuilder:
-    return DataBlockStreamBuilder(data_block=data_block)
+def block_as_stream_builder(data_block: DataBlockMetadata) -> StreamBuilder:
+    return StreamBuilder(data_block=data_block)
 
 
 def block_as_stream(
@@ -265,7 +279,7 @@ class ManagedDataBlockStream:
     def __init__(
         self,
         ctx: ExecutionContext,
-        stream: DataBlockStreamBuilder,
+        stream: StreamBuilder,
         declared_schema: Optional[ObjectSchema] = None,
         declared_schema_mapping: Optional[Dict[str, str]] = None,
     ):
@@ -303,10 +317,7 @@ class ManagedDataBlockStream:
 
 DataBlockStream = ManagedDataBlockStream
 
-DataBlockStreamable = Union[DataBlockStreamBuilder, Node]
+StreamLike = Union[StreamBuilder, NodeLike]
+DataBlockStreamable = Union[StreamBuilder, Node]
 InputStreams = Dict[str, DataBlockStream]
 InputBlocks = Dict[str, DataBlockMetadata]
-
-
-def ensure_data_stream_builder(s: DataBlockStreamable) -> DataBlockStreamBuilder:
-    return s if isinstance(s, DataBlockStreamBuilder) else s.as_stream()

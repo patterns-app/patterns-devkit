@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from collections import abc
-from typing import TYPE_CHECKING, Any, Optional, Type
+from typing import TYPE_CHECKING, Any, Generator, Optional, Type
 
 from dags.core.data_formats.base import MemoryDataFormatBase, ReusableGenerator
-from dags.core.data_formats.records_list import RecordsList, map_recordslist
+from dags.core.data_formats.records_list import (
+    RecordsList,
+    RecordsListFormat,
+    map_recordslist,
+)
 
 if TYPE_CHECKING:
     from dags.core.typing.object_schema import SchemaMapping
@@ -26,12 +30,17 @@ class RecordsListGeneratorFormat(MemoryDataFormatBase):
 
     @classmethod
     def definitely_instance(cls, obj: Any) -> bool:
-        return isinstance(obj, cls.type())
+        if isinstance(obj, cls.type()):
+            return True
+        if isinstance(obj, ReusableGenerator):
+            one = obj.get_one()
+            return RecordsListFormat.definitely_instance(one)
+        return False
 
     @classmethod
     def infer_schema_from_records(cls, records: RecordsListGenerator) -> ObjectSchema:
         from dags.core.typing.inference import infer_schema_from_records_list
-        from dags.core.data_formats import RecordsList, get_records_list_sample
+        from dags.core.data_formats import get_records_list_sample
 
         dl = get_records_list_sample(records)
         if dl is None:
@@ -42,7 +51,7 @@ class RecordsListGeneratorFormat(MemoryDataFormatBase):
     @classmethod
     def apply_schema_mapping(
         cls, mapping: SchemaMapping, rlg: RecordsListGenerator
-    ) -> RecordsListGenerator:
+    ) -> Generator[RecordsList, None, None]:
         m = mapping.as_dict()
-        for records in rlg:
+        for records in rlg.get_generator():
             yield map_recordslist(m, records)

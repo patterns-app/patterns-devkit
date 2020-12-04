@@ -41,12 +41,10 @@ if TYPE_CHECKING:
     from dags.core.storage.storage import Storage
     from dags.core.runnable import ExecutionContext
     from dags.core.streams import (
-        InputBlocks,
-        DataBlockStreamBuilder,
-        ensure_data_stream,
-        PipeNodeInput,
+        StreamBuilder,
         InputStreams,
         DataBlockStream,
+        StreamLike,
     )
 
 
@@ -224,7 +222,7 @@ class PipeInterface:
                 return input
         raise KeyError(name)
 
-    def get_non_recursive_inputs(self):
+    def get_non_recursive_inputs(self) -> List[PipeAnnotation]:
         return [i for i in self.inputs if not i.is_self_ref]
 
     def get_inputs_dict(self) -> Dict[str, PipeAnnotation]:
@@ -246,7 +244,9 @@ class PipeInterface:
         #             )
         #         data_block_seen = True
 
-    def assign_inputs(self, inputs: Union[T, Dict[str, T]]) -> Dict[str, T]:
+    def assign_inputs(
+        self, inputs: Union[StreamLike, Dict[str, StreamLike]]
+    ) -> Dict[str, StreamLike]:
         if not isinstance(inputs, dict):
             assert (
                 len(self.get_non_recursive_inputs()) == 1
@@ -273,19 +273,22 @@ class PipeInterface:
             return declared_schema_mapping
         raise TypeError(declared_schema_mapping)
 
-    def connect(self, input_nodes: Dict[str, DeclaredNodeInput]) -> ConnectedInterface:
+    def connect(
+        self, declared_inputs: Dict[str, DeclaredStreamInput]
+    ) -> ConnectedInterface:
         inputs = []
         for annotation in self.inputs:
-            input_node = None
+            input_stream_builder = None
             mapping = None
-            dni = input_nodes.get(annotation.name)
+            assert annotation.name is not None
+            dni = declared_inputs.get(annotation.name)
             if dni:
-                input_node = dni.node
+                input_stream_builder = dni.stream
                 mapping = dni.declared_schema_mapping
             ni = NodeInput(
                 name=annotation.name,
                 annotation=annotation,
-                input_node=input_node,
+                input_stream_builder=input_stream_builder,
                 declared_schema_mapping=mapping,
             )
             inputs.append(ni)
@@ -297,14 +300,14 @@ class PipeInterface:
 
 
 @dataclass(frozen=True)
-class DeclaredNodeLikeInput:
-    node_like: NodeLike
+class DeclaredStreamLikeInput:
+    stream_like: StreamLike
     declared_schema_mapping: Optional[Dict[str, str]] = None
 
 
 @dataclass(frozen=True)
-class DeclaredNodeInput:
-    node: Node
+class DeclaredStreamInput:
+    stream: StreamBuilder
     declared_schema_mapping: Optional[Dict[str, str]] = None
 
 
@@ -313,13 +316,7 @@ class NodeInput:
     name: str
     annotation: PipeAnnotation
     declared_schema_mapping: Optional[Dict[str, str]] = None
-    input_node: Optional[Node] = None
-
-    @property
-    def env(self) -> Optional[Environment]:
-        if self.input_node is None:
-            return None
-        return self.input_node.env
+    input_stream_builder: Optional[StreamBuilder] = None
 
 
 @dataclass(frozen=True)
@@ -348,7 +345,7 @@ class ConnectedInterface:
                 name=node_input.name,
                 annotation=node_input.annotation,
                 declared_schema_mapping=node_input.declared_schema_mapping,
-                input_node=node_input.input_node,
+                input_stream_builder=node_input.input_stream_builder,
                 is_stream=node_input.annotation.is_stream,
                 bound_stream=bound_stream,
                 bound_block=bound_block,
@@ -366,7 +363,7 @@ class StreamInput:
     name: str
     annotation: PipeAnnotation
     declared_schema_mapping: Optional[Dict[str, str]] = None
-    input_node: Optional[Node] = None
+    input_stream_builder: Optional[StreamBuilder] = None
     is_stream: bool = False
     bound_stream: Optional[DataBlockStream] = None
     bound_block: Optional[DataBlock] = None
@@ -400,6 +397,8 @@ class BoundInterface:
         }
 
     def resolve_nominal_output_schema(self, env: Environment) -> Optional[ObjectSchema]:
+        if not self.output:
+            return None
         if not self.output.is_generic:
             return self.output.schema(env)
         output_generic = self.output.schema_like
@@ -465,11 +464,11 @@ def get_schema_mapping(
 #                 ] = i.bound_data_block.most_abstract_schema_key
 #
 #     @classmethod
-#     def from_dfi(cls, dfi: PipeInterface) -> BoundPipeInterface:
+#     def from_dfi(cls, pi: PipeInterface) -> BoundPipeInterface:
 #         return BoundPipeInterface(
-#             inputs=[NodeInput(name=a.name, original_annotation=a) for a in dfi.inputs],
-#             output=dfi.output,
-#             requires_pipe_context=dfi.requires_pipe_context,
+#             inputs=[NodeInput(name=a.name, original_annotation=a) for a in pi.inputs],
+#             output=pi.output,
+#             requires_pipe_context=pi.requires_pipe_context,
 #         )
 #
 #     # def inputs_as_kwargs(self):
@@ -558,12 +557,12 @@ class NodeInterfaceManager:
         return ci.bind(input_db_streams)
 
     def get_connected_interface(self) -> ConnectedInterface:
-        inputs = self.node.get_declared_input_nodes()
+        inputs = self.node.declared_inputs
         # Add "this" if it has a self-ref (TODO: a bit hidden down here no?)
         for annotation in self.pipe_interface.inputs:
             if annotation.is_self_ref:
-                inputs["this"] = DeclaredNodeInput(
-                    node=self.node,
+                inputs["this"] = DeclaredStreamInput(
+                    stream=self.node.as_stream_builder(),
                     declared_schema_mapping=self.node.get_schema_mapping_for_input(
                         "this"
                     ),
@@ -577,27 +576,20 @@ class NodeInterfaceManager:
         return True
 
     def get_input_data_block_streams(self) -> InputStreams:
-        from dags.core.streams import ensure_data_stream_builder
         from dags.core.pipe import InputExhaustedException
 
         logger.debug(f"GETTING INPUTS for {self.node.key}")
         input_streams: InputStreams = {}
         any_unprocessed = False
         for input in self.get_connected_interface().inputs:
-            node_or_stream = input.input_node
-            assert node_or_stream is not None
-            logger.debug(
-                f"Getting input block for `{input.name}` from {node_or_stream}"
-            )
-            stream_builder = ensure_data_stream_builder(node_or_stream)
-            stream_builder = self._build_stream(
+            stream_builder = input.input_stream_builder
+            assert stream_builder is not None
+            logger.debug(f"Building stream for `{input.name}` from {stream_builder}")
+            stream_builder = self._filter_stream(
                 stream_builder,
                 input,
                 self.ctx.all_storages if self.strict_storages else None,
             )
-            # if block is not None:
-            #     logger.debug(f"Found: {block}")
-            #     logger.debug(list(block.stored_data_blocks.all()))
 
             """
             Inputs are considered "Exhausted" if:
@@ -617,6 +609,7 @@ class NodeInterfaceManager:
                         f"    Required input '{input.name}'={stream_builder} to Pipe '{self.node.key}' is empty"
                     )
             else:
+                declared_schema: Optional[ObjectSchema]
                 try:
                     declared_schema = input.annotation.schema(self.env)
                 except GenericSchemaException:
@@ -633,12 +626,12 @@ class NodeInterfaceManager:
 
         return input_streams
 
-    def _build_stream(
+    def _filter_stream(
         self,
-        stream_builder: DataBlockStreamBuilder,
+        stream_builder: StreamBuilder,
         input: NodeInput,
         storages: List[Storage] = None,
-    ) -> DataBlockStreamBuilder:
+    ) -> StreamBuilder:
         logger.debug(f"{stream_builder.get_count(self.ctx)} available DataBlocks")
         if storages:
             stream_builder = stream_builder.filter_storages(storages)

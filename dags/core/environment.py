@@ -257,7 +257,7 @@ class Environment:
         graph: Graph,
         node_like: Optional[Union[Node, str]] = None,
         to_exhaustion: bool = True,
-        with_dataset: bool = False,
+        # with_dataset: bool = False,
         **execution_kwargs: Any,
     ) -> Optional[DataBlock]:
         from dags.core.node import Node
@@ -268,10 +268,10 @@ class Environment:
                 node = graph.get_node(node_like)
             assert isinstance(node, Node)
             dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
-            if with_dataset:
-                dependencies.extend(
-                    [graph.get_node(n) for n in node.get_dataset_node_keys()]
-                )
+            # if with_dataset:
+            #     dependencies.extend(
+            #         [graph.get_node(n) for n in node.get_dataset_node_keys()]
+            #     )
         else:
             dependencies = graph.get_all_nodes_in_execution_order()
         output = None

@@ -119,7 +119,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     # id = Column(Integer, primary_key=True, autoincrement=True)
     inferred_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
     nominal_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
-    realized_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
+    realized_schema_key: ObjectSchemaKey = Column(String, nullable=False)  # type: ignore
     record_count = Column(Integer, nullable=True)
     created_by_node_key = Column(String, nullable=True)
     # Other metadata? created_by_job? last_processed_at?
@@ -139,10 +139,10 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
             realized_schema_key=self.realized_schema_key,
         )
 
-    def inferred_schema(self, env: Environment) -> ObjectSchema:
+    def inferred_schema(self, env: Environment) -> Optional[ObjectSchema]:
         return env.get_schema(self.inferred_schema_key)
 
-    def nominal_schema(self, env: Environment) -> ObjectSchema:
+    def nominal_schema(self, env: Environment) -> Optional[ObjectSchema]:
         return env.get_schema(self.nominal_schema_key)
 
     def realized_schema(self, env: Environment) -> ObjectSchema:
@@ -208,7 +208,7 @@ class ManagedDataBlock(Generic[T]):
         return self.manager.nominal_schema()
 
     @property
-    def realized_schema(self) -> Optional[ObjectSchema]:
+    def realized_schema(self) -> ObjectSchema:
         return self.manager.realized_schema()
 
 
@@ -244,7 +244,7 @@ class StoredDataBlockMetadata(BaseModel):
             return None
         return env.get_schema(self.data_block.nominal_schema_key)
 
-    def realized_schema(self, env: Environment) -> Optional[ObjectSchema]:
+    def realized_schema(self, env: Environment) -> ObjectSchema:
         if self.data_block.realized_schema_key is None:
             return None
         return env.get_schema(self.data_block.realized_schema_key)
@@ -327,7 +327,7 @@ class DataBlockManager:
             return None
         return self.ctx.env.get_schema(self.data_block.nominal_schema_key)
 
-    def realized_schema(self) -> Optional[ObjectSchema]:
+    def realized_schema(self) -> ObjectSchema:
         if self.data_block.realized_schema_key is None:
             return None
         return self.ctx.env.get_schema(self.data_block.realized_schema_key)

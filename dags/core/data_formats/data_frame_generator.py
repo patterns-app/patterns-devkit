@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from collections import abc
-from typing import TYPE_CHECKING, Any, Optional, Type
+from typing import TYPE_CHECKING, Any, Generator, Optional, Type
 
 import pandas as pd
+from pandas import DataFrame
 
+from dags.core.data_formats import DataFrameFormat
 from dags.core.data_formats.base import MemoryDataFormatBase, ReusableGenerator
 
 if TYPE_CHECKING:
@@ -27,7 +29,12 @@ class DataFrameGeneratorFormat(MemoryDataFormatBase):
 
     @classmethod
     def definitely_instance(cls, obj: Any) -> bool:
-        return isinstance(obj, cls.type())
+        if isinstance(obj, cls.type()):
+            return True
+        if isinstance(obj, ReusableGenerator):
+            one = obj.get_one()
+            return DataFrameFormat.definitely_instance(one)
+        return False
 
     @classmethod
     def infer_schema_from_records(cls, records: DataFrameGenerator) -> ObjectSchema:
@@ -49,6 +56,6 @@ class DataFrameGeneratorFormat(MemoryDataFormatBase):
     @classmethod
     def apply_schema_mapping(
         cls, mapping: SchemaMapping, dfg: DataFrameGenerator
-    ) -> DataFrameGenerator:
-        for df in dfg:
+    ) -> Generator[DataFrame, None, None]:
+        for df in dfg.get_generator():
             yield df.rename(mapping.as_dict(), axis=1)

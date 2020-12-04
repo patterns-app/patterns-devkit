@@ -6,7 +6,6 @@ from dags.core.data_block import DataBlock
 from dags.core.environment import Environment
 from dags.core.graph import Graph
 from dags.core.module import DagsModule
-from dags.core.pipe import pipe_chain
 from dags.core.runnable import ExecutionContext, ExecutionManager, PipeContext
 from dags.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from dags.core.storage.storage import Storage, StorageClass, StorageEngine

@@ -10,19 +10,19 @@ def test_sql_pipe_interface():
         join t2 on t1.a = t2.b left join t3 -- :DataBlock[T2]
         on"""
     df = sql_pipe("s1", sql)
-    dfi = df.get_interface(env)
-    assert dfi is not None
+    pi = df.get_interface()
+    assert pi is not None
 
-    assert len(dfi.inputs) == 3
-    assert dfi.inputs[0].schema_like == "T1"
-    assert dfi.inputs[0].name == "t1"
-    assert dfi.inputs[0].data_format_class == "DataBlock"
-    assert dfi.inputs[1].schema_like == "Any"
-    assert dfi.inputs[1].name == "t2"
-    assert dfi.inputs[2].schema_like == "T2"
-    assert dfi.inputs[2].name == "t3"
-    assert dfi.inputs[2].data_format_class == "DataBlock"
-    assert dfi.output is not None
+    assert len(pi.inputs) == 3
+    assert pi.inputs[0].schema_like == "T1"
+    assert pi.inputs[0].name == "t1"
+    assert pi.inputs[0].data_format_class == "DataBlock"
+    assert pi.inputs[1].schema_like == "Any"
+    assert pi.inputs[1].name == "t2"
+    assert pi.inputs[2].schema_like == "T2"
+    assert pi.inputs[2].name == "t3"
+    assert pi.inputs[2].data_format_class == "DataBlock"
+    assert pi.output is not None
 
     sql = """select -- :DataBlock[T]
         1
@@ -30,41 +30,41 @@ def test_sql_pipe_interface():
         input
         join t2 on t1.a = t2.b"""
     df = sql_pipe("s1", sql)
-    dfi = df.get_interface(env)
-    assert dfi is not None
-    assert len(dfi.inputs) == 2
-    assert dfi.output is not None
-    assert dfi.output.schema_like == "T"
-    assert dfi.output.data_format_class == "DataBlock"
+    pi = df.get_interface()
+    assert pi is not None
+    assert len(pi.inputs) == 2
+    assert pi.output is not None
+    assert pi.output.schema_like == "T"
+    assert pi.output.data_format_class == "DataBlock"
 
     sql = """select 1, 'not a commment -- nope'
         from -- comment inbetween
         t1, t2 on t1.a = t2.b"""
     df = sql_pipe("s1", sql)
-    dfi = df.get_interface(env)
-    assert dfi is not None
-    assert len(dfi.inputs) == 2
+    pi = df.get_interface()
+    assert pi is not None
+    assert len(pi.inputs) == 2
 
     sql = """select 1, 'not a commment -- nope'
         from {% jinja block %}
         t1, t2 on t1.a = t2.b"""
     df = sql_pipe("s1", sql)
-    dfi = df.get_interface(env)
-    assert dfi is not None
-    assert len(dfi.inputs) == 2
+    pi = df.get_interface()
+    assert pi is not None
+    assert len(pi.inputs) == 2
 
     sql = """select 1, 'not a commment -- nope'
         from {% jinja block %}
         this"""
     df = sql_pipe("s1", sql, inputs={"this": "Optional[DataBlock[T]]"})
-    dfi = df.get_interface(env)
-    assert dfi is not None
-    assert len(dfi.inputs) == 1
-    assert dfi.inputs[0].data_format_class == "DataBlock"
-    assert dfi.inputs[0].name == "this"
-    assert dfi.inputs[0].is_self_ref
-    assert dfi.inputs[0].is_optional
-    assert dfi.inputs[0].is_generic
+    pi = df.get_interface()
+    assert pi is not None
+    assert len(pi.inputs) == 1
+    assert pi.inputs[0].data_format_class == "DataBlock"
+    assert pi.inputs[0].name == "this"
+    assert pi.inputs[0].is_self_ref
+    assert pi.inputs[0].is_optional
+    assert pi.inputs[0].is_generic
 
     sql = """
         select -- :DataBlock[T]
@@ -90,10 +90,10 @@ def test_sql_pipe_interface():
             "{{ inputs.input.resolved_schema.updated_at_field.name }}" desc
         {% endif %}"""
     df = sql_pipe("s1", sql)
-    dfi = df.get_interface(env)
-    assert dfi is not None
-    assert len(dfi.inputs) == 1
-    assert dfi.inputs[0].is_generic
-    assert dfi.inputs[0].schema_like == "T"
-    assert dfi.output.is_generic
-    assert dfi.output is not None
+    pi = df.get_interface()
+    assert pi is not None
+    assert len(pi.inputs) == 1
+    assert pi.inputs[0].is_generic
+    assert pi.inputs[0].schema_like == "T"
+    assert pi.output.is_generic
+    assert pi.output is not None

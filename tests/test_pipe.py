@@ -6,20 +6,17 @@ import pytest
 from pandas import DataFrame
 
 from dags.core.data_block import DataBlock, DataBlockMetadata
-from dags.core.graph import Graph
+from dags.core.graph import Graph, graph
 from dags.core.module import DEFAULT_LOCAL_MODULE_NAME
-from dags.core.node import Node, create_node
+from dags.core.node import DeclaredNode, node
 from dags.core.pipe import Pipe, PipeInterface, PipeLike, pipe
 from dags.core.pipe_interface import (
     NodeInterfaceManager,
     PipeAnnotation,
-    StreamInput,
     get_schema_mapping,
     make_default_output_annotation,
 )
 from dags.core.runnable import PipeContext
-from dags.core.runtime import RuntimeClass
-from dags.core.sql.pipe import sql_pipe
 from dags.core.streams import block_as_stream
 from dags.modules import core
 from dags.utils.typing import T, U
@@ -214,15 +211,14 @@ def df4(
 )
 def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
     env = make_test_env()
-    g = Graph(env)
     if isinstance(pipe, Pipe):
-        val = pipe.get_interface(env)
+        val = pipe.get_interface()
     elif isinstance(pipe, Callable):
         val = PipeInterface.from_pipe_definition(pipe)
     else:
         raise
     assert val == expected
-    node = create_node(g, "_test", pipe, upstream="mock")
+    node = DeclaredNode("_test", pipe=pipe, upstream="mock").instantiate(env)
     assert node.get_interface() == expected
 
 
@@ -230,7 +226,7 @@ def test_generic_schema_resolution():
     ec = make_test_execution_context()
     env = ec.env
     g = Graph(env)
-    n1 = g.add_node("node1", pipe_generic)
+    n1 = g.create_node("node1", pipe_generic, upstream="n0")
     pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
@@ -250,7 +246,7 @@ def test_declared_schema_mapping():
     env = ec.env
     g = Graph(env)
     mapping = {"f1": "mapped_f1"}
-    n1 = g.add_node("node1", pipe_t1_to_t2, schema_mapping=mapping)
+    n1 = g.create_node("node1", pipe_t1_to_t2, upstream="n0", schema_mapping=mapping)
     pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
@@ -276,7 +272,7 @@ def test_natural_schema_mapping():
     env = ec.env
     g = Graph(env)
     mapping = {"f1": "mapped_f1"}
-    n1 = g.add_node("node1", pipe_t1_to_t2, schema_mapping=mapping)
+    n1 = g.create_node("node1", pipe_t1_to_t2, upstream="n0", schema_mapping=mapping)
     pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
@@ -300,13 +296,13 @@ def test_natural_schema_mapping():
 def test_inputs():
     env = make_test_env()
     g = Graph(env)
-    g.add_node("node1", pipe_t1_source)
-    n2 = g.add_node("node2", pipe_t1_to_t2, upstream={"input": "node1"})
-    dfi = n2.get_interface()
-    assert dfi is not None
-    n3 = g.add_node("node3", pipe_chain_t1_to_t2, upstream="node1")
-    dfi = n3.get_interface()
-    assert dfi is not None
+    g.create_node("node1", pipe_t1_source)
+    n2 = g.create_node("node2", pipe_t1_to_t2, upstream={"input": "node1"})
+    pi = n2.get_interface()
+    assert pi is not None
+    n3 = g.create_node("node3", pipe_chain_t1_to_t2, upstream="node1")
+    pi = n3.get_interface()
+    assert pi is not None
 
 
 def test_python_pipe():
@@ -321,7 +317,7 @@ def test_python_pipe():
     assert p.name == k
     assert p.key == f"{DEFAULT_LOCAL_MODULE_NAME}.{k}"
 
-    pi = p.get_interface(env)
+    pi = p.get_interface()
     assert pi is not None
 
 
@@ -339,29 +335,29 @@ def test_node_no_inputs():
     env = make_test_env()
     g = Graph(env)
     df = pipe(pipe_t1_source)
-    node1 = create_node(g, "node1", df)
+    node1 = g.create_node("node1", df)
     assert {node1: node1}[node1] is node1  # Test hash
-    dfi = node1.get_interface()
-    assert dfi.inputs == []
-    assert dfi.output is not None
-    assert node1.get_declared_inputs() == {}
+    pi = node1.get_interface()
+    assert pi.inputs == []
+    assert pi.output is not None
+    assert node1.declared_inputs == {}
 
 
 def test_node_inputs():
     env = make_test_env()
     g = Graph(env)
     df = pipe(pipe_t1_source)
-    node = create_node(g, "node", df)
+    node = g.create_node("node", df)
     df = pipe(pipe_t1_sink)
     with pytest.raises(Exception):
         # Bad input
-        create_node(g, "node_fail", df, inputs="Turname")  # type: ignore
-    node1 = create_node(g, "node1", df, upstream=node)
-    dfi = node1.get_interface()
-    dfi = node1.get_interface()
-    assert len(dfi.inputs) == 1
-    assert dfi.output == make_default_output_annotation()
-    assert list(node1.get_declared_inputs().keys()) == ["input"]
+        g.create_node("node_fail", df, inputs="Turname")  # type: ignore
+    node1 = g.create_node("node1", df, upstream=node)
+    pi = node1.get_interface()
+    pi = node1.get_interface()
+    assert len(pi.inputs) == 1
+    assert pi.output == make_default_output_annotation()
+    assert list(node1.declared_inputs.keys()) == ["input"]
     # assert node1.get_input("input").get_upstream(env)[0] is node
 
 
@@ -373,7 +369,7 @@ def test_node_config():
     def pipe_ctx(ctx: PipeContext):
         config_vals.append(ctx.get_config_value("test"))
 
-    n = g.add_node("ctx", pipe_ctx, config={"test": 1, "extra_arg": 2})
+    n = g.create_node("ctx", pipe_ctx, config={"test": 1, "extra_arg": 2})
     with env.execution(g) as exe:
         exe.run(n)
     assert config_vals == [1]
@@ -387,6 +383,6 @@ def test_any_schema_interface():
         pass
 
     df = pipe(pipe_any)
-    dfi = df.get_interface(env)
-    assert dfi.inputs[0].schema_like == "Any"
-    assert dfi.output.schema_like == "Any"
+    pi = df.get_interface()
+    assert pi.inputs[0].schema_like == "Any"
+    assert pi.output.schema_like == "Any"

@@ -86,9 +86,9 @@ class Pipe:
     ) -> Optional[DataInterfaceType]:
         return self.pipe_callable(*args, **kwargs)
 
-    def get_interface(self, env: Environment) -> Optional[PipeInterface]:
+    def get_interface(self) -> PipeInterface:
         """"""
-        found_interface = self._get_pipe_interface(env)
+        found_interface = self._get_pipe_interface()
         assert found_interface is not None
         declared_interface = self._get_declared_interface()
         # Merge found and declared
@@ -104,7 +104,7 @@ class Pipe:
             requires_pipe_context=found_interface.requires_pipe_context,
         )
 
-    def _get_pipe_interface(self, env: Environment) -> Optional[PipeInterface]:
+    def _get_pipe_interface(self) -> PipeInterface:
         if hasattr(self.pipe_callable, "get_interface"):
             return self.pipe_callable.get_interface()  # type: ignore
         return PipeInterface.from_pipe_definition(self.pipe_callable)
@@ -146,7 +146,7 @@ PipeLike = Union[PipeCallable, Pipe]
 def pipe_factory(
     pipe_callable: PipeCallable,
     name: str = None,
-    module: Union[DagsModule, str] = DEFAULT_LOCAL_MODULE,
+    module: Optional[Union[DagsModule, str]] = None,
     compatible_runtimes: str = None,
     inputs: Optional[Dict[str, str]] = None,
     output: Optional[str] = None,
@@ -183,7 +183,6 @@ def pipe(
     state_class: Optional[Type] = None,
     inputs: Optional[Dict[str, str]] = None,
     output: Optional[str] = None,
-    # test_data: PipeTestCaseLike = None,
 ) -> Union[Callable, Pipe]:
     if isinstance(pipe_or_name, str) or pipe_or_name is None:
         return partial(
@@ -205,30 +204,6 @@ def pipe(
         state_class=state_class,
         inputs=inputs,
         output=output,
-    )
-
-
-def pipe_chain(
-    name: str,
-    pipe_chain: List[Union[PipeLike, str]],
-    **kwargs,
-) -> Pipe:
-    sub_funcs = []
-    for fn in pipe_chain:
-        if isinstance(fn, str):
-            # p = fn
-            raise NotImplementedError(
-                "Please specify explicit pipe objects in a pipe chain (not name strings)"
-            )
-        elif isinstance(fn, Pipe):
-            p = fn
-        elif callable(fn):
-            p = make_pipe(fn, **kwargs)
-        else:
-            raise TypeError(f"Invalid pipe name in chain {fn}")
-        sub_funcs.append(p)
-    return pipe_factory(
-        None, name=name, sub_graph=sub_funcs, is_composite=True, **kwargs
     )
 
 

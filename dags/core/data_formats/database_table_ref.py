@@ -38,6 +38,10 @@ class DatabaseTableRefFormat(MemoryDataFormatBase):
         """
         Apply mapping as a sub-select, aliasing column names
         """
+        if not mapping.from_schema:
+            raise NotImplementedError(
+                f"Schema mapping must provide `from_schema` when mapping a db table {mapping}"
+            )
         table_stmt = dtr.table_stmt_sql
         m = mapping.as_dict()
         col_stmts = []
