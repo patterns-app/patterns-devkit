@@ -1,6 +1,17 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Set, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generator,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Union,
+)
 
 from sqlalchemy import and_, not_
 from sqlalchemy.orm import Query
@@ -24,6 +35,7 @@ from loguru import logger
 
 if TYPE_CHECKING:
     from dags.core.runnable import ExecutionContext
+    from dags.core.operators import Operator
 
 
 class StreamBuilder:
@@ -40,6 +52,7 @@ class StreamBuilder:
         data_block: Union[DataBlockMetadata, DataBlock, str] = None,
         allow_cycle: bool = False,
         most_recent_first: bool = False,
+        operators: List[Operator] = None,
     ):
         # TODO: ugly duplicate params (but singulars give nice obvious/intuitive interface)
         if schema is not None:
@@ -56,6 +69,7 @@ class StreamBuilder:
         self.unprocessed_by = unprocessed_by
         self.allow_cycle = allow_cycle
         self.most_recent_first = most_recent_first
+        self.operators = operators
 
     def __str__(self):
         s = "Stream("
@@ -92,6 +106,7 @@ class StreamBuilder:
             unprocessed_by=self.unprocessed_by,
             allow_cycle=self.allow_cycle,
             most_recent_first=self.most_recent_first,
+            operators=self.operators,
         )
         args.update(**kwargs)
         return StreamBuilder(**args)  # type: ignore
@@ -215,6 +230,12 @@ class StreamBuilder:
             raise TypeError(self.data_block)
         return query.filter(DataBlockMetadata.id == db_id)
 
+    def get_operators(self) -> List[Operator]:
+        return self.operators or []
+
+    def apply_operator(self, op: Operator) -> StreamBuilder:
+        return self.clone(operators=(self.get_operators() + [op]))
+
     def is_unprocessed(
         self,
         ctx: ExecutionContext,
@@ -279,30 +300,52 @@ class ManagedDataBlockStream:
     def __init__(
         self,
         ctx: ExecutionContext,
-        stream: StreamBuilder,
+        stream_builder: StreamBuilder,
         declared_schema: Optional[ObjectSchema] = None,
         declared_schema_mapping: Optional[Dict[str, str]] = None,
     ):
         self.ctx = ctx
-        self.stream = stream
+        self.stream_builder = stream_builder
         self.declared_schema = declared_schema
         self.declared_schema_mapping = declared_schema_mapping
-        self._blocks = (b for b in self.stream.get_query(self.ctx))
+        self._stream: Iterator[DataBlock] = self._build_stream(
+            self.stream_builder.get_query(ctx)
+        )
         self._emitted_blocks: List[DataBlockMetadata] = []
         self._emitted_managed_blocks: List[DataBlock] = []
 
-    def next(self) -> Optional[DataBlock]:
-        db = next(self._blocks)
-        self._emitted_blocks.append(db)
-        schema_mapping = get_schema_mapping(
-            self.ctx.env,
-            db,
-            declared_schema=self.declared_schema,
-            declared_schema_mapping=self.declared_schema_mapping,
-        )
-        mdb = db.as_managed_data_block(self.ctx, schema_mapping=schema_mapping)
-        self._emitted_managed_blocks.append(mdb)
-        return mdb
+    def _build_stream(self, query: Query) -> Iterator[DataBlock]:
+        stream = (b for b in query)
+        stream = self.as_managed_block(stream)
+        for op in self.stream_builder.get_operators():
+            stream = op.op_callable(stream)
+        stream = self.log_emitted(stream)
+        return stream
+
+    def __iter__(self) -> Iterator[DataBlock]:
+        return self._stream
+
+    def __next__(self) -> DataBlock:
+        return next(self._stream)
+
+    def as_managed_block(
+        self, stream: Iterator[DataBlockMetadata]
+    ) -> Iterator[DataBlock]:
+        for db in stream:
+            schema_mapping = get_schema_mapping(
+                self.ctx.env,
+                db,
+                declared_schema=self.declared_schema,
+                declared_schema_mapping=self.declared_schema_mapping,
+            )
+            mdb = db.as_managed_data_block(self.ctx, schema_mapping=schema_mapping)
+            yield mdb
+
+    def log_emitted(self, stream: Iterator[DataBlock]) -> Iterator[DataBlock]:
+        for mdb in stream:
+            self._emitted_blocks.append(mdb.data_block_metadata)
+            self._emitted_managed_blocks.append(mdb)
+            yield mdb
 
     def get_emitted_blocks(self) -> List[DataBlockMetadata]:
         return self._emitted_blocks
@@ -310,12 +353,12 @@ class ManagedDataBlockStream:
     def get_emitted_managed_blocks(self) -> List[DataBlock]:
         return self._emitted_managed_blocks
 
-    def count(self) -> int:
-        # Non-consuming
-        return self.stream.get_count(self.ctx)
+    # def count(self) -> int:
+    #     # Non-consuming
+    #     return self.stream_builder.get_count(self.ctx)
 
 
-DataBlockStream = ManagedDataBlockStream
+DataBlockStream = Iterator[DataBlock]
 
 StreamLike = Union[StreamBuilder, NodeLike]
 DataBlockStreamable = Union[StreamBuilder, Node]

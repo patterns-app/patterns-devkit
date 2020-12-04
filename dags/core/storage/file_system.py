@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 from io import BufferedIOBase, IOBase, TextIOBase
-from typing import ContextManager, Generator, Iterable, TextIO, Type
+from typing import ContextManager, Generator, Iterable, Iterator, TextIO, Type
 
 from dags.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.data_formats import RecordsList
@@ -21,7 +21,7 @@ class FileSystemAPI:
     @contextmanager
     def open(
         self, stored_data_block: StoredDataBlockMetadata, *args, **kwargs
-    ) -> Generator[TextIO, None, None]:
+    ) -> Iterator[TextIO]:
         with open(self.get_path(stored_data_block), *args, **kwargs) as f:
             yield f
 

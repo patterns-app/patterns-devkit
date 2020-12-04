@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import abc
-from typing import TYPE_CHECKING, Any, Generator, Optional, Type
+from typing import TYPE_CHECKING, Any, Generator, Iterator, Optional, Type
 
 from dags.core.data_formats.base import MemoryDataFormatBase, ReusableGenerator
 from dags.core.data_formats.records_list import (
@@ -51,7 +51,7 @@ class RecordsListGeneratorFormat(MemoryDataFormatBase):
     @classmethod
     def apply_schema_mapping(
         cls, mapping: SchemaMapping, rlg: RecordsListGenerator
-    ) -> Generator[RecordsList, None, None]:
+    ) -> Iterator[RecordsList]:
         m = mapping.as_dict()
         for records in rlg.get_generator():
             yield map_recordslist(m, records)

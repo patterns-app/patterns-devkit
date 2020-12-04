@@ -187,6 +187,10 @@ class ManagedDataBlock(Generic[T]):
     realized_schema_key: ObjectSchemaKey
     manager: DataBlockManager
 
+    @property
+    def data_block_metadata(self) -> DataBlockMetadata:
+        return self.manager.data_block
+
     def as_dataframe(self) -> DataFrame:
         return self.manager.as_dataframe()
 

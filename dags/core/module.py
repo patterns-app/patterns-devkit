@@ -16,6 +16,7 @@ from typing import (
     TextIO,
     Type,
     Union,
+    Iterator,
 )
 
 from dags.core.component import ComponentLibrary
@@ -85,7 +86,7 @@ class DagsModule:
     #     return list(self.members().keys())
 
     @contextmanager
-    def open_module_file(self, fp: str) -> Generator[TextIO, None, None]:
+    def open_module_file(self, fp: str) -> Iterator[TextIO]:
         if not self.py_module_path:
             raise Exception(f"Module path not set, cannot read {fp}")
         typedef_path = os.path.join(self.py_module_path, fp)

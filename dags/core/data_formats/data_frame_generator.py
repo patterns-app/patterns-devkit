@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import abc
-from typing import TYPE_CHECKING, Any, Generator, Optional, Type
+from typing import TYPE_CHECKING, Any, Generator, Iterator, Optional, Type
 
 import pandas as pd
 from pandas import DataFrame
@@ -56,6 +56,6 @@ class DataFrameGeneratorFormat(MemoryDataFormatBase):
     @classmethod
     def apply_schema_mapping(
         cls, mapping: SchemaMapping, dfg: DataFrameGenerator
-    ) -> Generator[DataFrame, None, None]:
+    ) -> Iterator[DataFrame]:
         for df in dfg.get_generator():
             yield df.rename(mapping.as_dict(), axis=1)

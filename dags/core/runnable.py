@@ -18,6 +18,7 @@ from typing import (
     Optional,
     Union,
     cast,
+    Iterator,
 )
 
 import sqlalchemy
@@ -175,7 +176,7 @@ class ExecutionContext:
         return ExecutionContext(**args)  # type: ignore
 
     @contextmanager
-    def start_pipe_run(self, node: Node) -> Generator[RunSession, None, None]:
+    def start_pipe_run(self, node: Node) -> Iterator[RunSession]:
         from dags.core.graph import GraphMetadata
 
         assert self.current_runtime is not None, "Runtime not set"

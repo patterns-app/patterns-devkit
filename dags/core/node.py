@@ -41,6 +41,7 @@ def ensure_stream(stream_like: StreamLike) -> StreamBuilder:
         return stream_like.as_stream_builder()
     if isinstance(stream_like, str):
         return StreamBuilder(nodes=[stream_like])
+    raise TypeError(stream_like)
 
 
 @dataclass(frozen=True)

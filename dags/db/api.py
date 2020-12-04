@@ -15,6 +15,7 @@ from typing import (
     Tuple,
     Type,
     Union,
+    Iterator,
 )
 
 import sqlalchemy
@@ -81,7 +82,7 @@ class DatabaseAPI:
         return eng
 
     @contextmanager
-    def connection(self) -> Generator[Connection, None, None]:
+    def connection(self) -> Iterator[Connection]:
         with self.get_engine().connect() as conn:
             yield conn
 
@@ -92,7 +93,7 @@ class DatabaseAPI:
             return conn.execute(sql)
 
     @contextmanager
-    def execute_sql_result(self, sql: str) -> Generator[ResultProxy, None, None]:
+    def execute_sql_result(self, sql: str) -> Iterator[ResultProxy]:
         logger.debug("Executing SQL:")
         logger.debug(sql)
         with self.connection() as conn:

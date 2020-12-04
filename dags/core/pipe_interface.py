@@ -338,7 +338,7 @@ class ConnectedInterface:
             if dbs is not None:
                 bound_stream = dbs
                 if not node_input.annotation.is_stream:
-                    bound_block = dbs.next()
+                    bound_block = next(dbs)
             si = StreamInput(
                 name=node_input.name,
                 annotation=node_input.annotation,
@@ -373,8 +373,8 @@ class StreamInput:
         if self.bound_stream:
             emitted = self.bound_stream.get_emitted_managed_blocks()
             if not emitted:
-                if self.bound_stream.count():
-                    logger.warning("No blocks emitted yet from non-empty stream")
+                # if self.bound_stream.count():
+                #     logger.warning("No blocks emitted yet from non-empty stream")
                 return None
             return emitted[0].nominal_schema
         return None

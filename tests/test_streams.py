@@ -5,7 +5,8 @@ import pytest
 from dags.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, PipeLog
-from dags.core.streams import StreamBuilder
+from dags.core.operators import latest, operator
+from dags.core.streams import DataBlockStream, StreamBuilder
 from tests.utils import (
     TestSchema1,
     make_test_execution_context,
@@ -187,12 +188,39 @@ class TestStreams:
         # s = s.filter_dataset("dataset1")
         # assert s.get_next(self.ctx) == self.dr1t1
 
-    # Deprecated for now
-    # def test_stream_records_object(self):
-    #     records = [{"a": 1, "b": 2}]
-    #     s = DataBlockStream(raw_records_object=records, raw_records_schema=TestSchema1)
-    #     block = s.get_next(self.ctx)
-    #     self.ctx.metadata_session.commit()
-    #     assert block is not None
-    #     block = block.as_managed_data_block(self.ctx)
-    #     assert block.as_records_list() == records
+    def test_operators(self):
+        dfl = PipeLog(
+            graph_id=self.graph.hash,
+            node_key=self.node_source.key,
+            pipe_key=self.node_source.pipe.key,
+            runtime_url="test",
+        )
+        drl = DataBlockLog(
+            pipe_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
+        )
+        drl2 = DataBlockLog(
+            pipe_log=dfl,
+            data_block=self.dr2t1,
+            direction=Direction.OUTPUT,
+        )
+        self.sess.add_all([dfl, drl, drl2])
+
+        self._cnt = 0
+
+        @operator
+        def count(stream: DataBlockStream) -> DataBlockStream:
+            for db in stream:
+                self._cnt += 1
+                yield db
+
+        sb = StreamBuilder(nodes=self.node_source)
+        expected_cnt = sb.get_query(self.ctx).count()
+        assert expected_cnt > 1
+        list(count(sb).as_managed_stream(self.ctx))
+        assert self._cnt == expected_cnt
+
+        self._cnt = 0
+        list(count(latest(sb)).as_managed_stream(self.ctx))
+        assert self._cnt == 1
