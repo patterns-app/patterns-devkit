@@ -11,7 +11,7 @@ from snapflow import DataBlock, Environment, Graph, Pipe, Storage
 from snapflow.core.module import DagsModule
 from snapflow.core.node import DataBlockLog, Node, PipeLog
 from snapflow.core.typing.inference import infer_schema_from_records_list
-from snapflow.core.typing.object_schema import ObjectSchema, ObjectSchemaLike
+from snapflow.core.typing.schema import Schema, SchemaLike
 from snapflow.utils.common import rand_str
 from snapflow.utils.data import read_csv, read_json, read_raw_string_csv
 from snapflow.utils.pandas import records_list_to_dataframe
@@ -32,7 +32,7 @@ def display_pipe_log(sess: Session):
 def str_as_dataframe(
     test_data: str,
     module: Optional[DagsModule] = None,
-    nominal_schema: Optional[ObjectSchema] = None,
+    nominal_schema: Optional[Schema] = None,
 ) -> DataFrame:
     # TODO: add conform_dataframe_to_schema option
     if test_data.endswith(".csv"):
@@ -58,7 +58,7 @@ def str_as_dataframe(
 @dataclass
 class DataInput:
     data: str
-    schema: Optional[ObjectSchemaLike] = None
+    schema: Optional[SchemaLike] = None
     module: Optional[DagsModule] = None
 
     def as_dataframe(self, env: Environment):
@@ -67,7 +67,7 @@ class DataInput:
             schema = env.get_schema(self.schema)
         return str_as_dataframe(self.data, module=self.module, nominal_schema=schema)
 
-    def get_schema(self, env: Environment) -> Optional[ObjectSchema]:
+    def get_schema(self, env: Environment) -> Optional[Schema]:
         if not self.schema:
             return None
         return env.get_schema(self.schema)

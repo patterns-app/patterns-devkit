@@ -21,10 +21,10 @@ from loguru import logger
 
 from snapflow.core.data_block import DataBlock, DataBlockMetadata, ManagedDataBlock
 from snapflow.core.environment import Environment
-from snapflow.core.typing.object_schema import (
-    ObjectSchema,
-    ObjectSchemaKey,
-    ObjectSchemaLike,
+from snapflow.core.typing.schema import (
+    Schema,
+    SchemaKey,
+    SchemaLike,
     SchemaMapping,
     is_any,
     is_generic,
@@ -86,7 +86,7 @@ class GenericSchemaException(Exception):
 @dataclass(frozen=True)
 class PipeAnnotation:
     data_format_class: str
-    schema_like: ObjectSchemaLike
+    schema_like: SchemaLike
     name: Optional[str] = None
     # is_iterable: bool = False  # TODO: what is state of iterable support?
     is_variadic: bool = False  # TODO: what is state of variadic support?
@@ -152,12 +152,12 @@ class PipeAnnotation:
         args.update(**kwargs)
         return PipeAnnotation.create(**args)  # type: ignore
 
-    def schema(self, env: Environment) -> ObjectSchema:
+    def schema(self, env: Environment) -> Schema:
         if self.is_generic:
-            raise GenericSchemaException("Generic ObjectSchema has no name")
+            raise GenericSchemaException("Generic Schema has no name")
         return env.get_schema(self.schema_like)
 
-    def schema_key(self, env: Environment) -> ObjectSchemaKey:
+    def schema_key(self, env: Environment) -> SchemaKey:
         return self.schema(env).key
 
 
@@ -366,7 +366,7 @@ class StreamInput:
     bound_stream: Optional[DataBlockStream] = None
     bound_block: Optional[DataBlock] = None
 
-    def get_bound_nominal_schema(self) -> Optional[ObjectSchema]:
+    def get_bound_nominal_schema(self) -> Optional[Schema]:
         # TODO: what is this and what is this called? "resolved"?
         if self.bound_block:
             return self.bound_block.nominal_schema
@@ -385,7 +385,7 @@ class BoundInterface:
     inputs: List[StreamInput]
     output: Optional[PipeAnnotation]
     requires_pipe_context: bool = True
-    # resolved_generics: Dict[str, ObjectSchemaKey] = field(default_factory=dict)
+    # resolved_generics: Dict[str, SchemaKey] = field(default_factory=dict)
 
     def inputs_as_kwargs(self) -> Dict[str, Union[DataBlock, DataBlockStream]]:
         return {
@@ -394,7 +394,7 @@ class BoundInterface:
             if i.bound_stream is not None
         }
 
-    def resolve_nominal_output_schema(self, env: Environment) -> Optional[ObjectSchema]:
+    def resolve_nominal_output_schema(self, env: Environment) -> Optional[Schema]:
         if not self.output:
             return None
         if not self.output.is_generic:
@@ -414,7 +414,7 @@ class BoundInterface:
 def get_schema_mapping(
     env: Environment,
     data_block: DataBlockMetadata,
-    declared_schema: Optional[ObjectSchema] = None,
+    declared_schema: Optional[Schema] = None,
     declared_schema_mapping: Optional[Dict[str, str]] = None,
 ) -> Optional[SchemaMapping]:
     if declared_schema_mapping:
@@ -436,9 +436,9 @@ def get_schema_mapping(
 #     inputs: List[NodeInput]
 #     output: Optional[PipeAnnotation]
 #     requires_pipe_context: bool = True
-#     resolved_generics: Dict[str, ObjectSchemaKey] = field(default_factory=dict)
+#     resolved_generics: Dict[str, SchemaKey] = field(default_factory=dict)
 #     manually_set_resolved_output_schema: Optional[
-#         ObjectSchema
+#         Schema
 #     ] = None  # TODO: move to PipeContext?
 #
 #     def get_input(self, name: str) -> NodeInput:
@@ -488,7 +488,7 @@ def get_schema_mapping(
 #     #         )
 #     #     return inputs
 #
-#     def resolved_output_schema(self, env: Environment) -> Optional[ObjectSchema]:
+#     def resolved_output_schema(self, env: Environment) -> Optional[Schema]:
 #         if self.manually_set_resolved_output_schema is not None:
 #             return self.manually_set_resolved_output_schema
 #         if self.output is None:
@@ -498,7 +498,7 @@ def get_schema_mapping(
 #             return env.get_schema(k)
 #         return self.output.schema(env)
 #
-#     def set_resolved_output_schema(self, schema: ObjectSchema):
+#     def set_resolved_output_schema(self, schema: Schema):
 #         self.manually_set_resolved_output_schema = schema
 #
 
@@ -506,7 +506,7 @@ def get_schema_mapping(
 #     def bind_and_specify_schemas(self, env: Environment, input_blocks: InputBlocks):
 #         if self.is_bound:
 #             raise Exception("Already bound")
-#         realized_generics: Dict[str, ObjectSchema] = {}
+#         realized_generics: Dict[str, Schema] = {}
 #         for name, input_block in input_blocks.items():
 #             i = self.get_input(name)
 #             i.bound_data_block = input_block
@@ -607,7 +607,7 @@ class NodeInterfaceManager:
                         f"    Required input '{input.name}'={stream_builder} to Pipe '{self.node.key}' is empty"
                     )
             else:
-                declared_schema: Optional[ObjectSchema]
+                declared_schema: Optional[Schema]
                 try:
                     declared_schema = input.annotation.schema(self.env)
                 except GenericSchemaException:

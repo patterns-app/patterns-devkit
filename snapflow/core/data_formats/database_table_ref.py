@@ -6,7 +6,7 @@ from snapflow.core.data_formats.base import MemoryDataFormatBase
 
 if TYPE_CHECKING:
     from snapflow.core.data_block import LocalMemoryDataRecords
-    from snapflow.core.typing.object_schema import SchemaMapping, ObjectSchema
+    from snapflow.core.typing.schema import SchemaMapping, Schema
 
 
 class DatabaseTableRef:

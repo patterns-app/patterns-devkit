@@ -98,7 +98,7 @@ def extract_interface(
     # TODO: Bit of a nightmare. Need to extend a proper grammar/parser for this
     """
     Get all table names in a sql statement, optionally sub them with new names.
-    Also extract comment-style ObjectSchema annotations if they exists.
+    Also extract comment-style Schema annotations if they exists.
     """
     replace_with_names = replace_with_names or {}
     table_identifier_annotations: Dict[str, Optional[str]] = {}

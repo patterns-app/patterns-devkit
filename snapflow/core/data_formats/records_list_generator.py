@@ -11,8 +11,8 @@ from snapflow.core.data_formats.records_list import (
 )
 
 if TYPE_CHECKING:
-    from snapflow.core.typing.object_schema import SchemaMapping
-    from snapflow import ObjectSchema
+    from snapflow.core.typing.schema import SchemaMapping
+    from snapflow import Schema
 
 
 class RecordsListGenerator(ReusableGenerator[RecordsList]):
@@ -38,7 +38,7 @@ class RecordsListGeneratorFormat(MemoryDataFormatBase):
         return False
 
     @classmethod
-    def infer_schema_from_records(cls, records: RecordsListGenerator) -> ObjectSchema:
+    def infer_schema_from_records(cls, records: RecordsListGenerator) -> Schema:
         from snapflow.core.typing.inference import infer_schema_from_records_list
         from snapflow.core.data_formats import get_records_list_sample
 

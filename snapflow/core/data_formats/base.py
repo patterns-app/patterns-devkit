@@ -9,8 +9,8 @@ from snapflow.utils.typing import T
 
 if TYPE_CHECKING:
     from snapflow.core.data_block import LocalMemoryDataRecords
-    from snapflow.core.typing.object_schema import SchemaMapping
-    from snapflow import ObjectSchema
+    from snapflow.core.typing.schema import SchemaMapping
+    from snapflow import Schema
 
 
 class DataFormatBase(Generic[T]):
@@ -50,7 +50,7 @@ class DataFormatBase(Generic[T]):
         raise NotImplementedError
 
     @classmethod
-    def infer_schema_from_records(cls, records: T) -> ObjectSchema:
+    def infer_schema_from_records(cls, records: T) -> Schema:
         raise NotImplementedError
 
     @classmethod

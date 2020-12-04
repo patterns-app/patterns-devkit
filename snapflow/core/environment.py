@@ -13,11 +13,7 @@ from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, DagsModule
-from snapflow.core.typing.object_schema import (
-    GeneratedObjectSchema,
-    ObjectSchema,
-    ObjectSchemaLike,
-)
+from snapflow.core.typing.schema import GeneratedSchema, Schema, SchemaLike
 from snapflow.logging.event import Event, EventHandler, EventSubject, event_factory
 
 if TYPE_CHECKING:
@@ -130,8 +126,8 @@ class Environment:
     def get_module_order(self) -> List[str]:
         return self.library.module_lookup_names
 
-    def get_schema(self, schema_like: ObjectSchemaLike) -> ObjectSchema:
-        if isinstance(schema_like, ObjectSchema):
+    def get_schema(self, schema_like: SchemaLike) -> Schema:
+        if isinstance(schema_like, Schema):
             return schema_like
         try:
             return self.library.get_schema(schema_like)
@@ -141,34 +137,32 @@ class Environment:
                 raise KeyError(schema_like)
             return schema
 
-    def add_schema(self, schema: ObjectSchema):
+    def add_schema(self, schema: Schema):
         self.library.add_schema(schema)
 
-    def get_generated_schema(
-        self, schema_like: ObjectSchemaLike
-    ) -> Optional[ObjectSchema]:
+    def get_generated_schema(self, schema_like: SchemaLike) -> Optional[Schema]:
         if isinstance(schema_like, str):
             key = schema_like
-        elif isinstance(schema_like, ObjectSchema):
+        elif isinstance(schema_like, Schema):
             key = schema_like.key
         else:
             raise TypeError(schema_like)
-        got = self.session.query(GeneratedObjectSchema).get(key)
+        got = self.session.query(GeneratedSchema).get(key)
         if got is None:
             return None
         return got.as_schema()
 
-    def add_new_generated_schema(self, schema: ObjectSchema):
+    def add_new_generated_schema(self, schema: Schema):
         logger.debug(f"Adding new generated schema {schema}")
         if schema.key in self.library.schemas:
             # Already exists
             return
-        got = GeneratedObjectSchema(key=schema.key, definition=asdict(schema))
+        got = GeneratedSchema(key=schema.key, definition=asdict(schema))
         self.session.add(got)
         self.session.flush([got])
         self.library.add_schema(schema)
 
-    def all_schemas(self) -> List[ObjectSchema]:
+    def all_schemas(self) -> List[Schema]:
         return self.library.all_schemas()
 
     def get_pipe(self, pipe_like: str) -> Pipe:

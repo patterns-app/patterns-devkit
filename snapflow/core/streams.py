@@ -34,11 +34,7 @@ from snapflow.core.node import (
 )
 from snapflow.core.pipe_interface import get_schema_mapping
 from snapflow.core.storage.storage import Storage
-from snapflow.core.typing.object_schema import (
-    ObjectSchema,
-    ObjectSchemaLike,
-    SchemaMapping,
-)
+from snapflow.core.typing.schema import Schema, SchemaLike, SchemaMapping
 from snapflow.utils.common import ensure_list
 
 if TYPE_CHECKING:
@@ -52,9 +48,9 @@ class StreamBuilder:
     def __init__(
         self,
         nodes: Union[NodeLike, List[NodeLike]] = None,
-        schemas: List[ObjectSchemaLike] = None,
+        schemas: List[SchemaLike] = None,
         storages: List[Storage] = None,
-        schema: ObjectSchemaLike = None,
+        schema: SchemaLike = None,
         storage: Storage = None,
         unprocessed_by: Node = None,
         data_block: Union[DataBlockMetadata, DataBlock, str] = None,
@@ -194,7 +190,7 @@ class StreamBuilder:
         dts = ensure_list(self.schemas)
         return [env.get_schema(d) for d in dts]
 
-    def filter_schemas(self, schemas: List[ObjectSchemaLike]) -> StreamBuilder:
+    def filter_schemas(self, schemas: List[SchemaLike]) -> StreamBuilder:
         return self.clone(schemas=schemas)
 
     def _filter_schemas(self, ctx: ExecutionContext, query: Query) -> Query:
@@ -204,7 +200,7 @@ class StreamBuilder:
             DataBlockMetadata.nominal_schema_key.in_([d.key for d in self.get_schemas(ctx.env)])  # type: ignore
         )
 
-    def filter_schema(self, schema: ObjectSchemaLike) -> StreamBuilder:
+    def filter_schema(self, schema: SchemaLike) -> StreamBuilder:
         return self.filter_schemas(ensure_list(schema))
 
     def filter_storages(self, storages: List[Storage]) -> StreamBuilder:
@@ -279,7 +275,7 @@ class StreamBuilder:
     def as_managed_stream(
         self,
         ctx: ExecutionContext,
-        declared_schema: Optional[ObjectSchema] = None,
+        declared_schema: Optional[Schema] = None,
         declared_schema_mapping: Optional[Dict[str, str]] = None,
     ) -> ManagedDataBlockStream:
         return ManagedDataBlockStream(
@@ -297,7 +293,7 @@ def block_as_stream_builder(data_block: DataBlockMetadata) -> StreamBuilder:
 def block_as_stream(
     data_block: DataBlockMetadata,
     ctx: ExecutionContext,
-    declared_schema: Optional[ObjectSchema] = None,
+    declared_schema: Optional[Schema] = None,
     declared_schema_mapping: Optional[Dict[str, str]] = None,
 ) -> DataBlockStream:
     stream = block_as_stream_builder(data_block)
@@ -309,7 +305,7 @@ class ManagedDataBlockStream:
         self,
         ctx: ExecutionContext,
         stream_builder: StreamBuilder,
-        declared_schema: Optional[ObjectSchema] = None,
+        declared_schema: Optional[Schema] = None,
         declared_schema_mapping: Optional[Dict[str, str]] = None,
     ):
         self.ctx = ctx

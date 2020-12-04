@@ -30,12 +30,12 @@ if TYPE_CHECKING:
         Pipe,
     )
     from snapflow.core.module import DagsModule
-    from snapflow.core.typing.object_schema import ObjectSchemaLike, ObjectSchema
+    from snapflow.core.typing.schema import SchemaLike, Schema
 
 
 class ComponentLibrary:
     pipes: Dict[str, Pipe]
-    schemas: Dict[str, ObjectSchema]
+    schemas: Dict[str, Schema]
     module_lookup_names: List[str]
 
     def __init__(self, module_lookup_keys: List[str] = None):
@@ -58,7 +58,7 @@ class ComponentLibrary:
     def add_pipe(self, p: Pipe):
         self.pipes[p.key] = p
 
-    def add_schema(self, schema: ObjectSchema):
+    def add_schema(self, schema: Schema):
         self.schemas[schema.key] = schema
 
     def get_pipe(self, pipe_like: Union[Pipe, str], try_module_lookups=True) -> Pipe:
@@ -76,11 +76,11 @@ class ComponentLibrary:
             raise e
 
     def get_schema(
-        self, schema_like: Union[ObjectSchema, str], try_module_lookups=True
-    ) -> ObjectSchema:
-        from snapflow.core.typing.object_schema import ObjectSchema
+        self, schema_like: Union[Schema, str], try_module_lookups=True
+    ) -> Schema:
+        from snapflow.core.typing.schema import Schema
 
-        if isinstance(schema_like, ObjectSchema):
+        if isinstance(schema_like, Schema):
             return schema_like
         if not isinstance(schema_like, str):
             raise TypeError(schema_like)
@@ -104,7 +104,7 @@ class ComponentLibrary:
     def all_pipes(self) -> List[Pipe]:
         return list(self.pipes.values())
 
-    def all_schemas(self) -> List[ObjectSchema]:
+    def all_schemas(self) -> List[Schema]:
         return list(self.schemas.values())
 
     def merge(self, other: ComponentLibrary):
@@ -123,5 +123,5 @@ class ComponentLibrary:
     def get_pipes_view(self) -> AttrDict[str, Pipe]:
         return self.get_view(self.pipes)
 
-    def get_schemas_view(self) -> AttrDict[str, ObjectSchema]:
+    def get_schemas_view(self) -> AttrDict[str, Schema]:
         return self.get_view(self.schemas)

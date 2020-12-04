@@ -9,9 +9,9 @@ from snapflow.core.typing.inference import (
     infer_schema_fields_from_records,
     infer_schema_from_records_list,
 )
-from snapflow.core.typing.object_schema import (
-    GeneratedObjectSchema,
-    ObjectSchema,
+from snapflow.core.typing.schema import (
+    GeneratedSchema,
+    Schema,
     create_quick_schema,
     is_generic,
     schema_from_yaml,
@@ -95,12 +95,12 @@ def test_schema_inference():
 
 def test_generated_schema():
     new_schema = infer_schema_from_records_list(sample_records)
-    got = GeneratedObjectSchema(key=new_schema.key, definition=asdict(new_schema))
+    got = GeneratedSchema(key=new_schema.key, definition=asdict(new_schema))
     env = make_test_env()
     env.session.add(got)
     got = (
-        env.session.query(GeneratedObjectSchema)
-        .filter(GeneratedObjectSchema.key == new_schema.key)
+        env.session.query(GeneratedSchema)
+        .filter(GeneratedSchema.key == new_schema.key)
         .first()
     )
     got_schema = got.as_schema()

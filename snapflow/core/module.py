@@ -20,11 +20,7 @@ from typing import (
 )
 
 from snapflow.core.component import ComponentLibrary
-from snapflow.core.typing.object_schema import (
-    ObjectSchema,
-    ObjectSchemaLike,
-    schema_from_yaml,
-)
+from snapflow.core.typing.schema import Schema, SchemaLike, schema_from_yaml
 from snapflow.utils.common import AttrDict
 
 if TYPE_CHECKING:
@@ -54,7 +50,7 @@ class DagsModule:
         name: str,
         py_module_path: Optional[str] = None,
         py_module_name: Optional[str] = None,
-        schemas: Optional[Sequence[ObjectSchemaLike]] = None,
+        schemas: Optional[Sequence[SchemaLike]] = None,
         pipes: Optional[Sequence[Union[PipeLike, str]]] = None,
         tests: Optional[Sequence[Callable]] = None,
         dependencies: List[
@@ -93,8 +89,8 @@ class DagsModule:
         with open(typedef_path) as f:
             yield f
 
-    def get_schema(self, schema_like: ObjectSchemaLike) -> ObjectSchema:
-        if isinstance(schema_like, ObjectSchema):
+    def get_schema(self, schema_like: SchemaLike) -> Schema:
+        if isinstance(schema_like, Schema):
             return schema_like
         return self.library.get_schema(schema_like)
 
@@ -111,7 +107,7 @@ class DagsModule:
         sys.modules[self.py_module_name] = self  # type: ignore  # sys.module_lookup_names wants a modulefinder.Module type and it's not gonna get it
 
     @property
-    def schemas(self) -> AttrDict[str, ObjectSchema]:
+    def schemas(self) -> AttrDict[str, Schema]:
         return self.library.get_schemas_view()
 
     @property
@@ -124,14 +120,14 @@ class DagsModule:
                 f"Component {obj} module name `{obj.module_name}` does not match module `{self.name}` to which it was added"
             )
 
-    def add_schema(self, schema_like: ObjectSchemaLike) -> ObjectSchema:
+    def add_schema(self, schema_like: SchemaLike) -> Schema:
         schema = self.process_schema(schema_like)
         self.validate_key(schema)
         self.library.add_schema(schema)
         return schema
 
-    def process_schema(self, schema_like: ObjectSchemaLike) -> ObjectSchema:
-        if isinstance(schema_like, ObjectSchema):
+    def process_schema(self, schema_like: SchemaLike) -> Schema:
+        if isinstance(schema_like, Schema):
             schema = schema_like
         elif isinstance(schema_like, str):
             with self.open_module_file(schema_like) as f:

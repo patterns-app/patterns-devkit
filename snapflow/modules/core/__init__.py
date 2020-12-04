@@ -1,13 +1,13 @@
 from snapflow.core.module import DagsModule
 
-from ...core.typing.object_schema import ConflictBehavior, ObjectSchema
+from ...core.typing.schema import ConflictBehavior, Schema
 from .pipes import accumulator, dedupe, static
 
-AnyType = ObjectSchema(
+AnyType = Schema(
     name="Any",
     module_name="core",
     version="0",
-    description="The Any super-type is compatible with all ObjectSchemas",
+    description="The Any super-type is compatible with all Schemas",
     on_conflict=ConflictBehavior.ReplaceWithNewer,
     unique_on=[],
     fields=[],

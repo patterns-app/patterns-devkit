@@ -11,7 +11,7 @@ from snapflow.core.data_formats.base import MemoryDataFormatBase, ReusableGenera
 
 if TYPE_CHECKING:
     from snapflow.core.data_block import LocalMemoryDataRecords
-    from snapflow.core.typing.object_schema import SchemaMapping, ObjectSchema
+    from snapflow.core.typing.schema import SchemaMapping, Schema
 
 
 class DataFrameGenerator(ReusableGenerator[pd.DataFrame]):
@@ -37,7 +37,7 @@ class DataFrameGeneratorFormat(MemoryDataFormatBase):
         return False
 
     @classmethod
-    def infer_schema_from_records(cls, records: DataFrameGenerator) -> ObjectSchema:
+    def infer_schema_from_records(cls, records: DataFrameGenerator) -> Schema:
         from snapflow.core.typing.inference import infer_schema_from_records_list
         from snapflow.core.data_formats import get_records_list_sample
 

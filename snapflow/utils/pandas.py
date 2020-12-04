@@ -7,7 +7,7 @@ from pandas import DataFrame, Index, Series
 from pandas._testing import assert_almost_equal
 
 from snapflow.core.data_formats import RecordsList
-from snapflow.core.typing.object_schema import ObjectSchema
+from snapflow.core.typing.schema import Schema
 from snapflow.utils.data import is_nullish, records_list_as_dict_of_lists
 
 
@@ -24,7 +24,7 @@ def sortable_columns(dtypes: Series) -> List[str]:
 def assert_dataframes_are_almost_equal(
     df1: DataFrame,
     df2: DataFrame,
-    schema: Optional[ObjectSchema] = None,
+    schema: Optional[Schema] = None,
     ignored_columns: List[str] = None,
 ):
     if ignored_columns:
@@ -47,7 +47,7 @@ def assert_dataframes_are_almost_equal(
             assert_almost_equal(r[c], r2[c])
 
 
-def empty_dataframe_for_schema(schema: ObjectSchema) -> DataFrame:
+def empty_dataframe_for_schema(schema: Schema) -> DataFrame:
     from snapflow.core.typing.inference import sqlalchemy_type_to_pandas_type
 
     df = DataFrame()
@@ -57,7 +57,7 @@ def empty_dataframe_for_schema(schema: ObjectSchema) -> DataFrame:
     return df
 
 
-def records_list_to_dataframe(records: RecordsList, schema: ObjectSchema) -> DataFrame:
+def records_list_to_dataframe(records: RecordsList, schema: Schema) -> DataFrame:
     from snapflow.core.typing.inference import conform_dataframe_to_schema
 
     df = DataFrame(records)
@@ -83,9 +83,7 @@ def records_list_to_dataframe(records: RecordsList, schema: ObjectSchema) -> Dat
     # return df
 
 
-def dataframe_to_records_list(
-    df: DataFrame, schema: ObjectSchema = None
-) -> RecordsList:
+def dataframe_to_records_list(df: DataFrame, schema: Schema = None) -> RecordsList:
     for c in df:
         dfc = df[c].astype(object)
         dfc.loc[pd.isna(dfc)] = None

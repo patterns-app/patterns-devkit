@@ -8,7 +8,7 @@ from snapflow import RecordsList
 from snapflow.core.data_block import DataRecordsObject, as_records
 from snapflow.core.pipe import pipe
 from snapflow.core.runnable import PipeContext
-from snapflow.core.typing.object_schema import ObjectSchemaLike
+from snapflow.core.typing.schema import SchemaLike
 from snapflow.utils.data import read_csv
 
 
@@ -20,7 +20,7 @@ class LocalExtractState:
 @dataclass
 class ExtractDataFrameConfig:
     dataframe: DataFrame
-    schema: ObjectSchemaLike
+    schema: SchemaLike
 
 
 @pipe(
@@ -45,7 +45,7 @@ def extract_dataframe(
 @dataclass
 class ExtractLocalCSVConfig:
     path: str
-    schema: ObjectSchemaLike
+    schema: SchemaLike
 
 
 @pipe(

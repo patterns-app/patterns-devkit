@@ -30,9 +30,9 @@ class _BaseModel:
         at_least_one_attached_attribute = False
         for key, field in fields.items():
             try:
-                from snapflow.core.typing.object_schema import ObjectSchema
+                from snapflow.core.typing.schema import Schema
 
-                if isinstance(field, ObjectSchema):
+                if isinstance(field, Schema):
                     field_strings.append(f"{key}={field.name}")
                 elif key in ("id", "url"):
                     field_strings.append(str(cf.bold_italic(f"{key}={field!r}")))
@@ -101,10 +101,10 @@ def timestamp_rand_key() -> str:
 #         return value
 
 
-# class ObjectSchema(TypeDecorator):
+# class Schema(TypeDecorator):
 #     impl = types.Unicode
 #
-#     def process_bind_param(self, value: Union[ObjectSchema, str], dialect) -> str:
+#     def process_bind_param(self, value: Union[Schema, str], dialect) -> str:
 #         if value is None:
 #             return None
 #         if isinstance(value, str):

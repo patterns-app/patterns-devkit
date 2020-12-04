@@ -57,26 +57,26 @@ class Validator:
     name: Optional[str] = None
 
 
-ObjectSchemaKey = str
-ObjectSchemaName = str
+SchemaKey = str
+SchemaName = str
 
 
 @dataclass(frozen=True)
 class Relationship:
     name: str
-    schema: ObjectSchemaKey
+    schema: SchemaKey
     fields: Dict[str, str]
 
 
 @dataclass(frozen=True)
 class Implementation:
-    schema_key: ObjectSchemaKey
+    schema_key: SchemaKey
     fields: Dict[str, str]
 
-    def schema(self, env: Environment) -> ObjectSchema:
+    def schema(self, env: Environment) -> Schema:
         return env.get_schema(self.schema_key)
 
-    def as_schema_mapping(self, env: Environment, other: ObjectSchema) -> SchemaMapping:
+    def as_schema_mapping(self, env: Environment, other: Schema) -> SchemaMapping:
         return SchemaMapping(
             mapping=self.fields, from_schema=self.schema(env), to_schema=other
         )
@@ -90,12 +90,7 @@ class ConflictBehavior(StringEnum):
     CreateNewVersion = (
         "CreateNewVersion"  # TODO: would need a field ("_record_version") or something
     )
-    DoNothing = "DoNothing"
-
-
-class ObjectSchemaClass(StringEnum):
-    Entity = "Entity"
-    Observation = "Observation"
+    KeepOldest = "KeepOldest"
 
 
 def schema_key_to_identifier(key: str) -> str:
@@ -104,7 +99,7 @@ def schema_key_to_identifier(key: str) -> str:
 
 
 @dataclass(frozen=True)
-class ObjectSchema:
+class Schema:
     name: str
     module_name: Optional[str]
     version: Optional[str]
@@ -116,13 +111,13 @@ class ObjectSchema:
     implementations: List[Implementation] = field(default_factory=list)
     raw_definition: Optional[str] = None
     extends: Optional[
-        ObjectSchemaKey
+        SchemaKey
     ] = None  # TODO: TBD how useful this would be, or exactly how it would work
     updated_at_field_name: Optional[str] = None  # TODO: TBD if we want this
     """
     Things that are a property of the SOURCE of data, not the Schema definition
         - Data set expected cardinality / order of magnitude ?
-            This is actually sometimes a property of a the ObjectSchema (`Country` you could argue, for instance, less than 1000)
+            This is actually sometimes a property of a the Schema (`Country` you could argue, for instance, less than 1000)
             Other times more likely to be property of source (`Customer` for instance, could be 100 or 100M)
         - Curing window
             Records are ideally stateless (think event logs), but many data sources produce stateful
@@ -162,7 +157,7 @@ class ObjectSchema:
             return None
 
     @classmethod
-    def from_dict(cls, d: Dict) -> ObjectSchema:
+    def from_dict(cls, d: Dict) -> Schema:
         oc = d["on_conflict"]
         if isinstance(oc, str):
             d["on_conflict"] = ConflictBehavior(oc)
@@ -176,10 +171,10 @@ class ObjectSchema:
                 raise ValueError(f)
             fields.append(f)
         d["fields"] = fields
-        return ObjectSchema(**d)
+        return Schema(**d)
 
     def get_mapping_to(
-        self, env: Environment, other: ObjectSchema
+        self, env: Environment, other: Schema
     ) -> Optional[SchemaMapping]:
         if not self.implementations:
             return None
@@ -189,15 +184,15 @@ class ObjectSchema:
         return None
 
 
-ObjectSchemaLike = Union[ObjectSchema, ObjectSchemaKey, ObjectSchemaName]
+SchemaLike = Union[Schema, SchemaKey, SchemaName]
 
 
 class SchemaMapping:
     def __init__(
         self,
         mapping: Optional[Dict[str, str]] = None,
-        from_schema: Optional[ObjectSchema] = None,
-        to_schema: Optional[ObjectSchema] = None,
+        from_schema: Optional[Schema] = None,
+        to_schema: Optional[Schema] = None,
     ):
         self.mapping = mapping
         self.from_schema = from_schema
@@ -209,37 +204,37 @@ class SchemaMapping:
         return self.mapping
 
 
-class GeneratedObjectSchema(BaseModel):
+class GeneratedSchema(BaseModel):
     key = Column(String, primary_key=True)
     definition = Column(JSON)
 
     def __repr__(self):
         return self._repr(name=self.key)
 
-    def as_schema(self) -> ObjectSchema:
+    def as_schema(self) -> Schema:
         assert isinstance(self.definition, dict)
-        return ObjectSchema.from_dict(self.definition)
+        return Schema.from_dict(self.definition)
 
 
-def is_generic(schema_like: ObjectSchemaLike) -> bool:
+def is_generic(schema_like: SchemaLike) -> bool:
     name = schema_like_to_name(schema_like)
     return len(name) == 1
 
 
-def is_any(schema_like: ObjectSchemaLike) -> bool:
+def is_any(schema_like: SchemaLike) -> bool:
     name = schema_like_to_name(schema_like)
     return name == "Any"
 
 
-def schema_like_to_name(d: ObjectSchemaLike) -> str:
-    if isinstance(d, ObjectSchema):
+def schema_like_to_name(d: SchemaLike) -> str:
+    if isinstance(d, Schema):
         return d.name
     if isinstance(d, str):
         return d.split(".")[-1]
     raise TypeError(d)
 
 
-def schema_from_yaml(yml: str, **overrides: Any) -> ObjectSchema:
+def schema_from_yaml(yml: str, **overrides: Any) -> Schema:
     # TODO: add strictyaml schema
     d = strictyaml.load(yml).data
     d = clean_raw_schema_defintion(d)
@@ -273,12 +268,12 @@ def clean_raw_schema_defintion(raw_def: dict) -> dict:
     return raw_def
 
 
-def build_schema_from_dict(d: dict, **overrides: Any) -> ObjectSchema:
+def build_schema_from_dict(d: dict, **overrides: Any) -> Schema:
     fields = [build_field_type_from_dict(f) for f in d.pop("fields", [])]
     # TODO: relationships and implementations
     d["fields"] = fields
     d.update(**overrides)
-    schema = ObjectSchema(**d)
+    schema = Schema(**d)
     return schema
 
 
@@ -293,7 +288,7 @@ def load_validator_from_dict(v: str) -> Validator:
     return Validator()
 
 
-def schema_to_yaml(schema: ObjectSchema) -> str:
+def schema_to_yaml(schema: Schema) -> str:
     if schema.raw_definition:
         return schema.raw_definition
     yml = f"name: {schema.name}\nversion: {schema.version}\ndescription: {schema.description}\n"
@@ -308,8 +303,8 @@ def schema_to_yaml(schema: ObjectSchema) -> str:
     # TODO:
     # on_conflict: ConflictBehavior
     # relationships: List[Reference] = field(default_factory=list)
-    # implementations: List[ObjectSchemaName] = field(default_factory=list)
-    # extends: Optional[ObjectSchemaName] = None
+    # implementations: List[SchemaName] = field(default_factory=list)
+    # extends: Optional[SchemaName] = None
 
 
 def field_to_yaml(f: Field) -> str:
@@ -342,5 +337,5 @@ def create_quick_schema(name: str, fields: List[Tuple[str, str]], **kwargs):
     )
     defaults.update(kwargs)
     defaults["fields"] = [create_quick_field(f[0], f[1]) for f in fields]
-    schema = ObjectSchema(**defaults)  # type: ignore
+    schema = Schema(**defaults)  # type: ignore
     return schema

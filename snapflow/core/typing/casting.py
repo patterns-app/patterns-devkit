@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
-from snapflow.core.typing.object_schema import (
+from snapflow.core.typing.schema import (
     ConflictBehavior,
     Field,
-    ObjectSchema,
+    Schema,
     create_quick_field,
     create_quick_schema,
 )
@@ -45,7 +45,7 @@ def is_strict_field_match(f1: Field, f2: Field) -> bool:
     return is_same_fieldtype_class(f1.field_type, f2.field_type) and f1.name == f2.name
 
 
-def is_strict_schema_match(schema1: ObjectSchema, schema2: ObjectSchema) -> bool:
+def is_strict_schema_match(schema1: Schema, schema2: Schema) -> bool:
     if set(schema1.field_names()) != set(schema2.field_names()):
         return False
     for f1 in schema1.fields:
@@ -55,13 +55,13 @@ def is_strict_schema_match(schema1: ObjectSchema, schema2: ObjectSchema) -> bool
     return True
 
 
-def has_subset_fields(sub: ObjectSchema, supr: ObjectSchema) -> bool:
+def has_subset_fields(sub: Schema, supr: Schema) -> bool:
     return set(sub.field_names()) <= set(supr.field_names())
 
 
 def update_matching_field_definitions(
-    env: Environment, schema: ObjectSchema, update_with_schema: ObjectSchema
-) -> ObjectSchema:
+    env: Environment, schema: Schema, update_with_schema: Schema
+) -> Schema:
     fields = []
     modified = False
     for f in schema.fields:
@@ -77,15 +77,15 @@ def update_matching_field_definitions(
     schema_dict = asdict(schema)
     schema_dict["name"] = f"{schema.name}_with_{update_with_schema.name}"
     schema_dict["fields"] = fields
-    updated = ObjectSchema.from_dict(schema_dict)
+    updated = Schema.from_dict(schema_dict)
     env.add_new_generated_schema(updated)
     return updated
 
 
 def cast_to_realized_schema(
     env: Environment,
-    inferred_schema: ObjectSchema,
-    nominal_schema: ObjectSchema,
+    inferred_schema: Schema,
+    nominal_schema: Schema,
     cast_level: CastToSchemaLevel = CastToSchemaLevel.SOFT,
 ):
     if is_strict_schema_match(inferred_schema, nominal_schema):

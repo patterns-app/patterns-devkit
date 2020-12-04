@@ -16,7 +16,7 @@ from snapflow.core.environment import Environment
 from snapflow.core.graph import Graph
 from snapflow.core.node import DataBlockLog, PipeLog
 from snapflow.core.runnable import PipeContext
-from snapflow.core.typing.object_schema import create_quick_schema
+from snapflow.core.typing.schema import create_quick_schema
 from snapflow.modules import core
 from snapflow.testing.utils import get_tmp_sqlite_db_url
 from snapflow.utils.common import utcnow

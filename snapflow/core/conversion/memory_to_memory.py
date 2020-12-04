@@ -19,7 +19,7 @@ from snapflow.core.data_formats import (
     RecordsListGeneratorFormat,
 )
 from snapflow.core.storage.storage import LocalMemoryStorageEngine, StorageType
-from snapflow.core.typing.object_schema import ObjectSchema
+from snapflow.core.typing.schema import Schema
 from snapflow.utils.pandas import dataframe_to_records_list, records_list_to_dataframe
 
 
@@ -85,17 +85,17 @@ class MemoryToMemoryConverter(Converter):
         return output_sdb
 
     def dataframe_to_records_list(
-        self, input_object: DataFrame, schema: ObjectSchema
+        self, input_object: DataFrame, schema: Schema
     ) -> RecordsList:
         return dataframe_to_records_list(input_object, schema)
 
     def records_list_to_dataframe(
-        self, input_object: RecordsList, schema: ObjectSchema
+        self, input_object: RecordsList, schema: Schema
     ) -> DataFrame:
         return records_list_to_dataframe(input_object, schema)
 
     def records_list_generator_to_records_list(
-        self, input_object: RecordsListGenerator, schema: ObjectSchema
+        self, input_object: RecordsListGenerator, schema: Schema
     ) -> RecordsList:
         all_ = []
         for dl in input_object.get_generator():
@@ -103,21 +103,21 @@ class MemoryToMemoryConverter(Converter):
         return all_
 
     def records_list_generator_to_dataframe(
-        self, input_object: RecordsListGenerator, schema: ObjectSchema
+        self, input_object: RecordsListGenerator, schema: Schema
     ) -> DataFrame:
         return self.records_list_to_dataframe(
             self.records_list_generator_to_records_list(input_object, schema), schema
         )
 
     def dataframe_generator_to_records_list(
-        self, input_object: DataFrameGenerator, schema: ObjectSchema
+        self, input_object: DataFrameGenerator, schema: Schema
     ) -> RecordsList:
         return self.dataframe_to_records_list(
             self.dataframe_generator_to_dataframe(input_object, schema), schema
         )
 
     def dataframe_generator_to_dataframe(
-        self, input_object: DataFrameGenerator, schema: ObjectSchema
+        self, input_object: DataFrameGenerator, schema: Schema
     ) -> DataFrame:
         all_ = []
         for dl in input_object.get_generator():

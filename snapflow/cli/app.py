@@ -14,7 +14,7 @@ from snapflow.core.environment import Environment, current_env
 from snapflow.core.metadata.orm import DAGS_METADATA_TABLE_PREFIX
 from snapflow.core.node import PipeLog
 from snapflow.core.typing.inference import dict_to_rough_schema
-from snapflow.core.typing.object_schema import schema_to_yaml
+from snapflow.core.typing.schema import schema_to_yaml
 from snapflow.project.project import DAGS_PROJECT_FILE_NAME, init_project_in_dir
 from snapflow.utils import common
 from snapflow.utils.common import cf
@@ -124,7 +124,7 @@ def generate(component_type: str):
             s += line
         schema = dict_to_rough_schema("NewType", json.loads(s))
         schema = schema_to_yaml(schema)
-        click.secho("New ObjectSchema definition", bold=True)
+        click.secho("New Schema definition", bold=True)
         click.secho("-----------------------")
         click.echo(schema)
         click.secho("-----------------------")

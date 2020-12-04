@@ -9,7 +9,7 @@ from snapflow.core.module import DagsModule
 from snapflow.core.runnable import ExecutionContext, ExecutionManager, PipeContext
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.storage.storage import Storage, StorageClass, StorageEngine
-from snapflow.core.typing.object_schema import create_quick_schema
+from snapflow.core.typing.schema import create_quick_schema
 from snapflow.utils.common import rand_str
 from snapflow.utils.typing import T
 

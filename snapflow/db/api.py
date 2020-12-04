@@ -29,11 +29,11 @@ from snapflow.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from snapflow.core.data_formats import DatabaseTableFormat, DataFormat, RecordsList
 from snapflow.core.environment import Environment
 from snapflow.core.runtime import Runtime
-from snapflow.core.sql.utils import ObjectSchemaMapper
+from snapflow.core.sql.utils import SchemaMapper
 from snapflow.core.storage.storage import Storage, StorageEngine
 from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.core.typing.inference import infer_schema_from_db_table
-from snapflow.core.typing.object_schema import ObjectSchema, is_any
+from snapflow.core.typing.schema import Schema, is_any
 from snapflow.utils.common import DagsJSONEncoder, printd, rand_str, title_to_snake_case
 from snapflow.utils.data import conform_records_for_insert
 
@@ -104,7 +104,7 @@ class DatabaseAPI:
         if self.exists(name):
             return name
         schema = sdb.realized_schema(self.env)
-        ddl = ObjectSchemaMapper(self.env).create_table_statement(
+        ddl = SchemaMapper(self.env).create_table_statement(
             schema=schema,
             storage_engine=sdb.storage.storage_engine,
             table_name=name,
@@ -142,8 +142,8 @@ class DatabaseAPI:
     def create_data_block_from_sql(
         self,
         sql: str,
-        nominal_schema: ObjectSchema = None,
-        inferred_schema: ObjectSchema = None,
+        nominal_schema: Schema = None,
+        inferred_schema: Schema = None,
         created_by_node_key: str = None,
     ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
         logger.debug("CREATING DATA BLOCK from sql")

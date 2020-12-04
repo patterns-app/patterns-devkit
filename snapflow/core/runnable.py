@@ -50,7 +50,7 @@ from snapflow.core.pipe_interface import (
 )
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.storage.storage import LocalMemoryStorageEngine, Storage
-from snapflow.core.typing.object_schema import ObjectSchema, ObjectSchemaLike
+from snapflow.core.typing.schema import Schema, SchemaLike
 from snapflow.utils.common import (
     DagsJSONEncoder,
     cf,
@@ -255,18 +255,18 @@ class PipeContext:  # TODO: (Generic[C, S]):
     pipe_log: PipeLog
     # state: Dict = field(default_factory=dict)
     # emitted_states: List[Dict] = field(default_factory=list)
-    # resolved_output_schema: Optional[ObjectSchema] = None
-    # realized_output_schema: Optional[ObjectSchema]
+    # resolved_output_schema: Optional[Schema] = None
+    # realized_output_schema: Optional[Schema]
 
-    # def get_resolved_output_schema(self) -> Optional[ObjectSchema]:
+    # def get_resolved_output_schema(self) -> Optional[Schema]:
     #     return self.runnable.bound_interface.resolved_output_schema(
     #         self.execution_context.env
     #     )
     #
-    # def set_resolved_output_schema(self, schema: ObjectSchema):
+    # def set_resolved_output_schema(self, schema: Schema):
     #     self.runnable.bound_interface.set_resolved_output_schema(schema)
     #
-    # def set_output_schema(self, schema_like: ObjectSchemaLike):
+    # def set_output_schema(self, schema_like: SchemaLike):
     #     if not schema_like:
     #         return
     #     schema = self.execution_context.env.get_schema(schema_like)

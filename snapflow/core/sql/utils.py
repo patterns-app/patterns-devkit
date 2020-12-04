@@ -13,7 +13,7 @@ from sqlalchemy.sql.ddl import CreateTable
 
 from snapflow.core.environment import Environment
 from snapflow.core.storage.storage import StorageEngine
-from snapflow.core.typing.object_schema import Field, ObjectSchema
+from snapflow.core.typing.schema import Field, Schema
 from snapflow.utils.common import rand_str
 
 core_dir = os.path.dirname(__file__)
@@ -53,7 +53,7 @@ def compile_jinja_sql_template(template, template_ctx=None):
     return sql
 
 
-class ObjectSchemaFieldMapper:
+class SchemaFieldMapper:
     def __init__(self, env: Environment):
         self.env = env
 
@@ -93,7 +93,7 @@ class ObjectSchemaFieldMapper:
         return Field(name=sa_column.name, field_type=repr(sa_column.type), **kwargs)
 
 
-class ObjectSchemaMapper:
+class SchemaMapper:
     def __init__(self, env: Environment, sqlalchemy_metadata: MetaData = None):
         self.storage_engine_to_sa_dialect: Dict[StorageEngine, Dialect] = {
             StorageEngine.POSTGRES: postgresql.dialect(),
@@ -105,12 +105,12 @@ class ObjectSchemaMapper:
 
     def to_sqlalchemy(
         self,
-        schema: ObjectSchema,
-        schema_field_mapper: ObjectSchemaFieldMapper = None,
+        schema: Schema,
+        schema_field_mapper: SchemaFieldMapper = None,
     ) -> Sequence[Column]:
         columns: List[Column] = []
         if schema_field_mapper is None:
-            schema_field_mapper = ObjectSchemaFieldMapper(self.env)
+            schema_field_mapper = SchemaFieldMapper(self.env)
         fields = schema.fields
         for field in fields:
             c = schema_field_mapper.to_sqlalchemy(field)
@@ -120,7 +120,7 @@ class ObjectSchemaMapper:
 
     def create_table_statement(
         self,
-        schema: ObjectSchema,
+        schema: Schema,
         storage_engine: StorageEngine,
         # dialect: Dialect = postgresql.dialect(),
         table_name: str = None,
@@ -134,13 +134,13 @@ class ObjectSchemaMapper:
         sql = str(stmt)
         return sql
 
-    def from_sqlalchemy(self, sa_table: Table, **kwargs) -> ObjectSchema:
+    def from_sqlalchemy(self, sa_table: Table, **kwargs) -> Schema:
         fields = kwargs.get("fields", [])
-        field_mapper = ObjectSchemaFieldMapper(self.env)
+        field_mapper = SchemaFieldMapper(self.env)
         for column in sa_table.columns:
             fields.append(field_mapper.from_sqlalchemy(column))
         kwargs["fields"] = fields
-        return ObjectSchema(**kwargs)
+        return Schema(**kwargs)
 
 
 def field_from_sqlalchemy_column(sa_column: Column, **kwargs) -> Field:

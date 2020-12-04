@@ -28,10 +28,10 @@ from snapflow.core.metadata.listeners import immutability_update_listener
 from snapflow.core.metadata.orm import BaseModel, timestamp_rand_key
 from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.core.typing.inference import infer_schema_from_records_list
-from snapflow.core.typing.object_schema import (
-    ObjectSchema,
-    ObjectSchemaKey,
-    ObjectSchemaLike,
+from snapflow.core.typing.schema import (
+    Schema,
+    SchemaKey,
+    SchemaLike,
     SchemaMapping,
     is_any,
 )
@@ -56,7 +56,7 @@ class LocalMemoryDataRecords:
     data_format: DataFormat
     records_object: Any  # TODO: only eligible types: DataFrame, RecordsList, table name (str)
     record_count: Optional[int] = None
-    nominal_schema: Optional[ObjectSchemaLike] = None
+    nominal_schema: Optional[SchemaLike] = None
 
     @classmethod
     def from_records_object(
@@ -64,7 +64,7 @@ class LocalMemoryDataRecords:
         obj: Any,
         data_format: DataFormat = None,
         record_count: int = None,
-        nominal_schema: Optional[ObjectSchemaLike] = None,
+        nominal_schema: Optional[SchemaLike] = None,
     ) -> LocalMemoryDataRecords:
         if data_format is None:
             data_format = get_data_format_of_object(obj)
@@ -101,7 +101,7 @@ def as_records(
     records_object: Any,
     data_format: Type = None,
     record_count: int = None,
-    schema: ObjectSchemaLike = None,
+    schema: SchemaLike = None,
 ) -> DataRecordsObject:
     return LocalMemoryDataRecords.from_records_object(
         records_object,
@@ -117,9 +117,9 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     # block relies on strict monotonic IDs in some scenarios
     id = Column(String, primary_key=True, default=timestamp_rand_key)
     # id = Column(Integer, primary_key=True, autoincrement=True)
-    inferred_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
-    nominal_schema_key: ObjectSchemaKey = Column(String, nullable=True)  # type: ignore
-    realized_schema_key: ObjectSchemaKey = Column(String, nullable=False)  # type: ignore
+    inferred_schema_key: SchemaKey = Column(String, nullable=True)  # type: ignore
+    nominal_schema_key: SchemaKey = Column(String, nullable=True)  # type: ignore
+    realized_schema_key: SchemaKey = Column(String, nullable=False)  # type: ignore
     record_count = Column(Integer, nullable=True)
     created_by_node_key = Column(String, nullable=True)
     # Other metadata? created_by_job? last_processed_at?
@@ -139,13 +139,13 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
             realized_schema_key=self.realized_schema_key,
         )
 
-    def inferred_schema(self, env: Environment) -> Optional[ObjectSchema]:
+    def inferred_schema(self, env: Environment) -> Optional[Schema]:
         return env.get_schema(self.inferred_schema_key)
 
-    def nominal_schema(self, env: Environment) -> Optional[ObjectSchema]:
+    def nominal_schema(self, env: Environment) -> Optional[Schema]:
         return env.get_schema(self.nominal_schema_key)
 
-    def realized_schema(self, env: Environment) -> ObjectSchema:
+    def realized_schema(self, env: Environment) -> Schema:
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
@@ -182,9 +182,9 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 @dataclass(frozen=True)
 class ManagedDataBlock(Generic[T]):
     data_block_id: str
-    inferred_schema_key: ObjectSchemaKey
-    nominal_schema_key: ObjectSchemaKey
-    realized_schema_key: ObjectSchemaKey
+    inferred_schema_key: SchemaKey
+    nominal_schema_key: SchemaKey
+    realized_schema_key: SchemaKey
     manager: DataBlockManager
 
     @property
@@ -204,15 +204,15 @@ class ManagedDataBlock(Generic[T]):
         return self.manager.as_format(fmt)
 
     @property
-    def inferred_schema(self) -> Optional[ObjectSchema]:
+    def inferred_schema(self) -> Optional[Schema]:
         return self.manager.inferred_schema()
 
     @property
-    def nominal_schema(self) -> Optional[ObjectSchema]:
+    def nominal_schema(self) -> Optional[Schema]:
         return self.manager.nominal_schema()
 
     @property
-    def realized_schema(self) -> ObjectSchema:
+    def realized_schema(self) -> Schema:
         return self.manager.realized_schema()
 
 
@@ -238,17 +238,17 @@ class StoredDataBlockMetadata(BaseModel):
             storage_url=self.storage_url,
         )
 
-    def inferred_schema(self, env: Environment) -> Optional[ObjectSchema]:
+    def inferred_schema(self, env: Environment) -> Optional[Schema]:
         if self.data_block.inferred_schema_key is None:
             return None
         return env.get_schema(self.data_block.inferred_schema_key)
 
-    def nominal_schema(self, env: Environment) -> Optional[ObjectSchema]:
+    def nominal_schema(self, env: Environment) -> Optional[Schema]:
         if self.data_block.nominal_schema_key is None:
             return None
         return env.get_schema(self.data_block.nominal_schema_key)
 
-    def realized_schema(self, env: Environment) -> ObjectSchema:
+    def realized_schema(self, env: Environment) -> Schema:
         if self.data_block.realized_schema_key is None:
             return None
         return env.get_schema(self.data_block.realized_schema_key)
@@ -321,17 +321,17 @@ class DataBlockManager:
     def __str__(self):
         return f"DRM: {self.data_block}, Local: {self.ctx.local_memory_storage}, rest: {self.ctx.storages}"
 
-    def inferred_schema(self) -> Optional[ObjectSchema]:
+    def inferred_schema(self) -> Optional[Schema]:
         if self.data_block.inferred_schema_key is None:
             return None
         return self.ctx.env.get_schema(self.data_block.inferred_schema_key)
 
-    def nominal_schema(self) -> Optional[ObjectSchema]:
+    def nominal_schema(self) -> Optional[Schema]:
         if self.data_block.nominal_schema_key is None:
             return None
         return self.ctx.env.get_schema(self.data_block.nominal_schema_key)
 
-    def realized_schema(self) -> ObjectSchema:
+    def realized_schema(self) -> Schema:
         if self.data_block.realized_schema_key is None:
             return None
         return self.ctx.env.get_schema(self.data_block.realized_schema_key)
@@ -427,8 +427,8 @@ def create_data_block_from_records(
     env: Environment,
     local_storage: Storage,
     records: Any,
-    nominal_schema: ObjectSchema = None,
-    inferred_schema: ObjectSchema = None,
+    nominal_schema: Schema = None,
+    inferred_schema: Schema = None,
     created_by_node_key: str = None,
 ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
     from snapflow.core.storage.storage import LocalMemoryStorageEngine

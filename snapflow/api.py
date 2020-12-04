@@ -12,4 +12,4 @@ from .core.pipe import Pipe, pipe
 from .core.runnable import PipeContext
 from .core.sql.pipe import sql_pipe
 from .core.storage.storage import Storage
-from .core.typing.object_schema import ObjectSchema
+from .core.typing.schema import Schema

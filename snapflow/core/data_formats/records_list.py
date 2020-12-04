@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from snapflow.core.data_formats.base import MemoryDataFormatBase
 
 if TYPE_CHECKING:
-    from snapflow import ObjectSchema
-    from snapflow.core.typing.object_schema import SchemaMapping
+    from snapflow import Schema
+    from snapflow.core.typing.schema import SchemaMapping
 
 
 RecordsList = List[Dict[str, Any]]
@@ -49,7 +49,7 @@ class RecordsListFormat(MemoryDataFormatBase):
         return isinstance(obj, list) and len(obj) > 0 and isinstance(obj[0], dict)
 
     @classmethod
-    def infer_schema_from_records(cls, records: RecordsList) -> ObjectSchema:
+    def infer_schema_from_records(cls, records: RecordsList) -> Schema:
         from snapflow.core.typing.inference import infer_schema_from_records_list
         from snapflow.core.data_formats import get_records_list_sample
 

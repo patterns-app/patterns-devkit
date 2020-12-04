@@ -14,10 +14,10 @@ from sqlalchemy import Table
 
 from snapflow.core.data_formats import RecordsList
 from snapflow.core.module import DEFAULT_LOCAL_MODULE
-from snapflow.core.typing.object_schema import (
+from snapflow.core.typing.schema import (
     ConflictBehavior,
     Field,
-    ObjectSchema,
+    Schema,
     create_quick_field,
     create_quick_schema,
 )
@@ -99,12 +99,12 @@ def infer_schema_fields_from_records(
     return fields
 
 
-def infer_schema_from_records_list(records: RecordsList, **kwargs) -> ObjectSchema:
+def infer_schema_from_records_list(records: RecordsList, **kwargs) -> Schema:
     fields = infer_schema_fields_from_records(records)
     return generate_auto_schema(fields, **kwargs)
 
 
-def generate_auto_schema(fields, **kwargs) -> ObjectSchema:
+def generate_auto_schema(fields, **kwargs) -> Schema:
     auto_name = "AutoSchema_" + rand_str(8)
     args = dict(
         name=auto_name,
@@ -117,7 +117,7 @@ def generate_auto_schema(fields, **kwargs) -> ObjectSchema:
         fields=fields,
     )
     args.update(kwargs)
-    return ObjectSchema(**args)
+    return Schema(**args)
 
 
 def create_sa_table(dbapi: DatabaseAPI, table_name: str) -> Table:
@@ -132,7 +132,7 @@ def create_sa_table(dbapi: DatabaseAPI, table_name: str) -> Table:
 
 def infer_schema_from_db_table(
     dbapi: DatabaseAPI, table_name: str, **schema_kwargs
-) -> ObjectSchema:
+) -> Schema:
     from snapflow.core.sql.utils import fields_from_sqlalchemy_table
 
     fields = fields_from_sqlalchemy_table(create_sa_table(dbapi, table_name))
@@ -349,7 +349,7 @@ def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
     raise NotImplementedError
 
 
-def conform_records_list_to_schema(d: RecordsList, schema: ObjectSchema) -> RecordsList:
+def conform_records_list_to_schema(d: RecordsList, schema: Schema) -> RecordsList:
     conformed = []
     for r in d:
         new_record = {}
@@ -362,7 +362,7 @@ def conform_records_list_to_schema(d: RecordsList, schema: ObjectSchema) -> Reco
     return conformed
 
 
-def conform_dataframe_to_schema(df: DataFrame, schema: ObjectSchema) -> DataFrame:
+def conform_dataframe_to_schema(df: DataFrame, schema: Schema) -> DataFrame:
     logger.debug(f"conforming {df.head()} to schema {schema}")
     for field in schema.fields:
         pd_type = sqlalchemy_type_to_pandas_type(field.field_type)
