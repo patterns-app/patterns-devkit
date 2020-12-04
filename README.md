@@ -1,13 +1,17 @@
 
 ![snapflow](https://github.com/kvh/basis/workflows/dags/badge.svg)
 
-<img src="assets/snapflow.svg">
+<p>&nbsp;</p>
+<p align="center">
+  <img width="400" src="assets/snapflow.svg">
+</p>
+<p>&nbsp;</p>
 
 ### Modern Data Pipelines
 
-Snapflow is a framework for building end-to-end functional data pipelines from modular components.
-Snapflow abstracts over underlying database, runtime, and storage resources with **functional,
-type-aware data graphs** that operate on streams of **immutable** `datablocks`. These graphs are
+Snapflow is a framework for building **end-to-end functional data pipelines from modular
+components**. Snapflow abstracts over underlying database, runtime, and storage resources with
+functional, type-aware data graphs that operate on streams of **immutable** `datablocks`. These graphs are
 composed of discrete `pipes` written in python or SQL that operate on `datablocks` and connect to
 form end-to-end data pipelines, from API extraction to SQL transformation to analysis, modeling, and
 visualization.
