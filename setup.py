@@ -2,31 +2,31 @@
 from setuptools import setup
 
 packages = [
-    "dags",
-    "dags.cli",
-    "dags.core",
-    "dags.core.conversion",
-    "dags.core.data_formats",
-    "dags.core.extraction",
-    "dags.core.metadata",
-    "dags.core.sql",
-    "dags.core.storage",
-    "dags.core.typing",
-    "dags.db",
-    "dags.examples",
-    "dags.logging",
-    "dags.modules",
-    "dags.modules.core",
-    "dags.modules.core.pipes",
-    "dags.project",
-    "dags.testing",
-    "dags.utils",
+    "snapflow",
+    "snapflow.cli",
+    "snapflow.core",
+    "snapflow.core.conversion",
+    "snapflow.core.data_formats",
+    "snapflow.core.extraction",
+    "snapflow.core.metadata",
+    "snapflow.core.sql",
+    "snapflow.core.storage",
+    "snapflow.core.typing",
+    "snapflow.db",
+    "snapflow.examples",
+    "snapflow.logging",
+    "snapflow.modules",
+    "snapflow.modules.core",
+    "snapflow.modules.core.pipes",
+    "snapflow.project",
+    "snapflow.testing",
+    "snapflow.utils",
 ]
 
 package_data = {
     "": ["*"],
-    "dags.core.sql": ["templates/*"],
-    "dags.modules.core": ["schemas/*"],
+    "snapflow.core.sql": ["templates/*"],
+    "snapflow.modules.core": ["schemas/*"],
 }
 
 install_requires = [
@@ -44,10 +44,10 @@ install_requires = [
     "typing_extensions>=3.7.4,<4.0.0",
 ]
 
-entry_points = {"console_scripts": ["dags = dags.cli:app"]}
+entry_points = {"console_scripts": ["snapflow = snapflow.cli:app"]}
 
 setup_kwargs = {
-    "name": "dags",
+    "name": "snapflow",
     "version": "0.1.3",
     "description": "Functional Data Pipelines",
     "long_description": None,

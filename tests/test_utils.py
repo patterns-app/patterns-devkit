@@ -7,15 +7,15 @@ import pytest
 from numpy import NaN
 from pandas import DataFrame
 
-from dags.utils.common import (
+from snapflow.utils.common import (
     DagsJSONEncoder,
     StringEnum,
     is_datetime_str,
     snake_to_title_case,
     title_to_snake_case,
 )
-from dags.utils.data import is_nullish
-from dags.utils.pandas import (
+from snapflow.utils.data import is_nullish
+from snapflow.utils.pandas import (
     assert_dataframes_are_almost_equal,
     dataframe_to_records_list,
     empty_dataframe_for_schema,

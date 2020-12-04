@@ -6,7 +6,7 @@ from typing import Any, List, Tuple
 import pandas as pd
 import pytest
 
-from dags.core.data_formats import (
+from snapflow.core.data_formats import (
     DatabaseCursorFormat,
     DataFormatBase,
     DataFrameFormat,

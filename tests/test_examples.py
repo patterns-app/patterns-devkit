@@ -7,19 +7,19 @@ from typing import Generator
 
 import pandas as pd
 import pytest
+from loguru import logger
 from pandas._testing import assert_almost_equal
 
-from dags import DataBlock, pipe, sql_pipe
-from dags.core.data_formats import RecordsList, RecordsListGenerator
-from dags.core.environment import Environment
-from dags.core.graph import Graph
-from dags.core.node import DataBlockLog, PipeLog
-from dags.core.runnable import PipeContext
-from dags.core.typing.object_schema import create_quick_schema
-from dags.modules import core
-from dags.testing.utils import get_tmp_sqlite_db_url
-from dags.utils.common import utcnow
-from loguru import logger
+from snapflow import DataBlock, pipe, sql_pipe
+from snapflow.core.data_formats import RecordsList, RecordsListGenerator
+from snapflow.core.environment import Environment
+from snapflow.core.graph import Graph
+from snapflow.core.node import DataBlockLog, PipeLog
+from snapflow.core.runnable import PipeContext
+from snapflow.core.typing.object_schema import create_quick_schema
+from snapflow.modules import core
+from snapflow.testing.utils import get_tmp_sqlite_db_url
+from snapflow.utils.common import utcnow
 
 
 def test_example():

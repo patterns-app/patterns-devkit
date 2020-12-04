@@ -4,19 +4,19 @@ from dataclasses import asdict
 
 import pytest
 
-from dags.core.module import DEFAULT_LOCAL_MODULE_NAME
-from dags.core.typing.inference import (
+from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
+from snapflow.core.typing.inference import (
     infer_schema_fields_from_records,
     infer_schema_from_records_list,
 )
-from dags.core.typing.object_schema import (
+from snapflow.core.typing.object_schema import (
     GeneratedObjectSchema,
     ObjectSchema,
     create_quick_schema,
     is_generic,
     schema_from_yaml,
 )
-from dags.modules import core
+from snapflow.modules import core
 from tests.utils import make_test_env, sample_records
 
 test_schema_yml = """

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dags.core.sql.pipe import sql_pipe
+from snapflow.core.sql.pipe import sql_pipe
 from tests.utils import make_test_env
 
 

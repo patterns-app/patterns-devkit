@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from dags.core.data_block import Alias
-from dags.core.data_formats import RecordsList
-from dags.core.graph import Graph
-from dags.core.pipe_interface import NodeInterfaceManager
-from dags.core.runnable import CompiledPipe, Runnable, RunSession, Worker
-from dags.modules import core
+from snapflow.core.data_block import Alias
+from snapflow.core.data_formats import RecordsList
+from snapflow.core.graph import Graph
+from snapflow.core.pipe_interface import NodeInterfaceManager
+from snapflow.core.runnable import CompiledPipe, Runnable, RunSession, Worker
+from snapflow.modules import core
 from tests.utils import (
     TestSchema1,
     TestSchema4,

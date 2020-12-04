@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dags.core.data_block import DataBlock
-from dags.core.module import DagsModule
-from dags.core.runnable import PipeContext
-from dags.utils.typing import T
+from snapflow.core.data_block import DataBlock
+from snapflow.core.module import DagsModule
+from snapflow.core.runnable import PipeContext
+from snapflow.utils.typing import T
 
 
 def df1(ctx: PipeContext) -> DataBlock[T]:

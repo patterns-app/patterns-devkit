@@ -2,9 +2,9 @@ import os
 
 from click.testing import CliRunner
 
-from dags.cli import app
-from dags.project.project import DAGS_PROJECT_FILE_NAME
-from dags.testing.utils import get_tmp_sqlite_db_url
+from snapflow.cli import app
+from snapflow.project.project import DAGS_PROJECT_FILE_NAME
+from snapflow.testing.utils import get_tmp_sqlite_db_url
 
 
 def test_app():

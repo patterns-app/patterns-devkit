@@ -5,22 +5,22 @@ from dataclasses import asdict
 from typing import Any, List, Tuple, Type
 
 import pytest
+from loguru import logger
 
-from dags import Environment
-from dags.core.data_block import (
+from snapflow import Environment
+from snapflow.core.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
     create_data_block_from_records,
 )
-from dags.core.data_formats import DatabaseTableFormat
-from dags.core.storage.storage import new_local_memory_storage
-from dags.db.api import DatabaseAPI, create_db, dispose_all, drop_db
-from dags.db.mysql import MYSQL_SUPPORTED, MysqlDatabaseAPI
-from dags.db.postgres import POSTGRES_SUPPORTED, PostgresDatabaseAPI
-from dags.modules import core
-from dags.testing.utils import get_tmp_sqlite_db_url
-from dags.utils.common import rand_str
-from loguru import logger
+from snapflow.core.data_formats import DatabaseTableFormat
+from snapflow.core.storage.storage import new_local_memory_storage
+from snapflow.db.api import DatabaseAPI, create_db, dispose_all, drop_db
+from snapflow.db.mysql import MYSQL_SUPPORTED, MysqlDatabaseAPI
+from snapflow.db.postgres import POSTGRES_SUPPORTED, PostgresDatabaseAPI
+from snapflow.modules import core
+from snapflow.testing.utils import get_tmp_sqlite_db_url
+from snapflow.utils.common import rand_str
 from tests.utils import make_test_env, sample_records
 
 

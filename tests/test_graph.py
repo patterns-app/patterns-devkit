@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from dags.core.graph import Graph
-from dags.modules import core
+from snapflow.core.graph import Graph
+from snapflow.modules import core
 from tests.utils import (
     make_test_env,
     pipe_chain_t1_to_t2,

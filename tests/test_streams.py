@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from dags.core.data_block import DataBlockMetadata
-from dags.core.graph import Graph
-from dags.core.node import DataBlockLog, Direction, PipeLog
-from dags.core.operators import filter, latest, operator
-from dags.core.streams import DataBlockStream, StreamBuilder
+from snapflow.core.data_block import DataBlockMetadata
+from snapflow.core.graph import Graph
+from snapflow.core.node import DataBlockLog, Direction, PipeLog
+from snapflow.core.operators import filter, latest, operator
+from snapflow.core.streams import DataBlockStream, StreamBuilder
 from tests.utils import (
     make_test_execution_context,
     pipe_generic,

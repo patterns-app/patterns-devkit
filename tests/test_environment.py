@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dags.core.environment import Environment
-from dags.core.graph import Graph
+from snapflow.core.environment import Environment
+from snapflow.core.graph import Graph
 
 
 def test_env_init():

@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from pandas import DataFrame
 
-from dags.core.data_block import DataBlock
-from dags.core.environment import Environment
-from dags.core.graph import Graph
-from dags.core.module import DagsModule
-from dags.core.runnable import ExecutionContext, ExecutionManager, PipeContext
-from dags.core.runtime import Runtime, RuntimeClass, RuntimeEngine
-from dags.core.storage.storage import Storage, StorageClass, StorageEngine
-from dags.core.typing.object_schema import create_quick_schema
-from dags.utils.common import rand_str
-from dags.utils.typing import T
+from snapflow.core.data_block import DataBlock
+from snapflow.core.environment import Environment
+from snapflow.core.graph import Graph
+from snapflow.core.module import DagsModule
+from snapflow.core.runnable import ExecutionContext, ExecutionManager, PipeContext
+from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
+from snapflow.core.storage.storage import Storage, StorageClass, StorageEngine
+from snapflow.core.typing.object_schema import create_quick_schema
+from snapflow.utils.common import rand_str
+from snapflow.utils.typing import T
 
 TestSchema1 = create_quick_schema(
     "TestSchema1", [("f1", "Unicode(256)")], module_name="_test"

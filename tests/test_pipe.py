@@ -5,21 +5,21 @@ from typing import Callable
 import pytest
 from pandas import DataFrame
 
-from dags.core.data_block import DataBlock, DataBlockMetadata
-from dags.core.graph import Graph, graph
-from dags.core.module import DEFAULT_LOCAL_MODULE_NAME
-from dags.core.node import DeclaredNode, node
-from dags.core.pipe import Pipe, PipeInterface, PipeLike, pipe
-from dags.core.pipe_interface import (
+from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.graph import Graph, graph
+from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
+from snapflow.core.node import DeclaredNode, node
+from snapflow.core.pipe import Pipe, PipeInterface, PipeLike, pipe
+from snapflow.core.pipe_interface import (
     NodeInterfaceManager,
     PipeAnnotation,
     get_schema_mapping,
     make_default_output_annotation,
 )
-from dags.core.runnable import PipeContext
-from dags.core.streams import block_as_stream
-from dags.modules import core
-from dags.utils.typing import T, U
+from snapflow.core.runnable import PipeContext
+from snapflow.core.streams import block_as_stream
+from snapflow.modules import core
+from snapflow.utils.typing import T, U
 from tests.utils import (
     TestSchema1,
     make_test_env,

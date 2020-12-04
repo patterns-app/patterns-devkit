@@ -5,14 +5,14 @@ from typing import Optional
 
 import pytest
 
-from dags.core.conversion import (
+from snapflow.core.conversion import (
     StorageFormat,
     convert_lowest_cost,
     get_converter_lookup,
 )
-from dags.core.conversion.converter import Conversion, ConversionCostLevel
-from dags.core.data_block import DataBlockMetadata, create_data_block_from_records
-from dags.core.data_formats import (
+from snapflow.core.conversion.converter import Conversion, ConversionCostLevel
+from snapflow.core.data_block import DataBlockMetadata, create_data_block_from_records
+from snapflow.core.data_formats import (
     DatabaseCursorFormat,
     DatabaseTableFormat,
     DatabaseTableRefFormat,
@@ -22,9 +22,9 @@ from dags.core.data_formats import (
     RecordsListFormat,
     RecordsListGeneratorFormat,
 )
-from dags.core.graph import Graph
-from dags.core.storage.storage import StorageType, new_local_memory_storage
-from dags.testing.utils import get_tmp_sqlite_db_url
+from snapflow.core.graph import Graph
+from snapflow.core.storage.storage import StorageType, new_local_memory_storage
+from snapflow.testing.utils import get_tmp_sqlite_db_url
 from tests.utils import TestSchema4, make_test_env
 
 
