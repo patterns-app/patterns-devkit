@@ -9,7 +9,7 @@ from pandas import DataFrame
 
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.data_formats import DatabaseTableRef, RecordsList
-from snapflow.core.module import DEFAULT_LOCAL_MODULE, DagsModule
+from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.core.pipe_interface import PipeAnnotation, PipeInterface
 from snapflow.core.runtime import RuntimeClass
 
@@ -146,7 +146,7 @@ PipeLike = Union[PipeCallable, Pipe]
 def pipe_factory(
     pipe_callable: PipeCallable,
     name: str = None,
-    module: Optional[Union[DagsModule, str]] = None,
+    module: Optional[Union[SnapflowModule, str]] = None,
     compatible_runtimes: str = None,
     inputs: Optional[Dict[str, str]] = None,
     output: Optional[str] = None,
@@ -159,7 +159,7 @@ def pipe_factory(
     runtime_class = get_runtime_class(compatible_runtimes)
     if module is None:
         module = DEFAULT_LOCAL_MODULE
-    if isinstance(module, DagsModule):
+    if isinstance(module, SnapflowModule):
         module_name = module.name
     else:
         module_name = module
@@ -177,7 +177,7 @@ def pipe_factory(
 def pipe(
     pipe_or_name: Union[str, PipeCallable] = None,
     name: str = None,
-    module: Optional[Union[DagsModule, str]] = None,
+    module: Optional[Union[SnapflowModule, str]] = None,
     compatible_runtimes: str = None,
     config_class: Optional[Type] = None,
     state_class: Optional[Type] = None,

@@ -29,7 +29,7 @@ if TYPE_CHECKING:
         PipeLike,
         Pipe,
     )
-    from snapflow.core.module import DagsModule
+    from snapflow.core.module import SnapflowModule
     from snapflow.core.typing.schema import SchemaLike, Schema
 
 
@@ -52,7 +52,7 @@ class ComponentLibrary:
         if k not in self.module_lookup_names:
             self.module_lookup_names.append(k)
 
-    def add_module(self, module: DagsModule):
+    def add_module(self, module: SnapflowModule):
         self.merge(module.library)
 
     def add_pipe(self, p: Pipe):

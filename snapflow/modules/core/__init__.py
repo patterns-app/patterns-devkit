@@ -1,4 +1,4 @@
-from snapflow.core.module import DagsModule
+from snapflow.core.module import SnapflowModule
 
 from ...core.typing.schema import ConflictBehavior, Schema
 from .pipes import accumulator, dedupe, static
@@ -13,7 +13,7 @@ AnyType = Schema(
     fields=[],
 )
 
-module = DagsModule(
+module = SnapflowModule(
     "core",
     py_module_path=__file__,
     py_module_name=__name__,

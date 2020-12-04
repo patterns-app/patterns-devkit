@@ -37,13 +37,13 @@ class ModuleException(Exception):
     pass
 
 
-class DagsModule:
+class SnapflowModule:
     name: str
     py_module_path: Optional[str]
     py_module_name: Optional[str]
     library: ComponentLibrary
     test_cases: List[Callable]
-    dependencies: List[DagsModule]
+    dependencies: List[SnapflowModule]
 
     def __init__(
         self,
@@ -54,7 +54,7 @@ class DagsModule:
         pipes: Optional[Sequence[Union[PipeLike, str]]] = None,
         tests: Optional[Sequence[Callable]] = None,
         dependencies: List[
-            DagsModule
+            SnapflowModule
         ] = None,  # TODO: support str references to external deps (will need repo hooks...)
     ):
 
@@ -185,10 +185,10 @@ class DagsModule:
                 print(e)
                 raise e
 
-    def add_dependency(self, m: DagsModule):
-        # if isinstance(m, DagsModule):
+    def add_dependency(self, m: SnapflowModule):
+        # if isinstance(m, SnapflowModule):
         #     m = m.name
         self.dependencies.append(m)
 
 
-DEFAULT_LOCAL_MODULE = DagsModule(DEFAULT_LOCAL_MODULE_NAME)
+DEFAULT_LOCAL_MODULE = SnapflowModule(DEFAULT_LOCAL_MODULE_NAME)

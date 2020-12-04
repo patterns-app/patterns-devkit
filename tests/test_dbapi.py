@@ -64,7 +64,7 @@ def _test_db_bulk_insert(test_db_url, api_cls: Type[DatabaseAPI]):
 
 
 def test_sqlite_bulk_insert():
-    db_url = get_tmp_sqlite_db_url("__test_dags_sqlite")
+    db_url = get_tmp_sqlite_db_url("__test_snapflow_sqlite")
     _test_db_bulk_insert(db_url, DatabaseAPI)
 
 
@@ -72,7 +72,7 @@ def test_postgres_bulk_insert():
     if not POSTGRES_SUPPORTED:
         logger.warning("Postgres client not found, skipping postgres-specific tests")
         return
-    test_db = "__test_dags_pg"
+    test_db = "__test_snapflow_pg"
     url = "postgres://postgres@localhost:5432"
     pg_url = f"{url}/postgres"
     create_db(pg_url, test_db)
@@ -88,7 +88,7 @@ def test_mysql_bulk_insert():
     if not MYSQL_SUPPORTED:
         logger.warning("Mysql client not found, skipping mysql-specific tests")
         return
-    test_db = "__test_dags_pg"
+    test_db = "__test_snapflow_pg"
     url = "mysql://mysql@localhost:3306"
     create_db(url, test_db)
     test_url = f"{url}/{test_db}"

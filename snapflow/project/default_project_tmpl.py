@@ -1,4 +1,4 @@
-metadata_storage = "sqlite:///.dags_metadata.db"  # Accepts any database url
+metadata_storage = "sqlite:///.snapflow_metadata.db"  # Accepts any database url
 storages = [
     # Add at least one storage
     # "postgres://localhost:5432/db",
@@ -8,8 +8,6 @@ storages = [
     # "file:///usr/....",
     # "s3:///bucket/path",
 ]
-modules = [
-    "dags_modules.common",
-]
+modules = []
 # add_default_python_runtime = True
 # runtimes = []

@@ -12,7 +12,7 @@ from snapflow.core.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
 )
-from snapflow.core.module import DagsModule
+from snapflow.core.module import SnapflowModule
 from snapflow.core.pipe import DataInterfaceType, Pipe, PipeInterface, pipe_factory
 from snapflow.core.pipe_interface import (
     BadAnnotationException,
@@ -259,7 +259,7 @@ class SqlPipeWrapper:
 def sql_pipe_factory(
     name: str,
     sql: str = None,
-    module: Optional[Union[DagsModule, str]] = None,
+    module: Optional[Union[SnapflowModule, str]] = None,
     version: str = None,
     compatible_runtimes: str = None,  # TODO: engine support
     **kwargs,  # TODO: explicit options

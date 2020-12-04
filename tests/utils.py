@@ -5,7 +5,7 @@ from pandas import DataFrame
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment
 from snapflow.core.graph import Graph
-from snapflow.core.module import DagsModule
+from snapflow.core.module import SnapflowModule
 from snapflow.core.runnable import ExecutionContext, ExecutionManager, PipeContext
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.storage.storage import Storage, StorageClass, StorageEngine
@@ -36,7 +36,7 @@ def make_test_env(**kwargs):
         metadata_storage = Storage.from_url(url)
         kwargs["metadata_storage"] = metadata_storage
     env = Environment(**kwargs)
-    test_module = DagsModule(
+    test_module = SnapflowModule(
         "_test",
         schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
     )

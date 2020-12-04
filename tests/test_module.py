@@ -4,14 +4,14 @@ import logging
 
 from loguru import logger
 
-from snapflow.core.module import DagsModule
+from snapflow.core.module import SnapflowModule
 from snapflow.modules import core
 
 
 def test_module_init():
     from . import _test_module
 
-    assert isinstance(_test_module, DagsModule)
+    assert isinstance(_test_module, SnapflowModule)
     assert len(_test_module.schemas) >= 1
     assert len(_test_module.pipes) >= 2
 

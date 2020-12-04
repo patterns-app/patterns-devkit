@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
 
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
-from snapflow.core.module import DEFAULT_LOCAL_MODULE, DagsModule
+from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.core.typing.schema import GeneratedSchema, Schema, SchemaLike
 from snapflow.logging.event import Event, EventHandler, EventSubject, event_factory
 
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from snapflow.core.data_block import DataBlock
     from snapflow.core.graph import Graph, DeclaredGraph, DEFAULT_GRAPH
 
-DEFAULT_METADATA_STORAGE_URL = "sqlite:///.dags_metadata.db"
+DEFAULT_METADATA_STORAGE_URL = "sqlite:///.snapflow_metadata.db"
 
 
 class Environment:
@@ -43,7 +43,7 @@ class Environment:
         name: str = None,
         metadata_storage: Union["Storage", str] = None,
         add_default_python_runtime: bool = True,
-        initial_modules: List[DagsModule] = None,  # Defaults to `core` module
+        initial_modules: List[SnapflowModule] = None,  # Defaults to `core` module
         event_handlers: List[EventHandler] = None,
     ):
         from snapflow.core.runtime import Runtime
@@ -119,7 +119,7 @@ class Environment:
     def get_default_local_memory_storage(self) -> Storage:
         return self._local_memory_storage
 
-    def get_local_module(self) -> DagsModule:
+    def get_local_module(self) -> SnapflowModule:
         return self._local_module
 
     def get_module_order(self) -> List[str]:
@@ -173,8 +173,9 @@ class Environment:
     def all_pipes(self) -> List[Pipe]:
         return self.library.all_pipes()
 
-    def add_module(self, module: DagsModule):
-        self.library.add_module(module)
+    def add_module(self, *modules: SnapflowModule):
+        for module in modules:
+            self.library.add_module(module)
 
     @contextmanager
     def session_scope(self, **kwargs):
@@ -415,6 +416,37 @@ class Environment:
         for handler in self.event_handlers:
             handler.handle(e)
         return e
+
+
+# Shortcuts
+def produce(
+    *args,
+    env: Optional[Environment] = None,
+    **kwargs: Any,
+) -> Optional[DataBlock]:
+    if env is None:
+        env = Environment()
+    return env.produce(*args, **kwargs)
+
+
+def run_node(
+    *args,
+    env: Optional[Environment] = None,
+    **kwargs: Any,
+) -> Optional[DataBlock]:
+    if env is None:
+        env = Environment()
+    return env.run_node(*args, **kwargs)
+
+
+def run_graph(
+    *args,
+    env: Optional[Environment] = None,
+    **kwargs: Any,
+):
+    if env is None:
+        env = Environment()
+    return env.run_graph(*args, **kwargs)
 
 
 # Not supporting yml project config atm

@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 
 from snapflow.utils.common import cf, rand_str, title_to_snake_case, utcnow
 
-DAGS_METADATA_TABLE_PREFIX = "_dags_"
+DAGS_METADATA_TABLE_PREFIX = "_snapflow_"
 
 
 class _BaseModel:

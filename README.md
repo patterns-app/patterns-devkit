@@ -9,8 +9,8 @@
 
 ### Modern Data Pipelines
 
-Snapflow is a framework for building **end-to-end functional data pipelines from modular
-components**. Snapflow abstracts over underlying database, runtime, and storage resources with
+Snapflow is a framework for building **end-to-end functional data pipelines** from modular
+components. Snapflow abstracts over underlying database, runtime, and storage resources with
 functional, type-aware data graphs that operate on streams of **immutable** `datablocks`. These graphs are
 composed of discrete `pipes` written in python or SQL that operate on `datablocks` and connect to
 form end-to-end data pipelines, from API extraction to SQL transformation to analysis, modeling, and
@@ -53,12 +53,12 @@ scale from laptop to AWS cluster.
 N.B.: snapflow is **ALPHA** software. Expect breaking changes to core APIs. 
 
 
-### Example
+### Basic example
 
 `pip install snapflow snapflow-stripe snapflow-bi`
 
 ```python
-from snapflow import Environment, node
+from snapflow import graph, produce
 from snapflow_stripe import stripe
 from snapflow_bi import bi
 
@@ -67,19 +67,20 @@ from snapflow_bi import bi
 g = graph()
 stripe_node = g.create_node(
     key="stripe_txs",
-    pipe="stripe.extract_charges",
+    pipe=stripe.extract_charges,
     config={"api_key": "xxxxxxxx"},
 )
 ltv_node = g.create_node(
     key="ltv_model",
-    pipe="bi.transaction_ltv_model",
+    pipe=bi.transaction_ltv_model,
 )
 ltv_node.set_upstream(stripe_node)
 
 # Run
-env = Environment("sqlite:///snapflow.db")
-print(env.produce(ltv_node).as_dataframe())
+print(produce(ltv_node).as_dataframe())
 ```
+
+See [expanded example](#expanded-example) for a more detailed pipeline.
 
 ### Architecture overview
 
@@ -278,3 +279,36 @@ The following table gives the logic for possible behavior of realized schema:
 | inferred is missing nullable fields from nominal                                                          | realized is always equivalent to inferred  | realized schema will be the nominal schema, using inferred field definitions for extra fields, filling missing columns with NULL                             | exception will be raised (OR same as soft?)                            |
 | inferred is missing non-nullable fields from nominal                                                      | realized is always equivalent to inferred  | exception will be raised                                                                                                                                     | exception will be raised                                               |
 | inferred has datatype inconsistency with nominal field definition (eg a string in a nominal float field)  | realized is always equivalent to inferred  | realized schema will downcast to inferred datatype (and issue warning if WARN_ON_DOWNCAST). If FAIL_ON_DOWNCAST is set, an exception will instead be raised  | exception will be raised                                               |
+
+
+## Expanded example
+
+
+```python
+from snapflow import graph, produce, Environment
+from snapflow_stripe import stripe
+from snapflow_bi import bi
+
+
+# Build env
+metadata_db = "postgres://localhost:5432/metadata"
+env = Environment(metadata_db)
+env.add_storage("mysql://localhost:3306/snapflow")
+env.add_module(stripe, bi)
+
+# Build the graph
+g = graph()
+stripe_node = g.create_node(
+    key="stripe_txs",
+    pipe=stripe.extract_charges,
+    config={"api_key": "xxxxxxxx"},
+)
+ltv_node = g.create_node(
+    key="ltv_model",
+    pipe=bi.transaction_ltv_model,
+)
+ltv_node.set_upstream(stripe_node)
+
+# Run
+print(produce(ltv_node).as_dataframe())
+```

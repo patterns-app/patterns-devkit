@@ -6,7 +6,7 @@ from .core.data_formats import (
     RecordsList,
     RecordsListGenerator,
 )
-from .core.environment import Environment, current_env
+from .core.environment import Environment, current_env, produce, run_node, run_graph
 from .core.graph import Graph, graph
 from .core.node import Node, node
 from .core.pipe import Pipe, pipe

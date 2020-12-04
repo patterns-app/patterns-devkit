@@ -8,7 +8,7 @@ from pandas import DataFrame
 from sqlalchemy.orm import Session
 
 from snapflow import DataBlock, Environment, Graph, Pipe, Storage
-from snapflow.core.module import DagsModule
+from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DataBlockLog, Node, PipeLog
 from snapflow.core.typing.inference import infer_schema_from_records_list
 from snapflow.core.typing.schema import Schema, SchemaLike
@@ -31,7 +31,7 @@ def display_pipe_log(sess: Session):
 
 def str_as_dataframe(
     test_data: str,
-    module: Optional[DagsModule] = None,
+    module: Optional[SnapflowModule] = None,
     nominal_schema: Optional[Schema] = None,
 ) -> DataFrame:
     # TODO: add conform_dataframe_to_schema option
@@ -59,7 +59,7 @@ def str_as_dataframe(
 class DataInput:
     data: str
     schema: Optional[SchemaLike] = None
-    module: Optional[DagsModule] = None
+    module: Optional[SnapflowModule] = None
 
     def as_dataframe(self, env: Environment):
         schema = None
@@ -79,7 +79,7 @@ def produce_pipe_output_for_static_input(
     input: Any = None,
     upstream: Any = None,
     env: Optional[Environment] = None,
-    module: Optional[DagsModule] = None,
+    module: Optional[SnapflowModule] = None,
     target_storage: Optional[Storage] = None,
 ) -> Optional[DataBlock]:
     input = input or upstream
