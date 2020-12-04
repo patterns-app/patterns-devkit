@@ -27,7 +27,7 @@ scale from laptop to AWS cluster.
 
 ### Features:
 
- - **Reusable modules and components** - There are hundreds of `pipes` and `schemas` ready to
+ - **Reusable modules and components** - Hundreds of `pipes` and `schemas` ready to
    plug into pipelines in the snapflow repository [Coming soon].
    
     - Connect Stripe data to LTV models and plot a cohort chart
@@ -290,10 +290,10 @@ from snapflow_stripe import stripe
 from snapflow_bi import bi
 
 
-# Build env
+# Setup env
 metadata_db = "postgres://localhost:5432/metadata"
 env = Environment(metadata_db)
-env.add_storage("mysql://localhost:3306/snapflow")
+mysql_db = env.add_storage("mysql://localhost:3306/snapflow")
 env.add_module(stripe, bi)
 
 # Build the graph
@@ -307,8 +307,10 @@ ltv_node = g.create_node(
     key="ltv_model",
     pipe=bi.transaction_ltv_model,
 )
-ltv_node.set_upstream(stripe_node)
+ltv_node.set_upstream("stripe_txs") 
 
 # Run
-print(produce(ltv_node).as_dataframe())
+output = env.produce(ltv_node, target_storage=mysql_db)
+output.as_dataframe()
+output.as_records_list()
 ```
