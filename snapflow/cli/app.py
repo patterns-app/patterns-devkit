@@ -6,9 +6,9 @@ from typing import Any, List, Optional
 
 import click
 import requests
-from loguru import logger
 from sqlalchemy import func
 
+from loguru import logger
 from snapflow.core.data_block import DataBlockMetadata
 from snapflow.core.environment import Environment, current_env
 from snapflow.core.metadata.orm import DAGS_METADATA_TABLE_PREFIX

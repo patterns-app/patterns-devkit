@@ -1,8 +1,8 @@
 from typing import List, Optional
 
-from loguru import logger
 from sqlalchemy.engine import Engine
 
+from loguru import logger
 from snapflow.core.data_formats import RecordsList
 from snapflow.core.sql.utils import compile_jinja_sql_template
 from snapflow.db.api import DatabaseAPI, conform_columns_for_insert

@@ -1,16 +1,20 @@
-from snapflow import Environment
+from snapflow import Environment, graph, node
 
 
 def getting_started_example(env: Environment):
-    # TODO: MockEnvironment that doesn't lookup KEYs or run anything, but validates basic structure
-    env.add_external_source_node(
-        name="stripe_txs",
-        external_source="stripe.StripeTransactionsResource",
+    # Build the graph
+    g = graph()
+    stripe_node = g.create_node(
+        key="stripe_txs",
+        pipe="stripe.extract_charges",
         config={"api_key": "xxxxxxxx"},
     )
-    env.add_node(
-        name="ltv_model",
-        pipe="bi.TransactionLTVModel",
-        upstream="stripe_txs",
+    ltv_node = g.create_node(
+        key="ltv_model",
+        pipe="bi.transaction_ltv_model",
     )
-    env.update_all()
+    ltv_node.set_upstream(stripe_node)
+
+    # Run
+    env = Environment("sqlite:///snapflow.db")
+    print(env.produce(ltv_node).as_dataframe())

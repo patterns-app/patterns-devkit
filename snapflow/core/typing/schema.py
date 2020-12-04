@@ -5,9 +5,9 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
 import strictyaml
-from loguru import logger
 from sqlalchemy import JSON, Column, String
 
+from loguru import logger
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.utils.common import StringEnum, title_to_snake_case
 

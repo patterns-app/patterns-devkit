@@ -59,22 +59,22 @@ from snapflow_stripe import stripe
 from snapflow_bi import bi
 
 
-stripe_node = node(
+# Build the graph
+g = graph()
+stripe_node = g.create_node(
     key="stripe_txs",
-    pipe=stripe.extract_charges,
-    config={"api_key":"xxxxxxxx"},
+    pipe="stripe.extract_charges",
+    config={"api_key": "xxxxxxxx"},
 )
-ltv_node = node(
+ltv_node = g.create_node(
     key="ltv_model",
-    pipe=bi.transaction_ltv_model,
-    upstream=stripe_node,
+    pipe="bi.transaction_ltv_model",
 )
 ltv_node.set_upstream(stripe_node)
-env = Environment("sqlite:///snapflow.db")
 
 # Run
-ltv_output = env.produce(ltv_node)
-print(ltv_output.as_dataframe())
+env = Environment("sqlite:///snapflow.db")
+print(env.produce(ltv_node).as_dataframe())
 ```
 
 ### Architecture overview

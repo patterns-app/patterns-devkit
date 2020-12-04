@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from loguru import logger
 from pandas import DataFrame
 
+from loguru import logger
 from snapflow.core.data_block import DataBlock
 from snapflow.core.pipe import pipe
 from snapflow.core.sql.pipe import sql_pipe

@@ -7,9 +7,9 @@ from typing import Generator
 
 import pandas as pd
 import pytest
-from loguru import logger
 from pandas._testing import assert_almost_equal
 
+from loguru import logger
 from snapflow import DataBlock, pipe, sql_pipe
 from snapflow.core.data_formats import RecordsList, RecordsListGenerator
 from snapflow.core.environment import Environment
@@ -29,7 +29,7 @@ def test_example():
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
     g.create_node("n1", "extract_dataframe", config={"dataframe": df})
-    output = env.produce(g, "n1")
+    output = env.produce("n1", g)
     assert_almost_equal(output.as_dataframe(), df)
 
 
@@ -142,7 +142,7 @@ def test_incremental():
     g.create_node("source", customer_source, config={"total_records": N})
     g.create_node("metrics", shape_metrics, upstream="source")
     # Run first time
-    output = env.produce(g, "metrics", target_storage=s)
+    output = env.produce("metrics", g, target_storage=s)
     assert output.nominal_schema_key.endswith("Metric")
     records = output.as_records_list()
     # print(DataBlockLog.summary(env))
@@ -152,14 +152,14 @@ def test_incremental():
     ]
     assert records == expected_records
     # Run again, should get next batch
-    output = env.produce(g, "metrics", target_storage=s)
+    output = env.produce("metrics", g, target_storage=s)
     records = output.as_records_list()
     assert records == expected_records
     # Run again, should be exhausted
-    output = env.produce(g, "metrics", target_storage=s)
+    output = env.produce("metrics", g, target_storage=s)
     assert output is None
     # Run again, should still be exhausted
-    output = env.produce(g, "metrics", target_storage=s)
+    output = env.produce("metrics", g, target_storage=s)
     assert output is None
 
 

@@ -7,7 +7,6 @@ from io import IOBase
 from typing import Any, Dict, Iterable, List, Union
 
 from pandas import Timestamp, isnull
-
 from snapflow.core.data_formats import RecordsList
 from snapflow.utils.common import DagsJSONEncoder
 

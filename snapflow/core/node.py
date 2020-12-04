@@ -5,13 +5,13 @@ import traceback
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
-from loguru import logger
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.schema import Column, ForeignKey
 from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
+from loguru import logger
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import DAGS_METADATA_TABLE_PREFIX, BaseModel
@@ -26,7 +26,7 @@ from snapflow.utils.common import as_identifier
 if TYPE_CHECKING:
     from snapflow.core.runnable import ExecutionContext
     from snapflow.core.streams import StreamBuilder, StreamLike
-    from snapflow.core.graph import Graph, GraphMetadata, DeclaredGraph
+    from snapflow.core.graph import Graph, GraphMetadata, DeclaredGraph, DEFAULT_GRAPH
 
 NodeLike = Union[str, "Node", "DeclaredNode"]
 NodeBase = Union["Node", "DeclaredNode"]
@@ -44,22 +44,46 @@ def ensure_stream(stream_like: StreamLike) -> StreamBuilder:
     raise TypeError(stream_like)
 
 
-@dataclass(frozen=True)
+@dataclass
 class DeclaredNode:
     key: str
     pipe: Union[PipeLike, str]
     config: Dict[str, Any] = field(default_factory=dict)
     upstream: Union[StreamLike, Dict[str, StreamLike]] = field(default_factory=dict)
+    graph: Optional[DeclaredGraph] = None
     output_alias: Optional[str] = None
     # create_dataset: bool = True
     # dataset_name: Optional[str] = None
     schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None
+
+    def __post_init__(self):
+        from snapflow.core.graph import DEFAULT_GRAPH
+
+        # Ensure node is in graph (or put in default graph)
+        # TODO: better way to do this?
+        if self.graph is None:
+            self.graph = DEFAULT_GRAPH
+        # self.graph.add_node(self)
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(key={self.key}, pipe={self.pipe})>"
 
     def __hash__(self):
         return hash(self.key)
+
+    def set_upstream(self, *args, **kwargs):
+        """If a single positional argument, overwrites upstream.
+        If kwargs then updates any existing upstream.
+        """
+        if args:
+            if len(args) > 1 or kwargs:
+                raise Exception("Provide keyword args for multiple inputs to upstream")
+            self.upstream = args[0]
+        else:
+            if isinstance(self.upstream, dict):
+                self.upstream.update(kwargs)
+            else:
+                self.upstream = kwargs
 
     def as_stream_builder(self) -> StreamBuilder:
         from snapflow.core.streams import StreamBuilder

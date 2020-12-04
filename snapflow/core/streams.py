@@ -13,10 +13,10 @@ from typing import (
     Union,
 )
 
-from loguru import logger
 from sqlalchemy import and_, not_
 from sqlalchemy.orm import Query
 
+from loguru import logger
 from snapflow.core.data_block import (
     DataBlock,
     DataBlockMetadata,

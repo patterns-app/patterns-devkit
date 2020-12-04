@@ -112,4 +112,4 @@ def produce_pipe_output_for_static_input(
         )
         input_nodes[input.name] = n
     test_node = g.create_node(f"{pipe.name}", pipe, config=config, upstream=input_nodes)
-    return env.produce(g, test_node, to_exhaustion=False, target_storage=target_storage)
+    return env.produce(test_node, to_exhaustion=False, target_storage=target_storage)

@@ -5,8 +5,6 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import sqlparse
 from loguru import logger
-from sqlparse import tokens
-
 from snapflow.core.data_block import (
     DataBlock,
     DataBlockMetadata,
@@ -20,6 +18,7 @@ from snapflow.core.pipe_interface import (
     make_default_output_annotation,
 )
 from snapflow.core.runnable import PipeContext
+from sqlparse import tokens
 
 
 @dataclass(frozen=True)

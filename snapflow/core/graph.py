@@ -15,10 +15,10 @@ from typing import (
 )
 
 import networkx as nx
-from loguru import logger
 from sqlalchemy import Column, String
 from sqlalchemy.sql.sqltypes import JSON
 
+from loguru import logger
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DeclaredNode, Node, NodeLike, instantiate_node
 from snapflow.utils.common import md5_hash, remove_dupes
@@ -53,9 +53,15 @@ class DeclaredGraph:
         s = "Nodes:\n------\n" + "\n".join(self._nodes.keys())
         return s
 
+    def create_node(self, *args, **kwargs) -> DeclaredNode:
+        dn = DeclaredNode(*args, **kwargs)
+        self.add_node(dn)
+        return dn
+
     def add_node(self, node: DeclaredNode):
         if node.key in self._nodes:
             raise KeyError(f"Duplicate node key {node.key}")
+        node.graph = self
         self._nodes[node.key] = node
 
     def remove_node(self, node: DeclaredNode):
@@ -82,6 +88,7 @@ class DeclaredGraph:
 
 
 graph = DeclaredGraph
+DEFAULT_GRAPH = graph()
 
 
 def hash_adjacency(adjacency: List[Tuple[str, Dict]]) -> str:

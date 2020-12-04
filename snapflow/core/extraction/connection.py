@@ -6,9 +6,10 @@ from datetime import date, datetime
 from typing import Any, Callable, Dict, Generic, Iterator, List, Optional, Type, Union
 
 import requests
-from loguru import logger
 from ratelimit import limits, sleep_and_retry
 from requests import Response
+
+from loguru import logger
 
 # TODO: does this belong in snapflow core? Probably not
 

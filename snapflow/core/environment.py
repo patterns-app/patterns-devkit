@@ -5,11 +5,11 @@ import os
 from contextlib import contextmanager
 from dataclasses import asdict
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
-from loguru import logger
 from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
 
+from loguru import logger
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, DagsModule
@@ -23,11 +23,10 @@ if TYPE_CHECKING:
         StorageClass,
     )
     from snapflow.core.pipe import Pipe
-    from snapflow.core.node import Node
+    from snapflow.core.node import Node, NodeLike
     from snapflow.core.runnable import ExecutionContext
     from snapflow.core.data_block import DataBlock
-    from snapflow.core.graph import Graph
-
+    from snapflow.core.graph import Graph, DeclaredGraph, DEFAULT_GRAPH
 
 DEFAULT_METADATA_STORAGE_URL = "sqlite:///.dags_metadata.db"
 
@@ -246,21 +245,42 @@ class Environment:
             # self.validate_and_clean_data_blocks(delete_intermediate=True)
             self.session.close()
 
-    def produce(
+    def _get_graph_and_node(
         self,
-        graph: Graph,
-        node_like: Optional[Union[Node, str]] = None,
-        to_exhaustion: bool = True,
-        # with_dataset: bool = False,
-        **execution_kwargs: Any,
-    ) -> Optional[DataBlock]:
-        from snapflow.core.node import Node
+        node_like: Optional[NodeLike] = None,
+        graph: Optional[Union[Graph, DeclaredGraph]] = None,
+    ) -> Tuple[Optional[Node], Graph]:
+        from snapflow.core.graph import DEFAULT_GRAPH, DeclaredGraph, Graph
+        from snapflow.core.node import Node, DeclaredNode
 
+        node = None
+        if graph is None:
+            if hasattr(node_like, "graph"):
+                graph = node_like.graph
+            else:
+                graph = DEFAULT_GRAPH
+        if isinstance(graph, DeclaredGraph):
+            graph = graph.instantiate(self)
         if node_like is not None:
             node = node_like
             if isinstance(node, str):
                 node = graph.get_node(node_like)
+            if isinstance(node, DeclaredNode):
+                node = node.instantiate(self, graph)
             assert isinstance(node, Node)
+        assert isinstance(graph, Graph)
+        return node, graph
+
+    def produce(
+        self,
+        node_like: Optional[NodeLike] = None,
+        graph: Union[Graph, DeclaredGraph] = None,
+        to_exhaustion: bool = True,
+        # with_dataset: bool = False,
+        **execution_kwargs: Any,
+    ) -> Optional[DataBlock]:
+        node, graph = self._get_graph_and_node(node_like, graph)
+        if node is not None:
             dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
             # if with_dataset:
             #     dependencies.extend(
@@ -274,41 +294,44 @@ class Environment:
                 output = em.run(dep, to_exhaustion=to_exhaustion)
         return output
 
-    def produce_dataset(
-        self,
-        graph: Graph,
-        node_like: Optional[Union[Node, str]] = None,
-        to_exhaustion: bool = True,
-        **execution_kwargs: Any,
-    ):
-        return self.produce(
-            graph,
-            node_like,
-            to_exhaustion=to_exhaustion,
-            with_dataset=True,
-            **execution_kwargs,
-        )
+    # def produce_dataset(
+    #     self,
+    #     graph: Graph,
+    #     node_like: Optional[Union[Node, str]] = None,
+    #     to_exhaustion: bool = True,
+    #     **execution_kwargs: Any,
+    # ):
+    #     return self.produce(
+    #         graph,
+    #         node_like,
+    #         to_exhaustion=to_exhaustion,
+    #         with_dataset=True,
+    #         **execution_kwargs,
+    #     )
 
     def run_node(
         self,
-        graph: Graph,
-        node_like: Union[Node, str],
+        node_like: Optional[NodeLike] = None,
+        graph: Union[Graph, DeclaredGraph] = None,
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> Optional[DataBlock]:
-        from snapflow.core.node import Node
-
-        if isinstance(node_like, str):
-            node_like = graph.get_node(node_like)
-        assert isinstance(node_like, Node)
+        node, graph = self._get_graph_and_node(node_like, graph)
 
         logger.debug(f"Running: {node_like}")
         with self.execution(graph, **execution_kwargs) as em:
             return em.run(node_like, to_exhaustion=to_exhaustion)
 
     def run_graph(
-        self, graph: Graph, to_exhaustion: bool = True, **execution_kwargs: Any
+        self,
+        graph: Union[Graph, DeclaredGraph],
+        to_exhaustion: bool = True,
+        **execution_kwargs: Any,
     ):
+        from snapflow.core.graph import DeclaredGraph
+
+        if isinstance(graph, DeclaredGraph):
+            graph = graph.instantiate(self)
         nodes = graph.get_all_nodes_in_execution_order()
         for node in nodes:
             with self.execution(graph, **execution_kwargs) as em:
