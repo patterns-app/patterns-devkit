@@ -5,7 +5,6 @@ from tests.utils import make_test_env
 
 
 def test_sql_pipe_interface():
-    env = make_test_env()
     sql = """select 1 from from t1 -- :DataBlock[T1]
         join t2 on t1.a = t2.b left join t3 -- :DataBlock[T2]
         on"""

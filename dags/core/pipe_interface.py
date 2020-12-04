@@ -265,9 +265,7 @@ class PipeInterface:
         v = list(declared_schema_mapping.values())[0]
         if isinstance(v, str):
             # Just one mapping, so should be one input
-            assert (
-                len(self.get_non_recursive_inputs()) == 1
-            ), f"Wrong number of mappings"
+            assert len(self.get_non_recursive_inputs()) == 1, "Wrong number of mappings"
             return {self.get_non_recursive_inputs()[0].name: declared_schema_mapping}
         if isinstance(v, dict):
             return declared_schema_mapping
@@ -376,7 +374,7 @@ class StreamInput:
             emitted = self.bound_stream.get_emitted_managed_blocks()
             if not emitted:
                 if self.bound_stream.count():
-                    logger.warning(f"No blocks emitted yet from non-empty stream")
+                    logger.warning("No blocks emitted yet from non-empty stream")
                 return None
             return emitted[0].nominal_schema
         return None

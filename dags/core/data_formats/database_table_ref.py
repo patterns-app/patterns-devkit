@@ -51,7 +51,7 @@ class DatabaseTableRefFormat(MemoryDataFormatBase):
         sql = f"""
         (
             select
-                {columns_stmt} 
+                {columns_stmt}
             from {table_stmt}
         )
         """
