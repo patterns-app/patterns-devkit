@@ -11,6 +11,7 @@ from requests import Response
 
 from loguru import logger
 
+# TODO: does this belong in dags core? Probably not
 
 class JsonHttpApiConnection:
     # default_params: Dict = {}

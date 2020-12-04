@@ -17,7 +17,6 @@ ratelimit = "^2.2.1"
 requests = "^2.23.0"
 sqlalchemy = "^1.3.13"
 strictyaml = "^1.0.6"
-typing_extensions = "^3.7.4"
 sqlparse = "^0.3.1"
 
 [tool.poetry.dev-dependencies]

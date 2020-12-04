@@ -68,6 +68,7 @@ class CliAppException(Exception):
 def app(ctx, debug: bool = False, metadata: Optional[str] = None):
     """Modern Data Pipelines"""
     logger.enable("dags")
+    logger.warning("The dags CLI is experimental and not officially supported yet")
     if debug:
         logger.add(sys.stderr, level="DEBUG")
     else:
