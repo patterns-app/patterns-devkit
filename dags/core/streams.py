@@ -35,7 +35,7 @@ from loguru import logger
 
 if TYPE_CHECKING:
     from dags.core.runnable import ExecutionContext
-    from dags.core.operators import Operator
+    from dags.core.operators import Operator, BoundOperator
 
 
 class StreamBuilder:
@@ -52,7 +52,7 @@ class StreamBuilder:
         data_block: Union[DataBlockMetadata, DataBlock, str] = None,
         allow_cycle: bool = False,
         most_recent_first: bool = False,
-        operators: List[Operator] = None,
+        operators: List[BoundOperator] = None,
     ):
         # TODO: ugly duplicate params (but singulars give nice obvious/intuitive interface)
         if schema is not None:
@@ -230,10 +230,10 @@ class StreamBuilder:
             raise TypeError(self.data_block)
         return query.filter(DataBlockMetadata.id == db_id)
 
-    def get_operators(self) -> List[Operator]:
+    def get_operators(self) -> List[BoundOperator]:
         return self.operators or []
 
-    def apply_operator(self, op: Operator) -> StreamBuilder:
+    def apply_operator(self, op: BoundOperator) -> StreamBuilder:
         return self.clone(operators=(self.get_operators() + [op]))
 
     def is_unprocessed(
@@ -318,7 +318,7 @@ class ManagedDataBlockStream:
         stream = (b for b in query)
         stream = self.as_managed_block(stream)
         for op in self.stream_builder.get_operators():
-            stream = op.op_callable(stream)
+            stream = op.op_callable(stream, **op.kwargs)
         stream = self.log_emitted(stream)
         return stream
 

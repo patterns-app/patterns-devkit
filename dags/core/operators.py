@@ -1,31 +1,35 @@
 from dataclasses import dataclass
 from functools import partial
-from typing import Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Union
 
-from dags import ObjectSchema
 from dags.core.data_block import DataBlock
 from dags.core.node import ensure_stream
-from dags.core.runnable import ExecutionContext
-from dags.core.streams import (
-    DataBlockStream,
-    ManagedDataBlockStream,
-    StreamBuilder,
-    StreamLike,
-)
+from dags.core.streams import DataBlockStream, StreamBuilder, StreamLike
 
 OpCallable = Callable[[DataBlockStream], DataBlockStream]
+
+
+@dataclass(frozen=True)
+class BoundOperator:
+    op_callable: OpCallable
+    kwargs: Dict[str, Any]
 
 
 @dataclass(frozen=True)
 class Operator:
     op_callable: OpCallable
 
-    def __call__(self, stream: StreamLike) -> StreamBuilder:
+    def __call__(self, stream: StreamLike, **kwargs) -> StreamBuilder:
         stream = ensure_stream(stream)
-        return stream.apply_operator(self)
+        return stream.apply_operator(
+            BoundOperator(op_callable=self.op_callable, kwargs=kwargs)
+        )
 
 
-def operator(op: OpCallable) -> Operator:
+# TODO: add parameter constraint (position-only)?
+def operator(op: OpCallable = None, **kwargs) -> Union[Callable, Operator]:
+    if op is None:
+        return partial(operator, **kwargs)
     return Operator(op_callable=op)
 
 
@@ -45,7 +49,23 @@ def one(stream: DataBlockStream) -> DataBlockStream:
 
 
 @operator
-def join(*streams: DataBlockStream) -> DataBlockStream:
+def concat(*streams: DataBlockStream) -> DataBlockStream:
     for stream in streams:
         for db in stream:
+            yield db
+
+
+@operator
+def merge(*streams: DataBlockStream) -> DataBlockStream:
+    dbs = [db for s in streams for db in s]
+    for db in sorted(dbs, key=lambda db: db.data_block_id):
+        yield db
+
+
+@operator
+def filter(
+    stream: DataBlockStream, function: Callable[[DataBlock], bool]
+) -> DataBlockStream:
+    for db in stream:
+        if function(db):
             yield db

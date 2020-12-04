@@ -10,13 +10,13 @@ from typing import (
     Callable,
     Generator,
     Iterable,
+    Iterator,
     List,
     Optional,
     Sequence,
     TextIO,
     Type,
     Union,
-    Iterator,
 )
 
 from dags.core.component import ComponentLibrary

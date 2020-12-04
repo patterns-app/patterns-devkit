@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-import pytest
-
-from dags.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
+from dags.core.data_block import DataBlockMetadata
 from dags.core.graph import Graph
 from dags.core.node import DataBlockLog, Direction, PipeLog
-from dags.core.operators import latest, operator
+from dags.core.operators import filter, latest, operator
 from dags.core.streams import DataBlockStream, StreamBuilder
 from tests.utils import (
-    TestSchema1,
     make_test_execution_context,
     pipe_generic,
     pipe_t1_sink,
@@ -217,10 +214,16 @@ class TestStreams:
 
         sb = StreamBuilder(nodes=self.node_source)
         expected_cnt = sb.get_query(self.ctx).count()
-        assert expected_cnt > 1
+        assert expected_cnt == 2
         list(count(sb).as_managed_stream(self.ctx))
         assert self._cnt == expected_cnt
 
+        # Test composed operators
         self._cnt = 0
         list(count(latest(sb)).as_managed_stream(self.ctx))
         assert self._cnt == 1
+
+        # Test kwargs
+        self._cnt = 0
+        list(count(filter(sb, function=lambda db: False)).as_managed_stream(self.ctx))
+        assert self._cnt == 0

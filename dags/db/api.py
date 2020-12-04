@@ -10,12 +10,12 @@ from typing import (
     ContextManager,
     Dict,
     Generator,
+    Iterator,
     List,
     Optional,
     Tuple,
     Type,
     Union,
-    Iterator,
 )
 
 import sqlalchemy

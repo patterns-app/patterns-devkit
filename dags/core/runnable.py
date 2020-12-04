@@ -14,11 +14,11 @@ from typing import (
     Dict,
     Generator,
     Generic,
+    Iterator,
     List,
     Optional,
     Union,
     cast,
-    Iterator,
 )
 
 import sqlalchemy
