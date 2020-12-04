@@ -50,8 +50,7 @@ scale from laptop to AWS cluster.
   -- and can optimize entire pipelines for the resources at hand, leading to overall performance
   gains when adopting snapflow.
   
-N.B.: snapflow is **ALPHA** software. Expect breaking changes to core APIs. 
-
+🚨️ &nbsp; snapflow is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️ 
 
 ### Basic example
 
