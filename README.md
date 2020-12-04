@@ -1,5 +1,5 @@
 
-![snapflow](https://github.com/kvh/basis/workflows/dags/badge.svg)
+![snapflow](https://github.com/kvh/snapflow/workflows/snapflow/badge.svg)
 
 <p>&nbsp;</p>
 <p align="center">
