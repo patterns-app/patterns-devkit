@@ -5,11 +5,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple, Type
 
 import sqlalchemy as sa
+from loguru import logger
 from pandas import DataFrame
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, event, or_
 from sqlalchemy.orm import RelationshipProperty, Session, relationship
 
-from loguru import logger
 from snapflow.core.data_formats import (
     DataFormat,
     DataFormatType,

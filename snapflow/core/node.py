@@ -5,13 +5,13 @@ import traceback
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
+from loguru import logger
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.schema import Column, ForeignKey
 from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
-from loguru import logger
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import DAGS_METADATA_TABLE_PREFIX, BaseModel

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional, Type
 
 from loguru import logger
+
 from snapflow.core.conversion.converter import (
     ConversionPath,
     Converter,

@@ -5,8 +5,8 @@ from dataclasses import asdict
 from typing import Any, List, Tuple, Type
 
 import pytest
-
 from loguru import logger
+
 from snapflow import Environment
 from snapflow.core.data_block import (
     DataBlockMetadata,

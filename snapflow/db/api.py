@@ -19,12 +19,12 @@ from typing import (
 )
 
 import sqlalchemy
+from loguru import logger
 from sqlalchemy import MetaData
 from sqlalchemy.engine import Connection, Engine, ResultProxy
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm import Session
 
-from loguru import logger
 from snapflow.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from snapflow.core.data_formats import DatabaseTableFormat, DataFormat, RecordsList
 from snapflow.core.environment import Environment

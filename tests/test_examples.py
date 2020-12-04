@@ -7,9 +7,9 @@ from typing import Generator
 
 import pandas as pd
 import pytest
+from loguru import logger
 from pandas._testing import assert_almost_equal
 
-from loguru import logger
 from snapflow import DataBlock, pipe, sql_pipe
 from snapflow.core.data_formats import RecordsList, RecordsListGenerator
 from snapflow.core.environment import Environment

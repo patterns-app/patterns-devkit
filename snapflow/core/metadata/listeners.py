@@ -1,7 +1,7 @@
+from loguru import logger
 from sqlalchemy import event
 from sqlalchemy.orm import object_session, sessionmaker
 
-from loguru import logger
 from snapflow.utils.common import cf, printd
 
 

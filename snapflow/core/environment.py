@@ -7,9 +7,9 @@ from dataclasses import asdict
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
+from loguru import logger
 from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
 
-from loguru import logger
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, DagsModule

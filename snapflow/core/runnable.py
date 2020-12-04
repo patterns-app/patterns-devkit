@@ -22,11 +22,11 @@ from typing import (
 )
 
 import sqlalchemy
+from loguru import logger
 from sqlalchemy.engine import ResultProxy
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import Session
 
-from loguru import logger
 from snapflow.core.conversion import convert_lowest_cost
 from snapflow.core.data_block import (
     Alias,

@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
 
 import pandas as pd
 from dateutil.parser import ParserError, parse
+from loguru import logger
 from pandas import DataFrame, Series
 from sqlalchemy import Table
 
-from loguru import logger
 from snapflow.core.data_formats import RecordsList
 from snapflow.core.module import DEFAULT_LOCAL_MODULE
 from snapflow.core.typing.schema import (

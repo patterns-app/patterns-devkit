@@ -15,10 +15,10 @@ from typing import (
 )
 
 import networkx as nx
+from loguru import logger
 from sqlalchemy import Column, String
 from sqlalchemy.sql.sqltypes import JSON
 
-from loguru import logger
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DeclaredNode, Node, NodeLike, instantiate_node
 from snapflow.utils.common import md5_hash, remove_dupes
