@@ -250,22 +250,6 @@ class StreamBuilder:
         q = blocks.get_query(ctx)
         return q.filter(DataBlockMetadata.id == block.id).count() > 0
 
-    # def get_next(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:
-    #     order_by = DataBlockMetadata.updated_at
-    #     # if self.most_recent_first:
-    #     #     order_by = order_by.desc()
-    #     return self.get_query(
-    #         ctx
-    #     ).first()  # Ordered by creation id (order created in) (since blocks are immutable)
-
-    # def get_most_recent(self, ctx: ExecutionContext) -> Optional[DataBlockMetadata]:
-    #     return (
-    #         # self.get_query(ctx).order_by(DataBlockMetadata.updated_at.desc()).first()
-    #         self.get_query(ctx)
-    #         .order_by(DataBlockMetadata.id.desc())
-    #         .first()  # We use auto-inc ID instead of timestamp since timestamps can collide
-    #     )
-
     def get_count(self, ctx: ExecutionContext) -> int:
         return self.get_query(ctx).count()
 
@@ -309,21 +293,19 @@ class ManagedDataBlockStream:
         declared_schema_mapping: Optional[Dict[str, str]] = None,
     ):
         self.ctx = ctx
-        self.stream_builder = stream_builder
         self.declared_schema = declared_schema
         self.declared_schema_mapping = declared_schema_mapping
-        self._stream: Iterator[DataBlock] = self._build_stream(
-            self.stream_builder.get_query(ctx)
-        )
+        self._blocks: List[DataBlock] = list(self._build_stream(stream_builder))
+        self._stream: Iterator[DataBlock] = self.log_emitted(self._blocks)
         self._emitted_blocks: List[DataBlockMetadata] = []
         self._emitted_managed_blocks: List[DataBlock] = []
 
-    def _build_stream(self, query: Query) -> Iterator[DataBlock]:
+    def _build_stream(self, stream_builder: StreamBuilder) -> Iterator[DataBlock]:
+        query = stream_builder.get_query(self.ctx)
         stream = (b for b in query)
         stream = self.as_managed_block(stream)
-        for op in self.stream_builder.get_operators():
+        for op in stream_builder.get_operators():
             stream = op.op_callable(stream, **op.kwargs)
-        stream = self.log_emitted(stream)
         return stream
 
     def __iter__(self) -> Iterator[DataBlock]:
@@ -345,6 +327,13 @@ class ManagedDataBlockStream:
             mdb = db.as_managed_data_block(self.ctx, schema_mapping=schema_mapping)
             yield mdb
 
+    @property
+    def all_blocks(self) -> List[DataBlock]:
+        return self._blocks
+
+    def count(self) -> int:
+        return len(self._blocks)
+
     def log_emitted(self, stream: Iterator[DataBlock]) -> Iterator[DataBlock]:
         for mdb in stream:
             self._emitted_blocks.append(mdb.data_block_metadata)
@@ -356,10 +345,6 @@ class ManagedDataBlockStream:
 
     def get_emitted_managed_blocks(self) -> List[DataBlock]:
         return self._emitted_managed_blocks
-
-    # def count(self) -> int:
-    #     # Non-consuming
-    #     return self.stream_builder.get_count(self.ctx)
 
 
 DataBlockStream = Iterator[DataBlock]
