@@ -203,6 +203,9 @@ class ManagedDataBlock(Generic[T]):
     def as_format(self, fmt: DataFormat) -> Any:
         return self.manager.as_format(fmt)
 
+    def as_table_stmt(self) -> str:
+        return self.as_table().get_table_stmt()
+
     @property
     def inferred_schema(self) -> Optional[Schema]:
         return self.manager.inferred_schema()

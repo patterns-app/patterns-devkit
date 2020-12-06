@@ -3,11 +3,12 @@ from __future__ import annotations
 from typing import Optional
 
 from loguru import logger
-from pandas import DataFrame
+from pandas import DataFrame, concat
 
 from snapflow.core.data_block import DataBlock
 from snapflow.core.pipe import pipe
 from snapflow.core.sql.pipe import sql_pipe
+from snapflow.core.streams import Stream
 from snapflow.core.typing.inference import conform_dataframe_to_schema
 from snapflow.testing.utils import (
     DataInput,
@@ -21,14 +22,13 @@ from snapflow.utils.typing import T
 
 @pipe("dataframe_accumulator", module="core")
 def dataframe_accumulator(
-    input: DataBlock[T],
+    input: Stream[T],
     this: Optional[DataBlock[T]] = None,
 ) -> DataFrame[T]:
-    records = input.as_dataframe()
+    accumulated_dfs = [block.as_dataframe() for block in input]
     if this is not None:
-        previous = this.as_dataframe()
-        records = previous.append(records)
-    return records
+        accumulated_dfs = [this.as_dataframe()] + accumulated_dfs
+    return concat(accumulated_dfs)
 
 
 # TODO: this is no-op if "this" is empty... is there a way to shortcut?
@@ -36,13 +36,20 @@ sql_accumulator = sql_pipe(
     name="sql_accumulator",
     module="core",
     sql="""
-    {% if inputs.this.bound_data_block %}
-    select * from this -- :Optional[DataBlock[T]]
+    {% if inputs.this.bound_block %}
+    select * from {{ inputs.this.bound_block.as_table_stmt() }}
     union all
     {% endif %}
-    select -- :DataBlock[T]
-    * from input -- :DataBlock[T]
+    {% for block in inputs.input.bound_stream %}
+    select
+    * from {{ block.as_table_stmt() }}
+    {% if not loop.last %}
+    union all
+    {% endif %}
+    {% endfor %}
     """,
+    inputs={"this": "DataBlock[T]", "input": "Stream[T]"},
+    output="DataBlock[T]",
 )
 
 

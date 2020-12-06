@@ -30,6 +30,7 @@ from tests.utils import (
     pipe_t1_sink,
     pipe_t1_source,
     pipe_t1_to_t2,
+    pipe_stream,
 )
 
 
@@ -45,6 +46,7 @@ from tests.utils import (
                 is_generic=False,
                 is_optional=False,
                 is_variadic=False,
+                is_stream=False,
                 original_annotation="DataBlock[Type]",
             ),
         ),
@@ -57,6 +59,7 @@ from tests.utils import (
                 is_generic=False,
                 is_optional=False,
                 is_variadic=False,
+                is_stream=False,
                 original_annotation="DataFrame[Type]",
             ),
         ),
@@ -69,7 +72,21 @@ from tests.utils import (
                 is_generic=True,
                 is_optional=False,
                 is_variadic=False,
+                is_stream=False,
                 original_annotation="DataBlock[T]",
+            ),
+        ),
+        (
+            "DataBlockStream[Type]",
+            PipeAnnotation(
+                data_format_class="DataBlockStream",
+                schema_like="Type",
+                # is_iterable=False,
+                is_generic=False,
+                is_optional=False,
+                is_variadic=False,
+                is_stream=True,
+                original_annotation="DataBlockStream[Type]",
             ),
         ),
     ],
@@ -349,16 +366,18 @@ def test_node_inputs():
     df = pipe(pipe_t1_source)
     node = g.create_node("node", df)
     df = pipe(pipe_t1_sink)
-    with pytest.raises(Exception):
-        # Bad input
-        g.create_node("node_fail", df, inputs="Turname")  # type: ignore
     node1 = g.create_node("node1", df, upstream=node)
-    pi = node1.get_interface()
     pi = node1.get_interface()
     assert len(pi.inputs) == 1
     assert pi.output == make_default_output_annotation()
     assert list(node1.declared_inputs.keys()) == ["input"]
     # assert node1.get_input("input").get_upstream(env)[0] is node
+
+
+def test_node_stream_inputs():
+    pi = pipe(pipe_stream).get_interface()
+    assert len(pi.inputs) == 1
+    assert pi.inputs[0].is_stream
 
 
 def test_node_config():

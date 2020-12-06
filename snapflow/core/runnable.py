@@ -338,7 +338,9 @@ class ExecutionManager:
         # Setup for run
         base_msg = f"Running node {cf.bold(node.key)} {cf.dimmed(node.pipe.key)}"
         self.log("{0:50} ".format(str(base_msg)))
-        logger.debug(f"RUNNING NODE {node.key} {node.pipe.key}")
+        logger.debug(
+            f"RUNNING NODE {node.key} {node.pipe.key} with config `{node.config}`"
+        )
         # self.log(base_msg)
         # start = time.time()
         n_outputs = 0

@@ -67,10 +67,12 @@ class DataInput:
             schema = env.get_schema(self.schema)
         return str_as_dataframe(self.data, module=self.module, nominal_schema=schema)
 
-    def get_schema(self, env: Environment) -> Optional[Schema]:
+    def get_schema_key(self) -> Optional[str]:
         if not self.schema:
             return None
-        return env.get_schema(self.schema)
+        if isinstance(self.schema, str):
+            return self.schema
+        return self.schema.key
 
 
 def produce_pipe_output_for_static_input(
@@ -107,7 +109,7 @@ def produce_pipe_output_for_static_input(
             "core.extract_dataframe",
             config={
                 "dataframe": input_data.as_dataframe(env),
-                "schema": input_data.schema,
+                "schema": input_data.get_schema_key(),
             },
         )
         input_nodes[input.name] = n

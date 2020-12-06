@@ -363,6 +363,7 @@ class ManagedDataBlockStream:
 
 
 DataBlockStream = Iterator[DataBlock]
+Stream = DataBlockStream
 
 StreamLike = Union[StreamBuilder, NodeLike]
 DataBlockStreamable = Union[StreamBuilder, Node]

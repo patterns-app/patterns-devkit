@@ -8,6 +8,7 @@ from .core.data_formats import (
 )
 from .core.environment import Environment, current_env, produce, run_node, run_graph
 from .core.graph import Graph, graph
+from .core.module import SnapflowModule
 from .core.node import Node, node
 from .core.pipe import Pipe, pipe
 from .core.runnable import PipeContext

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pandas import DataFrame
 
+from snapflow import DataBlockStream
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment
 from snapflow.core.graph import Graph
@@ -88,6 +89,10 @@ def pipe_generic(input: DataBlock[T]) -> DataFrame[T]:
 
 
 def pipe_t1_source(ctx: PipeContext) -> DataFrame[TestSchema1]:
+    pass
+
+
+def pipe_stream(input: DataBlockStream) -> DataBlock:
     pass
 
 

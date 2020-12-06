@@ -191,9 +191,6 @@ class SqlPipeWrapper:
         if ctx.execution_context.current_runtime is None:
             raise Exception("Current runtime not set")
 
-        for i in inputs.values():
-            if not isinstance(i, DataBlock):
-                raise NotImplementedError(f"Unsupported input type {i}")
         sql = self.get_compiled_sql(ctx, inputs)
         # if ctx.resolved_output_schema is None:
         #     raise Exception("SQL pipe should always produce output!")
@@ -222,8 +219,9 @@ class SqlPipeWrapper:
             return {}
         table_stmts = {}
         for input_name, block in inputs.items():
-            schema = block.as_table()
-            table_stmts[input_name] = schema.get_table_stmt()
+            if isinstance(block, DataBlock):
+                schema = block.as_table()
+                table_stmts[input_name] = schema.get_table_stmt()
         return table_stmts
 
     def get_compiled_sql(
@@ -239,9 +237,11 @@ class SqlPipeWrapper:
             worker=ctx.worker,
             runnable=ctx.runnable,
             inputs={i.name: i for i in ctx.inputs},
-            output_schema=ctx.runnable.bound_interface.resolve_nominal_output_schema(
-                ctx.worker.env
-            ),
+            # TODO: we haven't logged the input blocks yet (in the case of a stream) so we can't
+            #    resolve the nominal output schema at this point. But it is _possible_ if necessary -- is it?
+            # output_schema=ctx.runnable.bound_interface.resolve_nominal_output_schema(
+            #     ctx.worker.env
+            # ),
         )
         return compile_jinja_sql(sql, sql_ctx)
 
