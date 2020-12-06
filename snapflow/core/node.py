@@ -14,7 +14,7 @@ from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
-from snapflow.core.metadata.orm import DAGS_METADATA_TABLE_PREFIX, BaseModel
+from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
 from snapflow.core.pipe import Pipe, PipeLike, ensure_pipe, make_pipe, make_pipe_name
 from snapflow.core.pipe_interface import (
     DeclaredStreamInput,
@@ -52,8 +52,6 @@ class DeclaredNode:
     upstream: Union[StreamLike, Dict[str, StreamLike]] = field(default_factory=dict)
     graph: Optional[DeclaredGraph] = None
     output_alias: Optional[str] = None
-    # create_dataset: bool = True
-    # dataset_name: Optional[str] = None
     schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None
 
     def __post_init__(self):
@@ -131,10 +129,14 @@ def instantiate_node(
         declared_inputs=declared_inputs,
         declared_schema_mapping=schema_mapping,
         output_alias=declared_node.output_alias,
-        # create_dataset=declared_node.create_dataset,
-        # _dataset_name=declared_node.dataset_name,
     )
     return n
+
+
+def make_default_output_alias(node: Node) -> str:
+    return as_identifier(
+        f"_{node.key}__latest"
+    )  # TODO: as_identifier is storage-specific
 
 
 @dataclass(frozen=True)
@@ -148,8 +150,6 @@ class Node:
     declared_inputs: Dict[str, DeclaredStreamInput]
     output_alias: Optional[str] = None
     declared_schema_mapping: Optional[Dict[str, Dict[str, str]]] = None
-    # create_dataset: bool = True
-    # _dataset_name: Optional[str] = None
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(key={self.key}, pipe={self.pipe.key})>"
@@ -163,54 +163,14 @@ class Node:
             return state.state
         return None
 
-    # def get_dataset_name(self) -> str:
-    #     return self._dataset_name or self.key
-
     def get_alias(self) -> str:
         if self.output_alias:
             ident = self.output_alias
         else:
-            ident = f"_{self.key}__latest"
+            ident = make_default_output_alias(self)
         return as_identifier(
             ident
         )  # TODO: this logic should be storage api specific! and then shared back?
-
-    # def get_dataset_node_keys(self):
-    #     return [
-    #         f"{self.key}__accumulator",
-    #         f"{self.key}__dedupe",
-    #     ]
-    #
-    # def create_dataset_nodes(self) -> List[Node]:
-    #     pi = self.get_interface()
-    #     if pi.output is None:
-    #         raise
-    #     # if self.output_is_dataset():
-    #     #     return []
-    #     # TODO: how do we choose runtime? just using lang for now
-    #     lang = self.pipe.source_code_language()
-    #     if lang == "sql":
-    #         df_accum = "core.sql_accumulator"
-    #         df_dedupe = "core.sql_dedupe_unique_keep_newest_row"
-    #     else:
-    #         df_accum = "core.dataframe_accumulator"
-    #         df_dedupe = "core.dataframe_dedupe_unique_keep_newest_row"
-    #     accum_key, dedupe_key = self.get_dataset_node_keys()
-    #     accum = create_node(
-    #         self.graph,
-    #         key=accum_key,
-    #         pipe=self.env.get_pipe(df_accum),
-    #         upstream=self,
-    #     )
-    #     dedupe = create_node(
-    #         self.graph,
-    #         key=dedupe_key,
-    #         pipe=self.env.get_pipe(df_dedupe),
-    #         upstream=accum,
-    #         output_alias=self.get_dataset_name(),
-    #     )
-    #     logger.debug(f"Adding DataSet nodes {[accum, dedupe]}")
-    #     return [accum, dedupe]
 
     def get_interface(self) -> PipeInterface:
         return self.interface
@@ -262,7 +222,7 @@ class PipeLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     graph_id = Column(
         String,
-        ForeignKey(f"{DAGS_METADATA_TABLE_PREFIX}graph_metadata.hash"),
+        ForeignKey(f"{SNAPFLOW_METADATA_TABLE_PREFIX}graph_metadata.hash"),
         nullable=False,
     )
     node_key = Column(String, nullable=False)
@@ -336,7 +296,7 @@ class DataBlockLog(BaseModel):
     pipe_log_id = Column(Integer, ForeignKey(PipeLog.id), nullable=False)
     data_block_id = Column(
         String,
-        ForeignKey(f"{DAGS_METADATA_TABLE_PREFIX}data_block_metadata.id"),
+        ForeignKey(f"{SNAPFLOW_METADATA_TABLE_PREFIX}data_block_metadata.id"),
         nullable=False,
     )
     direction = Column(Enum(Direction, native_enum=False), nullable=False)

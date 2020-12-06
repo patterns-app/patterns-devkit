@@ -277,16 +277,11 @@ class Environment:
         node_like: Optional[NodeLike] = None,
         graph: Union[Graph, DeclaredGraph] = None,
         to_exhaustion: bool = True,
-        # with_dataset: bool = False,
         **execution_kwargs: Any,
     ) -> Optional[DataBlock]:
         node, graph = self._get_graph_and_node(node_like, graph)
         if node is not None:
             dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
-            # if with_dataset:
-            #     dependencies.extend(
-            #         [graph.get_node(n) for n in node.get_dataset_node_keys()]
-            #     )
         else:
             dependencies = graph.get_all_nodes_in_execution_order()
         output = None
@@ -294,21 +289,6 @@ class Environment:
             with self.execution(graph, **execution_kwargs) as em:
                 output = em.run(dep, to_exhaustion=to_exhaustion)
         return output
-
-    # def produce_dataset(
-    #     self,
-    #     graph: Graph,
-    #     node_like: Optional[Union[Node, str]] = None,
-    #     to_exhaustion: bool = True,
-    #     **execution_kwargs: Any,
-    # ):
-    #     return self.produce(
-    #         graph,
-    #         node_like,
-    #         to_exhaustion=to_exhaustion,
-    #         with_dataset=True,
-    #         **execution_kwargs,
-    #     )
 
     def run_node(
         self,

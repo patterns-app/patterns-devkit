@@ -111,12 +111,6 @@ def pipe_multiple_input(
     pass
 
 
-#
-#
-# def pipe_dataset_output(input: DataBlock[T]) -> DataSet[T]:
-#     pass
-
-
 sample_records = [
     {
         "a": "2017-02-17T15:09:26-08:00",

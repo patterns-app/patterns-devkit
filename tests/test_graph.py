@@ -52,13 +52,6 @@ def test_declared_graph():
     ]
 
 
-# Redundant
-# def test_dataset_nodes():
-#     g = make_graph()
-#     dg = g.get_declared_graph_with_dataset_nodes()
-#     assert len(list(dg.nodes())) == 27
-
-
 def test_make_graph():
     g = make_graph()
     nodes = {

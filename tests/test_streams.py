@@ -37,12 +37,6 @@ class TestStreams:
             nominal_schema_key="_test.TestSchema2",
             realized_schema_key="_test.TestSchema2",
         )
-        # self.ds1db1 = DataSetMetadata(
-        #     data_block=self.dr1t1,
-        #     name="dataset1",
-        #     expected_schema_key="_test.TestSchema1",
-        #     realized_schema_key="_test.TestSchema1",
-        # )
         self.node_source = self.g.create_node("pipe_source", pipe_t1_source)
         self.node1 = self.g.create_node("pipe1", pipe_t1_sink, upstream="pipe_source")
         self.node2 = self.g.create_node("pipe2", pipe_t1_to_t2, upstream="pipe_source")
@@ -53,7 +47,6 @@ class TestStreams:
         self.dr1t2 = ctx.merge(self.dr1t2)
         self.dr2t2 = ctx.merge(self.dr2t2)
         self.graph = ctx.merge(self.graph)
-        # self.ds1db1 = ctx.merge(self.ds1db1)
 
     def test_stream_unprocessed_pristine(self):
         s = StreamBuilder(nodes=self.node_source)
@@ -165,25 +158,6 @@ class TestStreams:
         s = StreamBuilder(nodes=self.node_source, schema="TestSchema2")
         s = s.filter_unprocessed(self.node1)
         assert s.get_query(self.ctx).first() is None
-
-    def test_stream_unprocessed_eligible_dataset(self):
-        dfl = PipeLog(
-            graph_id=self.graph.hash,
-            node_key=self.node_source.key,
-            pipe_key=self.node_source.pipe.key,
-            runtime_url="test",
-        )
-        drl = DataBlockLog(
-            pipe_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
-        )
-        self.sess.add_all([dfl, drl])
-
-        # s = DataBlockStream(upstream=self.node_source)
-        # s = s.filter_unprocessed(self.node1)
-        # s = s.filter_dataset("dataset1")
-        # assert s.get_next(self.ctx) == self.dr1t1
 
     def test_operators(self):
         dfl = PipeLog(

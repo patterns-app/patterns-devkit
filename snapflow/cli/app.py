@@ -11,11 +11,11 @@ from sqlalchemy import func
 
 from snapflow.core.data_block import DataBlockMetadata
 from snapflow.core.environment import Environment, current_env
-from snapflow.core.metadata.orm import DAGS_METADATA_TABLE_PREFIX
+from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX
 from snapflow.core.node import PipeLog
 from snapflow.core.typing.inference import dict_to_rough_schema
 from snapflow.core.typing.schema import schema_to_yaml
-from snapflow.project.project import DAGS_PROJECT_FILE_NAME, init_project_in_dir
+from snapflow.project.project import SNAPFLOW_PROJECT_FILE_NAME, init_project_in_dir
 from snapflow.utils import common
 from snapflow.utils.common import cf
 
@@ -253,22 +253,26 @@ def reset_metadata(env: Environment):
     # TODO
     raise NotImplementedError
     with env.session_scope() as sess:
-        sess.execute(f"drop table {DAGS_METADATA_TABLE_PREFIX}pipe_log        cascade;")
-        sess.execute(f"drop table {DAGS_METADATA_TABLE_PREFIX}pipe_log_id_seq cascade;")
         sess.execute(
-            f"drop table {DAGS_METADATA_TABLE_PREFIX}data_resource_log        cascade;"
+            f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}pipe_log        cascade;"
         )
         sess.execute(
-            f"drop table {DAGS_METADATA_TABLE_PREFIX}data_resource_log_id_seq cascade;"
+            f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}pipe_log_id_seq cascade;"
         )
         sess.execute(
-            f"drop table {DAGS_METADATA_TABLE_PREFIX}data_resource_metadata   cascade;"
+            f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}data_resource_log        cascade;"
         )
         sess.execute(
-            f"drop table {DAGS_METADATA_TABLE_PREFIX}data_set_metadata        cascade;"
+            f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}data_resource_log_id_seq cascade;"
         )
         sess.execute(
-            f"drop table {DAGS_METADATA_TABLE_PREFIX}stored_data_resource_metadata cascade;"
+            f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}data_resource_metadata   cascade;"
+        )
+        sess.execute(
+            f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}data_set_metadata        cascade;"
+        )
+        sess.execute(
+            f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}stored_data_resource_metadata cascade;"
         )
 
 
@@ -280,9 +284,9 @@ def init_project(ctx: click.Context):
     try:
         init_project_in_dir(curr_dir)
     except FileExistsError:
-        ctx.fail(f"{DAGS_PROJECT_FILE_NAME} already exists in {curr_dir}")
+        ctx.fail(f"{SNAPFLOW_PROJECT_FILE_NAME} already exists in {curr_dir}")
     click.echo(
-        f"Created {DAGS_PROJECT_FILE_NAME} in {curr_dir}. Edit this file to configure your project."
+        f"Created {SNAPFLOW_PROJECT_FILE_NAME} in {curr_dir}. Edit this file to configure your project."
     )
 
 
