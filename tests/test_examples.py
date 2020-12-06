@@ -133,7 +133,7 @@ def get_env():
     return env
 
 
-def test_incremental():
+def test_repeated_runs():
     env = get_env()
     g = Graph(env)
     s = env.add_storage("memory://test")
@@ -162,104 +162,10 @@ def test_incremental():
     output = env.produce("metrics", g, target_storage=s)
     assert output is None
 
-
-#     # Now test DataSet aggregation
-#     g.create_node("aggregate_metrics", aggregate_metrics, upstream="source")
-#     output = env.produce(g, "aggregate_metrics", target_storage=s)
-#     records = output.as_records_list()
-#     # print(DataBlockLog.summary(env))
-#     expected_records = [
-#         {"metric": "row_count", "value": 8},
-#         {"metric": "col_count", "value": 3},
-#     ]
-#     assert records == expected_records
-#     # Run again, should be exhausted
-#     output = env.produce(g, "aggregate_metrics", target_storage=s)
-#     assert output is None
-#
-#     # And test DataSet aggregation in SQL
-#     sdb = env.add_storage(get_tmp_sqlite_db_url())
-#     g.create_node("aggregate_metrics_sql", aggregate_metrics_sql, upstream="source")
-#     output = env.produce(g, "aggregate_metrics_sql", target_storage=sdb)
-#     records = output.as_records_list()
-#     expected_records = [{"metric": "row_count", "value": 8}]
-#     assert records == expected_records
-#
-#     # Run again, should be exhausted
-#     output = env.produce(g, "aggregate_metrics_sql", target_storage=sdb)
-#     assert output is None
-#
-#     # Test dataset output
-#     output = env.produce_dataset(g, "aggregate_metrics_sql", target_storage=sdb)
-#     alias = "aggregate_metrics_sql"
-#     row_cnt = sdb.get_database_api(env).count(alias)
-#     assert row_cnt == 1
-#     alias = "aggregate_metrics_sql__latest"
-#     row_cnt = sdb.get_database_api(env).count(alias)
-#     assert row_cnt == 1
-#
-#
-# def test_mixed_inputs():
-#     env = get_env()
-#     g = Graph(env)
-#     s = env.add_storage(get_tmp_sqlite_db_url())
-#     # Initial graph
-#     N = 4 * 4
-#     g.create_node("source", customer_source, config={"total_records": N})
-#     g.create_node("aggregate_metrics", aggregate_metrics, upstream="source")
-#     output = env.produce(g, "aggregate_metrics", target_storage=s)
-#     records = output.as_records_list()
-#     expected_records = [
-#         {"metric": "row_count", "value": 4},
-#         {"metric": "col_count", "value": 3},
-#     ]
-#     assert records == expected_records
-#     # Mixed inputs
-#     g.create_node(
-#         "mixed_inputs",
-#         mixed_inputs_sql,
-#         upstream={"input": "source", "metrics": "aggregate_metrics"},
-#     )
-#     g.create_node(
-#         "dataset_inputs",
-#         dataset_inputs_sql,
-#         upstream={"input": "source", "metrics": "aggregate_metrics"},
-#     )
-#
-#     output = env.produce(g, "dataset_inputs", target_storage=s)
-#     records = output.as_records_list()
-#     expected_records = [
-#         {"tble": "input", "row_count": 8},
-#         {"tble": "metrics", "row_count": 4},
-#     ]
-#     assert records == expected_records
-#
-#     output = env.produce(g, "mixed_inputs", target_storage=s)
-#     records = output.as_records_list()
-#     expected_records = [
-#         {"tble": "input", "row_count": 4},
-#         {"tble": "metrics", "row_count": 6},
-#     ]
-#     assert records == expected_records
-#
-#     # Run again
-#     output = env.produce(g, "dataset_inputs", target_storage=s)
-#     records = output.as_records_list()
-#     expected_records = [
-#         {"tble": "input", "row_count": 16},
-#         {"tble": "metrics", "row_count": 8},
-#     ]
-#     assert records == expected_records
-#
-#     output = env.run_node(g, "mixed_inputs", target_storage=s)
-#     records = output.as_records_list()
-#     expected_records = [
-#         {"tble": "input", "row_count": 4},  # DataBlock input does NOT accumulate
-#         {"tble": "metrics", "row_count": 8},  # DataSet input does
-#     ]
-#     assert records == expected_records
-
-
-if __name__ == "__main__":
-    # test_mixed_inputs()
-    pass
+    # now add new node and process all at once
+    g.create_node("new_accumulator", "core.dataframe_accumulator", upstream="source")
+    output = env.produce("new_accumulator", g, target_storage=s)
+    records = output.as_records_list()
+    assert len(records) == N
+    output = env.produce("new_accumulator", g, target_storage=s)
+    assert output is None
