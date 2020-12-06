@@ -1,18 +1,15 @@
-
 ![snapflow](https://github.com/kvh/snapflow/workflows/snapflow/badge.svg)
 
-<p>&nbsp;</p>
 <p align="center">
-  <img width="400" src="assets/snapflow.svg">
+  <img width="80" src="assets/bolt.svg">
 </p>
+<h3 align="center">Modern Data Pipelines</h3>
 <p>&nbsp;</p>
 
-### Modern Data Pipelines
-
-Snapflow is a framework for building **end-to-end functional data pipelines** from modular
+**Snapflow** is a framework for building **end-to-end functional data pipelines** from modular
 components. Snapflow abstracts over underlying database, runtime, and storage resources with
-functional, type-aware data graphs that operate on streams of **immutable** `datablocks`. These graphs are
-composed of discrete `pipes` written in python or SQL that operate on `datablocks` and connect to
+functional type-aware data graphs that operate on streams of **immutable** `datablocks`. These graphs are
+composed of discrete `pipes` written in python or SQL and connect to
 form end-to-end data pipelines, from API extraction to SQL transformation to analysis, modeling, and
 visualization.
 
@@ -36,7 +33,7 @@ scale from laptop to AWS cluster.
     
    and much more, instantly and out of the box.
      
- - **Testable components** - Modular `pipes` allow individual steps in a data process to be
+ - **Testability** - Modular `pipes` allow individual steps in a data process to be
    independently tested and QA'd with the same rigor as software. 
      
  - **Flexibility** - snapflow lets you build data flows on and across any database or file system.
@@ -44,15 +41,15 @@ scale from laptop to AWS cluster.
      
  - **Zero cost abstractions and high performance** - snapflow makes its type and immutability
   guarantees at the abstraction level, so those guarantees can be compiled away at execution time
-  for high performance. This lets developers and analysts work with clean mental models without
+  for high performance. Developers and analysts can work with clean mental models without
   incurring performance costs at runtime. The snapflow compiler also optimizes across databases,
-  runtimes, and storages -- e.g. a query on BigQuery vs Redshift, data copy on S3 vs in-memory
+  runtimes, and storages -- a query on BigQuery vs Redshift, data copy on S3 vs in-memory
   -- and can optimize entire pipelines for the resources at hand, leading to overall performance
   gains when adopting snapflow.
   
 🚨️ &nbsp; snapflow is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️ 
 
-### Basic example
+### Example
 
 `pip install snapflow snapflow-stripe snapflow-bi`
 
@@ -225,8 +222,8 @@ from snapflow.operators import merge, filter
 n1 = node("n1", source1)
 n2 = node("n2", source2)
 combined = merge(n1, n2)
-big_blocks = filter(combined, function=lambda block: block.count() > 1000)
-n3 = node("n3", do_something, upstream=big_blocks)
+big_blocks_only = filter(combined, function=lambda block: block.count() > 1000)
+n3 = node("n3", do_something, upstream=big_blocks_only)
 ```
 
 Common operators include `latest`, `merge`, `filter`. It is simple to create your own. 
@@ -282,7 +279,6 @@ The following table gives the logic for possible behavior of realized schema:
 
 ## Expanded example
 
-
 ```python
 from snapflow import graph, produce, Environment
 from snapflow_stripe import stripe
@@ -301,6 +297,9 @@ stripe_node = g.create_node(
     key="stripe_txs",
     pipe=stripe.extract_charges,
     config={"api_key": "xxxxxxxx"},
+    # Create alias 'stripe_transactions' on the target storage (eg file symlink or database view)
+    # Default alias is the node key
+    output_alias="stripe_transactions"
 )
 ltv_node = g.create_node(
     key="ltv_model",
@@ -310,6 +309,7 @@ ltv_node.set_upstream("stripe_txs")
 
 # Run
 output = env.produce(ltv_node, target_storage=mysql_db)
+output.create_alias(mysql_db, "ltv_model")
 output.as_dataframe()
 output.as_records_list()
 ```
