@@ -15,6 +15,7 @@ from snapflow.core.typing.schema import (
     create_quick_schema,
     is_generic,
     schema_from_yaml,
+    DEFAULT_UNICODE_TYPE,
 )
 from snapflow.modules import core
 from tests.utils import make_test_env, sample_records
@@ -81,16 +82,14 @@ def test_schema_inference():
     assert set(f.name for f in fields) == set("abcdefghi")
     field_types = {f.name: f.field_type for f in fields}
     assert field_types["a"] == "DateTime"
-    assert (
-        field_types["b"] == "Unicode"
-    )  # TODO: what do we want this to be? Probably Unicode, SQL can't handle invalid date
+    assert field_types["b"] == DEFAULT_UNICODE_TYPE  # Invalid date, so is unicode
     assert field_types["c"] == "BigInteger"
     assert field_types["d"] == "JSON"
-    assert field_types["e"] == "Unicode"
-    assert field_types["f"] == "Unicode"
+    assert field_types["e"] == DEFAULT_UNICODE_TYPE
+    assert field_types["f"] == DEFAULT_UNICODE_TYPE
     assert field_types["g"] == "BigInteger"
-    assert field_types["h"] == "UnicodeText"
-    assert field_types["i"] == "UnicodeText"
+    assert field_types["h"] == DEFAULT_UNICODE_TYPE
+    assert field_types["i"] == DEFAULT_UNICODE_TYPE
 
 
 def test_generated_schema():

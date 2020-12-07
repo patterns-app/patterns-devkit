@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
 from decimal import Decimal
-from random import randint
-from statistics import StatisticsError, mode
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
 
 import pandas as pd
-from dateutil.parser import ParserError, parse
+from dateutil.parser import ParserError
 from loguru import logger
 from pandas import DataFrame, Series
 from sqlalchemy import Table
@@ -20,6 +17,7 @@ from snapflow.core.typing.schema import (
     Schema,
     create_quick_field,
     create_quick_schema,
+    DEFAULT_UNICODE_TYPE,
 )
 from snapflow.utils.common import (
     ensure_bool,
@@ -34,11 +32,6 @@ from snapflow.utils.data import is_nullish, read_json, records_list_as_dict_of_l
 
 if TYPE_CHECKING:
     from snapflow.db.api import DatabaseAPI
-
-
-VARCHAR_MAX_LEN = (
-    256  # TODO: what is the real value for different db engines? pg is NA, mysql ??
-)
 
 
 def get_highest_precedence_sa_type(types: List[str]) -> str:
@@ -180,7 +173,7 @@ def pandas_series_to_sqlalchemy_type(series: Series) -> str:
         #     return Float(precision=23)
         # else:
         #     return Float(precision=53
-        "Float"  # TODO: precision? Float(precision=53)?
+        return "Float"  # TODO: precision? Float(precision=53)?
     elif dtype.lower().startswith("int"):
         # if col.dtype == "int32":
         #     return Integer
@@ -196,7 +189,7 @@ def pandas_series_to_sqlalchemy_type(series: Series) -> str:
     elif dtype == "complex":
         raise ValueError("Complex datatypes not supported")
     elif dtype == "empty":
-        return "UnicodeText"
+        return DEFAULT_UNICODE_TYPE
     else:
         # Handle object/string case
         if has_dict_or_list(series):
@@ -210,7 +203,7 @@ def pandas_series_to_sqlalchemy_type(series: Series) -> str:
                 return "DateTime"
         except ParserError:
             pass
-    return "UnicodeText"
+    return DEFAULT_UNICODE_TYPE
 
 
 def sqlalchemy_type_to_pandas_type(satype: str) -> str:
@@ -251,6 +244,7 @@ def sqlalchemy_type_to_pandas_type(satype: str) -> str:
 # higher precedence here means *less specific* types, since there were some values we couldn't
 # convert to more specific type.
 type_dominance = [
+    DEFAULT_UNICODE_TYPE,
     "UnicodeText",
     "Unicode",
     "JSON",
@@ -269,8 +263,6 @@ def get_sqlalchemy_type_for_python_object(o: Any) -> Optional[str]:
         return None
     if isinstance(o, str):
         # Try some things with str and see what sticks
-        if len(o) > VARCHAR_MAX_LEN:
-            return "UnicodeText"
         if is_datetime_str(o):
             return "DateTime"
         try:
@@ -281,7 +273,7 @@ def get_sqlalchemy_type_for_python_object(o: Any) -> Optional[str]:
             except ValueError:
                 pass
     return dict(
-        str="Unicode",
+        str=DEFAULT_UNICODE_TYPE,
         int="BigInteger",
         float="Float",
         Decimal="Numeric",
@@ -289,8 +281,8 @@ def get_sqlalchemy_type_for_python_object(o: Any) -> Optional[str]:
         list="JSON",
         bool="Boolean",
         datetime="DateTime",
-        NoneType="UnicodeText",
-    ).get(type(o).__name__, "UnicodeText")
+        NoneType=DEFAULT_UNICODE_TYPE,
+    ).get(type(o).__name__, DEFAULT_UNICODE_TYPE)
 
 
 def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
@@ -302,7 +294,7 @@ def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
         types.append(typ)
     if not types:
         # We detected no types, column is all null-like, or there is no data
-        return "UnicodeText"
+        return DEFAULT_UNICODE_TYPE
     # try:
     #     mode_type = mode(types)
     # except StatisticsError:

@@ -164,7 +164,7 @@ class Schema:
         fields = []
         for f in d["fields"]:
             if isinstance(f, dict):
-                f = build_field_type_from_dict(f)
+                f = build_field_from_dict(f)
             elif isinstance(f, Field):
                 pass
             else:
@@ -269,7 +269,7 @@ def clean_raw_schema_defintion(raw_def: dict) -> dict:
 
 
 def build_schema_from_dict(d: dict, **overrides: Any) -> Schema:
-    fields = [build_field_type_from_dict(f) for f in d.pop("fields", [])]
+    fields = [build_field_from_dict(f) for f in d.pop("fields", [])]
     # TODO: relationships and implementations
     d["fields"] = fields
     d.update(**overrides)
@@ -277,10 +277,18 @@ def build_schema_from_dict(d: dict, **overrides: Any) -> Schema:
     return schema
 
 
-def build_field_type_from_dict(d: dict) -> Field:
+def build_field_from_dict(d: dict) -> Field:
     d["validators"] = [load_validator_from_dict(f) for f in d.pop("validators", [])]
+    conform_field_type(d.get("field_type"))
     ftype = Field(**d)
     return ftype
+
+
+def conform_field_type(ft: str) -> str:
+    # TODO: this is hidden and only affects this code path... Where do we want to conform this?
+    if ft is None or ft in ("Unicode", "UnicodeText"):
+        return DEFAULT_UNICODE_TYPE
+    return ft
 
 
 def load_validator_from_dict(v: str) -> Validator:
@@ -339,3 +347,6 @@ def create_quick_schema(name: str, fields: List[Tuple[str, str]], **kwargs):
     defaults["fields"] = [create_quick_field(f[0], f[1]) for f in fields]
     schema = Schema(**defaults)  # type: ignore
     return schema
+
+
+DEFAULT_UNICODE_TYPE = "Unicode(65535)"
