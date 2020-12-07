@@ -201,7 +201,7 @@ class Node:
 
 
 class NodeState(BaseModel):
-    node_key = Column(String, primary_key=True)
+    node_key = Column(String(1024), primary_key=True)
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
@@ -225,12 +225,12 @@ class PipeLog(BaseModel):
         ForeignKey(f"{SNAPFLOW_METADATA_TABLE_PREFIX}graph_metadata.hash"),
         nullable=False,
     )
-    node_key = Column(String, nullable=False)
+    node_key = Column(String(1024), nullable=False)
     node_start_state = Column(JSON, nullable=True)
     node_end_state = Column(JSON, nullable=True)
-    pipe_key = Column(String, nullable=False)
+    pipe_key = Column(String(1024), nullable=False)
     pipe_config = Column(JSON, nullable=True)
-    runtime_url = Column(String, nullable=False)
+    runtime_url = Column(String(1024), nullable=False)
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)

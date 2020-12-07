@@ -205,7 +205,7 @@ class SchemaMapping:
 
 
 class GeneratedSchema(BaseModel):
-    key = Column(String, primary_key=True)
+    key = Column(String(1024), primary_key=True)
     definition = Column(JSON)
 
     def __repr__(self):
