@@ -99,6 +99,9 @@ def get_data_format_of_object(obj: Any) -> Optional[DataFormat]:
 class DataFormatType(types.TypeDecorator):
     impl = types.Unicode
 
+    def __init__(self):
+        super().__init__(128)
+
     def process_bind_param(self, value, dialect):
         if not issubclass(value, DataFormatBase):
             raise TypeError(value)
