@@ -221,7 +221,7 @@ def get_state(sess: Session, node_key: str) -> Optional[Dict]:
 class PipeLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     graph_id = Column(
-        String,
+        String(128),
         ForeignKey(f"{SNAPFLOW_METADATA_TABLE_PREFIX}graph_metadata.hash"),
         nullable=False,
     )
@@ -295,7 +295,7 @@ class DataBlockLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     pipe_log_id = Column(Integer, ForeignKey(PipeLog.id), nullable=False)
     data_block_id = Column(
-        String,
+        String(128),
         ForeignKey(f"{SNAPFLOW_METADATA_TABLE_PREFIX}data_block_metadata.id"),
         nullable=False,
     )

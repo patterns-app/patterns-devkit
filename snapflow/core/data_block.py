@@ -307,7 +307,7 @@ class Alias(BaseModel):
         String(128), ForeignKey(DataBlockMetadata.id), nullable=False
     )
     stored_data_block_id = Column(
-        String, ForeignKey(StoredDataBlockMetadata.id), nullable=False
+        String(128), ForeignKey(StoredDataBlockMetadata.id), nullable=False
     )
     # Hints
     data_block: "DataBlockMetadata"
