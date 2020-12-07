@@ -40,6 +40,10 @@ if TYPE_CHECKING:
 #         kwargs = {k.arg: k.value.id for k in ast_call.args}
 #         return FieldType(field_type_class=tipe, args=args, kwargs=kwargs,)
 
+MAX_UNICODE_LENGTH = 255
+DEFAULT_UNICODE_TYPE = f"Unicode({MAX_UNICODE_LENGTH})"
+DEFAULT_UNICODE_TEXT_TYPE = "UnicodeText"
+
 
 @dataclass(frozen=True)
 class Field:
@@ -205,7 +209,7 @@ class SchemaMapping:
 
 
 class GeneratedSchema(BaseModel):
-    key = Column(String(1024), primary_key=True)
+    key = Column(String(128), primary_key=True)
     definition = Column(JSON)
 
     def __repr__(self):
@@ -347,6 +351,3 @@ def create_quick_schema(name: str, fields: List[Tuple[str, str]], **kwargs):
     defaults["fields"] = [create_quick_field(f[0], f[1]) for f in fields]
     schema = Schema(**defaults)  # type: ignore
     return schema
-
-
-DEFAULT_UNICODE_TYPE = "Unicode(65535)"

@@ -18,6 +18,8 @@ from snapflow.core.typing.schema import (
     create_quick_field,
     create_quick_schema,
     DEFAULT_UNICODE_TYPE,
+    DEFAULT_UNICODE_TEXT_TYPE,
+    MAX_UNICODE_LENGTH,
 )
 from snapflow.utils.common import (
     ensure_bool,
@@ -245,6 +247,7 @@ def sqlalchemy_type_to_pandas_type(satype: str) -> str:
 # convert to more specific type.
 type_dominance = [
     DEFAULT_UNICODE_TYPE,
+    DEFAULT_UNICODE_TEXT_TYPE,
     "UnicodeText",
     "Unicode",
     "JSON",
@@ -262,6 +265,8 @@ def get_sqlalchemy_type_for_python_object(o: Any) -> Optional[str]:
     if is_nullish(o):
         return None
     if isinstance(o, str):
+        if len(o) > MAX_UNICODE_LENGTH:
+            return DEFAULT_UNICODE_TEXT_TYPE
         # Try some things with str and see what sticks
         if is_datetime_str(o):
             return "DateTime"

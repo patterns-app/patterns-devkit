@@ -32,7 +32,7 @@ class NodeDoesNotExist(KeyError):
 
 
 class GraphMetadata(BaseModel):
-    hash = Column(String(1024), primary_key=True)
+    hash = Column(String(128), primary_key=True)
     adjacency = Column(JSON)
 
     def __repr__(self):

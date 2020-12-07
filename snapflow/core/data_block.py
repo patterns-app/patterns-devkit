@@ -115,13 +115,13 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     # NOTE on block ids: we generate them dynamically so we don't have to hit a central db for a sequence
     # BUT we MUST ensure they are monotonically ordered -- the logic of selecting the correct (most recent)
     # block relies on strict monotonic IDs in some scenarios
-    id = Column(String(1024), primary_key=True, default=timestamp_rand_key)
+    id = Column(String(128), primary_key=True, default=timestamp_rand_key)
     # id = Column(Integer, primary_key=True, autoincrement=True)
-    inferred_schema_key: SchemaKey = Column(String(1024), nullable=True)  # type: ignore
-    nominal_schema_key: SchemaKey = Column(String(1024), nullable=True)  # type: ignore
-    realized_schema_key: SchemaKey = Column(String(1024), nullable=False)  # type: ignore
+    inferred_schema_key: SchemaKey = Column(String(128), nullable=True)  # type: ignore
+    nominal_schema_key: SchemaKey = Column(String(128), nullable=True)  # type: ignore
+    realized_schema_key: SchemaKey = Column(String(128), nullable=False)  # type: ignore
     record_count = Column(Integer, nullable=True)
-    created_by_node_key = Column(String(1024), nullable=True)
+    created_by_node_key = Column(String(128), nullable=True)
     # Other metadata? created_by_job? last_processed_at?
     deleted = Column(Boolean, default=False)
     stored_data_blocks: RelationshipProperty = relationship(
@@ -223,13 +223,13 @@ DataBlock = ManagedDataBlock
 
 
 class StoredDataBlockMetadata(BaseModel):
-    id = Column(String(1024), primary_key=True, default=timestamp_rand_key)
+    id = Column(String(128), primary_key=True, default=timestamp_rand_key)
     # id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(1024), nullable=True)
+    name = Column(String(128), nullable=True)
     data_block_id = Column(
-        String(1024), ForeignKey(DataBlockMetadata.id), nullable=False
+        String(128), ForeignKey(DataBlockMetadata.id), nullable=False
     )
-    storage_url = Column(String(1024), nullable=False)
+    storage_url = Column(String(128), nullable=False)
     data_format: DataFormat = Column(DataFormatType, nullable=False)  # type: ignore
     # is_ephemeral = Column(Boolean, default=False) # TODO
     # Hints
@@ -302,9 +302,9 @@ class StoredDataBlockMetadata(BaseModel):
 
 class Alias(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    alias = Column(String(1024))
+    alias = Column(String(128))
     data_block_id = Column(
-        String(1024), ForeignKey(DataBlockMetadata.id), nullable=False
+        String(128), ForeignKey(DataBlockMetadata.id), nullable=False
     )
     stored_data_block_id = Column(
         String, ForeignKey(StoredDataBlockMetadata.id), nullable=False

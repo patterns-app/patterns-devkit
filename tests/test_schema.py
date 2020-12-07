@@ -16,6 +16,7 @@ from snapflow.core.typing.schema import (
     is_generic,
     schema_from_yaml,
     DEFAULT_UNICODE_TYPE,
+    DEFAULT_UNICODE_TEXT_TYPE,
 )
 from snapflow.modules import core
 from tests.utils import make_test_env, sample_records
@@ -88,7 +89,7 @@ def test_schema_inference():
     assert field_types["e"] == DEFAULT_UNICODE_TYPE
     assert field_types["f"] == DEFAULT_UNICODE_TYPE
     assert field_types["g"] == "BigInteger"
-    assert field_types["h"] == DEFAULT_UNICODE_TYPE
+    assert field_types["h"] == DEFAULT_UNICODE_TEXT_TYPE
     assert field_types["i"] == DEFAULT_UNICODE_TYPE
 
 
