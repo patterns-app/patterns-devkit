@@ -225,7 +225,9 @@ class DatabaseAPI:
             return True
         except (OperationalError, ProgrammingError) as x:
             s = str(x).lower()
-            if "does not exist" in s or "no such" in s:
+            if (
+                "does not exist" in s or "no such" in s or "doesn't exist" in s
+            ):  # TODO: HACK, implement this properly for each dialect
                 return False
             raise x
 
@@ -273,7 +275,7 @@ def drop_db(url: str, database_name: str):
     if url.startswith("sqlite"):
         return drop_sqlite_db(url, database_name)
     if "test" not in database_name:
-        i = input("Dropping db {database_name}, are you sure? (y/N)")
+        i = input(f"Dropping db {database_name}, are you sure? (y/N)")
         if not i.lower().startswith("y"):
             return
     sa = sqlalchemy.create_engine(url)

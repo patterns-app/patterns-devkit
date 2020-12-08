@@ -203,11 +203,14 @@ class ExecutionContext:
             yield RunSession(pl, self.metadata_session)
             # Only persist state on successful run
             pl.persist_state(self.metadata_session)
+
         except Exception as e:
             pl.set_error(e)
             raise e
         finally:
             pl.completed_at = utcnow()
+            self.metadata_session.add(pl)
+            self.metadata_session.flush()
 
     def add(self, obj: BaseModel) -> BaseModel:
         try:
@@ -483,9 +486,9 @@ class Worker:
                 if output.get_one() is None:
                     # Empty generator
                     return None
-            nominal_output_schema = (
-                runnable.bound_interface.resolve_nominal_output_schema(self.env)
-            )
+            nominal_output_schema = runnable.bound_interface.resolve_nominal_output_schema(
+                self.env
+            )  # TODO: could check output to see if it is LocalRecords with a schema too?
             logger.debug(
                 f"Resolved output schema {nominal_output_schema} {runnable.bound_interface}"
             )
