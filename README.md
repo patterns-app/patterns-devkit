@@ -1,7 +1,7 @@
 ![snapflow](https://github.com/kvh/snapflow/workflows/snapflow/badge.svg)
 
 <p align="center">
-  <img width="80" src="assets/bolt.svg">
+  <img width="80" src="assets/bolt.png">
 </p>
 <h3 align="center">Modern Data Pipelines</h3>
 <p>&nbsp;</p>
@@ -41,11 +41,8 @@ scale from laptop to AWS cluster.
      
  - **Zero cost abstractions and high performance** - snapflow makes its type and immutability
   guarantees at the abstraction level, so those guarantees can be compiled away at execution time
-  for high performance. Developers and analysts can work with clean mental models without
-  incurring performance costs at runtime. The snapflow compiler also optimizes across databases,
-  runtimes, and storages -- a query on BigQuery vs Redshift, data copy on S3 vs in-memory
-  -- and can optimize entire pipelines for the resources at hand, leading to overall performance
-  gains when adopting snapflow.
+  for high performance. Developers and analysts can work with clean mental models and strong
+  guarantees without incurring performance costs at runtime. 
   
 🚨️ &nbsp; snapflow is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️ 
 
@@ -55,8 +52,8 @@ scale from laptop to AWS cluster.
 
 ```python
 from snapflow import graph, produce
-from snapflow_stripe import stripe
-from snapflow_bi import bi
+import snapflow_stripe as stripe
+import snapflow_bi as bi
 
 
 # Build the graph
@@ -76,13 +73,13 @@ ltv_node.set_upstream(stripe_node)
 print(produce(ltv_node).as_dataframe())
 ```
 
-See [expanded example](#expanded-example) for a more detailed pipeline.
+See [expanded example](#expanded-example) below for a more detailed pipeline.
 
-### Architecture overview
+## Architecture overview
 
 Key elements of snapflow:
 
-#### Datablocks
+### Datablocks
 
 A `datablock` is an immutable set of data records of uniform `schema` -- think csv file
 or database table. `datablocks` are the basic data unit of snapflow, the unit that `pipes` take
@@ -93,7 +90,7 @@ mediums in one or more `dataformats` -- a CSV on the local file, a JSON string i
 table in a Postgres database, for example. Snapflow abstracts over specific formats and storage
 engines, and provides conversion and i/o between them while maintaining the integrity of the data.
 
-#### Pipes
+### Pipes
 
 `pipes` are the core computational unit of snapflow. They are functions that operate on
 `datablocks` and are added as nodes to a pipe graph, linking one node's output to another's
@@ -113,7 +110,7 @@ from txs
 group by customer_id
 ```
 
-#### Schemas
+### Schemas
 
 `schemas` define data schemas (similar to a database table schema) that let `pipes` specify the data
  structure they expect and allow them to inter-operate safely. They also
@@ -210,7 +207,7 @@ optional though, and should be used when the value they provide out-weighs the f
 introduce.
 
 
-#### Streams
+### Streams
 
 Datablock `streams` connect nodes in the pipe graph. By default each node's output is a simple
 stream of datablocks. These streams can be modified though with stream `operators`:
