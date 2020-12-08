@@ -1,24 +1,17 @@
 from __future__ import annotations
 
-import json
-import time
 from collections import abc
 from contextlib import contextmanager
-from dataclasses import MISSING, dataclass, field
+from dataclasses import dataclass, field
 from enum import Enum
-from itertools import tee
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
-    Generator,
-    Generic,
     Iterator,
     List,
     Optional,
-    Union,
-    cast,
 )
 
 import sqlalchemy
@@ -32,7 +25,6 @@ from snapflow.core.data_block import (
     Alias,
     DataBlock,
     DataBlockMetadata,
-    LocalMemoryDataRecords,
     ManagedDataBlock,
     StoredDataBlockMetadata,
     create_data_block_from_records,
@@ -50,16 +42,12 @@ from snapflow.core.pipe_interface import (
 )
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.storage.storage import LocalMemoryStorageEngine, Storage
-from snapflow.core.typing.schema import Schema, SchemaLike
 from snapflow.utils.common import (
-    DagsJSONEncoder,
     cf,
     error_symbol,
-    printd,
     success_symbol,
     utcnow,
 )
-from snapflow.utils.typing import C, S
 
 if TYPE_CHECKING:
     from snapflow.core.graph import Graph, GraphMetadata
@@ -390,7 +378,7 @@ class ExecutionManager:
                 pipe=pipe,
             ),
             bound_interface=interface_mgr.get_bound_interface(),
-            configuration=node.config,
+            configuration=node.config or {},
         )
         return worker.run(runnable)
 
