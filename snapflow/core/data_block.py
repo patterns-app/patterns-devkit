@@ -20,14 +20,13 @@ from snapflow.core.data_formats.database_table_ref import (
 )
 from snapflow.core.data_formats.records_list import RecordsList, RecordsListFormat
 from snapflow.core.environment import Environment
-from snapflow.core.metadata.orm import BaseModel, timestamp_rand_key
+from snapflow.core.metadata.orm import BaseModel, timestamp_increment_key
 from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.core.typing.schema import (
     Schema,
     SchemaKey,
     SchemaLike,
     SchemaTranslation,
-    is_any,
 )
 from snapflow.utils.common import as_identifier
 from snapflow.utils.typing import T
@@ -109,7 +108,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     # NOTE on block ids: we generate them dynamically so we don't have to hit a central db for a sequence
     # BUT we MUST ensure they are monotonically ordered -- the logic of selecting the correct (most recent)
     # block relies on strict monotonic IDs in some scenarios
-    id = Column(String(128), primary_key=True, default=timestamp_rand_key)
+    id = Column(String(128), primary_key=True, default=timestamp_increment_key)
     # id = Column(Integer, primary_key=True, autoincrement=True)
     inferred_schema_key: SchemaKey = Column(String(128), nullable=True)  # type: ignore
     nominal_schema_key: SchemaKey = Column(String(128), nullable=True)  # type: ignore
@@ -219,7 +218,7 @@ DataBlock = ManagedDataBlock
 
 
 class StoredDataBlockMetadata(BaseModel):
-    id = Column(String(128), primary_key=True, default=timestamp_rand_key)
+    id = Column(String(128), primary_key=True, default=timestamp_increment_key)
     # id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(128), nullable=True)
     data_block_id = Column(

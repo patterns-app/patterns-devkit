@@ -62,23 +62,20 @@ id_counter: int = 0
 last_second: str = ""
 
 
-def timestamp_rand_key() -> str:
+def timestamp_increment_key() -> str:
     """
-    Ensure ids are generated uniquely and are monotonic in time.
-    We add randomness to ensure we can handle separate processes.
-    (This is not contradictory since any job dependency coordination will
-    handle the risk that a separate process could generate a non-monotonic id --
-    ie ids generated on separate processes have no risk of being mis-ordered, unless
-    the jobs themselves are misordered)
+    Generates keys that are unique and monotonic in time for a given run.
+    Appends random chars to ensure multiple processes can run at once and not collide.
     """
     global id_counter, last_second
     curr_second = utcnow().strftime("%y%m%d%H%M%S")
     if last_second != curr_second:
         id_counter = 0
+    cntr = f"{id_counter:05}"
+    key = f"{curr_second}_{cntr}_{rand_str(3).lower()}"
     last_second = curr_second
     id_counter += 1
-    # return rand_str(8).lower()
-    return f"{curr_second}{id_counter:05}_{rand_str(3).lower()}"
+    return key
 
 
 ### Custom type ideas. Not needed atm
