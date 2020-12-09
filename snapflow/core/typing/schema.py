@@ -53,6 +53,12 @@ class Field:
     is_metadata: bool = False
     description: Optional[str] = None
 
+    def is_nullable(self) -> bool:
+        for v in self.validators:
+            if "nonnull" in v.name.lower():
+                return False
+        return True
+
 
 @dataclass(frozen=True)
 class Validator:
@@ -298,7 +304,7 @@ def conform_field_type(ft: str) -> str:
 
 def load_validator_from_dict(v: str) -> Validator:
     # TODO
-    return Validator()
+    return Validator(v)
 
 
 def schema_to_yaml(schema: Schema) -> str:

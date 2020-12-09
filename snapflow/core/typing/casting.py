@@ -59,6 +59,12 @@ def has_subset_fields(sub: Schema, supr: Schema) -> bool:
     return set(sub.field_names()) <= set(supr.field_names())
 
 
+def has_subset_nonnull_fields(sub: Schema, supr: Schema) -> bool:
+    sub_fields = [f.name for f in sub.fields if not f.is_nullable()]
+    supr_fields = [f.name for f in supr.fields if not f.is_nullable()]
+    return set(sub_fields) <= set(supr_fields)
+
+
 def update_matching_field_definitions(
     env: Environment, schema: Schema, update_with_schema: Schema
 ) -> Schema:
@@ -97,11 +103,15 @@ def cast_to_realized_schema(
             )
         else:
             return nominal_schema
-    else:
-        if cast_level >= CastToSchemaLevel.NONE:
-            raise SchemaTypeError(
-                f"Inferred schema does not have necessary columns and cast level set to {cast_level}. "
-                f"Inferred columns: {inferred_schema.field_names()}, "
-                f"nominal columns: {nominal_schema.field_names()} "
+    elif has_subset_nonnull_fields(nominal_schema, inferred_schema):
+        if cast_level < CastToSchemaLevel.HARD:
+            return update_matching_field_definitions(
+                env, inferred_schema, nominal_schema
             )
+    if cast_level >= CastToSchemaLevel.NONE:
+        raise SchemaTypeError(
+            f"Inferred schema does not have necessary columns and cast level set to {cast_level}. "
+            f"Inferred columns: {inferred_schema.field_names()}, "
+            f"nominal columns: {nominal_schema.field_names()} "
+        )
     return inferred_schema

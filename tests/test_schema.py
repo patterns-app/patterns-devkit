@@ -114,3 +114,8 @@ def test_any_schema():
     env.add_module(core)
     anyschema = env.get_schema("Any")
     assert anyschema.fields == []
+
+
+def test_schema_casting():
+    # TODO
+    pass
