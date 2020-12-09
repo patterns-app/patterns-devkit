@@ -271,13 +271,15 @@ class PipeContext:  # TODO: (Generic[C, S]):
     def emit_state(self, new_state: Dict):
         self.pipe_log.node_end_state = new_state
 
-    def should_continue(self):
+    def should_continue(self) -> bool:
         """
         Long running pipes should check this function periodically so
         as to honor time limits.
         """
+        # TODO: execution timelimit too?
+        #   Since long running will often be generators, could also enforce this at generator evaluation time?
         if not self.execution_context.node_timelimit_seconds:
-            return
+            return True
         seconds_elapsed = (utcnow() - self.pipe_log.started_at).total_seconds()
         return seconds_elapsed < self.execution_context.node_timelimit_seconds
 
