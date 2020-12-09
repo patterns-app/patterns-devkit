@@ -402,30 +402,42 @@ class Environment:
 def produce(
     *args,
     env: Optional[Environment] = None,
+    modules: Optional[List[SnapflowModule]] = None,
     **kwargs: Any,
 ) -> Optional[DataBlock]:
     if env is None:
         env = Environment()
+    if modules is not None:
+        for module in modules:
+            env.add_module(module)
     return env.produce(*args, **kwargs)
 
 
 def run_node(
     *args,
     env: Optional[Environment] = None,
+    modules: Optional[List[SnapflowModule]] = None,
     **kwargs: Any,
 ) -> Optional[DataBlock]:
     if env is None:
         env = Environment()
+    if modules is not None:
+        for module in modules:
+            env.add_module(module)
     return env.run_node(*args, **kwargs)
 
 
 def run_graph(
     *args,
     env: Optional[Environment] = None,
+    modules: Optional[List[SnapflowModule]] = None,
     **kwargs: Any,
 ):
     if env is None:
         env = Environment()
+    if modules is not None:
+        for module in modules:
+            env.add_module(module)
     return env.run_graph(*args, **kwargs)
 
 
