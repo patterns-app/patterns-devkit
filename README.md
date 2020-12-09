@@ -209,8 +209,9 @@ introduce.
 
 ### Streams
 
-Datablock `streams` connect nodes in the pipe graph. By default each node's output is a simple
-stream of datablocks. These streams can be modified though with stream `operators`:
+Datablock `streams` connect nodes in the pipe graph. By default every node's output is a simple
+stream of datablocks, consumed by one or more other downstream nodes. These streams can be modified
+though with stream **operators**:
 
 ```python
 from snapflow import node
@@ -223,12 +224,20 @@ big_blocks_only = filter(combined, function=lambda block: block.count() > 1000)
 n3 = node("n3", do_something, upstream=big_blocks_only)
 ```
 
-Common operators include `latest`, `merge`, `filter`. It is simple to create your own. 
+Common operators include `latest`, `merge`, `filter`. It's simple to create your own: 
 
+```python
+@operator
+def sample(stream: Stream, sample_rate: float = .5) -> Stream:
+    for block in stream:
+        if random.random() < sample_rate:
+            yield block
+```
 
 ## Other concepts
 
 ### Consistency and Immutability
+
 To the extent possible, snapflow maintains the same data and byte representation of `datablock`
 records across formats and storages. Not all formats and storages support all data representations,
 though -- for instance, empty / null / None / NA support differs
@@ -237,6 +246,7 @@ conversion or storage operation may produce data loss or corruption, snapflow wi
 warning or, if serious enough, fail with an error. 
  
 ### Environment and metadata
+
 A snapflow environment tracks the pipe graph, and acts as a registry for the `modules`,
 `runtimes`, and `storages` available to pipes. It is associated one-to-one with a single
 `metadata database`.  The primary responsibility of the metadata database is to track which
@@ -250,17 +260,16 @@ Developing new snapflow components is straightforward and can be done as part of
 a standalone component. 
 
 
-### Type system
+### Type system details
 
 Data blocks have three associated schemas:
- - inferred schema - the structure and datatypes automatically inferred from the actual data
- . inference is hard and prone to error and discrepancies
- - nominal schema - the schema that was declared (or resolved for generics) in the pipe graph
- - realized schema - the schema that was ultimately used to physically store the data on a specific
+ - Inferred schema - the structure and datatypes automatically inferred from the actual data
+ - Nominal schema - the schema that was declared (or resolved, for a generic) in the pipe graph
+ - Realized schema - the schema that was ultimately used to physically store the data on a specific
    storage (the schema used to create a database table, for instance)
   
 The realized schema is determined by the following factors:
- - The setting of CAST_TO_SCHEMA to one of "hard", "soft", or "none"
+ - The setting of `CAST_TO_SCHEMA_LEVEL` to one of `hard`, `soft`, or `none`
  - The discrepancies, if any, between the inferred schema and the nominal schema
  
 
@@ -268,18 +277,18 @@ The following table gives the logic for possible behavior of realized schema:
 
 |                                                                                                           | none                                       | soft (default)                                                                                                                                               | hard                                                                   |
 |-----------------------------------------------------------------------------------------------------------|--------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------|
-| inferred has subset of nominal fields                                                                     | realized is always equivalent to inferred  | realized schema will be the nominal schema, using inferred field definitions for extra fields.                                                               | realized always equivalent to nominal. extra fields will be discarded  |
-| inferred is missing nullable fields from nominal                                                          | realized is always equivalent to inferred  | realized schema will be the nominal schema, using inferred field definitions for extra fields, filling missing columns with NULL                             | exception will be raised (OR same as soft?)                            |
-| inferred is missing non-nullable fields from nominal                                                      | realized is always equivalent to inferred  | exception will be raised                                                                                                                                     | exception will be raised                                               |
-| inferred has datatype inconsistency with nominal field definition (eg a string in a nominal float field)  | realized is always equivalent to inferred  | realized schema will downcast to inferred datatype (and issue warning if WARN_ON_DOWNCAST). If FAIL_ON_DOWNCAST is set, an exception will instead be raised  | exception will be raised                                               |
+| inferred has subset of nominal fields                                                                     | realized is always equivalent to inferred  | realized schema == nominal schema, but use inferred field definitions for extra fields.                                                               | realized equivalent to nominal, extra fields are discarded  |
+| inferred is missing nullable fields from nominal                                                          | " "                                        | realized schema == nominal schema, but use inferred field definitions for extra fields, fill missing columns with NULL                             | exception is raised                             |
+| inferred is missing non-nullable fields from nominal                                                      | " "                                        | exception is raised                                                                                                                                     | exception is raised                                               |
+| inferred field has datatype mismatch with nominal field definition (eg string in a nominal float field)   | " "                                        | realized schema is downcast to inferred datatype (and warning issued if `WARN_ON_DOWNCAST`). If `FAIL_ON_DOWNCAST` is set, an exception is raised instead | exception is raised                                               |
 
 
 ## Expanded example
 
 ```python
 from snapflow import graph, produce, Environment
-from snapflow_stripe import stripe
-from snapflow_bi import bi
+import snapflow_stripe as stripe
+import snapflow_bi as bi
 
 
 # Setup env
@@ -294,8 +303,8 @@ stripe_node = g.create_node(
     key="stripe_txs",
     pipe=stripe.extract_charges,
     config={"api_key": "xxxxxxxx"},
-    # Create alias 'stripe_transactions' on the target storage (eg file symlink or database view)
-    # Default alias is the node key
+    # Create alias 'stripe_transactions' on the target storage (a database view in this case),
+    # instead of default of the node key.
     output_alias="stripe_transactions"
 )
 ltv_node = g.create_node(
@@ -306,7 +315,6 @@ ltv_node.set_upstream("stripe_txs")
 
 # Run
 output = env.produce(ltv_node, target_storage=mysql_db)
-output.create_alias(mysql_db, "ltv_model")
 output.as_dataframe()
 output.as_records_list()
 ```
