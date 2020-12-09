@@ -75,6 +75,9 @@ class GenericSchemaException(Exception):
     pass
 
 
+DEFAULT_INPUT_ANNOTATION = "DataBlock"
+
+
 @dataclass(frozen=True)
 class PipeAnnotation:
     data_format_class: str
@@ -112,7 +115,10 @@ class PipeAnnotation:
     @classmethod
     def from_parameter(cls, parameter: inspect.Parameter) -> PipeAnnotation:
         annotation = parameter.annotation
-        # is_optional = parameter.default != inspect.Parameter.empty
+        if annotation is inspect.Signature.empty:
+            if parameter.name not in ("ctx", "context"):  # TODO: hack
+                annotation = DEFAULT_INPUT_ANNOTATION
+        # is_optional = parameter.default != inspect.Parameter.empty  # TODO: how to specify optional?
         is_variadic = parameter.kind == inspect.Parameter.VAR_POSITIONAL
         tda = cls.from_type_annotation(
             annotation,
@@ -127,6 +133,8 @@ class PipeAnnotation:
         """
         Annotation of form `DataBlock[T]` for example
         """
+        if not annotation:
+            raise BadAnnotationException(f"Invalid Pipe annotation '{annotation}'")
         m = re_type_hint.match(
             annotation
         )  # TODO: get more strict with matches, for sql comment annotations (would be nice to have example where it fails...?)
@@ -186,11 +194,14 @@ class PipeInterface:
                 raise Exception("Return type annotation not a string")
             output = PipeAnnotation.from_type_annotation(ret)
         inputs = []
-        for name, param in signature.parameters.items():
+        parameters = list(signature.parameters.items())
+        for name, param in parameters:
             a = param.annotation
-            if a is not inspect.Signature.empty:
-                if not isinstance(a, str):
-                    raise Exception("Parameter type annotation not a string")
+            annotation_is_empty = a is inspect.Signature.empty
+            if not annotation_is_empty and not isinstance(a, str):
+                raise Exception(
+                    "Parameter type annotation not a string. (Try adding `from __future__ import annotations` to your file)"
+                )
             try:
                 a = PipeAnnotation.from_parameter(param)
                 inputs.append(a)
