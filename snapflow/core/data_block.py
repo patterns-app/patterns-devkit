@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from collections import abc
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple, Type
 
-import sqlalchemy as sa
 from loguru import logger
 from pandas import DataFrame
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, event, or_
@@ -15,19 +13,15 @@ from snapflow.core.data_formats import (
     DataFormatType,
     DataFrameFormat,
     get_data_format_of_object,
-    get_records_list_sample,
 )
-from snapflow.core.data_formats.base import MemoryDataFormat
 from snapflow.core.data_formats.database_table_ref import (
     DatabaseTableRef,
     DatabaseTableRefFormat,
 )
 from snapflow.core.data_formats.records_list import RecordsList, RecordsListFormat
 from snapflow.core.environment import Environment
-from snapflow.core.metadata.listeners import immutability_update_listener
 from snapflow.core.metadata.orm import BaseModel, timestamp_rand_key
 from snapflow.core.typing.casting import cast_to_realized_schema
-from snapflow.core.typing.inference import infer_schema_from_records_list
 from snapflow.core.typing.schema import (
     Schema,
     SchemaKey,

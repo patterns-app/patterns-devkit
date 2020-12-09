@@ -4,9 +4,8 @@ from dataclasses import dataclass
 
 from pandas import DataFrame
 
-from snapflow import RecordsList
 from snapflow.core.data_block import DataRecordsObject, as_records
-from snapflow.core.data_formats import RecordsListFormat, DataFrameFormat
+from snapflow.core.data_formats import DataFrameFormat, RecordsListFormat
 from snapflow.core.pipe import pipe
 from snapflow.core.runnable import PipeContext
 from snapflow.core.typing.schema import SchemaLike

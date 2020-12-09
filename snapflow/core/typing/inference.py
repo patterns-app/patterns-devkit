@@ -12,14 +12,14 @@ from sqlalchemy import Table
 from snapflow.core.data_formats import RecordsList
 from snapflow.core.module import DEFAULT_LOCAL_MODULE
 from snapflow.core.typing.schema import (
+    DEFAULT_UNICODE_TEXT_TYPE,
+    DEFAULT_UNICODE_TYPE,
+    MAX_UNICODE_LENGTH,
     ConflictBehavior,
     Field,
     Schema,
     create_quick_field,
     create_quick_schema,
-    DEFAULT_UNICODE_TYPE,
-    DEFAULT_UNICODE_TEXT_TYPE,
-    MAX_UNICODE_LENGTH,
 )
 from snapflow.utils.common import (
     ensure_bool,

@@ -4,15 +4,7 @@ from collections import abc
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional
 
 import sqlalchemy
 from loguru import logger
@@ -42,12 +34,7 @@ from snapflow.core.pipe_interface import (
 )
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.storage.storage import LocalMemoryStorageEngine, Storage
-from snapflow.utils.common import (
-    cf,
-    error_symbol,
-    success_symbol,
-    utcnow,
-)
+from snapflow.utils.common import cf, error_symbol, success_symbol, utcnow
 
 if TYPE_CHECKING:
     from snapflow.core.graph import Graph, GraphMetadata

@@ -10,13 +10,13 @@ from snapflow.core.typing.inference import (
     infer_schema_from_records_list,
 )
 from snapflow.core.typing.schema import (
+    DEFAULT_UNICODE_TEXT_TYPE,
+    DEFAULT_UNICODE_TYPE,
     GeneratedSchema,
     Schema,
     create_quick_schema,
     is_generic,
     schema_from_yaml,
-    DEFAULT_UNICODE_TYPE,
-    DEFAULT_UNICODE_TEXT_TYPE,
 )
 from snapflow.modules import core
 from tests.utils import make_test_env, sample_records

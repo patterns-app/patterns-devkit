@@ -27,10 +27,10 @@ from tests.utils import (
     pipe_chain_t1_to_t2,
     pipe_generic,
     pipe_self,
+    pipe_stream,
     pipe_t1_sink,
     pipe_t1_source,
     pipe_t1_to_t2,
-    pipe_stream,
 )
 
 

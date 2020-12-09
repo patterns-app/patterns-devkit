@@ -6,10 +6,10 @@ from .core.data_formats import (
     RecordsList,
     RecordsListGenerator,
 )
-from .core.environment import Environment, current_env, produce, run_node, run_graph
-from .core.graph import Graph, graph, DeclaredGraph
+from .core.environment import Environment, current_env, produce, run_graph, run_node
+from .core.graph import DeclaredGraph, Graph, graph
 from .core.module import SnapflowModule
-from .core.node import Node, node, DeclaredNode
+from .core.node import DeclaredNode, Node, node
 from .core.pipe import Pipe, pipe
 from .core.runnable import PipeContext
 from .core.sql.pipe import sql_pipe
