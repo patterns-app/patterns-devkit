@@ -13,7 +13,7 @@ from snapflow.core.pipe import Pipe, PipeInterface, PipeLike, pipe
 from snapflow.core.pipe_interface import (
     NodeInterfaceManager,
     PipeAnnotation,
-    get_schema_mapping,
+    get_schema_translation,
     make_default_output_annotation,
 )
 from snapflow.core.runnable import PipeContext
@@ -258,56 +258,60 @@ def test_generic_schema_resolution():
     assert bi.resolve_nominal_output_schema(env) is TestSchema1
 
 
-def test_declared_schema_mapping():
+def test_declared_schema_translation():
     ec = make_test_execution_context()
     env = ec.env
     g = Graph(env)
-    mapping = {"f1": "mapped_f1"}
-    n1 = g.create_node("node1", pipe_t1_to_t2, upstream="n0", schema_mapping=mapping)
+    translation = {"f1": "mapped_f1"}
+    n1 = g.create_node(
+        "node1", pipe_t1_to_t2, upstream="n0", schema_translation=translation
+    )
     pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
         nominal_schema_key="_test.TestSchema1",
         realized_schema_key="_test.TestSchema1",
     )
-    # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), mapping)
+    # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
     # assert len(bi.inputs) == 1
     # input: StreamInput = bi.inputs[0]
-    schema_mapping = get_schema_mapping(
+    schema_translation = get_schema_translation(
         env,
         block,
         declared_schema=pi.inputs[0].schema(env),
-        declared_schema_mapping=mapping,
+        declared_schema_translation=translation,
     )
-    assert schema_mapping.as_dict() == mapping
+    assert schema_translation.as_dict() == translation
 
 
-def test_natural_schema_mapping():
+def test_natural_schema_translation():
     # TODO
     ec = make_test_execution_context()
     env = ec.env
     g = Graph(env)
-    mapping = {"f1": "mapped_f1"}
-    n1 = g.create_node("node1", pipe_t1_to_t2, upstream="n0", schema_mapping=mapping)
+    translation = {"f1": "mapped_f1"}
+    n1 = g.create_node(
+        "node1", pipe_t1_to_t2, upstream="n0", schema_translation=translation
+    )
     pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
         nominal_schema_key="_test.TestSchema1",
         realized_schema_key="_test.TestSchema1",
     )
-    schema_mapping = get_schema_mapping(
+    schema_translation = get_schema_translation(
         env,
         block,
         declared_schema=pi.inputs[0].schema(env),
-        declared_schema_mapping=mapping,
+        declared_schema_translation=translation,
     )
-    assert schema_mapping.as_dict() == mapping
+    assert schema_translation.as_dict() == translation
     # bpi = im.get_bound_stream_interface({"input": block})
     # assert len(bpi.inputs) == 1
     # input = bpi.inputs[0]
-    # schema_mapping = input.get_schema_mapping(env)
-    # assert schema_mapping.as_dict() == mapping
+    # schema_translation = input.get_schema_translation(env)
+    # assert schema_translation.as_dict() == translation
 
 
 def test_inputs():

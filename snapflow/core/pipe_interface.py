@@ -25,7 +25,7 @@ from snapflow.core.typing.schema import (
     Schema,
     SchemaKey,
     SchemaLike,
-    SchemaMapping,
+    SchemaTranslation,
     is_any,
     is_generic,
 )
@@ -257,19 +257,24 @@ class PipeInterface:
         ), f"{inputs}  {self.get_non_recursive_inputs()}"
         return inputs
 
-    def assign_mapping(
-        self, declared_schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]]
+    def assign_translations(
+        self,
+        declared_schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]],
     ) -> Optional[Dict[str, Dict[str, str]]]:
-        if not declared_schema_mapping:
+        if not declared_schema_translation:
             return None
-        v = list(declared_schema_mapping.values())[0]
+        v = list(declared_schema_translation.values())[0]
         if isinstance(v, str):
-            # Just one mapping, so should be one input
-            assert len(self.get_non_recursive_inputs()) == 1, "Wrong number of mappings"
-            return {self.get_non_recursive_inputs()[0].name: declared_schema_mapping}
+            # Just one translation, so should be one input
+            assert (
+                len(self.get_non_recursive_inputs()) == 1
+            ), "Wrong number of translations"
+            return {
+                self.get_non_recursive_inputs()[0].name: declared_schema_translation
+            }
         if isinstance(v, dict):
-            return declared_schema_mapping
-        raise TypeError(declared_schema_mapping)
+            return declared_schema_translation
+        raise TypeError(declared_schema_translation)
 
     def connect(
         self, declared_inputs: Dict[str, DeclaredStreamInput]
@@ -277,17 +282,17 @@ class PipeInterface:
         inputs = []
         for annotation in self.inputs:
             input_stream_builder = None
-            mapping = None
+            translation = None
             assert annotation.name is not None
             dni = declared_inputs.get(annotation.name)
             if dni:
                 input_stream_builder = dni.stream
-                mapping = dni.declared_schema_mapping
+                translation = dni.declared_schema_translation
             ni = NodeInput(
                 name=annotation.name,
                 annotation=annotation,
                 input_stream_builder=input_stream_builder,
-                declared_schema_mapping=mapping,
+                declared_schema_translation=translation,
             )
             inputs.append(ni)
         return ConnectedInterface(
@@ -300,20 +305,20 @@ class PipeInterface:
 @dataclass(frozen=True)
 class DeclaredStreamLikeInput:
     stream_like: StreamLike
-    declared_schema_mapping: Optional[Dict[str, str]] = None
+    declared_schema_translation: Optional[Dict[str, str]] = None
 
 
 @dataclass(frozen=True)
 class DeclaredStreamInput:
     stream: StreamBuilder
-    declared_schema_mapping: Optional[Dict[str, str]] = None
+    declared_schema_translation: Optional[Dict[str, str]] = None
 
 
 @dataclass(frozen=True)
 class NodeInput:
     name: str
     annotation: PipeAnnotation
-    declared_schema_mapping: Optional[Dict[str, str]] = None
+    declared_schema_translation: Optional[Dict[str, str]] = None
     input_stream_builder: Optional[StreamBuilder] = None
 
 
@@ -342,7 +347,7 @@ class ConnectedInterface:
             si = StreamInput(
                 name=node_input.name,
                 annotation=node_input.annotation,
-                declared_schema_mapping=node_input.declared_schema_mapping,
+                declared_schema_translation=node_input.declared_schema_translation,
                 input_stream_builder=node_input.input_stream_builder,
                 is_stream=node_input.annotation.is_stream,
                 bound_stream=bound_stream,
@@ -360,7 +365,7 @@ class ConnectedInterface:
 class StreamInput:
     name: str
     annotation: PipeAnnotation
-    declared_schema_mapping: Optional[Dict[str, str]] = None
+    declared_schema_translation: Optional[Dict[str, str]] = None
     input_stream_builder: Optional[StreamBuilder] = None
     is_stream: bool = False
     bound_stream: Optional[DataBlockStream] = None
@@ -411,23 +416,23 @@ class BoundInterface:
         raise Exception(f"Unable to resolve generic '{output_generic}'")
 
 
-def get_schema_mapping(
+def get_schema_translation(
     env: Environment,
     data_block: DataBlockMetadata,
     declared_schema: Optional[Schema] = None,
-    declared_schema_mapping: Optional[Dict[str, str]] = None,
-) -> Optional[SchemaMapping]:
-    if declared_schema_mapping:
-        # If we are given a declared mapping, then that overrides a natural mapping
-        return SchemaMapping(
-            mapping=declared_schema_mapping,
+    declared_schema_translation: Optional[Dict[str, str]] = None,
+) -> Optional[SchemaTranslation]:
+    if declared_schema_translation:
+        # If we are given a declared translation, then that overrides a natural translation
+        return SchemaTranslation(
+            translation=declared_schema_translation,
             from_schema=data_block.realized_schema(env),
         )
     if declared_schema is None or is_any(declared_schema):
-        # Nothing expected, so no mapping needed
+        # Nothing expected, so no translation needed
         return None
     # Otherwise map found schema to expected schema
-    return data_block.realized_schema(env).get_mapping_to(env, declared_schema)
+    return data_block.realized_schema(env).get_translation_to(env, declared_schema)
 
 
 #
@@ -484,7 +489,7 @@ def get_schema_mapping(
 #     #         if i.bound_data_block is None:
 #     #             continue
 #     #         inputs[i.name] = i.bound_data_block.as_managed_data_block(
-#     #             ctx, mapping=i.get_schema_mapping(ctx.env)
+#     #             ctx, translation=i.get_schema_translation(ctx.env)
 #     #         )
 #     #     return inputs
 #
@@ -561,7 +566,7 @@ class NodeInterfaceManager:
             if annotation.is_self_ref:
                 inputs["this"] = DeclaredStreamInput(
                     stream=self.node.as_stream_builder(),
-                    declared_schema_mapping=self.node.get_schema_mapping_for_input(
+                    declared_schema_translation=self.node.get_schema_translation_for_input(
                         "this"
                     ),
                 )
@@ -602,7 +607,6 @@ class NodeInterfaceManager:
                     f"Couldnt find eligible DataBlocks for input `{input.name}` from {stream_builder}"
                 )
                 if not input.annotation.is_optional:
-                    # print(actual_input_node, annotation, storages)
                     raise InputExhaustedException(
                         f"    Required input '{input.name}'={stream_builder} to Pipe '{self.node.key}' is empty"
                     )
@@ -615,7 +619,7 @@ class NodeInterfaceManager:
                 input_streams[input.name] = stream_builder.as_managed_stream(
                     self.ctx,
                     declared_schema=declared_schema,
-                    declared_schema_mapping=input.declared_schema_mapping,
+                    declared_schema_translation=input.declared_schema_translation,
                 )
             any_unprocessed = True
 

@@ -32,11 +32,6 @@ def assert_dataframes_are_almost_equal(
         df2 = df2[[c for c in df2.columns if c not in ignored_columns]]
     assert df1.shape == df2.shape, f"Different shapes: {df1.shape} {df2.shape}"
     assert set(df1.columns) == set(df2.columns)
-    # TODO: for now giving benefit of doubt and try to cast dtypes, need to rethink as part of type improvements tho
-    # try: df1 = df1.astype(df2.dtypes)
-    # except: pass
-    # for c, d, dd in zip(df1.columns, list(df1.dtypes), list(df2.dtypes)):
-    #     print(f"{c:30} {str(d):20}", str(dd))
     if schema is not None:
         df1.sort_values(schema.unique_on, inplace=True)
         df2.sort_values(schema.unique_on, inplace=True)
@@ -62,25 +57,6 @@ def records_list_to_dataframe(records: RecordsList, schema: Schema) -> DataFrame
 
     df = DataFrame(records)
     return conform_dataframe_to_schema(df, schema)
-    # series = records_list_as_dict_of_lists(records)
-    # df = DataFrame()
-    # # print("=========")
-    # # print(schema.fields)
-    # for n, s in series.items():
-    #     f = schema.get_field(n)
-    #     if f is None:
-    #         dtype = None
-    #     else:
-    #         dtype = sqlalchemy_type_to_pandas_type(f.field_type)
-    #     # print(n, dtype, s)
-    #     try:
-    #         df[n] = Series(s, dtype=dtype)
-    #     except (TypeError, ValueError) as e:
-    #         # print("Type error:", n, dtype, s)
-    #         df[n] = Series(s)
-    #         df[n] = df[n].infer_objects()
-    # # print("Made DF: ", df.dtypes, id(df))
-    # return df
 
 
 def dataframe_to_records_list(df: DataFrame, schema: Schema = None) -> RecordsList:

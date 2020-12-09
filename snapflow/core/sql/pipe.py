@@ -94,7 +94,6 @@ def extract_interface(
     ignore_jinja=True,
     comment_annotations=True,
 ) -> TypedSqlStatement:
-    # debug = print
     # TODO: Bit of a nightmare. Need to extend a proper grammar/parser for this
     """
     Get all table names in a sql statement, optionally sub them with new names.
@@ -107,13 +106,10 @@ def extract_interface(
     new_sql: List[str] = []
     for stmt in sqlparse.parse(sql):
         for token in stmt.flatten():
-            # print(token, table_stmt_required, table_stmt)
             if new_sql:
                 state.prev_token = new_sql[-1]
             new_sql.append(str(token))
-            # debug("\t\t", token, "\t\t", token.ttype, type(token))
             if token.ttype in tokens.Comment:
-                # debug("comment", str(token), prev_select, prev_table_ref)
                 if (
                     comment_annotations
                     and state.previous_token_table_identifier is not None
@@ -131,7 +127,6 @@ def extract_interface(
             t = str(token).lower()
             if t == ",":
                 if state.table_identifier_stmt:
-                    # debug("table comma")
                     state.table_identifier_required_next = True
                     continue
             state.previous_token_table_identifier = None
@@ -141,14 +136,12 @@ def extract_interface(
                 continue
             if token.is_keyword:
                 if "join" in t or "from" in t:
-                    # debug("on", token)
                     state.table_identifier_stmt = True
                     state.table_identifier_required_next = True
                 else:
                     if "select" == t:
                         state.prev_token_was_select = True
                     if not state.table_identifier_required_next:
-                        # debug("off", token)
                         # Only turn off table_stmt if we don't require one
                         # Otherwise false positive here on table names that happen to be keywords
                         state.table_identifier_stmt = False
@@ -157,7 +150,6 @@ def extract_interface(
                         token.ttype = tokens.Name
             if token.ttype in tokens.Name:
                 if state.table_identifier_stmt:
-                    # debug("found", token)
                     table_ref = str(token)
                     table_identifier_annotations[table_ref] = None
                     state.previous_token_table_identifier = table_ref

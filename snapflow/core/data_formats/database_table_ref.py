@@ -6,7 +6,7 @@ from snapflow.core.data_formats.base import MemoryDataFormatBase
 
 if TYPE_CHECKING:
     from snapflow.core.data_block import LocalMemoryDataRecords
-    from snapflow.core.typing.schema import SchemaMapping, Schema
+    from snapflow.core.typing.schema import SchemaTranslation, Schema
 
 
 class DatabaseTableRef:
@@ -32,20 +32,20 @@ class DatabaseTableRefFormat(MemoryDataFormatBase):
         return obj
 
     @classmethod
-    def apply_schema_mapping(
-        cls, mapping: SchemaMapping, dtr: DatabaseTableRef
+    def apply_schema_translation(
+        cls, translation: SchemaTranslation, dtr: DatabaseTableRef
     ) -> DatabaseTableRef:
         """
-        Apply mapping as a sub-select, aliasing column names
+        Apply translation as a sub-select, aliasing column names
         """
-        if not mapping.from_schema:
+        if not translation.from_schema:
             raise NotImplementedError(
-                f"Schema mapping must provide `from_schema` when mapping a db table {mapping}"
+                f"Schema translation must provide `from_schema` when translation a db table {translation}"
             )
         table_stmt = dtr.table_stmt_sql
-        m = mapping.as_dict()
+        m = translation.as_dict()
         col_stmts = []
-        for f in mapping.from_schema.fields:
+        for f in translation.from_schema.fields:
             col_stmts.append(f"{f.name} as {m.get(f.name, f.name)}")
         columns_stmt = ",".join(col_stmts)
         sql = f"""

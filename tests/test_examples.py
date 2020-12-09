@@ -145,7 +145,6 @@ def test_repeated_runs():
     output = env.produce("metrics", g, target_storage=s)
     assert output.nominal_schema_key.endswith("Metric")
     records = output.as_records_list()
-    # print(DataBlockLog.summary(env))
     expected_records = [
         {"metric": "row_count", "value": 4},
         {"metric": "col_count", "value": 3},

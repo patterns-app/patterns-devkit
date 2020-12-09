@@ -80,9 +80,11 @@ class Implementation:
     def schema(self, env: Environment) -> Schema:
         return env.get_schema(self.schema_key)
 
-    def as_schema_mapping(self, env: Environment, other: Schema) -> SchemaMapping:
-        return SchemaMapping(
-            mapping=self.fields, from_schema=self.schema(env), to_schema=other
+    def as_schema_translation(
+        self, env: Environment, other: Schema
+    ) -> SchemaTranslation:
+        return SchemaTranslation(
+            translation=self.fields, from_schema=self.schema(env), to_schema=other
         )
 
 
@@ -177,35 +179,35 @@ class Schema:
         d["fields"] = fields
         return Schema(**d)
 
-    def get_mapping_to(
+    def get_translation_to(
         self, env: Environment, other: Schema
-    ) -> Optional[SchemaMapping]:
+    ) -> Optional[SchemaTranslation]:
         if not self.implementations:
             return None
         for impl in self.implementations:
             if impl.schema_key == other.key:
-                return impl.as_schema_mapping(env, other)
+                return impl.as_schema_translation(env, other)
         return None
 
 
 SchemaLike = Union[Schema, SchemaKey, SchemaName]
 
 
-class SchemaMapping:
+class SchemaTranslation:
     def __init__(
         self,
-        mapping: Optional[Dict[str, str]] = None,
+        translation: Optional[Dict[str, str]] = None,
         from_schema: Optional[Schema] = None,
         to_schema: Optional[Schema] = None,
     ):
-        self.mapping = mapping
+        self.translation = translation
         self.from_schema = from_schema
         self.to_schema = to_schema
 
     def as_dict(self) -> Dict[str, str]:
-        if not self.mapping:
+        if not self.translation:
             raise NotImplementedError
-        return self.mapping
+        return self.translation
 
 
 class GeneratedSchema(BaseModel):

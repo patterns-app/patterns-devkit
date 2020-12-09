@@ -10,7 +10,7 @@ from snapflow.utils.typing import T
 
 if TYPE_CHECKING:
     from snapflow.core.data_block import LocalMemoryDataRecords
-    from snapflow.core.typing.schema import SchemaMapping, Schema
+    from snapflow.core.typing.schema import SchemaTranslation, Schema
 
 
 class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
@@ -45,5 +45,7 @@ class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
         raise NotImplementedError
 
     @classmethod
-    def apply_schema_mapping(cls, mapping: SchemaMapping, df: DataFrame) -> DataFrame:
-        return df.rename(mapping.as_dict(), axis=1)
+    def apply_schema_translation(
+        cls, translation: SchemaTranslation, df: DataFrame
+    ) -> DataFrame:
+        return df.rename(translation.as_dict(), axis=1)

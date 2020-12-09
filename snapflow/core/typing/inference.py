@@ -87,7 +87,7 @@ def infer_schema_fields_from_records(
         # objs = [r.get(s) for r in records]
         satype2 = get_sqlalchemy_type_for_python_objects(d[s])
         # if satype != satype2:
-        #     print(f"Differing for {s}", satype, satype2)
+        #     logger.warning(f"Differing for {s}", satype, satype2)
         #     # satype2 = get_highest_precedence_sa_type([satype, satype2])
         f = create_quick_field(s, satype2)
         fields.append(f)
@@ -304,7 +304,6 @@ def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
     #     mode_type = mode(types)
     # except StatisticsError:
     #     mode_type = None
-    # print(f"Mode {mode_type} Dom {dom_type}")
     dom_type = get_highest_precedence_sa_type(list(set(types)))
     return dom_type
 

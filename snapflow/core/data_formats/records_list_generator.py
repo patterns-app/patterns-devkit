@@ -11,7 +11,7 @@ from snapflow.core.data_formats.records_list import (
 )
 
 if TYPE_CHECKING:
-    from snapflow.core.typing.schema import SchemaMapping
+    from snapflow.core.typing.schema import SchemaTranslation
     from snapflow import Schema
 
 
@@ -49,9 +49,9 @@ class RecordsListGeneratorFormat(MemoryDataFormatBase):
         return inferred_schema
 
     @classmethod
-    def apply_schema_mapping(
-        cls, mapping: SchemaMapping, rlg: RecordsListGenerator
+    def apply_schema_translation(
+        cls, translation: SchemaTranslation, rlg: RecordsListGenerator
     ) -> Iterator[RecordsList]:
-        m = mapping.as_dict()
+        m = translation.as_dict()
         for records in rlg.get_generator():
             yield map_recordslist(m, records)

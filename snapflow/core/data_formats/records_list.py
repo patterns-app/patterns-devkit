@@ -6,7 +6,7 @@ from snapflow.core.data_formats.base import MemoryDataFormatBase
 
 if TYPE_CHECKING:
     from snapflow import Schema
-    from snapflow.core.typing.schema import SchemaMapping
+    from snapflow.core.typing.schema import SchemaTranslation
 
 
 RecordsList = List[Dict[str, Any]]
@@ -60,8 +60,8 @@ class RecordsListFormat(MemoryDataFormatBase):
         return inferred_schema
 
     @classmethod
-    def apply_schema_mapping(
-        cls, mapping: SchemaMapping, records: RecordsList
+    def apply_schema_translation(
+        cls, translation: SchemaTranslation, records: RecordsList
     ) -> RecordsList:
-        m = mapping.as_dict()
+        m = translation.as_dict()
         return map_recordslist(m, records)

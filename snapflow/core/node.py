@@ -52,7 +52,7 @@ class DeclaredNode:
     upstream: Union[StreamLike, Dict[str, StreamLike]] = field(default_factory=dict)
     graph: Optional[DeclaredGraph] = None
     output_alias: Optional[str] = None
-    schema_mapping: Optional[Dict[str, Union[Dict[str, str], str]]] = None
+    schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None
 
     def __post_init__(self):
         from snapflow.core.graph import DEFAULT_GRAPH
@@ -109,7 +109,7 @@ def instantiate_node(
     else:
         pipe = make_pipe(declared_node.pipe)
     interface = pipe.get_interface()
-    schema_mapping = interface.assign_mapping(declared_node.schema_mapping)
+    schema_translation = interface.assign_translations(declared_node.schema_translation)
     declared_inputs: Dict[str, DeclaredStreamInput] = {}
     if declared_node.upstream is not None:
         for name, stream_like in interface.assign_inputs(
@@ -117,7 +117,7 @@ def instantiate_node(
         ).items():
             declared_inputs[name] = DeclaredStreamInput(
                 stream=ensure_stream(stream_like),
-                declared_schema_mapping=(schema_mapping or {}).get(name),
+                declared_schema_translation=(schema_translation or {}).get(name),
             )
     n = Node(
         env=env,
@@ -127,7 +127,7 @@ def instantiate_node(
         config=declared_node.config,
         interface=interface,
         declared_inputs=declared_inputs,
-        declared_schema_mapping=schema_mapping,
+        declared_schema_translation=schema_translation,
         output_alias=declared_node.output_alias,
     )
     return n
@@ -149,7 +149,7 @@ class Node:
     interface: PipeInterface
     declared_inputs: Dict[str, DeclaredStreamInput]
     output_alias: Optional[str] = None
-    declared_schema_mapping: Optional[Dict[str, Dict[str, str]]] = None
+    declared_schema_translation: Optional[Dict[str, Dict[str, str]]] = None
 
     def __repr__(self):
         return f"<{self.__class__.__name__}(key={self.key}, pipe={self.pipe.key})>"
@@ -175,8 +175,10 @@ class Node:
     def get_interface(self) -> PipeInterface:
         return self.interface
 
-    def get_schema_mapping_for_input(self, input_name: str) -> Optional[Dict[str, str]]:
-        return (self.declared_schema_mapping or {}).get(input_name)
+    def get_schema_translation_for_input(
+        self, input_name: str
+    ) -> Optional[Dict[str, str]]:
+        return (self.declared_schema_translation or {}).get(input_name)
 
     def as_stream_builder(self) -> StreamBuilder:
         from snapflow.core.streams import StreamBuilder

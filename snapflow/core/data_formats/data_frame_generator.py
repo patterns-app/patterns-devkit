@@ -11,7 +11,7 @@ from snapflow.core.data_formats.base import MemoryDataFormatBase, ReusableGenera
 
 if TYPE_CHECKING:
     from snapflow.core.data_block import LocalMemoryDataRecords
-    from snapflow.core.typing.schema import SchemaMapping, Schema
+    from snapflow.core.typing.schema import SchemaTranslation, Schema
 
 
 class DataFrameGenerator(ReusableGenerator[pd.DataFrame]):
@@ -54,8 +54,8 @@ class DataFrameGeneratorFormat(MemoryDataFormatBase):
         raise NotImplementedError
 
     @classmethod
-    def apply_schema_mapping(
-        cls, mapping: SchemaMapping, dfg: DataFrameGenerator
+    def apply_schema_translation(
+        cls, translation: SchemaTranslation, dfg: DataFrameGenerator
     ) -> Iterator[DataFrame]:
         for df in dfg.get_generator():
-            yield df.rename(mapping.as_dict(), axis=1)
+            yield df.rename(translation.as_dict(), axis=1)

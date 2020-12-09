@@ -32,7 +32,7 @@ from snapflow.core.typing.schema import (
     Schema,
     SchemaKey,
     SchemaLike,
-    SchemaMapping,
+    SchemaTranslation,
     is_any,
 )
 from snapflow.utils.common import as_identifier
@@ -149,9 +149,11 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self, ctx: ExecutionContext, schema_mapping: Optional[SchemaMapping] = None
+        self,
+        ctx: ExecutionContext,
+        schema_translation: Optional[SchemaTranslation] = None,
     ):
-        mgr = DataBlockManager(ctx, self, schema_mapping=schema_mapping)
+        mgr = DataBlockManager(ctx, self, schema_translation=schema_translation)
         return ManagedDataBlock(
             data_block_id=self.id,
             inferred_schema_key=self.inferred_schema_key,
@@ -318,12 +320,12 @@ class DataBlockManager:
         self,
         ctx: ExecutionContext,
         data_block: DataBlockMetadata,
-        schema_mapping: Optional[SchemaMapping] = None,
+        schema_translation: Optional[SchemaTranslation] = None,
     ):
 
         self.ctx = ctx
         self.data_block = data_block
-        self.schema_mapping = schema_mapping
+        self.schema_translation = schema_translation
 
     def __str__(self):
         return f"DRM: {self.data_block}, Local: {self.ctx.local_memory_storage}, rest: {self.ctx.storages}"
@@ -360,8 +362,8 @@ class DataBlockManager:
             self.ctx.env, self.ctx.local_memory_storage
         )
         obj = local_memory_storage.get_local_memory_data_records(sdb).records_object
-        if self.schema_mapping:
-            obj = fmt.apply_schema_mapping(self.schema_mapping, obj)
+        if self.schema_translation:
+            obj = fmt.apply_schema_translation(self.schema_translation, obj)
         return obj
 
     def get_or_create_local_stored_data_block(

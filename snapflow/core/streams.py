@@ -32,9 +32,9 @@ from snapflow.core.node import (
     NodeLike,
     PipeLog,
 )
-from snapflow.core.pipe_interface import get_schema_mapping
+from snapflow.core.pipe_interface import get_schema_translation
 from snapflow.core.storage.storage import Storage
-from snapflow.core.typing.schema import Schema, SchemaLike, SchemaMapping
+from snapflow.core.typing.schema import Schema, SchemaLike, SchemaTranslation
 from snapflow.utils.common import ensure_list
 
 if TYPE_CHECKING:
@@ -260,13 +260,13 @@ class StreamBuilder:
         self,
         ctx: ExecutionContext,
         declared_schema: Optional[Schema] = None,
-        declared_schema_mapping: Optional[Dict[str, str]] = None,
+        declared_schema_translation: Optional[Dict[str, str]] = None,
     ) -> ManagedDataBlockStream:
         return ManagedDataBlockStream(
             ctx,
             self,
             declared_schema=declared_schema,
-            declared_schema_mapping=declared_schema_mapping,
+            declared_schema_translation=declared_schema_translation,
         )
 
 
@@ -278,10 +278,10 @@ def block_as_stream(
     data_block: DataBlockMetadata,
     ctx: ExecutionContext,
     declared_schema: Optional[Schema] = None,
-    declared_schema_mapping: Optional[Dict[str, str]] = None,
+    declared_schema_translation: Optional[Dict[str, str]] = None,
 ) -> DataBlockStream:
     stream = block_as_stream_builder(data_block)
-    return stream.as_managed_stream(ctx, declared_schema, declared_schema_mapping)
+    return stream.as_managed_stream(ctx, declared_schema, declared_schema_translation)
 
 
 class ManagedDataBlockStream:
@@ -290,11 +290,11 @@ class ManagedDataBlockStream:
         ctx: ExecutionContext,
         stream_builder: StreamBuilder,
         declared_schema: Optional[Schema] = None,
-        declared_schema_mapping: Optional[Dict[str, str]] = None,
+        declared_schema_translation: Optional[Dict[str, str]] = None,
     ):
         self.ctx = ctx
         self.declared_schema = declared_schema
-        self.declared_schema_mapping = declared_schema_mapping
+        self.declared_schema_translation = declared_schema_translation
         self._blocks: List[DataBlock] = list(self._build_stream(stream_builder))
         self._stream: Iterator[DataBlock] = self.log_emitted(self._blocks)
         self._emitted_blocks: List[DataBlockMetadata] = []
@@ -318,13 +318,15 @@ class ManagedDataBlockStream:
         self, stream: Iterator[DataBlockMetadata]
     ) -> Iterator[DataBlock]:
         for db in stream:
-            schema_mapping = get_schema_mapping(
+            schema_translation = get_schema_translation(
                 self.ctx.env,
                 db,
                 declared_schema=self.declared_schema,
-                declared_schema_mapping=self.declared_schema_mapping,
+                declared_schema_translation=self.declared_schema_translation,
             )
-            mdb = db.as_managed_data_block(self.ctx, schema_mapping=schema_mapping)
+            mdb = db.as_managed_data_block(
+                self.ctx, schema_translation=schema_translation
+            )
             yield mdb
 
     @property
