@@ -3,6 +3,10 @@
 <p align="center">
   <img width="80" src="assets/bolt.png">
 </p>
+<p>&nbsp;</p>
+<p align="center">
+  <img width="500" src="assets/snapfow.svg">
+</p>
 <h3 align="center">Modern Data Pipelines</h3>
 <p>&nbsp;</p>
 
@@ -94,10 +98,6 @@ that emit or create datablocks every time they are run. This stream of blocks is
 then be consumed by downstream nodes, each in turn may emit their own blocks, and so on. Nodes
 can be run in any order, any number of times. Each time, they consume any new blocks
 from upstream until there are none left unprocessed, or they are requested to stop.
-
-<p align="center">
-  <img src="assets/pipe-diagram.svg">
-</p>
 
 Below are more details on the key components of snapflow.
 
