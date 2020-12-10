@@ -22,7 +22,7 @@ Snapflow brings the best practices learned over the last 60 years in software to
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
 scale from laptop to AWS cluster.
 
-### Features:
+### Features / Goals:
 
  - **Reusable modules and components** - Hundreds of `pipes` and `schemas` ready to
    plug into pipelines in the snapflow repository [Coming soon].
@@ -51,75 +51,98 @@ scale from laptop to AWS cluster.
 `pip install snapflow snapflow-stripe snapflow-bi`
 
 ```python
-from snapflow import graph, produce
+from snapflow import graph, produce, operators
 import snapflow_stripe as stripe
-import snapflow_bi as bi
 
-
-# Build the graph
 g = graph()
-stripe_node = g.create_node(
-    key="stripe_txs",
-    pipe=stripe.extract_charges,
-    config={"api_key": "xxxxxxxx"},
-)
-ltv_node = g.create_node(
-    key="ltv_model",
-    pipe=bi.transaction_ltv_model,
-)
-ltv_node.set_upstream(stripe_node)
 
-# Run
-print(produce(ltv_node).as_dataframe())
+# Fetch Stripe charges from API:
+stripe_source_node = g.create_node(
+    key="stripe_charges_extract",
+    pipe=stripe.pipes.extract_charges,
+    config={"api_key": "sk_test_4eC39HqLyjWDarjtT1zdp7dc"},
+)
+
+# Accumulate all charges:
+stripe_charges_node = g.create_node(
+    key="stripe_charges",
+    pipe="core.dataframe_accumulator",
+)
+stripe_charges_node.set_upstream("stripe_charges_extract")
+
+# Define custom pipe:
+def customer_lifetime_sales(block):
+    df = block.as_dataframe()
+    return df.groupby("customer")["amount"].sum().reset_index()
+
+lifetime_sales = g.create_node(
+    key="customer_lifetime_sales",
+    pipe=customer_lifetime_sales,
+)
+# Take latest accumulated output as input:
+lifetime_sales.set_upstream(operators.latest(stripe_charges_node))
+
+# Run:
+output = produce(lifetime_sales, modules=[stripe])
+print(output.as_dataframe()
 ```
 
 See [expanded example](#expanded-example) below for a more detailed pipeline.
 
 ## Architecture overview
 
-Key elements of snapflow:
+All snapflow pipelines are directed graphs of nodes, consisting of one or more "source" nodes
+that emit or create datablocks every time they are run. This stream of blocks is
+then be consumed by downstream nodes, each in turn may emit their own blocks, and so on. Nodes
+can be run in any order, any number of times. Each time, they consume any new blocks
+from upstream until there are none left unprocessed, or they are requested to stop.
+
+![architecture](assets/pipe-diagram.svg)
+
+Below are more details on the key components of snapflow.
 
 ### Datablocks
 
 A `datablock` is an immutable set of data records of uniform `schema` -- think csv file
 or database table. `datablocks` are the basic data unit of snapflow, the unit that `pipes` take
-as input and produce as output. Once created a datablock's data will never change: no records will
+as input and produce as output. Once created, a datablock's data will never change: no records will
 be added or deleted or data points modified. More precisely, `datablocks` are a reference to an
-abstract ideal of the records; in practice, a DataBlock is stored on one or more `storage`
-mediums in one or more `dataformats` -- a CSV on the local file, a JSON string in memory, or a
-table in a Postgres database, for example. Snapflow abstracts over specific formats and storage
-engines, and provides conversion and i/o between them while maintaining the integrity of the data.
+abstract ideal of a set of records, and will have one or more `StoredDataBlocks` persisting those
+records on a specific `storage` mediums in a specific `dataformat` -- a CSV on the
+local file, a JSON string in memory, or a table in Postgres. Snapflow abstracts over specific
+formats and storage engines, and provides conversion and i/o between them while doing its best
+to maintain byte-perfect consistency -- to the extent possible for a given format and storage.
 
 ### Pipes
 
 `pipes` are the core computational unit of snapflow. They are functions that operate on
 `datablocks` and are added as nodes to a pipe graph, linking one node's output to another's
-input via `streams`. Pipes are written in python or sql. Below are two equivalent and valid pipes:
+input via `streams`. Pipes are written in python or sql. Below are two equivalent example pipes:
  
 ```python
 def sales(txs: DataBlock) -> DataBlock:  
     df = txs.as_dataframe()
-    return df.groupby("customer_id").sum("amount")
+    return df.groupby("customer_id").sum("amount").reset_index()
 ```
 
 ```sql
 select
     customer_id
-  , sum(amount)
+  , sum(amount) as amount
 from txs
 group by customer_id
 ```
 
 ### Schemas
 
-`schemas` define data schemas (similar to a database table schema) that let `pipes` specify the data
- structure they expect and allow them to inter-operate safely. They also
+`schemas` are record type definitions (think database table schema) that let `pipes` specify the
+ data structure they expect and allow them to inter-operate safely. They also
 provide a natural place for field descriptions, validation logic, deduplication
 behavior, and other metadata associated with a specific type of data record.
 
-`Schemas` behave like _interfaces_ in other languages. The snapflow type system is structurally and
-gradually typed -- types are both optional and inferred, there is no formal type hierarchy, and
-type compatibility can be inspected at runtime. A type is `compatible` with another
+`schemas` behave like _interfaces_ in other languages. The snapflow type system is structurally and
+gradually typed -- types are both optional and inferred, there is no explicit type hierarchy, and
+type compatibility can be inspected at runtime. A type is subtype of, or "compatible" with, another
 type if it defines a superset of compatible fields or if it provides an `implementation`
 of that type.
 
@@ -149,7 +172,7 @@ fields:
     type: Unicode(256)
 ```
 
-We could also specify `relationships` and `implementations` of this type to other types:
+We could also specify `relationships` and `implementations` of this type with other types:
 
 ```yaml
 relationships:
@@ -164,14 +187,15 @@ implementations:
 ```
 
 Here we have _implemented_ the `common.TimeSeries` schema, so any `pipe` that accepts
-timeseries data, say a seasonal adjustment pipe, can now be applied to this `Order` data. We could
-also apply this schema implementations at declaration time with the `schema_translation` arg:
+timeseries data, say a seasonality modeling pipe, can now be applied to this `Order` data. We could
+also apply this schema implementation ad-hoc at node declaration time with the
+`schema_translation` arg:
  
  ```python
 orders = node("orders", order_source)
 n = node(
-    "seasonal_adj",
-    seasonal_adjustment,
+    "seasonality",
+    seasonality,
     upstream=orders,
     schema_translation={
         "datetime": "date",
@@ -184,18 +208,20 @@ n = node(
  
 ```python
 # In python, use python's type annotations to specify expected schemas:  
+@pipe
 def sales(txs: DataBlock[Transaction]) -> DataBlock[CustomerMetric]:  
     df = txs.as_dataframe()
-    return df.groupby("customer_id").sum("amount")
+    return df.groupby("customer_id").sum("amount").reset_index()
 ```
 
-In SQL, we add type hints with comments after the `select` statement and after table identifiers:
+In SQL, we add type hints with comments after the `select` statement (for output) and after table
+ identifiers (for inputs):
 
 ```sql
 -- In SQL, we use comments to specify expected schemas
-select --:CustomerMetric
+select -- :CustomerMetric
     customer_id
-  , sum(amount)
+  , sum(amount) as amount
 from txs -- :Transaction
 group by customer_id
 ```
@@ -203,15 +229,15 @@ group by customer_id
 Typing is always optional, our original pipe definitions were valid with
 no annotated `schemas`. Snapflow `schemas` are a powerful mechanism for producing reusable
 components and building maintainable large-scale data projects and ecosystems. They are always
-optional though, and should be used when the value they provide out-weighs the friction they
+optional though, and should be used when the utility they provide out-weighs the friction they
 introduce.
 
 
 ### Streams
 
 Datablock `streams` connect nodes in the pipe graph. By default every node's output is a simple
-stream of datablocks, consumed by one or more other downstream nodes. These streams can be modified
-though with stream **operators**:
+stream of datablocks, consumed by one or more other downstream nodes. Stream **operators** allow
+ you to manipulate these streams:
 
 ```python
 from snapflow import node
@@ -234,6 +260,9 @@ def sample(stream: Stream, sample_rate: float = .5) -> Stream:
             yield block
 ```
 
+It's important to note that streams, unlike pipes, never _create_ new datablocks or have any
+ effect on what is stored on disk. They only alter _which_ datablocks end up as input to a node.
+
 ## Other concepts
 
 ### Consistency and Immutability
@@ -247,17 +276,18 @@ warning or, if serious enough, fail with an error.
  
 ### Environment and metadata
 
-A snapflow environment tracks the pipe graph, and acts as a registry for the `modules`,
+A snapflow `environment` tracks the pipe graph, and acts as a registry for the `modules`,
 `runtimes`, and `storages` available to pipes. It is associated one-to-one with a single
 `metadata database`.  The primary responsibility of the metadata database is to track which
-pipes have processed which DataBlocks, and the state of pipes. In this sense, the environment and
+nodes have processed which DataBlocks, and the state of nodes. In this sense, the environment and
 its associated metadata database contain all the "state" of a snapflow project. If you delete the
- metadata database, you will have effectively "reset" your snapflow project.
+metadata database, you will have effectively "reset" your snapflow project. (You will
+NOT have deleted any actual data produced by the pipeline, though it will be orphaned.)
 
 ### Component Development
 
-Developing new snapflow components is straightforward and can be done as part of a snapflow `module` or as
-a standalone component. 
+Developing new snapflow components is straightforward and can be done as part of a snapflow
+`module` or as a standalone component. Module development guide and tools coming soon.
 
 
 ### Type system details
