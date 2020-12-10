@@ -1,4 +1,4 @@
-exclude: '.mypy_cache'
+exclude: '.mypy_cache|.pytest_cache'
 repos:
   - repo: https://github.com/psf/black
     rev: stable

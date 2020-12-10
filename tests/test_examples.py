@@ -9,7 +9,6 @@ import pandas as pd
 import pytest
 from loguru import logger
 from pandas._testing import assert_almost_equal
-
 from snapflow import DataBlock, pipe, sql_pipe
 from snapflow.core.data_formats import RecordsList, RecordsListGenerator
 from snapflow.core.environment import Environment
@@ -28,7 +27,7 @@ def test_example():
     env.add_storage("memory://test")
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
-    g.create_node("n1", "extract_dataframe", config={"dataframe": df})
+    g.create_node(key="n1", pipe="extract_dataframe", config={"dataframe": df})
     output = env.produce("n1", g)
     assert_almost_equal(output.as_dataframe(), df)
 
@@ -139,8 +138,8 @@ def test_repeated_runs():
     s = env.add_storage("memory://test")
     # Initial graph
     N = 2 * 4
-    g.create_node("source", customer_source, config={"total_records": N})
-    g.create_node("metrics", shape_metrics, upstream="source")
+    g.create_node(key="source", pipe=customer_source, config={"total_records": N})
+    g.create_node(key="metrics", pipe=shape_metrics, upstream="source")
     # Run first time
     output = env.produce("metrics", g, target_storage=s)
     assert output.nominal_schema_key.endswith("Metric")
@@ -162,7 +161,9 @@ def test_repeated_runs():
     assert output is None
 
     # now add new node and process all at once
-    g.create_node("new_accumulator", "core.dataframe_accumulator", upstream="source")
+    g.create_node(
+        key="new_accumulator", pipe="core.dataframe_accumulator", upstream="source"
+    )
     output = env.produce("new_accumulator", g, target_storage=s)
     records = output.as_records_list()
     assert len(records) == N

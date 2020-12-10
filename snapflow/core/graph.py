@@ -16,15 +16,16 @@ from typing import (
 
 import networkx as nx
 from loguru import logger
+from snapflow.core.metadata.orm import BaseModel
+from snapflow.core.node import DeclaredNode, Node, NodeLike, node
+from snapflow.core.pipe import PipeLike
+from snapflow.utils.common import md5_hash, remove_dupes
 from sqlalchemy import Column, String
 from sqlalchemy.sql.sqltypes import JSON
 
-from snapflow.core.metadata.orm import BaseModel
-from snapflow.core.node import DeclaredNode, Node, NodeLike, instantiate_node
-from snapflow.utils.common import md5_hash, remove_dupes
-
 if TYPE_CHECKING:
     from snapflow import Environment
+    from snapflow.core.streams import StreamLike
 
 
 class NodeDoesNotExist(KeyError):
@@ -53,14 +54,33 @@ class DeclaredGraph:
         s = "Nodes:\n------\n" + "\n".join(self._nodes.keys())
         return s
 
-    def create_node(self, *args, **kwargs) -> DeclaredNode:
-        dn = DeclaredNode(*args, **kwargs)
+    def create_node(
+        self,
+        pipe: Union[PipeLike, str],
+        key: Optional[str] = None,
+        config: Dict[str, Any] = None,
+        upstream: Union[StreamLike, Dict[str, StreamLike]] = None,
+        graph: Optional[DeclaredGraph] = None,
+        output_alias: Optional[str] = None,
+        schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
+    ) -> DeclaredNode:
+        dn = node(
+            pipe=pipe,
+            key=key,
+            config=config,
+            upstream=upstream,
+            graph=graph,
+            output_alias=output_alias,
+            schema_translation=schema_translation,
+        )
         self.add_node(dn)
         return dn
 
     def add_node(self, node: DeclaredNode):
         if node.key in self._nodes:
-            raise KeyError(f"Duplicate node key {node.key}")
+            raise KeyError(
+                f"Duplicate node key `{node.key}`. Specify a distinct key for the node (key='unique_key')"
+            )
         node.graph = self
         self._nodes[node.key] = node
 

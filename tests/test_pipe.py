@@ -4,7 +4,6 @@ from typing import Callable
 
 import pytest
 from pandas import DataFrame
-
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.graph import Graph, graph
 from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
@@ -235,7 +234,7 @@ def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
     else:
         raise
     assert val == expected
-    node = DeclaredNode("_test", pipe=pipe, upstream="mock").instantiate(env)
+    node = DeclaredNode(key="_test", pipe=pipe, upstream="mock").instantiate(env)
     assert node.get_interface() == expected
 
 
@@ -243,7 +242,7 @@ def test_generic_schema_resolution():
     ec = make_test_execution_context()
     env = ec.env
     g = Graph(env)
-    n1 = g.create_node("node1", pipe_generic, upstream="n0")
+    n1 = g.create_node(key="node1", pipe=pipe_generic, upstream="n0")
     pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
@@ -264,7 +263,7 @@ def test_declared_schema_translation():
     g = Graph(env)
     translation = {"f1": "mapped_f1"}
     n1 = g.create_node(
-        "node1", pipe_t1_to_t2, upstream="n0", schema_translation=translation
+        key="node1", pipe=pipe_t1_to_t2, upstream="n0", schema_translation=translation
     )
     pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
@@ -292,7 +291,7 @@ def test_natural_schema_translation():
     g = Graph(env)
     translation = {"f1": "mapped_f1"}
     n1 = g.create_node(
-        "node1", pipe_t1_to_t2, upstream="n0", schema_translation=translation
+        key="node1", pipe=pipe_t1_to_t2, upstream="n0", schema_translation=translation
     )
     pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
@@ -317,11 +316,11 @@ def test_natural_schema_translation():
 def test_inputs():
     env = make_test_env()
     g = Graph(env)
-    g.create_node("node1", pipe_t1_source)
-    n2 = g.create_node("node2", pipe_t1_to_t2, upstream={"input": "node1"})
+    g.create_node(key="node1", pipe=pipe_t1_source)
+    n2 = g.create_node(key="node2", pipe=pipe_t1_to_t2, upstream={"input": "node1"})
     pi = n2.get_interface()
     assert pi is not None
-    n3 = g.create_node("node3", pipe_chain_t1_to_t2, upstream="node1")
+    n3 = g.create_node(key="node3", pipe=pipe_chain_t1_to_t2, upstream="node1")
     pi = n3.get_interface()
     assert pi is not None
 
@@ -356,7 +355,7 @@ def test_node_no_inputs():
     env = make_test_env()
     g = Graph(env)
     df = pipe(pipe_t1_source)
-    node1 = g.create_node("node1", df)
+    node1 = g.create_node(key="node1", pipe=df)
     assert {node1: node1}[node1] is node1  # Test hash
     pi = node1.get_interface()
     assert pi.inputs == []
@@ -368,9 +367,9 @@ def test_node_inputs():
     env = make_test_env()
     g = Graph(env)
     df = pipe(pipe_t1_source)
-    node = g.create_node("node", df)
+    node = g.create_node(key="node", pipe=df)
     df = pipe(pipe_t1_sink)
-    node1 = g.create_node("node1", df, upstream=node)
+    node1 = g.create_node(key="node1", pipe=df, upstream=node)
     pi = node1.get_interface()
     assert len(pi.inputs) == 1
     assert pi.output == make_default_output_annotation()
@@ -392,7 +391,7 @@ def test_node_config():
     def pipe_ctx(ctx: PipeContext):
         config_vals.append(ctx.get_config_value("test"))
 
-    n = g.create_node("ctx", pipe_ctx, config={"test": 1, "extra_arg": 2})
+    n = g.create_node(key="ctx", pipe=pipe_ctx, config={"test": 1, "extra_arg": 2})
     with env.execution(g) as exe:
         exe.run(n)
     assert config_vals == [1]

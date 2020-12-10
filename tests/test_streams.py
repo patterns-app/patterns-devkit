@@ -37,10 +37,16 @@ class TestStreams:
             nominal_schema_key="_test.TestSchema2",
             realized_schema_key="_test.TestSchema2",
         )
-        self.node_source = self.g.create_node("pipe_source", pipe_t1_source)
-        self.node1 = self.g.create_node("pipe1", pipe_t1_sink, upstream="pipe_source")
-        self.node2 = self.g.create_node("pipe2", pipe_t1_to_t2, upstream="pipe_source")
-        self.node3 = self.g.create_node("pipe3", pipe_generic, upstream="pipe_source")
+        self.node_source = self.g.create_node(key="pipe_source", pipe=pipe_t1_source)
+        self.node1 = self.g.create_node(
+            key="pipe1", pipe=pipe_t1_sink, upstream="pipe_source"
+        )
+        self.node2 = self.g.create_node(
+            key="pipe2", pipe=pipe_t1_to_t2, upstream="pipe_source"
+        )
+        self.node3 = self.g.create_node(
+            key="pipe3", pipe=pipe_generic, upstream="pipe_source"
+        )
         self.sess = ctx.metadata_session
         self.dr1t1 = ctx.merge(self.dr1t1)
         self.dr2t1 = ctx.merge(self.dr2t1)

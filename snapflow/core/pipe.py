@@ -6,7 +6,6 @@ from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
 from pandas import DataFrame
-
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.data_formats import DatabaseTableRef, RecordsList
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
@@ -49,8 +48,10 @@ def get_runtime_class(runtime: Optional[str]) -> RuntimeClass:
     return RuntimeClass.PYTHON
 
 
-def make_pipe_name(pipe: PipeCallable) -> str:
+def make_pipe_name(pipe: Union[PipeCallable, str]) -> str:
     # TODO: something more principled / explicit?
+    if isinstance(pipe, str):
+        return pipe
     if hasattr(pipe, "name"):
         return pipe.name  # type: ignore
     if hasattr(pipe, "__name__"):

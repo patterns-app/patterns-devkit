@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from snapflow.core.graph import Graph
 from snapflow.modules import core
 from tests.utils import (
@@ -19,14 +18,16 @@ def make_graph() -> Graph:
     env = make_test_env()
     env.add_module(core)
     g = Graph(env)
-    g.create_node("node1", pipe_t1_source)
-    g.create_node("node2", pipe_t1_source)
-    g.create_node("node3", pipe_t1_to_t2, upstream="node1")
-    g.create_node("node4", pipe_t1_to_t2, upstream="node2")
-    g.create_node("node5", pipe_generic, upstream="node4")
-    g.create_node("node6", pipe_self, upstream="node4")
+    g.create_node(key="node1", pipe=pipe_t1_source)
+    g.create_node(key="node2", pipe=pipe_t1_source)
+    g.create_node(key="node3", pipe=pipe_t1_to_t2, upstream="node1")
+    g.create_node(key="node4", pipe=pipe_t1_to_t2, upstream="node2")
+    g.create_node(key="node5", pipe=pipe_generic, upstream="node4")
+    g.create_node(key="node6", pipe=pipe_self, upstream="node4")
     g.create_node(
-        "node7", pipe_multiple_input, upstream={"input": "node4", "other_t2": "node3"}
+        key="node7",
+        pipe=pipe_multiple_input,
+        upstream={"input": "node4", "other_t2": "node3"},
     )
     return g
 
@@ -34,7 +35,7 @@ def make_graph() -> Graph:
 def test_dupe_node():
     g = make_graph()
     with pytest.raises(KeyError):
-        g.create_node("node1", pipe_t1_source)
+        g.create_node(key="node1", pipe=pipe_t1_source)
 
 
 def test_declared_graph():

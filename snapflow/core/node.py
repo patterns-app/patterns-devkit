@@ -6,12 +6,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from loguru import logger
-from sqlalchemy.orm import Session, relationship
-from sqlalchemy.orm.relationships import RelationshipProperty
-from sqlalchemy.sql.functions import func
-from sqlalchemy.sql.schema import Column, ForeignKey
-from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
-
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
@@ -22,6 +16,11 @@ from snapflow.core.pipe_interface import (
     PipeInterface,
 )
 from snapflow.utils.common import as_identifier
+from sqlalchemy.orm import Session, relationship
+from sqlalchemy.orm.relationships import RelationshipProperty
+from sqlalchemy.sql.functions import func
+from sqlalchemy.sql.schema import Column, ForeignKey
+from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
 if TYPE_CHECKING:
     from snapflow.core.runnable import ExecutionContext
@@ -46,8 +45,8 @@ def ensure_stream(stream_like: StreamLike) -> StreamBuilder:
 
 @dataclass
 class DeclaredNode:
-    key: str
     pipe: Union[PipeLike, str]
+    key: str
     config: Dict[str, Any] = field(default_factory=dict)
     upstream: Union[StreamLike, Dict[str, StreamLike]] = field(default_factory=dict)
     graph: Optional[DeclaredGraph] = None
@@ -96,7 +95,26 @@ class DeclaredNode:
         return instantiate_node(env, g, self)
 
 
-node = DeclaredNode
+def node(
+    pipe: Union[PipeLike, str],
+    key: Optional[str] = None,
+    config: Dict[str, Any] = None,
+    upstream: Union[StreamLike, Dict[str, StreamLike]] = None,
+    graph: Optional[DeclaredGraph] = None,
+    output_alias: Optional[str] = None,
+    schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
+) -> DeclaredNode:
+    if key is None:
+        key = make_pipe_name(pipe)
+    return DeclaredNode(
+        pipe=pipe,
+        key=key,
+        config=config or {},
+        upstream=upstream or {},
+        graph=graph,
+        output_alias=output_alias,
+        schema_translation=schema_translation,
+    )
 
 
 def instantiate_node(
