@@ -87,8 +87,6 @@ output = produce(lifetime_sales, modules=[stripe])
 print(output.as_dataframe()
 ```
 
-See [expanded example](#expanded-example) below for a more detailed pipeline.
-
 ## Architecture overview
 
 All snapflow pipelines are directed graphs of nodes, consisting of one or more "source" nodes
@@ -97,7 +95,9 @@ then be consumed by downstream nodes, each in turn may emit their own blocks, an
 can be run in any order, any number of times. Each time, they consume any new blocks
 from upstream until there are none left unprocessed, or they are requested to stop.
 
-![architecture](assets/pipe-diagram.svg)
+<p align="center">
+  <img src="assets/pipe-diagram.svg">
+</p>
 
 Below are more details on the key components of snapflow.
 
@@ -312,39 +312,3 @@ The following table gives the logic for possible behavior of realized schema:
 | inferred is missing non-nullable fields from nominal                                                      | " "                                        | exception is raised                                                                                                                                     | exception is raised                                               |
 | inferred field has datatype mismatch with nominal field definition (eg string in a nominal float field)   | " "                                        | realized schema is downcast to inferred datatype (and warning issued if `WARN_ON_DOWNCAST`). If `FAIL_ON_DOWNCAST` is set, an exception is raised instead | exception is raised                                               |
 
-
-## Expanded example
-
-```python
-from snapflow import graph, produce, Environment
-import snapflow_stripe as stripe
-import snapflow_bi as bi
-
-
-# Setup env
-metadata_db = "postgres://localhost:5432/metadata"
-env = Environment(metadata_db)
-mysql_db = env.add_storage("mysql://localhost:3306/snapflow")
-env.add_module(stripe, bi)
-
-# Build the graph
-g = graph()
-stripe_node = g.create_node(
-    key="stripe_txs",
-    pipe=stripe.extract_charges,
-    config={"api_key": "xxxxxxxx"},
-    # Create alias 'stripe_transactions' on the target storage (a database view in this case),
-    # instead of default of the node key.
-    output_alias="stripe_transactions"
-)
-ltv_node = g.create_node(
-    key="ltv_model",
-    pipe=bi.transaction_ltv_model,
-)
-ltv_node.set_upstream("stripe_txs") 
-
-# Run
-output = env.produce(ltv_node, target_storage=mysql_db)
-output.as_dataframe()
-output.as_records_list()
-```
