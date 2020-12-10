@@ -5,7 +5,7 @@
 </p>
 <p>&nbsp;</p>
 <p align="center">
-  <img width="500" src="assets/snapfow.svg">
+  <img width="500" src="assets/snapflow.svg">
 </p>
 <h3 align="center">Modern Data Pipelines</h3>
 <p>&nbsp;</p>
