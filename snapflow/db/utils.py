@@ -1,9 +1,8 @@
 from collections.abc import Generator
 from typing import Iterable, List
 
-from sqlalchemy.engine import ResultProxy, RowProxy
-
 from snapflow.core.data_formats import RecordsList
+from sqlalchemy.engine import ResultProxy, RowProxy
 
 
 def result_proxy_to_records_list(

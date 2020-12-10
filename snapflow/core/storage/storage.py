@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, Dict, Optional, Type
 from urllib.parse import urlparse
 
 from loguru import logger
-
 from snapflow.core.data_block import LocalMemoryDataRecords, StoredDataBlockMetadata
 from snapflow.core.data_formats import (
     DatabaseCursorFormat,

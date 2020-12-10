@@ -8,10 +8,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional
 
 import sqlalchemy
 from loguru import logger
-from sqlalchemy.engine import ResultProxy
-from sqlalchemy.exc import InvalidRequestError
-from sqlalchemy.orm import Session
-
 from snapflow.core.conversion import convert_lowest_cost
 from snapflow.core.data_block import (
     Alias,
@@ -35,6 +31,9 @@ from snapflow.core.pipe_interface import (
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.storage.storage import LocalMemoryStorageEngine, Storage
 from snapflow.utils.common import cf, error_symbol, success_symbol, utcnow
+from sqlalchemy.engine import ResultProxy
+from sqlalchemy.exc import InvalidRequestError
+from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
     from snapflow.core.graph import Graph, GraphMetadata

@@ -3,21 +3,10 @@ from __future__ import annotations
 import json
 import os
 from contextlib import contextmanager
-from typing import (
-    TYPE_CHECKING,
-    Callable,
-    Iterator,
-    List,
-    Tuple,
-    Type,
-)
+from typing import TYPE_CHECKING, Callable, Iterator, List, Tuple, Type
 
 import sqlalchemy
 from loguru import logger
-from sqlalchemy import MetaData
-from sqlalchemy.engine import Connection, Engine, ResultProxy
-from sqlalchemy.exc import OperationalError, ProgrammingError
-
 from snapflow.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from snapflow.core.data_formats import DatabaseTableFormat, RecordsList
 from snapflow.core.environment import Environment
@@ -28,6 +17,9 @@ from snapflow.core.typing.inference import infer_schema_from_db_table
 from snapflow.core.typing.schema import Schema
 from snapflow.utils.common import DagsJSONEncoder, rand_str
 from snapflow.utils.data import conform_records_for_insert
+from sqlalchemy import MetaData
+from sqlalchemy.engine import Connection, Engine, ResultProxy
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 if TYPE_CHECKING:
     pass

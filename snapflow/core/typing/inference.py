@@ -7,8 +7,6 @@ import pandas as pd
 from dateutil.parser import ParserError
 from loguru import logger
 from pandas import DataFrame, Series
-from sqlalchemy import Table
-
 from snapflow.core.data_formats import RecordsList
 from snapflow.core.module import DEFAULT_LOCAL_MODULE
 from snapflow.core.typing.schema import (
@@ -31,6 +29,7 @@ from snapflow.utils.common import (
     title_to_snake_case,
 )
 from snapflow.utils.data import is_nullish, read_json, records_list_as_dict_of_lists
+from sqlalchemy import Table
 
 if TYPE_CHECKING:
     from snapflow.db.api import DatabaseAPI

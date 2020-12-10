@@ -1,7 +1,6 @@
 from typing import Any, Sequence
 
 import pandas as pd
-
 from snapflow.core.conversion.converter import (
     ConversionCostLevel,
     Converter,

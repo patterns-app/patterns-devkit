@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
 
-from sqlalchemy.engine import ResultProxy
-
 from snapflow.core.data_formats.base import DataFormatBase, MemoryDataFormatBase
+from sqlalchemy.engine import ResultProxy
 
 
 class DatabaseCursorFormat(MemoryDataFormatBase):

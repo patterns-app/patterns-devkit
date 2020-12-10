@@ -2,7 +2,6 @@ from io import IOBase
 from typing import Any, Generator, Sequence
 
 import pandas as pd
-
 from snapflow.core.conversion.converter import (
     ConversionCostLevel,
     Converter,

@@ -5,7 +5,6 @@ from typing import Any, List, Tuple
 
 import pandas as pd
 import pytest
-
 from snapflow.core.data_formats import (
     DatabaseCursorFormat,
     DataFormatBase,

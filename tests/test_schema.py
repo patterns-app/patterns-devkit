@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import asdict
 
 import pytest
-
 from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
 from snapflow.core.typing.inference import (
     infer_schema_fields_from_records,

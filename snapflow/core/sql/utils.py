@@ -6,15 +6,14 @@ import jinja2
 import sqlalchemy as sa
 from jinja2 import nodes
 from jinja2.ext import Extension
-from sqlalchemy import Column, MetaData, Table
-from sqlalchemy.dialects import mysql, postgresql, sqlite
-from sqlalchemy.engine import Dialect
-from sqlalchemy.sql.ddl import CreateTable
-
 from snapflow.core.environment import Environment
 from snapflow.core.storage.storage import StorageEngine
 from snapflow.core.typing.schema import Field, Schema
 from snapflow.utils.common import rand_str
+from sqlalchemy import Column, MetaData, Table
+from sqlalchemy.dialects import mysql, postgresql, sqlite
+from sqlalchemy.engine import Dialect
+from sqlalchemy.sql.ddl import CreateTable
 
 core_dir = os.path.dirname(__file__)
 

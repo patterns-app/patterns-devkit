@@ -4,8 +4,6 @@ import collections
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
-from sqlalchemy import types
-
 from snapflow.core.data_formats.base import (
     DataFormat,
     DataFormatBase,
@@ -30,6 +28,7 @@ from snapflow.core.data_formats.records_list_generator import (
     RecordsListGenerator,
     RecordsListGeneratorFormat,
 )
+from sqlalchemy import types
 
 
 class DataFormatRegistry:

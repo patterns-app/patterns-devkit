@@ -5,7 +5,6 @@ from typing import List, Optional
 import pandas as pd
 from pandas import DataFrame, Index, Series
 from pandas._testing import assert_almost_equal
-
 from snapflow.core.data_formats import RecordsList
 from snapflow.core.typing.schema import Schema
 from snapflow.utils.data import is_nullish, records_list_as_dict_of_lists

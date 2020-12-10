@@ -1,8 +1,7 @@
 from loguru import logger
+from snapflow.utils.common import cf, printd
 from sqlalchemy import event
 from sqlalchemy.orm import object_session, sessionmaker
-
-from snapflow.utils.common import cf, printd
 
 
 def add_persisting_sdb_listener(session_maker: sessionmaker):

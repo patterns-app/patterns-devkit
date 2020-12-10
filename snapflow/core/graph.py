@@ -169,13 +169,13 @@ class Graph:
 
     def as_nx_graph(self) -> nx.DiGraph:
         g = nx.DiGraph()
-        for node in self.all_nodes():
-            g.add_node(node.key)
-            inputs = node.declared_inputs
+        for n in self.all_nodes():
+            g.add_node(n.key)
+            inputs = n.declared_inputs
             for input_stream in inputs.values():
                 for input_node_key in input_stream.stream.source_node_keys():
                     g.add_node(input_node_key)
-                    g.add_edge(input_node_key, node.key)
+                    g.add_edge(input_node_key, n.key)
             # TODO: self ref edge?
         return g
 

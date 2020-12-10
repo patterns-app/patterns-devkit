@@ -6,7 +6,6 @@ from datetime import date, datetime, time, timedelta
 import pytest
 from numpy import NaN
 from pandas import DataFrame
-
 from snapflow.utils.common import (
     DagsJSONEncoder,
     StringEnum,

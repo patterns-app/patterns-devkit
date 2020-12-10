@@ -8,13 +8,12 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from loguru import logger
-from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
-
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.core.typing.schema import GeneratedSchema, Schema, SchemaLike
 from snapflow.logging.event import Event, EventHandler, EventSubject, event_factory
+from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
 
 if TYPE_CHECKING:
     from snapflow.core.storage.storage import (

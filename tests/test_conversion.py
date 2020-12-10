@@ -4,7 +4,6 @@ import tempfile
 from typing import Optional
 
 import pytest
-
 from snapflow.core.conversion import (
     StorageFormat,
     convert_lowest_cost,

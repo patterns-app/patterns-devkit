@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Generator, Iterator, Optional, Type
 
 import pandas as pd
 from pandas import DataFrame
-
 from snapflow.core.data_formats import DataFrameFormat
 from snapflow.core.data_formats.base import MemoryDataFormatBase, ReusableGenerator
 

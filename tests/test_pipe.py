@@ -243,7 +243,7 @@ def test_generic_schema_resolution():
     env = ec.env
     g = Graph(env)
     n1 = g.create_node(key="node1", pipe=pipe_generic, upstream="n0")
-    pi = n1.get_interface()
+    # pi = n1.get_interface()
     im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
         nominal_schema_key="_test.TestSchema1",
@@ -266,7 +266,7 @@ def test_declared_schema_translation():
         key="node1", pipe=pipe_t1_to_t2, upstream="n0", schema_translation=translation
     )
     pi = n1.get_interface()
-    im = NodeInterfaceManager(ctx=ec, node=n1)
+    # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
         nominal_schema_key="_test.TestSchema1",
         realized_schema_key="_test.TestSchema1",
@@ -294,7 +294,7 @@ def test_natural_schema_translation():
         key="node1", pipe=pipe_t1_to_t2, upstream="n0", schema_translation=translation
     )
     pi = n1.get_interface()
-    im = NodeInterfaceManager(ctx=ec, node=n1)
+    # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
         nominal_schema_key="_test.TestSchema1",
         realized_schema_key="_test.TestSchema1",
@@ -326,7 +326,6 @@ def test_inputs():
 
 
 def test_python_pipe():
-    env = make_test_env()
     p = pipe(pipe_t1_sink)
     assert (
         p.name == pipe_t1_sink.__name__

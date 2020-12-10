@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pandas import DataFrame
-
 from snapflow import DataBlock, pipe
 from snapflow.core.node import DataBlockLog
 from snapflow.core.sql.pipe import sql_pipe

@@ -15,7 +15,6 @@ from typing import Any, Dict, Generic, List, Optional, Set, Tuple, Type, Union
 import pytz
 from colorful import Colorful
 from dateutil import parser
-
 from snapflow.utils.typing import K, T, V
 
 DEBUG = False

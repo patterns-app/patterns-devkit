@@ -6,10 +6,9 @@ from itertools import tee
 from typing import Any, Dict, Generic, List, Optional, Type
 
 import pandas as pd
-from sqlalchemy.engine import ResultProxy
-
 from snapflow.core.data_formats.base import DataFormatBase, MemoryDataFormatBase
 from snapflow.utils.typing import T
+from sqlalchemy.engine import ResultProxy
 
 
 class FilePointer:

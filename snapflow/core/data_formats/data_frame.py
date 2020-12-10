@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 import pandas as pd
 from pandas import DataFrame
-
 from snapflow.core.data_formats.base import MemoryDataFormatBase
 from snapflow.utils.typing import T
 

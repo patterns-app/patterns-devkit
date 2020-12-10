@@ -14,9 +14,6 @@ from typing import (
 )
 
 from loguru import logger
-from sqlalchemy import and_, not_
-from sqlalchemy.orm import Query
-
 from snapflow.core.data_block import (
     DataBlock,
     DataBlockMetadata,
@@ -36,6 +33,8 @@ from snapflow.core.pipe_interface import get_schema_translation
 from snapflow.core.storage.storage import Storage
 from snapflow.core.typing.schema import Schema, SchemaLike, SchemaTranslation
 from snapflow.utils.common import ensure_list
+from sqlalchemy import and_, not_
+from sqlalchemy.orm import Query
 
 if TYPE_CHECKING:
     from snapflow.core.runnable import ExecutionContext

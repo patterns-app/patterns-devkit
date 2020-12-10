@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from pandas import DataFrame
-
 from snapflow.core.data_block import DataRecordsObject, as_records
 from snapflow.core.data_formats import DataFrameFormat, RecordsListFormat
 from snapflow.core.pipe import pipe

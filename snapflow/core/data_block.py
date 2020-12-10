@@ -5,9 +5,6 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple, Type
 
 from loguru import logger
 from pandas import DataFrame
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, event, or_
-from sqlalchemy.orm import RelationshipProperty, Session, relationship
-
 from snapflow.core.data_formats import (
     DataFormat,
     DataFormatType,
@@ -22,14 +19,11 @@ from snapflow.core.data_formats.records_list import RecordsList, RecordsListForm
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import BaseModel, timestamp_increment_key
 from snapflow.core.typing.casting import cast_to_realized_schema
-from snapflow.core.typing.schema import (
-    Schema,
-    SchemaKey,
-    SchemaLike,
-    SchemaTranslation,
-)
+from snapflow.core.typing.schema import Schema, SchemaKey, SchemaLike, SchemaTranslation
 from snapflow.utils.common import as_identifier
 from snapflow.utils.typing import T
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, event, or_
+from sqlalchemy.orm import RelationshipProperty, Session, relationship
 
 if TYPE_CHECKING:
     from snapflow.core.conversion import (

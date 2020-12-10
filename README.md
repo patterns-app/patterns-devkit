@@ -30,25 +30,25 @@ scale from laptop to AWS cluster.
 
  - **Reusable modules and components** - Hundreds of `pipes` and `schemas` ready to
    plug into pipelines in the snapflow repository [Coming soon].
-   
+
     - Connect Stripe data to LTV models and plot a cohort chart
     - Blend stock prices and with macroeconomic data from FRED
     - Export SaaS metrics to Google Sheets, Tableau, or Looker
-    
+
    and much more, instantly and out of the box.
-     
+
  - **Testability** - Modular `pipes` allow individual steps in a data process to be
-   independently tested and QA'd with the same rigor as software. 
-     
+   independently tested and QA'd with the same rigor as software.
+
  - **Flexibility** - snapflow lets you build data flows on and across any database or file system.
    It works with big or small data, in both batch and streaming modes.
-     
+
  - **Zero cost abstractions and high performance** - snapflow makes its type and immutability
   guarantees at the abstraction level, so those guarantees can be compiled away at execution time
   for high performance. Developers and analysts can work with clean mental models and strong
-  guarantees without incurring performance costs at runtime. 
-  
-🚨️ &nbsp; snapflow is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️ 
+  guarantees without incurring performance costs at runtime.
+
+🚨️ &nbsp; snapflow is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️
 
 ### Example
 
@@ -62,28 +62,21 @@ g = graph()
 
 # Fetch Stripe charges from API:
 stripe_source_node = g.create_node(
-    key="stripe_charges_extract",
-    pipe=stripe.pipes.extract_charges,
-    config={"api_key": "sk_test_4eC39HqLyjWDarjtT1zdp7dc"},
+    stripe.pipes.extract_charges,
+    config={"api_key": "xxxxxxxxxxxx"},
 )
 
 # Accumulate all charges:
-stripe_charges_node = g.create_node(
-    key="stripe_charges",
-    pipe="core.dataframe_accumulator",
-)
-stripe_charges_node.set_upstream("stripe_charges_extract")
+stripe_charges_node = g.create_node("core.dataframe_accumulator")
+stripe_charges_node.set_upstream(stripe_source_node)
 
 # Define custom pipe:
 def customer_lifetime_sales(block):
     df = block.as_dataframe()
     return df.groupby("customer")["amount"].sum().reset_index()
 
-lifetime_sales = g.create_node(
-    key="customer_lifetime_sales",
-    pipe=customer_lifetime_sales,
-)
-# Take latest accumulated output as input:
+# Add node and take latest accumulated output as input:
+lifetime_sales = g.create_node(customer_lifetime_sales)
 lifetime_sales.set_upstream(operators.latest(stripe_charges_node))
 
 # Run:
@@ -118,9 +111,9 @@ to maintain byte-perfect consistency -- to the extent possible for a given forma
 `pipes` are the core computational unit of snapflow. They are functions that operate on
 `datablocks` and are added as nodes to a pipe graph, linking one node's output to another's
 input via `streams`. Pipes are written in python or sql. Below are two equivalent example pipes:
- 
+
 ```python
-def sales(txs: DataBlock) -> DataBlock:  
+def sales(txs: DataBlock) -> DataBlock:
     df = txs.as_dataframe()
     return df.groupby("customer_id").sum("amount").reset_index()
 ```
@@ -190,9 +183,9 @@ Here we have _implemented_ the `common.TimeSeries` schema, so any `pipe` that ac
 timeseries data, say a seasonality modeling pipe, can now be applied to this `Order` data. We could
 also apply this schema implementation ad-hoc at node declaration time with the
 `schema_translation` arg:
- 
+
  ```python
-orders = node("orders", order_source)
+orders = node(order_source)
 n = node(
     "seasonality",
     seasonality,
@@ -205,11 +198,11 @@ n = node(
 
 `pipes` can declare the `schemas` they expect with type hints, allowing them to specify the
  (minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
- 
+
 ```python
-# In python, use python's type annotations to specify expected schemas:  
+# In python, use python's type annotations to specify expected schemas:
 @pipe
-def sales(txs: DataBlock[Transaction]) -> DataBlock[CustomerMetric]:  
+def sales(txs: DataBlock[Transaction]) -> DataBlock[CustomerMetric]:
     df = txs.as_dataframe()
     return df.groupby("customer_id").sum("amount").reset_index()
 ```
@@ -243,14 +236,14 @@ stream of datablocks, consumed by one or more other downstream nodes. Stream **o
 from snapflow import node
 from snapflow.operators import merge, filter
 
-n1 = node("n1", source1)
-n2 = node("n2", source2)
+n1 = node(source1)
+n2 = node(source2)
 combined = merge(n1, n2)
 big_blocks_only = filter(combined, function=lambda block: block.count() > 1000)
-n3 = node("n3", do_something, upstream=big_blocks_only)
+n3 = node(do_something, upstream=big_blocks_only)
 ```
 
-Common operators include `latest`, `merge`, `filter`. It's simple to create your own: 
+Common operators include `latest`, `merge`, `filter`. It's simple to create your own:
 
 ```python
 @operator
@@ -272,8 +265,8 @@ records across formats and storages. Not all formats and storages support all da
 though -- for instance, empty / null / None / NA support differs
 significantly across common data formats, runtimes, and storage engines. When it notices a
 conversion or storage operation may produce data loss or corruption, snapflow will try to emit a
-warning or, if serious enough, fail with an error. 
- 
+warning or, if serious enough, fail with an error.
+
 ### Environment and metadata
 
 A snapflow `environment` tracks the pipe graph, and acts as a registry for the `modules`,
@@ -297,11 +290,11 @@ Data blocks have three associated schemas:
  - Nominal schema - the schema that was declared (or resolved, for a generic) in the pipe graph
  - Realized schema - the schema that was ultimately used to physically store the data on a specific
    storage (the schema used to create a database table, for instance)
-  
+
 The realized schema is determined by the following factors:
  - The setting of `CAST_TO_SCHEMA_LEVEL` to one of `hard`, `soft`, or `none`
  - The discrepancies, if any, between the inferred schema and the nominal schema
- 
+
 
 The following table gives the logic for possible behavior of realized schema:
 
@@ -311,4 +304,3 @@ The following table gives the logic for possible behavior of realized schema:
 | inferred is missing nullable fields from nominal                                                          | " "                                        | realized schema == nominal schema, but use inferred field definitions for extra fields, fill missing columns with NULL                             | exception is raised                             |
 | inferred is missing non-nullable fields from nominal                                                      | " "                                        | exception is raised                                                                                                                                     | exception is raised                                               |
 | inferred field has datatype mismatch with nominal field definition (eg string in a nominal float field)   | " "                                        | realized schema is downcast to inferred datatype (and warning issued if `WARN_ON_DOWNCAST`). If `FAIL_ON_DOWNCAST` is set, an exception is raised instead | exception is raised                                               |
-

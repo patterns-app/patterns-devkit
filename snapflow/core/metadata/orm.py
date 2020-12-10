@@ -1,11 +1,10 @@
 from collections import OrderedDict
 from typing import Any
 
+from snapflow.utils.common import cf, rand_str, title_to_snake_case, utcnow
 from sqlalchemy import Column, DateTime, func
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm.exc import DetachedInstanceError
-
-from snapflow.utils.common import cf, rand_str, title_to_snake_case, utcnow
 
 SNAPFLOW_METADATA_TABLE_PREFIX = "_snapflow_"
 

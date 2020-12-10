@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from pandas import DataFrame
-
 from snapflow import DataBlockStream
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment

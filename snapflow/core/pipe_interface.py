@@ -3,16 +3,9 @@ from __future__ import annotations
 import inspect
 import re
 from dataclasses import asdict, dataclass, field
-from typing import (
-    TYPE_CHECKING,
-    Dict,
-    List,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Dict, List, Optional, Union
 
 from loguru import logger
-
 from snapflow.core.data_block import DataBlock, DataBlockMetadata, ManagedDataBlock
 from snapflow.core.environment import Environment
 from snapflow.core.typing.schema import (

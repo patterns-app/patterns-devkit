@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from pandas import DataFrame
-from sqlalchemy.orm import Session
-
 from snapflow import DataBlock, Environment, Graph, Pipe, Storage
 from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DataBlockLog, Node, PipeLog
@@ -15,6 +13,7 @@ from snapflow.core.typing.schema import Schema, SchemaLike
 from snapflow.utils.common import rand_str
 from snapflow.utils.data import read_csv, read_json, read_raw_string_csv
 from snapflow.utils.pandas import records_list_to_dataframe
+from sqlalchemy.orm import Session
 
 
 def get_tmp_sqlite_db_url(dbname=None):
@@ -105,13 +104,15 @@ def produce_pipe_output_for_static_input(
         if isinstance(input_data, str):
             input_data = DataInput(data=input_data)
         n = g.create_node(
-            f"_input_{input.name}",
-            "core.extract_dataframe",
+            key=f"_input_{input.name}",
+            pipe="core.extract_dataframe",
             config={
                 "dataframe": input_data.as_dataframe(env),
                 "schema": input_data.get_schema_key(),
             },
         )
         input_nodes[input.name] = n
-    test_node = g.create_node(f"{pipe.name}", pipe, config=config, upstream=input_nodes)
+    test_node = g.create_node(
+        key=f"{pipe.name}", pipe=pipe, config=config, upstream=input_nodes
+    )
     return env.produce(test_node, to_exhaustion=False, target_storage=target_storage)
