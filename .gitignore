@@ -112,6 +112,7 @@ cython_debug/
 tmp/*
 
 # Editors
+.vscode
 *~
 .idea
 
