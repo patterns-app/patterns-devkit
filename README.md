@@ -10,10 +10,10 @@
 <h3 align="center">Modern Data Pipelines</h3>
 <p>&nbsp;</p>
 
-**Snapflow** is a framework for building **end-to-end functional data pipelines** from modular
+**Snapflow** is a framework for building end-to-end **functional data pipelines** from modular
 components. Snapflow abstracts over underlying database, runtime, and storage resources with
 functional type-aware data graphs that operate on streams of **immutable** `datablocks`. These graphs are
-composed of discrete `pipes` written in python or SQL and connect to
+composed of discrete `pipes` written in **python or SQL** and connect to
 form end-to-end data pipelines, from API extraction to SQL transformation to analysis, modeling, and
 visualization.
 
