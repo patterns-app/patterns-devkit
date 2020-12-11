@@ -143,7 +143,7 @@ class ExecutionContext:
         int
     ] = None  # TODO: this is a "soft" limit, could imagine a "hard" one too
     execution_timelimit_seconds: Optional[int] = None
-    logger: Callable[[str], None] = (lambda s: print(s, end=""))
+    logger: Callable[[str], None] = lambda s: print(s, end="")
 
     def clone(self, **kwargs):
         args = dict(
@@ -362,7 +362,10 @@ class ExecutionManager:
         pipe = node.pipe
         runnable = Runnable(
             node_key=node.key,
-            compiled_pipe=CompiledPipe(key=node.key, pipe=pipe,),
+            compiled_pipe=CompiledPipe(
+                key=node.key,
+                pipe=pipe,
+            ),
             bound_interface=interface_mgr.get_bound_interface(),
             configuration=node.config or {},
         )
@@ -446,7 +449,10 @@ class Worker:
         )
 
     def handle_output(
-        self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
+        self,
+        worker_session: RunSession,
+        output: DataInterfaceType,
+        runnable: Runnable,
     ) -> Optional[StoredDataBlockMetadata]:
         logger.debug("HANDLING OUTPUT")
         assert runnable.bound_interface.output is not None

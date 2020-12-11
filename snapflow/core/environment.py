@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from snapflow.core.data_block import DataBlock
     from snapflow.core.graph import Graph, DeclaredGraph, DEFAULT_GRAPH
 
-DEFAULT_METADATA_STORAGE_URL = "sqlite:///.snapflow_metadata.db"
+DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
 
 
 class Environment:
@@ -374,7 +374,9 @@ class Environment:
             # Delete blocks with no DataSet
             cnt = (
                 self.session.query(DataBlockMetadata)
-                .filter(~DataBlockMetadata.data_sets.any(),)
+                .filter(
+                    ~DataBlockMetadata.data_sets.any(),
+                )
                 .update({DataBlockMetadata.deleted: True}, synchronize_session=False)
             )
             print(f"{cnt} intermediate DataBlocks deleted")
