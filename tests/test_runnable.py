@@ -5,7 +5,13 @@ from snapflow.core.data_block import Alias
 from snapflow.core.data_formats import RecordsList
 from snapflow.core.graph import Graph
 from snapflow.core.pipe_interface import NodeInterfaceManager
-from snapflow.core.runnable import CompiledPipe, Runnable, RunSession, Worker
+from snapflow.core.runnable import (
+    CompiledPipe,
+    ExecutionManager,
+    Runnable,
+    RunSession,
+    Worker,
+)
 from snapflow.modules import core
 from tests.utils import (
     TestSchema1,
@@ -38,12 +44,9 @@ def test_worker():
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
-    r = Runnable(
-        node.key,
-        CompiledPipe(node.pipe.key, node.pipe),
-        bdfi,
-    )
-    output = w.run(r)
+    r = Runnable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
+    run_result = w.run(r)
+    output = run_result.output_block
     assert output is None
 
 
@@ -61,12 +64,9 @@ def test_worker_output():
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
-    r = Runnable(
-        node.key,
-        CompiledPipe(node.pipe.key, node.pipe),
-        bdfi,
-    )
-    outputblock = w.run(r)
+    r = Runnable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
+    run_result = w.run(r)
+    outputblock = run_result.output_block
     assert outputblock is not None
     block = outputblock.as_managed_data_block(ec)
     assert block.as_records_list() == mock_dl_output
@@ -80,3 +80,17 @@ def test_worker_output():
         .data_block_id
         == block.data_block_id
     )
+
+
+def test_non_terminating_pipe():
+    def never_stop(input: Optional[DataBlock] = None) -> DataFrame:
+        pass
+
+    env = make_test_env()
+    g = Graph(env)
+    rt = env.runtimes[0]
+    ec = env.get_execution_context(g, current_runtime=rt)
+    node = g.create_node(key="node", pipe=never_stop)
+    em = ExecutionManager(ec)
+    output = em.run(node, to_exhaustion=True)
+    assert output is None

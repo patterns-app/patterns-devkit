@@ -121,6 +121,14 @@ class RunSession:
         self.log(block, Direction.OUTPUT)
 
 
+@dataclass
+class RunResult:
+    inputs_bound: List[str]
+    input_blocks_processed: Dict[str, int]
+    output_block: Optional[DataBlockMetadata] = None
+    output_stored_block: Optional[StoredDataBlockMetadata] = None
+
+
 @dataclass  # (frozen=True)
 class ExecutionContext:
     env: Environment
@@ -317,16 +325,14 @@ class ExecutionManager:
         )
         # self.log(base_msg)
         # start = time.time()
-        n_outputs = 0
         n_runs = 0
+        run_result = None
         try:
             while True:
-                last_output = self._run(node, worker)
+                run_result = self._run(node, worker)
                 n_runs += 1
-                if last_output is not None:
-                    n_outputs += 1
                 if (
-                    not to_exhaustion or not node.get_interface().inputs
+                    not to_exhaustion or not run_result.inputs_bound
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     # (they are responsible for creating their own generators)
                     break
@@ -342,15 +348,16 @@ class ExecutionManager:
             self.ctx.logger(INDENT + cf.error("Error " + error_symbol) + str(e) + "\n")
             raise e
 
+        if run_result is None:
+            return None
+        last_output = run_result.output_block
         if last_output is None:
             return None
-        # new_session = self.env.get_new_metadata_session()
-        # last_output = new_session.merge(last_output)
         last_output = self.env.session.merge(last_output)
         logger.debug(f"*DONE* RUNNING NODE {node.key} {node.pipe.key}")
         return last_output.as_managed_data_block(self.ctx)
 
-    def _run(self, node: Node, worker: Worker):
+    def _run(self, node: Node, worker: Worker) -> RunResult:
         interface_mgr = self.get_node_interface_manager(node)
         pipe = node.pipe
         runnable = Runnable(
@@ -374,7 +381,7 @@ class Worker:
         self.env = ctx.env
         self.ctx = ctx
 
-    def run(self, runnable: Runnable) -> Optional[DataBlockMetadata]:
+    def run(self, runnable: Runnable) -> RunResult:
         output_block: Optional[DataBlockMetadata] = None
         node = self.ctx.graph.get_node(runnable.node_key)
         with self.ctx.start_pipe_run(node) as run_session:
@@ -394,33 +401,35 @@ class Worker:
             output = runnable.compiled_pipe.pipe.pipe_callable(
                 *pipe_args, **pipe_kwargs
             )
+            output_block = None
+            output_block = None
+            output_sdb = None
             if output is not None:
-                # assert (
-                #     runnable.pipe_interface.resolved_output_schema is not None
-                # )
                 assert (
                     self.ctx.target_storage is not None
                 ), "Must specify target storage for output"
                 output_sdb = self.handle_output(run_session, output, runnable)
-                output_block = None
                 alias = None
-                # assert output_block is not None, output    # Output block may be none if empty generator
+                # Output block may be none still if `output` was an empty generator
                 if output_sdb is not None:
                     output_block = output_sdb.data_block
                     run_session.log_output(output_block)
                     alias = ensure_alias(node, output_sdb)
                     alias = self.ctx.merge(alias)
 
-            input_block_count = 0
+            input_block_counts = {}
+            total_input_count = 0
             for input in runnable.bound_interface.inputs:
                 if input.bound_stream is not None:
+                    input_block_counts[input.name] = 0
                     for db in input.bound_stream.get_emitted_blocks():
-                        input_block_count += 1
+                        input_block_counts[input.name] += 1
+                        total_input_count += 1
                         run_session.log_input(db)
             # Log
             if runnable.bound_interface.inputs:
                 self.ctx.logger(
-                    INDENT + f"{input_block_count} input blocks processed\n"
+                    INDENT + f"{total_input_count} input blocks processed\n"
                 )
             if output_block is not None:
                 self.ctx.logger(
@@ -429,7 +438,12 @@ class Worker:
                     + cf.dimmed(str(output_block.id))
                     + "\n"
                 )
-        return output_block
+        return RunResult(
+            inputs_bound=list(pipe_inputs.keys()),
+            input_blocks_processed=input_block_counts,
+            output_block=output_block,
+            output_stored_block=output_sdb,
+        )
 
     def handle_output(
         self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
