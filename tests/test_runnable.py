@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-import pandas as pd
 import pytest
+from pandas import DataFrame
 from snapflow.core.data_block import Alias, DataBlock
 from snapflow.core.data_formats import RecordsList
 from snapflow.core.graph import Graph
@@ -47,11 +47,7 @@ def test_worker():
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
-    r = Runnable(
-        node.key,
-        CompiledPipe(node.pipe.key, node.pipe),
-        bdfi,
-    )
+    r = Runnable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
     run_result = w.run(r)
     output = run_result.output_block
     assert output is None
@@ -71,11 +67,7 @@ def test_worker_output():
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
-    r = Runnable(
-        node.key,
-        CompiledPipe(node.pipe.key, node.pipe),
-        bdfi,
-    )
+    r = Runnable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
     run_result = w.run(r)
     outputblock = run_result.output_block
     assert outputblock is not None
@@ -94,7 +86,7 @@ def test_worker_output():
 
 
 def test_non_terminating_pipe():
-    def never_stop(input: Optional[DataBlock] = None) -> pd.DataFrame:
+    def never_stop(input: Optional[DataBlock] = None) -> DataFrame:
         pass
 
     env = make_test_env()
