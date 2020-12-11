@@ -11,7 +11,7 @@ from loguru import logger
 from pandas._testing import assert_almost_equal
 from snapflow import DataBlock, pipe, sql_pipe
 from snapflow.core.data_formats import RecordsList, RecordsListGenerator
-from snapflow.core.environment import Environment
+from snapflow.core.environment import Environment, produce
 from snapflow.core.graph import Graph
 from snapflow.core.node import DataBlockLog, PipeLog
 from snapflow.core.runnable import PipeContext
@@ -169,3 +169,22 @@ def test_repeated_runs():
     assert len(records) == N
     output = env.produce("new_accumulator", g, target_storage=s)
     assert output is None
+
+
+def test_alternate_apis():
+    env = get_env()
+    g = Graph(env)
+    s = env.add_storage("memory://test")
+    # Initial graph
+    N = 2 * 4
+    source = g.create_node(customer_source, config={"total_records": N})
+    metrics = g.create_node(shape_metrics, upstream=source)
+    # Run first time
+    output = produce(metrics, graph=g, target_storage=s, env=env)
+    assert output.nominal_schema_key.endswith("Metric")
+    records = output.as_records_list()
+    expected_records = [
+        {"metric": "row_count", "value": 4},
+        {"metric": "col_count", "value": 3},
+    ]
+    assert records == expected_records
