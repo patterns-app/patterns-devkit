@@ -1,4 +1,4 @@
-exclude: '.mypy_cache|.pytest_cache'
+exclude: '.mypy_cache|.pytest_cache|.venv'
 repos:
   - repo: https://github.com/psf/black
     rev: 20.8b1
@@ -6,7 +6,7 @@ repos:
       - id: black
 
   - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.7.8
+    rev: 3.8.4
     hooks:
       - id: flake8
 
