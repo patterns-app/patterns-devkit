@@ -16,7 +16,7 @@ from snapflow.core.pipe_interface import (
     make_default_output_annotation,
 )
 from snapflow.core.runnable import PipeContext
-from snapflow.core.streams import block_as_stream
+from snapflow.core.streams import StreamBuilder, block_as_stream
 from snapflow.modules import core
 from snapflow.utils.typing import T, U
 from tests.utils import (
@@ -25,6 +25,7 @@ from tests.utils import (
     make_test_execution_context,
     pipe_chain_t1_to_t2,
     pipe_generic,
+    pipe_multiple_input,
     pipe_self,
     pipe_stream,
     pipe_t1_sink,
@@ -41,7 +42,6 @@ from tests.utils import (
             PipeAnnotation(
                 data_format_class="DataBlock",
                 schema_like="Type",
-                # is_iterable=False,
                 is_generic=False,
                 is_optional=False,
                 is_variadic=False,
@@ -50,11 +50,22 @@ from tests.utils import (
             ),
         ),
         (
+            "Optional[DataBlock[Type]]",
+            PipeAnnotation(
+                data_format_class="DataBlock",
+                schema_like="Type",
+                is_generic=False,
+                is_optional=True,
+                is_variadic=False,
+                is_stream=False,
+                original_annotation="Optional[DataBlock[Type]]",
+            ),
+        ),
+        (
             "DataFrame[Type]",
             PipeAnnotation(
                 data_format_class="DataFrame",
                 schema_like="Type",
-                # is_iterable=False,
                 is_generic=False,
                 is_optional=False,
                 is_variadic=False,
@@ -67,7 +78,6 @@ from tests.utils import (
             PipeAnnotation(
                 data_format_class="DataBlock",
                 schema_like="T",
-                # is_iterable=False,
                 is_generic=True,
                 is_optional=False,
                 is_variadic=False,
@@ -80,7 +90,6 @@ from tests.utils import (
             PipeAnnotation(
                 data_format_class="DataBlockStream",
                 schema_like="Type",
-                # is_iterable=False,
                 is_generic=False,
                 is_optional=False,
                 is_variadic=False,
@@ -119,7 +128,6 @@ def df4(
                         data_format_class="DataBlock",
                         schema_like="TestSchema1",
                         name="input",
-                        # is_iterable=False,
                         is_generic=False,
                         is_optional=False,
                         is_variadic=False,
@@ -138,7 +146,6 @@ def df4(
                         data_format_class="DataBlock",
                         schema_like="TestSchema1",
                         name="input",
-                        # is_iterable=False,
                         is_generic=False,
                         is_optional=False,
                         is_variadic=False,
@@ -148,7 +155,6 @@ def df4(
                 output=PipeAnnotation(
                     data_format_class="DataFrame",
                     schema_like="TestSchema2",
-                    # is_iterable=False,
                     is_generic=False,
                     is_optional=False,
                     is_variadic=False,
@@ -165,7 +171,6 @@ def df4(
                         data_format_class="DataBlock",
                         schema_like="T",
                         name="input",
-                        # is_iterable=False,
                         is_generic=True,
                         is_optional=False,
                         is_variadic=False,
@@ -175,7 +180,6 @@ def df4(
                 output=PipeAnnotation(
                     data_format_class="DataFrame",
                     schema_like="T",
-                    # is_iterable=False,
                     is_generic=True,
                     is_optional=False,
                     is_variadic=False,
@@ -192,7 +196,6 @@ def df4(
                         data_format_class="DataBlock",
                         schema_like="T",
                         name="input",
-                        # is_iterable=False,
                         is_generic=True,
                         is_optional=False,
                         is_variadic=False,
@@ -203,7 +206,6 @@ def df4(
                         data_format_class="DataBlock",
                         schema_like="T",
                         name="this",
-                        # is_iterable=False,
                         is_generic=True,
                         is_optional=True,
                         is_variadic=False,
@@ -214,7 +216,42 @@ def df4(
                 output=PipeAnnotation(
                     data_format_class="DataFrame",
                     schema_like="T",
-                    # is_iterable=False,
+                    is_generic=True,
+                    is_optional=False,
+                    is_variadic=False,
+                    original_annotation="DataFrame[T]",
+                ),
+                requires_pipe_context=False,
+            ),
+        ),
+        (
+            pipe_multiple_input,
+            PipeInterface(
+                inputs=[
+                    PipeAnnotation(
+                        data_format_class="DataBlock",
+                        schema_like="T",
+                        name="input",
+                        is_generic=True,
+                        is_optional=False,
+                        is_variadic=False,
+                        is_self_ref=False,
+                        original_annotation="DataBlock[T]",
+                    ),
+                    PipeAnnotation(
+                        data_format_class="DataBlock",
+                        schema_like="TestSchema2",
+                        name="other_t2",
+                        is_generic=False,
+                        is_optional=True,
+                        is_variadic=False,
+                        is_self_ref=False,
+                        original_annotation="DataBlock[TestSchema2]",
+                    ),
+                ],
+                output=PipeAnnotation(
+                    data_format_class="DataFrame",
+                    schema_like="T",
                     is_generic=True,
                     is_optional=False,
                     is_variadic=False,
@@ -234,7 +271,9 @@ def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
     else:
         raise
     assert val == expected
-    node = DeclaredNode(key="_test", pipe=pipe, upstream="mock").instantiate(env)
+    node = DeclaredNode(key="_test", pipe=pipe, upstream={"input": "mock"}).instantiate(
+        env
+    )
     assert node.get_interface() == expected
 
 
@@ -314,15 +353,31 @@ def test_natural_schema_translation():
 
 
 def test_inputs():
-    env = make_test_env()
-    g = Graph(env)
-    g.create_node(key="node1", pipe=pipe_t1_source)
-    n2 = g.create_node(key="node2", pipe=pipe_t1_to_t2, upstream={"input": "node1"})
-    pi = n2.get_interface()
+    ec = make_test_execution_context()
+    env = ec.env
+    g = graph()
+    n1 = g.create_node(pipe=pipe_t1_source)
+    n2 = g.create_node(pipe=pipe_t1_to_t2, upstream={"input": n1})
+    pi = n2.instantiate(env).get_interface()
     assert pi is not None
-    n3 = g.create_node(key="node3", pipe=pipe_chain_t1_to_t2, upstream="node1")
-    pi = n3.get_interface()
+    n4 = g.create_node(pipe=pipe_multiple_input)
+    n4.set_upstream({"input": n1})
+    pi = n4.instantiate(env).get_interface()
     assert pi is not None
+
+    ec.graph = g.instantiate(env)
+    im = NodeInterfaceManager(ctx=ec, node=n1.instantiate(env))
+    bi = im.get_bound_interface()
+    assert bi is not None
+    im = NodeInterfaceManager(ctx=ec, node=n4.instantiate(env))
+    db = DataBlockMetadata(
+        nominal_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
+    )
+    ec.metadata_session.add(db)
+    ec.metadata_session.flush([db])
+    bi = im.get_bound_interface({"input": StreamBuilder().as_managed_stream(ec)})
+    assert bi is not None
 
 
 def test_python_pipe():

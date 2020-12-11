@@ -28,9 +28,7 @@ class ExtractDataFrameConfig:
     config_class=ExtractDataFrameConfig,
     state_class=LocalExtractState,
 )
-def extract_dataframe(
-    ctx: PipeContext,
-) -> DataRecordsObject:
+def extract_dataframe(ctx: PipeContext) -> DataRecordsObject:
     extracted = ctx.get_state_value("extracted")
     if extracted:
         # Just emit once
@@ -53,9 +51,7 @@ class ExtractLocalCSVConfig:
     config_class=ExtractLocalCSVConfig,
     state_class=LocalExtractState,
 )
-def extract_csv(
-    ctx: PipeContext,
-) -> DataRecordsObject:
+def extract_csv(ctx: PipeContext) -> DataRecordsObject:
     extracted = ctx.get_state_value("extracted")
     if extracted:
         return

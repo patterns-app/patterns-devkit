@@ -33,14 +33,13 @@ if TYPE_CHECKING:
     )
 
 
-# re_type_hint = re.compile(
-#     r"(?P<iterable>(Iterator|Iterable|Sequence|List)\[)?(?P<origin>\w+)(\[(?P<arg>(\w+\.)?\w+)\])?\]?"
-# )
 re_type_hint = re.compile(
     r"(?P<optional>(Optional)\[)?(?P<origin>\w+)(\[(?P<arg>(\w+\.)?\w+)\])?\]?"
 )
 
 VALID_DATA_INTERFACE_TYPES = [
+    # TODO: is this list just a list of formats? which ones are valid i/o to Pipes?
+    # TODO: do we even want this check?
     "Stream",
     "DataBlockStream",
     "Block",
@@ -52,8 +51,6 @@ VALID_DATA_INTERFACE_TYPES = [
     "DatabaseTableRef",
     "DataRecordsObject",
     "Any",
-    # TODO: is this list just a list of formats? which ones are valid i/o to Pipes?
-    # TODO: also, are DataBlocks and DataSets the only valid *input* types? A bit confusing to end user I think
     # "DatabaseCursor",
 ]
 
@@ -76,7 +73,6 @@ class PipeAnnotation:
     data_format_class: str
     schema_like: SchemaLike
     name: Optional[str] = None
-    # is_iterable: bool = False  # TODO: what is state of iterable support?
     is_variadic: bool = False  # TODO: what is state of variadic support?
     is_generic: bool = False
     is_optional: bool = False
@@ -111,12 +107,12 @@ class PipeAnnotation:
         if annotation is inspect.Signature.empty:
             if parameter.name not in ("ctx", "context"):  # TODO: hack
                 annotation = DEFAULT_INPUT_ANNOTATION
-        # is_optional = parameter.default != inspect.Parameter.empty  # TODO: how to specify optional?
+        is_optional = parameter.default != inspect.Parameter.empty
         is_variadic = parameter.kind == inspect.Parameter.VAR_POSITIONAL
         tda = cls.from_type_annotation(
             annotation,
             name=parameter.name,
-            # is_optional=is_optional,
+            is_optional=is_optional,
             is_variadic=is_variadic,
         )
         return tda
@@ -248,9 +244,17 @@ class PipeInterface:
                 len(self.get_non_recursive_inputs()) == 1
             ), f"Wrong number of inputs. (Variadic inputs not supported yet) {inputs} {self.get_non_recursive_inputs()}"
             return {self.get_non_recursive_inputs()[0].name: inputs}
-        assert (set(inputs.keys()) - {"this"}) == set(
-            i.name for i in self.get_non_recursive_inputs()
-        ), f"{inputs}  {self.get_non_recursive_inputs()}"
+        input_names_have = set(inputs.keys())
+        input_names_must_have = set(
+            i.name for i in self.get_non_recursive_inputs() if not i.is_optional
+        )
+        input_names_ok_to_have = set(i.name for i in self.inputs)
+        assert (
+            input_names_have >= input_names_must_have
+        ), f"Missing required input(s): {input_names_must_have - input_names_have}"
+        assert (
+            input_names_have <= input_names_ok_to_have
+        ), f"Extra input(s): {input_names_have - input_names_ok_to_have}"
         return inputs
 
     def assign_translations(
@@ -339,6 +343,8 @@ class ConnectedInterface:
             if dbs is not None:
                 bound_stream = dbs
                 if not node_input.annotation.is_stream:
+                    # TODO: handle StopIteration here? Happens if `get_bound_interface` is passed empty stream
+                    #   (will trigger an InputExhastedException earlier otherwise)
                     bound_block = next(dbs)
             si = StreamInput(
                 name=node_input.name,
@@ -582,7 +588,10 @@ class NodeInterfaceManager:
         any_unprocessed = False
         for input in self.get_connected_interface().inputs:
             stream_builder = input.input_stream_builder
-            assert stream_builder is not None
+            if stream_builder is None:
+                if input.annotation.is_optional:
+                    continue
+                raise Exception(f"Missing required input {input.name}")
             logger.debug(f"Building stream for `{input.name}` from {stream_builder}")
             stream_builder = self._filter_stream(
                 stream_builder,
@@ -620,6 +629,7 @@ class NodeInterfaceManager:
             any_unprocessed = True
 
         if input_streams and not any_unprocessed:
+            # TODO: is this really an exception always?
             raise InputExhaustedException("All inputs exhausted")
 
         return input_streams
