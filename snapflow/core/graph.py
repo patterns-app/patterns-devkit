@@ -36,11 +36,8 @@ class GraphMetadata(BaseModel):
     hash = Column(String(128), primary_key=True)
     adjacency = Column(JSON)
 
-    def __repr__(self):
-        return self._repr(
-            id=self.id,
-            hash=self.hash,
-        )
+    def __repr__(self) -> str:
+        return self._repr(id=self.id, hash=self.hash,)
 
 
 class DeclaredGraph:
@@ -131,8 +128,26 @@ class Graph:
         adjacency = self.adjacency_list()
         return GraphMetadata(hash=hash_adjacency(adjacency), adjacency=adjacency)
 
-    def create_node(self, *args, **kwargs) -> Node:
-        dn = DeclaredNode(*args, **kwargs)
+    # TODO: duplicated code
+    def create_node(
+        self,
+        pipe: Union[PipeLike, str],
+        key: Optional[str] = None,
+        config: Dict[str, Any] = None,
+        upstream: Union[StreamLike, Dict[str, StreamLike]] = None,
+        graph: Optional[DeclaredGraph] = None,
+        output_alias: Optional[str] = None,
+        schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
+    ) -> Node:
+        dn = node(
+            pipe=pipe,
+            key=key,
+            config=config,
+            upstream=upstream,
+            graph=graph,
+            output_alias=output_alias,
+            schema_translation=schema_translation,
+        )
         n = dn.instantiate(self.env, self)
         self.add_node(n)
         return n
@@ -161,11 +176,11 @@ class Graph:
 
     def validate_graph(self) -> bool:
         # TODO
-        #   validate node keys are valid
-        #   validate pipes are valid
-        #   validate types are valid
-        #   etc
-        pass
+        #  validate node keys are valid
+        #  validate pipes are valid
+        #  validate types are valid
+        #  etc
+        return True
 
     def as_nx_graph(self) -> nx.DiGraph:
         g = nx.DiGraph()
