@@ -50,6 +50,7 @@ class LanguageDialect(Enum):
     MYSQL = (Language.SQL, "mysql")
 
 
+INDENT = " " * 4
 #
 # @dataclass
 # class StateManager:
@@ -134,7 +135,7 @@ class ExecutionContext:
         int
     ] = None  # TODO: this is a "soft" limit, could imagine a "hard" one too
     execution_timelimit_seconds: Optional[int] = None
-    logger: Optional[Callable[[str], None]] = None
+    logger: Callable[[str], None] = (lambda s: print(s, end=""))
 
     def clone(self, **kwargs):
         args = dict(
@@ -148,7 +149,7 @@ class ExecutionContext:
             current_runtime=self.current_runtime,
             node_timelimit_seconds=self.node_timelimit_seconds,
             execution_timelimit_seconds=self.execution_timelimit_seconds,
-            logger=logger,
+            logger=self.logger,
         )
         args.update(**kwargs)
         return ExecutionContext(**args)  # type: ignore
@@ -288,12 +289,6 @@ class ExecutionManager:
         self.ctx = ctx
         self.env = ctx.env
 
-    def get_logger(self) -> Callable[[str], None]:
-        return self.ctx.logger or (lambda s: print(s, end=""))
-
-    def log(self, msg: str):
-        self.get_logger()(msg)
-
     def select_runtime(self, node: Node) -> Runtime:
         compatible_runtimes = node.pipe.compatible_runtime_classes
         for runtime in self.ctx.runtimes:
@@ -315,8 +310,8 @@ class ExecutionManager:
         last_output: Optional[DataBlockMetadata] = None
 
         # Setup for run
-        base_msg = f"Running node {cf.bold(node.key)} {cf.dimmed(node.pipe.key)}"
-        self.log("{0:50} ".format(str(base_msg)))
+        base_msg = f"Running node {cf.bold(node.key)} {cf.dimmed(node.pipe.key)}\n"
+        self.ctx.logger(base_msg)
         logger.debug(
             f"RUNNING NODE {node.key} {node.pipe.key} with config `{node.config}`"
         )
@@ -335,17 +330,16 @@ class ExecutionManager:
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     # (they are responsible for creating their own generators)
                     break
-            self.log(cf.success(success_symbol + "\n"))
+            self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))
         except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
-            logger.debug(cf.warning("    Input Exhausted"))
+            logger.debug(INDENT + cf.warning("Input Exhausted"))
             if e.args:
                 logger.debug(e)
             if n_runs == 0:
-                self.log(cf.success(success_symbol) + " No unprocessed inputs\n")
-            else:
-                self.log(cf.success(success_symbol + "\n"))
+                self.ctx.logger(INDENT + "No unprocessed inputs\n")
+            self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))
         except Exception as e:
-            self.log(cf.error(error_symbol + " Error \n") + str(e) + "\n")
+            self.ctx.logger(INDENT + cf.error("Error " + error_symbol) + str(e) + "\n")
             raise e
 
         if last_output is None:
@@ -361,10 +355,7 @@ class ExecutionManager:
         pipe = node.pipe
         runnable = Runnable(
             node_key=node.key,
-            compiled_pipe=CompiledPipe(
-                key=node.key,
-                pipe=pipe,
-            ),
+            compiled_pipe=CompiledPipe(key=node.key, pipe=pipe,),
             bound_interface=interface_mgr.get_bound_interface(),
             configuration=node.config or {},
         )
@@ -412,6 +403,7 @@ class Worker:
                 ), "Must specify target storage for output"
                 output_sdb = self.handle_output(run_session, output, runnable)
                 output_block = None
+                alias = None
                 # assert output_block is not None, output    # Output block may be none if empty generator
                 if output_sdb is not None:
                     output_block = output_sdb.data_block
@@ -419,17 +411,28 @@ class Worker:
                     alias = ensure_alias(node, output_sdb)
                     alias = self.ctx.merge(alias)
 
+            input_block_count = 0
             for input in runnable.bound_interface.inputs:
                 if input.bound_stream is not None:
                     for db in input.bound_stream.get_emitted_blocks():
+                        input_block_count += 1
                         run_session.log_input(db)
+            # Log
+            if runnable.bound_interface.inputs:
+                self.ctx.logger(
+                    INDENT + f"{input_block_count} input blocks processed\n"
+                )
+            if output_block is not None:
+                self.ctx.logger(
+                    INDENT
+                    + f"Output block: ({alias.alias}) "
+                    + cf.dimmed(str(output_block.id))
+                    + "\n"
+                )
         return output_block
 
     def handle_output(
-        self,
-        worker_session: RunSession,
-        output: DataInterfaceType,
-        runnable: Runnable,
+        self, worker_session: RunSession, output: DataInterfaceType, runnable: Runnable,
     ) -> Optional[StoredDataBlockMetadata]:
         logger.debug("HANDLING OUTPUT")
         assert runnable.bound_interface.output is not None
