@@ -12,7 +12,6 @@ from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.core.typing.schema import GeneratedSchema, Schema, SchemaLike
-from snapflow.logging.event import Event, EventHandler, EventSubject, event_factory
 from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
 
 if TYPE_CHECKING:
@@ -34,7 +33,6 @@ class Environment:
     library: ComponentLibrary
     storages: List[Storage]
     metadata_storage: Storage
-    event_handlers: List[EventHandler]
     session: Session
 
     def __init__(
@@ -43,7 +41,6 @@ class Environment:
         metadata_storage: Union["Storage", str] = None,
         add_default_python_runtime: bool = True,
         initial_modules: List[SnapflowModule] = None,  # Defaults to `core` module
-        event_handlers: List[EventHandler] = None,
     ):
         from snapflow.core.runtime import Runtime
         from snapflow.core.runtime import RuntimeClass
@@ -81,7 +78,6 @@ class Environment:
         for m in initial_modules:
             self.add_module(m)
 
-        self.event_handlers = event_handlers or []
         self._local_memory_storage = new_local_memory_storage()
         self.add_storage(self._local_memory_storage)
         self.session = self.get_new_metadata_session()
@@ -378,23 +374,10 @@ class Environment:
             # Delete blocks with no DataSet
             cnt = (
                 self.session.query(DataBlockMetadata)
-                .filter(
-                    ~DataBlockMetadata.data_sets.any(),
-                )
+                .filter(~DataBlockMetadata.data_sets.any(),)
                 .update({DataBlockMetadata.deleted: True}, synchronize_session=False)
             )
             print(f"{cnt} intermediate DataBlocks deleted")
-
-    def add_event_handler(self, eh: EventHandler):
-        self.event_handlers.append(eh)
-
-    def send_event(
-        self, event_subject: Union[EventSubject, str], event_details, **kwargs
-    ) -> Event:
-        e = event_factory(event_subject, event_details, **kwargs)
-        for handler in self.event_handlers:
-            handler.handle(e)
-        return e
 
 
 # Shortcuts
