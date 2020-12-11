@@ -20,7 +20,7 @@ visualization.
 Snapflow `pipes` optionally expose type interfaces, called `schemas`, that describe the structure,
 data types, and semantics of the expected input and output data. These type interfaces allow the
 snapflow community to build an ecosystem of interoperable components that power instant "plug and
- play" pipelines.
+play" pipelines.
 
 Snapflow brings the best practices learned over the last 60 years in software to the world of data,
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
@@ -28,22 +28,22 @@ scale from laptop to AWS cluster.
 
 ### Features / Goals:
 
- - **Reusable modules and components** - Hundreds of `pipes` and `schemas` ready to
-   plug into pipelines in the snapflow repository [Coming soon].
+- **Reusable modules and components** - Hundreds of `pipes` and `schemas` ready to
+  plug into pipelines in the snapflow repository [Coming soon].
 
-    - Connect Stripe data to LTV models and plot a cohort chart
-    - Blend stock prices and with macroeconomic data from FRED
-    - Export SaaS metrics to Google Sheets, Tableau, or Looker
+  - Connect Stripe data to LTV models and plot a cohort chart
+  - Blend stock prices and with macroeconomic data from FRED
+  - Export SaaS metrics to Google Sheets, Tableau, or Looker
 
-   and much more, instantly and out of the box.
+  and much more, instantly and out of the box.
 
- - **Testability** - Modular `pipes` allow individual steps in a data process to be
-   independently tested and QA'd with the same rigor as software.
+- **Testability** - Modular `pipes` allow individual steps in a data process to be
+  independently tested and QA'd with the same rigor as software.
 
- - **Flexibility** - snapflow lets you build data flows on and across any database or file system.
-   It works with big or small data, in both batch and streaming modes.
+- **Flexibility** - snapflow lets you build data flows on and across any database or file system.
+  It works with big or small data, in both batch and streaming modes.
 
- - **Zero cost abstractions and high performance** - snapflow makes its type and immutability
+- **Zero cost abstractions and high performance** - snapflow makes its type and immutability
   guarantees at the abstraction level, so those guarantees can be compiled away at execution time
   for high performance. Developers and analysts can work with clean mental models and strong
   guarantees without incurring performance costs at runtime.
@@ -129,7 +129,7 @@ group by customer_id
 ### Schemas
 
 `schemas` are record type definitions (think database table schema) that let `pipes` specify the
- data structure they expect and allow them to inter-operate safely. They also
+data structure they expect and allow them to inter-operate safely. They also
 provide a natural place for field descriptions, validation logic, deduplication
 behavior, and other metadata associated with a specific type of data record.
 
@@ -184,20 +184,20 @@ timeseries data, say a seasonality modeling pipe, can now be applied to this `Or
 also apply this schema implementation ad-hoc at node declaration time with the
 `schema_translation` arg:
 
- ```python
+```python
 orders = node(order_source)
 n = node(
-    "seasonality",
-    seasonality,
-    upstream=orders,
-    schema_translation={
-        "datetime": "date",
-        "value": "amount",
-    })
+   "seasonality",
+   seasonality,
+   upstream=orders,
+   schema_translation={
+       "datetime": "date",
+       "value": "amount",
+   })
 ```
 
 `pipes` can declare the `schemas` they expect with type hints, allowing them to specify the
- (minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
+(minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
 
 ```python
 # In python, use python's type annotations to specify expected schemas:
@@ -208,7 +208,7 @@ def sales(txs: DataBlock[Transaction]) -> DataBlock[CustomerMetric]:
 ```
 
 In SQL, we add type hints with comments after the `select` statement (for output) and after table
- identifiers (for inputs):
+identifiers (for inputs):
 
 ```sql
 -- In SQL, we use comments to specify expected schemas
@@ -225,12 +225,11 @@ components and building maintainable large-scale data projects and ecosystems. T
 optional though, and should be used when the utility they provide out-weighs the friction they
 introduce.
 
-
 ### Streams
 
 Datablock `streams` connect nodes in the pipe graph. By default every node's output is a simple
 stream of datablocks, consumed by one or more other downstream nodes. Stream **operators** allow
- you to manipulate these streams:
+you to manipulate these streams:
 
 ```python
 from snapflow import node
@@ -254,7 +253,7 @@ def sample(stream: Stream, sample_rate: float = .5) -> Stream:
 ```
 
 It's important to note that streams, unlike pipes, never _create_ new datablocks or have any
- effect on what is stored on disk. They only alter _which_ datablocks end up as input to a node.
+effect on what is stored on disk. They only alter _which_ datablocks end up as input to a node.
 
 ## Other concepts
 
@@ -271,7 +270,7 @@ warning or, if serious enough, fail with an error.
 
 A snapflow `environment` tracks the pipe graph, and acts as a registry for the `modules`,
 `runtimes`, and `storages` available to pipes. It is associated one-to-one with a single
-`metadata database`.  The primary responsibility of the metadata database is to track which
+`metadata database`. The primary responsibility of the metadata database is to track which
 nodes have processed which DataBlocks, and the state of nodes. In this sense, the environment and
 its associated metadata database contain all the "state" of a snapflow project. If you delete the
 metadata database, you will have effectively "reset" your snapflow project. (You will
@@ -282,25 +281,25 @@ NOT have deleted any actual data produced by the pipeline, though it will be orp
 Developing new snapflow components is straightforward and can be done as part of a snapflow
 `module` or as a standalone component. Module development guide and tools coming soon.
 
-
 ### Type system details
 
 Data blocks have three associated schemas:
- - Inferred schema - the structure and datatypes automatically inferred from the actual data
- - Nominal schema - the schema that was declared (or resolved, for a generic) in the pipe graph
- - Realized schema - the schema that was ultimately used to physically store the data on a specific
-   storage (the schema used to create a database table, for instance)
+
+- Inferred schema - the structure and datatypes automatically inferred from the actual data
+- Nominal schema - the schema that was declared (or resolved, for a generic) in the pipe graph
+- Realized schema - the schema that was ultimately used to physically store the data on a specific
+  storage (the schema used to create a database table, for instance)
 
 The realized schema is determined by the following factors:
- - The setting of `CAST_TO_SCHEMA_LEVEL` to one of `hard`, `soft`, or `none`
- - The discrepancies, if any, between the inferred schema and the nominal schema
 
+- The setting of `CAST_TO_SCHEMA_LEVEL` to one of `hard`, `soft`, or `none`
+- The discrepancies, if any, between the inferred schema and the nominal schema
 
 The following table gives the logic for possible behavior of realized schema:
 
-|                                                                                                           | none                                       | soft (default)                                                                                                                                               | hard                                                                   |
-|-----------------------------------------------------------------------------------------------------------|--------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------|
-| inferred has subset of nominal fields                                                                     | realized is always equivalent to inferred  | realized schema == nominal schema, but use inferred field definitions for extra fields.                                                               | realized equivalent to nominal, extra fields are discarded  |
-| inferred is missing nullable fields from nominal                                                          | " "                                        | realized schema == nominal schema, but use inferred field definitions for extra fields, fill missing columns with NULL                             | exception is raised                             |
-| inferred is missing non-nullable fields from nominal                                                      | " "                                        | exception is raised                                                                                                                                     | exception is raised                                               |
-| inferred field has datatype mismatch with nominal field definition (eg string in a nominal float field)   | " "                                        | realized schema is downcast to inferred datatype (and warning issued if `WARN_ON_DOWNCAST`). If `FAIL_ON_DOWNCAST` is set, an exception is raised instead | exception is raised                                               |
+|                                                                                                         | none                                      | soft (default)                                                                                                                                            | hard                                                       |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| inferred has subset of nominal fields                                                                   | realized is always equivalent to inferred | realized schema == nominal schema, but use inferred field definitions for extra fields.                                                                   | realized equivalent to nominal, extra fields are discarded |
+| inferred is missing nullable fields from nominal                                                        | " "                                       | realized schema == nominal schema, but use inferred field definitions for extra fields, fill missing columns with NULL                                    | exception is raised                                        |
+| inferred is missing non-nullable fields from nominal                                                    | " "                                       | exception is raised                                                                                                                                       | exception is raised                                        |
+| inferred field has datatype mismatch with nominal field definition (eg string in a nominal float field) | " "                                       | realized schema is downcast to inferred datatype (and warning issued if `WARN_ON_DOWNCAST`). If `FAIL_ON_DOWNCAST` is set, an exception is raised instead | exception is raised                                        |
