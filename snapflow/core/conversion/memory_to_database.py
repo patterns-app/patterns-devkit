@@ -63,5 +63,5 @@ class MemoryToDatabaseConverter(Converter):
         #   One reason would be to allow for efficiency/flexibility at the converter level
         #   in handling chunks of data (which we don't exploit here...)
         for records_object in records_objects:
-            output_api.bulk_insert_records_list(output_sdb, records_object)
+            output_api.bulk_insert_records_list(self.sess, output_sdb, records_object)
         return output_sdb

@@ -23,7 +23,7 @@ from sqlalchemy.sql.schema import Column, ForeignKey
 from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
 
 if TYPE_CHECKING:
-    from snapflow.core.runnable import ExecutionContext
+    from snapflow.core.execution import RunContext
     from snapflow.core.streams import StreamBuilder, StreamLike
     from snapflow.core.graph import Graph, GraphMetadata, DeclaredGraph, DEFAULT_GRAPH
 
@@ -203,9 +203,9 @@ class Node:
 
         return StreamBuilder(nodes=self)
 
-    def get_latest_output(self, ctx: ExecutionContext) -> Optional[DataBlock]:
-        block = (
-            ctx.metadata_session.query(DataBlockMetadata)
+    def get_latest_output(self, ctx: RunContext, sess: Session) -> Optional[DataBlock]:
+        block: DataBlockMetadata = (
+            sess.query(DataBlockMetadata)
             .join(DataBlockLog)
             .join(PipeLog)
             .filter(
@@ -217,7 +217,7 @@ class Node:
         )
         if block is None:
             return None
-        return block.as_managed_data_block(ctx)
+        return block.as_managed_data_block(ctx, sess)
 
 
 class NodeState(BaseModel):
@@ -289,8 +289,10 @@ class PipeLog(BaseModel):
         )
         if state is None:
             state = NodeState(node_key=self.node_key)
+            sess.add(state)
         state.state = self.node_end_state
-        return sess.merge(state)
+        sess.flush([state])
+        return state
 
 
 class Direction(enum.Enum):
@@ -335,9 +337,9 @@ class DataBlockLog(BaseModel):
         )
 
     @classmethod
-    def summary(cls, env: Environment) -> str:
+    def summary(cls, sess: Session) -> str:
         s = ""
-        for dbl in env.session.query(DataBlockLog).all():
+        for dbl in sess.query(DataBlockLog).all():
             s += f"{dbl.pipe_log.node_key:50}"
             s += f"{str(dbl.data_block_id):23}"
             s += f"{str(dbl.data_block.record_count):6}"

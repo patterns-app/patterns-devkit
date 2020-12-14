@@ -10,6 +10,7 @@ from snapflow.core.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
 )
+from snapflow.core.execution import PipeContext
 from snapflow.core.module import SnapflowModule
 from snapflow.core.pipe import DataInterfaceType, Pipe, PipeInterface, pipe_factory
 from snapflow.core.pipe_interface import (
@@ -17,7 +18,6 @@ from snapflow.core.pipe_interface import (
     PipeAnnotation,
     make_default_output_annotation,
 )
-from snapflow.core.runnable import PipeContext
 from sqlparse import tokens
 
 
@@ -178,26 +178,25 @@ class SqlPipeWrapper:
     def __call__(
         self, *args: PipeContext, **inputs: DataInterfaceType
     ) -> StoredDataBlockMetadata:
-        ctx = args[0]
-        if ctx.execution_context.current_runtime is None:
+        ctx: PipeContext = args[0]
+        if ctx.run_context.current_runtime is None:
             raise Exception("Current runtime not set")
 
         sql = self.get_compiled_sql(ctx, inputs)
         # if ctx.resolved_output_schema is None:
         #     raise Exception("SQL pipe should always produce output!")
 
-        db_api = ctx.execution_context.current_runtime.get_database_api(
-            ctx.execution_context.env
-        )
+        db_api = ctx.run_context.current_runtime.get_database_api(ctx.run_context.env)
         logger.debug(
-            f"Resolved in sql pipe {ctx.runnable.bound_interface.resolve_nominal_output_schema( ctx.worker.env )}"
+            f"Resolved in sql pipe {ctx.executable.bound_interface.resolve_nominal_output_schema( ctx.worker.env, ctx.execution_session.metadata_session)}"
         )
         block, sdb = db_api.create_data_block_from_sql(
             sql,
-            nominal_schema=ctx.runnable.bound_interface.resolve_nominal_output_schema(
-                ctx.worker.env
+            sess=ctx.execution_session.metadata_session,
+            nominal_schema=ctx.executable.bound_interface.resolve_nominal_output_schema(
+                ctx.worker.env, ctx.execution_session.metadata_session
             ),
-            created_by_node_key=ctx.runnable.node_key,
+            created_by_node_key=ctx.executable.node_key,
         )
 
         return sdb
@@ -224,13 +223,13 @@ class SqlPipeWrapper:
 
         sql = self.get_typed_statement(inputs).cleaned_sql
         sql_ctx = dict(
-            execution_context=ctx.execution_context,
+            execution_context=ctx.run_context,
             worker=ctx.worker,
-            runnable=ctx.runnable,
+            execution=ctx.executable,
             inputs={i.name: i for i in ctx.inputs},
             # TODO: we haven't logged the input blocks yet (in the case of a stream) so we can't
             #    resolve the nominal output schema at this point. But it is _possible_ if necessary -- is it?
-            # output_schema=ctx.runnable.bound_interface.resolve_nominal_output_schema(
+            # output_schema=ctx.execution.bound_interface.resolve_nominal_output_schema(
             #     ctx.worker.env
             # ),
         )

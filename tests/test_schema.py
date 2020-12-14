@@ -96,22 +96,24 @@ def test_generated_schema():
     new_schema = infer_schema_from_records_list(sample_records)
     got = GeneratedSchema(key=new_schema.key, definition=asdict(new_schema))
     env = make_test_env()
-    env.session.add(got)
-    got = (
-        env.session.query(GeneratedSchema)
-        .filter(GeneratedSchema.key == new_schema.key)
-        .first()
-    )
-    got_schema = got.as_schema()
-    assert asdict(got_schema) == asdict(new_schema)
-    assert env.get_generated_schema(new_schema.key).key == new_schema.key
-    assert env.get_generated_schema("pizza") is None
+    with env.session_scope() as sess:
+        sess.add(got)
+        got = (
+            sess.query(GeneratedSchema)
+            .filter(GeneratedSchema.key == new_schema.key)
+            .first()
+        )
+        got_schema = got.as_schema()
+        assert asdict(got_schema) == asdict(new_schema)
+        assert env.get_generated_schema(new_schema.key, sess).key == new_schema.key
+        assert env.get_generated_schema("pizza", sess) is None
 
 
 def test_any_schema():
     env = make_test_env()
     env.add_module(core)
-    anyschema = env.get_schema("Any")
+    with env.session_scope() as sess:
+        anyschema = env.get_schema("Any", sess)
     assert anyschema.fields == []
 
 

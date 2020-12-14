@@ -1,7 +1,7 @@
 metadata_storage = "sqlite:///.snapflow_metadata.db"  # Accepts any database url
 storages = [
     # Add at least one storage
-    # "postgres://localhost:5432/db",
+    # "postgresql://localhost:5432/db",
     # "mysql://localhost:3619/db",
     # "redshift://....",
     # "bigquery://....",

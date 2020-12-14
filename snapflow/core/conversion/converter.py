@@ -7,12 +7,13 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple, Ty
 
 import networkx as nx
 from loguru import logger
-from snapflow.core.data_block import StoredDataBlockMetadata
+from snapflow.core.data_block import StoredDataBlockMetadata, get_datablock_id
 from snapflow.core.data_formats import DataFormat
 from snapflow.core.storage.storage import Storage, StorageType
+from sqlalchemy.orm.session import Session
 
 if TYPE_CHECKING:
-    from snapflow.core.runnable import ExecutionContext
+    from snapflow.core.execution import RunContext
 
 
 class ConversionCostLevel(enum.Enum):
@@ -132,8 +133,9 @@ class Converter:
     supported_output_formats: Sequence[StorageFormat]
     cost_level: ConversionCostLevel
 
-    def __init__(self, ctx: ExecutionContext):
+    def __init__(self, ctx: RunContext, sess: Session):
         self.env = ctx.env
+        self.sess = sess
         self.ctx = ctx
 
     def convert(
@@ -152,11 +154,13 @@ class Converter:
         if not self.is_supported(conversion):
             raise Exception(f"Not supported {conversion}")
         output_sdb = StoredDataBlockMetadata(  # type: ignore
+            id=get_datablock_id(),
+            data_block_id=input_sdb.data_block_id,
             data_block=input_sdb.data_block,
             data_format=output_data_format,
             storage_url=output_storage.url,
         )
-        output_sdb = self.ctx.add(output_sdb)
+        self.sess.add(output_sdb)
         return self._convert(input_sdb, output_sdb)
 
     def _convert(

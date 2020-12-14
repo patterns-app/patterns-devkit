@@ -54,7 +54,7 @@ class DeclaredGraph:
         s = "Nodes:\n------\n" + "\n".join(self._nodes.keys())
         return s
 
-    def create_node(
+    def node(
         self,
         pipe: Union[PipeLike, str],
         key: Optional[str] = None,
@@ -75,6 +75,8 @@ class DeclaredGraph:
         )
         self.add_node(dn)
         return dn
+
+    create_node = node  # Legacy api
 
     def add_node(self, node: DeclaredNode):
         if node.key in self._nodes:
@@ -132,7 +134,7 @@ class Graph:
         return GraphMetadata(hash=hash_adjacency(adjacency), adjacency=adjacency)
 
     # TODO: duplicated code
-    def create_node(
+    def node(
         self,
         pipe: Union[PipeLike, str],
         key: Optional[str] = None,
@@ -154,6 +156,8 @@ class Graph:
         n = dn.instantiate(self.env, self)
         self.add_node(n)
         return n
+
+    create_node = node  # Legacy api
 
     def add_node(self, node: Node):
         if node.key in self._nodes:

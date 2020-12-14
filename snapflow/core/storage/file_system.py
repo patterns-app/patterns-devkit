@@ -15,6 +15,7 @@ from snapflow.core.storage.storage import (
 )
 from snapflow.utils.common import to_json
 from snapflow.utils.data import write_csv
+from sqlalchemy.orm.session import Session
 
 
 class FileSystemAPI:
@@ -39,10 +40,11 @@ class FileSystemAPI:
 
     def write_records_to_csv(
         self,
+        sess: Session,
         stored_data_block: StoredDataBlockMetadata,
         records_iterable: Iterable[RecordsList],
     ):
-        output_schema = stored_data_block.realized_schema(self.env)
+        output_schema = stored_data_block.realized_schema(self.env, sess)
         columns = [f.name for f in output_schema.fields]
         with self.open(stored_data_block, "w") as f:
             append = False

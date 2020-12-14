@@ -4,9 +4,9 @@ from pandas import DataFrame
 from snapflow import DataBlockStream
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment
+from snapflow.core.execution import ExecutionManager, PipeContext, RunContext
 from snapflow.core.graph import Graph
 from snapflow.core.module import SnapflowModule
-from snapflow.core.runnable import ExecutionContext, ExecutionManager, PipeContext
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.storage.storage import Storage, StorageClass, StorageEngine
 from snapflow.core.typing.schema import create_quick_schema
@@ -30,7 +30,7 @@ TestSchema4 = create_quick_schema(
 )
 
 
-def make_test_env(**kwargs):
+def make_test_env(**kwargs) -> Environment:
     if "metadata_storage" not in kwargs:
         url = "sqlite://"
         metadata_storage = Storage.from_url(url)
@@ -44,7 +44,7 @@ def make_test_env(**kwargs):
     return env
 
 
-def make_test_execution_context(**kwargs):
+def make_test_run_context(**kwargs) -> RunContext:
     s = Storage(  # type: ignore
         url=f"memory://_test_default_{rand_str(6)}",
         storage_class=StorageClass.MEMORY,
@@ -65,14 +65,13 @@ def make_test_execution_context(**kwargs):
         storages=[s],
         local_memory_storage=s,
         target_storage=s,
-        metadata_session=env.session,
     )
     args.update(**kwargs)
-    return ExecutionContext(**args)
+    return RunContext(**args)
 
 
-def make_test_execution_manager(**kwargs):
-    return ExecutionManager(make_test_execution_context(**kwargs))
+def make_test_execution_manager(**kwargs) -> ExecutionManager:
+    return ExecutionManager(make_test_run_context(**kwargs))
 
 
 def pipe_t1_sink(ctx: PipeContext, input: DataBlock[TestSchema1]):

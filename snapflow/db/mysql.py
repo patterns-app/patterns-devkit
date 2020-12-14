@@ -4,7 +4,7 @@ from snapflow.utils.data import conform_records_for_insert
 
 MYSQL_SUPPORTED = False
 try:
-    import mysqlclient
+    import MySQLdb
 
     MYSQL_SUPPORTED = True
 except ImportError:

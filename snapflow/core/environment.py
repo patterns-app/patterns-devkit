@@ -5,24 +5,20 @@ import os
 from contextlib import contextmanager
 from dataclasses import asdict
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Tuple, Union
 
 from loguru import logger
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.core.typing.schema import GeneratedSchema, Schema, SchemaLike
-from sqlalchemy.orm import Session, close_all_sessions, sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 if TYPE_CHECKING:
-    from snapflow.core.storage.storage import (
-        Storage,
-        new_local_memory_storage,
-        StorageClass,
-    )
+    from snapflow.core.storage.storage import Storage
     from snapflow.core.pipe import Pipe
     from snapflow.core.node import Node, NodeLike
-    from snapflow.core.runnable import ExecutionContext
+    from snapflow.core.execution import RunContext, ExecutionManager
     from snapflow.core.data_block import DataBlock
     from snapflow.core.graph import Graph, DeclaredGraph, DEFAULT_GRAPH
 
@@ -33,7 +29,6 @@ class Environment:
     library: ComponentLibrary
     storages: List[Storage]
     metadata_storage: Storage
-    session: Session
 
     def __init__(
         self,
@@ -80,7 +75,6 @@ class Environment:
 
         self._local_memory_storage = new_local_memory_storage()
         self.add_storage(self._local_memory_storage)
-        self.session = self.get_new_metadata_session()
 
     def initialize_metadata_database(self):
         from snapflow.core.metadata.listeners import add_persisting_sdb_listener
@@ -93,9 +87,8 @@ class Environment:
         conn = self.metadata_storage.get_database_api(self).get_engine()
         BaseModel.metadata.create_all(conn)
         self.Session = sessionmaker(bind=conn)
-        add_persisting_sdb_listener(self.Session)
 
-    def get_new_metadata_session(self) -> Session:
+    def _get_new_metadata_session(self) -> Session:
         sess = self.Session()
         self._metadata_sessions.append(sess)
         return sess
@@ -103,10 +96,10 @@ class Environment:
     def clean_up_db_sessions(self):
         from snapflow.db.api import dispose_all
 
-        close_all_sessions()
+        self.close_all_sessions()
         dispose_all()
 
-    def close_sessions(self):
+    def close_all_sessions(self):
         for s in self._metadata_sessions:
             s.close()
         self._metadata_sessions = []
@@ -120,13 +113,13 @@ class Environment:
     def get_module_order(self) -> List[str]:
         return self.library.module_lookup_names
 
-    def get_schema(self, schema_like: SchemaLike) -> Schema:
+    def get_schema(self, schema_like: SchemaLike, sess: Session) -> Schema:
         if isinstance(schema_like, Schema):
             return schema_like
         try:
             return self.library.get_schema(schema_like)
         except KeyError:
-            schema = self.get_generated_schema(schema_like)
+            schema = self.get_generated_schema(schema_like, sess=sess)
             if schema is None:
                 raise KeyError(schema_like)
             return schema
@@ -134,26 +127,28 @@ class Environment:
     def add_schema(self, schema: Schema):
         self.library.add_schema(schema)
 
-    def get_generated_schema(self, schema_like: SchemaLike) -> Optional[Schema]:
+    def get_generated_schema(
+        self, schema_like: SchemaLike, sess: Session
+    ) -> Optional[Schema]:
         if isinstance(schema_like, str):
             key = schema_like
         elif isinstance(schema_like, Schema):
             key = schema_like.key
         else:
             raise TypeError(schema_like)
-        got = self.session.query(GeneratedSchema).get(key)
+        got = sess.query(GeneratedSchema).get(key)
         if got is None:
             return None
         return got.as_schema()
 
-    def add_new_generated_schema(self, schema: Schema):
+    def add_new_generated_schema(self, schema: Schema, sess: Session):
         logger.debug(f"Adding new generated schema {schema}")
         if schema.key in self.library.schemas:
             # Already exists
             return
         got = GeneratedSchema(key=schema.key, definition=asdict(schema))
-        self.session.add(got)
-        self.session.flush([got])
+        sess.add(got)
+        sess.flush([got])
         self.library.add_schema(schema)
 
     def all_schemas(self) -> List[Schema]:
@@ -197,11 +192,11 @@ class Environment:
             return s
         return self.storages[0]
 
-    def get_execution_context(
+    def get_run_context(
         self, graph: Graph, target_storage: Storage = None, **kwargs
-    ) -> ExecutionContext:
+    ) -> RunContext:
         from snapflow.core.storage.storage import StorageClass
-        from snapflow.core.runnable import ExecutionContext
+        from snapflow.core.execution import RunContext
 
         if target_storage is None:
             target_storage = self.get_default_storage()
@@ -213,33 +208,38 @@ class Environment:
         args = dict(
             graph=graph,
             env=self,
-            metadata_session=self.session,
+            # metadata_session=sess,
             runtimes=self.runtimes,
             storages=self.storages,
             target_storage=target_storage,
             local_memory_storage=self.get_default_local_memory_storage(),
         )
         args.update(**kwargs)
-        return ExecutionContext(**args)  # type: ignore
+        return RunContext(**args)  # type: ignore
 
     @contextmanager
-    def execution(self, graph: Graph, target_storage: Storage = None, **kwargs):
-        from snapflow.core.runnable import ExecutionManager
+    def run(
+        self, graph: Graph, target_storage: Storage = None, **kwargs
+    ) -> Iterator[ExecutionManager]:
+        from snapflow.core.execution import ExecutionManager
 
-        self.session.begin_nested()
-        ec = self.get_execution_context(graph, target_storage=target_storage, **kwargs)
+        # self.session.begin_nested()
+        ec = self.get_run_context(graph, target_storage=target_storage, **kwargs)
         em = ExecutionManager(ec)
         logger.debug(f"executing on graph {graph.adjacency_list()}")
         try:
             yield em
-            self.session.commit()
+            # self.session.commit()
+            logger.debug("COMMITTED")
         except Exception as e:
-            self.session.rollback()
+            # self.session.rollback()
+            logger.debug("ROLLED")
             raise e
         finally:
             # TODO:
             # self.validate_and_clean_data_blocks(delete_intermediate=True)
-            self.session.close()
+            pass
+            # self.session.close()
 
     def _get_graph_and_node(
         self,
@@ -280,9 +280,12 @@ class Environment:
         else:
             dependencies = graph.get_all_nodes_in_execution_order()
         output = None
-        for dep in dependencies:
-            with self.execution(graph, **execution_kwargs) as em:
-                output = em.run(dep, to_exhaustion=to_exhaustion)
+        sess = self._get_new_metadata_session()
+        with self.run(graph, **execution_kwargs) as em:
+            for dep in dependencies:
+                output = em.execute(
+                    dep, to_exhaustion=to_exhaustion, output_session=sess
+                )
         return output
 
     def run_node(
@@ -293,10 +296,12 @@ class Environment:
         **execution_kwargs: Any,
     ) -> Optional[DataBlock]:
         node, graph = self._get_graph_and_node(node_like, graph)
+        assert node is not None
 
         logger.debug(f"Running: {node_like}")
-        with self.execution(graph, **execution_kwargs) as em:
-            return em.run(node_like, to_exhaustion=to_exhaustion)
+        sess = self._get_new_metadata_session()
+        with self.run(graph, **execution_kwargs) as em:
+            return em.execute(node, to_exhaustion=to_exhaustion, output_session=sess)
 
     def run_graph(
         self,
@@ -309,9 +314,9 @@ class Environment:
         if isinstance(graph, DeclaredGraph):
             graph = graph.instantiate(self)
         nodes = graph.get_all_nodes_in_execution_order()
-        for node in nodes:
-            with self.execution(graph, **execution_kwargs) as em:
-                em.run(node, to_exhaustion=to_exhaustion)
+        with self.run(graph, **execution_kwargs) as em:
+            for node in nodes:
+                em.execute(node, to_exhaustion=to_exhaustion)
 
     # def get_latest_output(self, node: Node) -> Optional[DataBlock]:
     #     session = self.get_new_metadata_session()  # TODO: hanging session
@@ -343,43 +348,41 @@ class Environment:
                 pass
         return sr
 
-    def validate_and_clean_data_blocks(
-        self, delete_memory=True, delete_intermediate=False, force: bool = False
-    ):
-        from snapflow.core.data_block import (
-            DataBlockMetadata,
-            StoredDataBlockMetadata,
-        )
+    # def validate_and_clean_data_blocks(
+    #     self, delete_memory=True, delete_intermediate=False, force: bool = False
+    # ):
+    #     from snapflow.core.data_block import (
+    #         DataBlockMetadata,
+    #         StoredDataBlockMetadata,
+    #     )
 
-        if delete_memory:
-            deleted = (
-                self.session.query(StoredDataBlockMetadata)
-                .filter(StoredDataBlockMetadata.storage_url.startswith("memory:"))
-                .delete(False)
-            )
-            print(f"{deleted} Memory StoredDataBlocks deleted")
+    #     if delete_memory:
+    #         deleted = (
+    #             self.session.query(StoredDataBlockMetadata)
+    #             .filter(StoredDataBlockMetadata.storage_url.startswith("memory:"))
+    #             .delete(False)
+    #         )
+    #         print(f"{deleted} Memory StoredDataBlocks deleted")
 
-        for block in self.session.query(DataBlockMetadata).filter(
-            ~DataBlockMetadata.stored_data_blocks.any()
-        ):
-            print(f"#{block.id} {block.nominal_schema_key} is orphaned! SAD")
-        if delete_intermediate:
-            # TODO: does no checking if they are unprocessed or not...
-            if not force:
-                d = input(
-                    "Are you sure you want to delete ALL intermediate DataBlocks? There is no undoing this operation. y/N?"
-                )
-                if not d or d.lower()[0] != "y":
-                    return
-            # Delete blocks with no DataSet
-            cnt = (
-                self.session.query(DataBlockMetadata)
-                .filter(
-                    ~DataBlockMetadata.data_sets.any(),
-                )
-                .update({DataBlockMetadata.deleted: True}, synchronize_session=False)
-            )
-            print(f"{cnt} intermediate DataBlocks deleted")
+    #     for block in self.session.query(DataBlockMetadata).filter(
+    #         ~DataBlockMetadata.stored_data_blocks.any()
+    #     ):
+    #         print(f"#{block.id} {block.nominal_schema_key} is orphaned! SAD")
+    #     if delete_intermediate:
+    #         # TODO: does no checking if they are unprocessed or not...
+    #         if not force:
+    #             d = input(
+    #                 "Are you sure you want to delete ALL intermediate DataBlocks? There is no undoing this operation. y/N?"
+    #             )
+    #             if not d or d.lower()[0] != "y":
+    #                 return
+    #         # Delete blocks with no DataSet
+    #         cnt = (
+    #             self.session.query(DataBlockMetadata)
+    #             .filter(~DataBlockMetadata.data_sets.any(),)
+    #             .update({DataBlockMetadata.deleted: True}, synchronize_session=False)
+    #         )
+    #         print(f"{cnt} intermediate DataBlocks deleted")
 
 
 # Shortcuts

@@ -84,11 +84,13 @@ def test_dedupe():
         # sql_dedupe_unique_keep_newest_row,
         dataframe_dedupe_unique_keep_newest_row,
     ]:
-        db = produce_pipe_output_for_static_input(p, input=data_input, target_storage=s)
-        expected_df = DataInput(
-            expected, schema="CoreTestSchema", module=core
-        ).as_dataframe(db.manager.ctx.env)
-        df = db.as_dataframe()
-        assert_dataframes_are_almost_equal(
-            df, expected_df, schema=core.schemas.CoreTestSchema
-        )
+        with produce_pipe_output_for_static_input(
+            p, input=data_input, target_storage=s
+        ) as db:
+            expected_df = DataInput(
+                expected, schema="CoreTestSchema", module=core
+            ).as_dataframe(db.manager.ctx.env, db.manager.sess)
+            df = db.as_dataframe()
+            assert_dataframes_are_almost_equal(
+                df, expected_df, schema=core.schemas.CoreTestSchema
+            )
