@@ -25,21 +25,21 @@ Snapflow brings the best practices learned over the last 60 years in software to
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
 scale from laptop to AWS cluster.
 
-### Features / Goals:
+### Features:
 
-- **Reusable modules and components** — Hundreds of `pipes` and `schemas` ready to
-  plug into pipelines in the snapflow repository [Coming soon].
+- **Reusable components** — Hundreds of `pipes` and `schemas` ready to
+  plug into pipelines in the snapflow repository [Coming soon]. Some examples:
 
-  - Connect Stripe data to LTV models and plot a cohort chart
-  - Blend stock prices and with macroeconomic data from FRED
-  - Export SaaS metrics to Google Sheets, Tableau, or Looker
+  - [Stripe](https://github.com/kvh/snapflow-stripe.git) module
+  - [Shopify](https://github.com/kvh/snapflow-shopify.git) module
+  - [Stocks](https://github.com/kvh/snapflow-stocks.git) module
+  - [BI](https://github.com/kvh/snapflow-bi.git) (Business Intelligence) module
+  - [FRED](https://github.com/kvh/snapflow-fred.git) (Federal Reserve Economic Data) module
 
-  and much more, instantly and out of the box.
-
-- **Testability** — Modular `pipes` allow individual steps in a data process to be
+- **Testable** — Modular `pipes` allow individual steps in a data process to be
   independently tested and QA'd with the same rigor as software.
 
-- **Flexibility** — snapflow lets you build data flows on and across any database or file system.
+- **Flexible** — snapflow lets you build data flows on and across any database or file system.
   It works with big or small data, in both batch and streaming modes.
 
 - **Zero cost abstractions and high performance** — snapflow makes its type and immutability
@@ -90,6 +90,8 @@ that emit or create datablocks every time they are run. This stream of blocks is
 then be consumed by downstream nodes, each in turn may emit their own blocks, and so on. Nodes
 can be run in any order, any number of times. Each time, they consume any new blocks
 from upstream until there are none left unprocessed, or they are requested to stop.
+
+![Architecture](assets/architecture.svg)
 
 Below are more details on the key components of snapflow.
 
