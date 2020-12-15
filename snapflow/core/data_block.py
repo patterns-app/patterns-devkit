@@ -278,12 +278,21 @@ class StoredDataBlockMetadata(BaseModel):
             return self.data_block.record_count
         return self.storage.get_manager(env).record_count(self)
 
-    def create_alias(self, env: Environment, alias: str) -> Alias:
-        a = Alias(
-            alias=alias,
-            data_block_id=self.data_block_id,
-            stored_data_block_id=self.id,
-        )
+    def create_alias(self, env: Environment, sess: Session, alias: str) -> Alias:
+        # Create or update Alias
+        a: Alias = sess.query(Alias).filter(Alias.alias == alias).first()
+        if a is None:
+            # (not really a race condition here since alias is unique to node and node cannot
+            #  run in parallel, for now at least)
+            a = Alias(
+                alias=alias,
+                data_block_id=self.data_block_id,
+                stored_data_block_id=self.id,
+            )
+            sess.add(a)
+        else:
+            a.data_block_id = self.data_block_id
+            a.stored_data_block_id = self.id
         self.storage.get_manager(env).create_alias(self, alias)
         return a
 
@@ -293,8 +302,7 @@ class StoredDataBlockMetadata(BaseModel):
 
 
 class Alias(BaseModel):
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    alias = Column(String(128))
+    alias = Column(String(128), primary_key=True)
     data_block_id = Column(
         String(128), ForeignKey(DataBlockMetadata.id), nullable=False
     )

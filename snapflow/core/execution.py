@@ -313,7 +313,6 @@ class ExecutionManager:
         runtime = self.select_runtime(node)
         run_ctx = self.ctx.clone(current_runtime=runtime)
         worker = Worker(run_ctx)
-        last_output: Optional[DataBlockMetadata] = None
 
         # Setup for run
         base_msg = f"Running node {cf.bold(node.key)} {cf.dimmed(node.pipe.key)}\n"
@@ -323,14 +322,17 @@ class ExecutionManager:
         )
         # self.log(base_msg)
         # start = time.time()
-        n_runs = 0
-        last_run_result = None
+        n_runs: int = 0
+        last_execution_result: Optional[ExecutionResult] = None
+        last_non_none_output: Optional[DataBlockMetadata] = None
         try:
             while True:
-                last_run_result = self._execute(node, worker)
+                last_execution_result = self._execute(node, worker)
+                if last_execution_result.output_block is not None:
+                    last_non_none_output = last_execution_result.output_block
                 n_runs += 1
                 if (
-                    not to_exhaustion or not last_run_result.inputs_bound
+                    not to_exhaustion or not last_execution_result.inputs_bound
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     # (they are responsible for creating their own generators)
                     break
@@ -349,16 +351,12 @@ class ExecutionManager:
         # TODO: how to pass back with session?
         #   maybe with env.produce() as output:
         # Or just merge in new session in env.produce
-        if last_run_result is None:
+        if last_non_none_output is None:
             return None
-        last_output = last_run_result.output_block
-        if last_output is None:
-            return None
-        # last_output = self.env.session.merge(last_output)
         logger.debug(f"*DONE* RUNNING NODE {node.key} {node.pipe.key}")
         if output_session is not None:
-            last_output = output_session.merge(last_output)
-            return last_output.as_managed_data_block(self.ctx, output_session)
+            last_non_none_output = output_session.merge(last_non_none_output)
+            return last_non_none_output.as_managed_data_block(self.ctx, output_session)
         return None
 
     def _execute(self, node: Node, worker: Worker) -> ExecutionResult:
@@ -375,11 +373,11 @@ class ExecutionManager:
         return worker.execute(executable)
 
 
-def ensure_alias(node: Node, sdb: StoredDataBlockMetadata) -> Alias:
+def ensure_alias(sess: Session, node: Node, sdb: StoredDataBlockMetadata) -> Alias:
     logger.debug(
         f"Creating alias {node.get_alias()} for node {node.key} on storage {sdb.storage_url}"
     )
-    return sdb.create_alias(node.env, node.get_alias())
+    return sdb.create_alias(node.env, sess, node.get_alias())
 
 
 class Worker:
@@ -428,8 +426,9 @@ class Worker:
                     )
                     output_block = output_sdb.data_block
                     execution_session.log_output(output_block)
-                    alias = ensure_alias(node, output_sdb)
-                    execution_session.metadata_session.add(alias)
+                    alias = ensure_alias(
+                        execution_session.metadata_session, node, output_sdb
+                    )
                     execution_session.metadata_session.flush([alias])
 
             # Flush
