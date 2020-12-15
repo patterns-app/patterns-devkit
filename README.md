@@ -10,25 +10,17 @@
 <p>&nbsp;</p>
 
 **Snapflow** is a framework for building end-to-end **functional data pipelines** from modular
-components. Snapflow abstracts over underlying database, runtime, and storage resources with
-functional type-aware data graphs that operate on streams of **immutable** `datablocks`. These graphs are
-composed of discrete `pipes` written in **python or SQL** and connect to
-form end-to-end data pipelines, from API extraction to SQL transformation to analysis, modeling, and
-visualization.
-
-Snapflow `pipes` optionally expose type interfaces, called `schemas`, that describe the structure,
-data types, and semantics of the expected input and output data. These type interfaces allow the
-snapflow community to build an ecosystem of interoperable components that power instant "plug and
-play" pipelines.
-
-Snapflow brings the best practices learned over the last 60 years in software to the world of data,
-with the goal of global collaboration, reproducible byte-perfect results, and performance at any
-scale from laptop to AWS cluster.
+components. It lets developers write pure data functions, called `pipes`, in **Python or SQL**
+and document their inputs and outputs explicitly via `schemas`. These pipes operate on immutable
+sets of data records, called `datablocks`, and can be composed into simple or complex data
+pipelines (function graphs). This functional framework provides powerful benefits:
 
 ### Features:
 
-- **Reusable components** — Hundreds of `pipes` and `schemas` ready to
-  plug into pipelines in the snapflow repository [Coming soon]. Some examples:
+- **Reusable components** — Pipes are self-contained data operations with well-defined interfaces
+  called schemas. This means not only can they be easily snapped together, but also shared and
+  reused across projects, open sourced, and catalogued in the snapflow repository (coming soon).
+  Some examples:
 
   - [Stripe](https://github.com/kvh/snapflow-stripe.git) module
   - [Shopify](https://github.com/kvh/snapflow-shopify.git) module
@@ -36,18 +28,31 @@ scale from laptop to AWS cluster.
   - [BI](https://github.com/kvh/snapflow-bi.git) (Business Intelligence) module
   - [FRED](https://github.com/kvh/snapflow-fred.git) (Federal Reserve Economic Data) module
 
-- **Testable** — Modular `pipes` allow individual steps in a data process to be
-  independently tested and QA'd with the same rigor as software.
+- **Testability** — Because pipes are self-contained, a developer can provide explicit test
+  inputs and the expected output under various data scenarios - a **data ETL unit test**. This
+  brings the rigor and industrial-grade reliability of software to the world of data.
 
-- **Flexible** — snapflow lets you build data flows on and across any database or file system.
-  It works with big or small data, in both batch and streaming modes.
+- **Total reproducibility** — The functional nature of snapflow means that every data state
+  at every ETL step is preserved, along with the code and runtimes that produced it. This gives
+  the developer and operator the ability to audit and reproduce complex pipelines down to the byte.
+  With snapflow, every single data point has a history of what code produced it in what order
+  on which runtimes.
+
+- **Portability** — Since snapflow units of work are explicit and testable, providing consistent
+  operations and data across different database engines and storage systems is safe and efficient.
+  Snapflow supports any major database vendor (postgres, mysql, snowflake, bigquery, redshift),
+  file system (local, S3, etc), as well as any data format, whether it's csv, json, or apache arrow.
 
 - **Zero cost abstractions and high performance** — snapflow makes its type and immutability
   guarantees at the abstraction level, so those guarantees can be compiled away at execution time
   for high performance. Developers and analysts can work with clean mental models and strong
   guarantees without incurring performance costs at runtime.
 
-🚨️ &nbsp; snapflow is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️
+Snapflow brings the best practices learned over the last 60 years in software to the world of data,
+with the goal of global collaboration, reproducible byte-perfect results, and performance at any
+scale from laptop to AWS cluster.
+
+> 🚨️ &nbsp; snapflow is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️
 
 ### Example
 
@@ -86,8 +91,8 @@ print(output.as_dataframe()
 ## Architecture overview
 
 All snapflow pipelines are directed graphs of nodes, consisting of one or more "source" nodes
-that emit or create datablocks every time they are run. This stream of blocks is
-then be consumed by downstream nodes, each in turn may emit their own blocks, and so on. Nodes
+that emit or create datablocks when run. This stream of blocks is
+then be consumed by downstream nodes, each in turn may emit their own blocks. Nodes
 can be run in any order, any number of times. Each time, they consume any new blocks
 from upstream until there are none left unprocessed, or they are requested to stop.
 
@@ -106,6 +111,11 @@ records on a specific `storage` mediums in a specific `dataformat` -- a CSV on t
 local file, a JSON string in memory, or a table in Postgres. Snapflow abstracts over specific
 formats and storage engines, and provides conversion and i/o between them while doing its best
 to maintain byte-perfect consistency -- to the extent possible for a given format and storage.
+
+Note, because all data in snapflow is a datablock, and datablocks are immutable, there is effectively
+just **ONE** data operation in the snapflow framework: _create new datablock_. (Under the hood,
+snapflow may do more complex operations for performance reasons, but at the abstraction level, there
+is just one operation.)
 
 ### Pipes
 
@@ -132,11 +142,11 @@ group by customer_id
 `schemas` are record type definitions (think database table schema) that let `pipes` specify the
 data structure they expect and allow them to inter-operate safely. They also
 provide a natural place for field descriptions, validation logic, deduplication
-behavior, and other metadata associated with a specific type of data record.
+behavior, relations to other schemas, and other metadata associated with a specific type of data record.
 
 `schemas` behave like _interfaces_ in other languages. The snapflow type system is structurally and
 gradually typed -- types are both optional and inferred, there is no explicit type hierarchy, and
-type compatibility can be inspected at runtime. A type is subtype of, or "compatible" with, another
+type compatibility can be inspected at runtime. A type is a subtype of, or "compatible" with, another
 type if it defines a superset of compatible fields or if it provides an `implementation`
 of that type.
 
@@ -238,8 +248,11 @@ from snapflow.operators import merge, filter
 
 n1 = node(source1)
 n2 = node(source2)
+ # Merge two or more streams into one
 combined = merge(n1, n2)
+# Filter a stream
 big_blocks_only = filter(combined, function=lambda block: block.count() > 1000)
+# Set the stream as an input
 n3 = node(do_something, upstream=big_blocks_only)
 ```
 
