@@ -8,6 +8,7 @@ from loguru import logger
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.utils.common import StringEnum, title_to_snake_case
 from sqlalchemy import JSON, Column, String
+from sqlalchemy.orm.session import Session
 
 if TYPE_CHECKING:
     from snapflow import Environment
@@ -70,7 +71,7 @@ SchemaName = str
 
 
 @dataclass(frozen=True)
-class Relationship:
+class Relation:
     name: str
     schema: SchemaKey
     fields: Dict[str, str]
@@ -81,14 +82,14 @@ class Implementation:
     schema_key: SchemaKey
     fields: Dict[str, str]
 
-    def schema(self, env: Environment) -> Schema:
-        return env.get_schema(self.schema_key)
+    def schema(self, env: Environment, sess: Session) -> Schema:
+        return env.get_schema(self.schema_key, sess)
 
     def as_schema_translation(
-        self, env: Environment, other: Schema
+        self, env: Environment, sess: Session, other: Schema
     ) -> SchemaTranslation:
         return SchemaTranslation(
-            translation=self.fields, from_schema=self.schema(env), to_schema=other
+            translation=self.fields, from_schema=self.schema(env, sess), to_schema=other
         )
 
 
@@ -117,7 +118,7 @@ class Schema:
     unique_on: List[str]
     on_conflict: Optional[ConflictBehavior]
     fields: List[Field]
-    relationships: List[Relationship] = field(default_factory=list)
+    relations: List[Relation] = field(default_factory=list)
     implementations: List[Implementation] = field(default_factory=list)
     raw_definition: Optional[str] = None
     extends: Optional[
@@ -151,7 +152,7 @@ class Schema:
         for f in self.fields:
             if f.name == field_name:
                 return f
-        # TODO: relationships
+        # TODO: relations
         raise NameError
 
     def field_names(self) -> List[str]:
@@ -184,13 +185,13 @@ class Schema:
         return Schema(**d)
 
     def get_translation_to(
-        self, env: Environment, other: Schema
+        self, env: Environment, sess: Session, other: Schema
     ) -> Optional[SchemaTranslation]:
         if not self.implementations:
             return None
         for impl in self.implementations:
             if impl.schema_key == other.key:
-                return impl.as_schema_translation(env, other)
+                return impl.as_schema_translation(env, sess, other)
         return None
 
 
@@ -280,7 +281,7 @@ def clean_raw_schema_defintion(raw_def: dict) -> dict:
 
 def build_schema_from_dict(d: dict, **overrides: Any) -> Schema:
     fields = [build_field_from_dict(f) for f in d.pop("fields", [])]
-    # TODO: relationships and implementations
+    # TODO: relations and implementations
     d["fields"] = fields
     d.update(**overrides)
     schema = Schema(**d)
@@ -320,7 +321,7 @@ def schema_to_yaml(schema: Schema) -> str:
 
     # TODO:
     # on_conflict: ConflictBehavior
-    # relationships: List[Reference] = field(default_factory=list)
+    # relations: List[Reference] = field(default_factory=list)
     # implementations: List[SchemaName] = field(default_factory=list)
     # extends: Optional[SchemaName] = None
 

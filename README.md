@@ -156,10 +156,10 @@ A minimal type example, in yaml:
 
 ```yaml
 name: Order
-description: Generic schema representing a basic order
+description: An example schema representing a basic order (purchase)
 version: 1.0
 unique on: id
-on duplicate: KeepFirst
+on duplicate: ReplaceWithNewer
 fields:
   id:
     type: Unicode(256)
@@ -178,10 +178,10 @@ fields:
     type: Unicode(256)
 ```
 
-We could also specify `relationships` and `implementations` of this type with other types:
+We could also specify `relations` and `implementations` of this type with other types:
 
 ```yaml
-relationships:
+relations:
   customer:
     type: Customer
     fields:

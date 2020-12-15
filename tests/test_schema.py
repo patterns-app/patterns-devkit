@@ -33,7 +33,7 @@ fields:
       - NotNull
   other_field:
     type: Integer
-relationships:
+relations:
   other:
     schema: OtherSchema
     fields:
@@ -72,7 +72,7 @@ def test_schema_yaml():
     assert tt.name == "TestSchema"
     assert tt.version == "3"
     assert len(tt.fields) == 2
-    assert len(tt.relationships) == 1
+    assert len(tt.relations) == 1
     assert len(tt.implementations) == 1
 
 

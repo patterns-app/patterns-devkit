@@ -10,7 +10,7 @@ fields:
       - NotNull
   other_field:
     type: Integer
-relationships:
+relations:
   other:
     schema: OtherSchema
     fields:
