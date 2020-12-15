@@ -13,7 +13,7 @@ from snapflow.core.pipe_interface import PipeAnnotation, PipeInterface
 from snapflow.core.runtime import RuntimeClass
 
 if TYPE_CHECKING:
-    from snapflow.core.runnable import PipeContext
+    from snapflow.core.execution import PipeContext
     from snapflow import Environment
 
 

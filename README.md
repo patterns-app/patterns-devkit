@@ -3,7 +3,6 @@
 <p align="center">
   <img width="80" src="assets/bolt.png">
 </p>
-<p>&nbsp;</p>
 <p align="center">
   <img width="500" src="assets/snapflow.svg">
 </p>
@@ -28,7 +27,7 @@ scale from laptop to AWS cluster.
 
 ### Features / Goals:
 
-- **Reusable modules and components** - Hundreds of `pipes` and `schemas` ready to
+- **Reusable modules and components** — Hundreds of `pipes` and `schemas` ready to
   plug into pipelines in the snapflow repository [Coming soon].
 
   - Connect Stripe data to LTV models and plot a cohort chart
@@ -37,13 +36,13 @@ scale from laptop to AWS cluster.
 
   and much more, instantly and out of the box.
 
-- **Testability** - Modular `pipes` allow individual steps in a data process to be
+- **Testability** — Modular `pipes` allow individual steps in a data process to be
   independently tested and QA'd with the same rigor as software.
 
-- **Flexibility** - snapflow lets you build data flows on and across any database or file system.
+- **Flexibility** — snapflow lets you build data flows on and across any database or file system.
   It works with big or small data, in both batch and streaming modes.
 
-- **Zero cost abstractions and high performance** - snapflow makes its type and immutability
+- **Zero cost abstractions and high performance** — snapflow makes its type and immutability
   guarantees at the abstraction level, so those guarantees can be compiled away at execution time
   for high performance. Developers and analysts can work with clean mental models and strong
   guarantees without incurring performance costs at runtime.
@@ -61,13 +60,13 @@ import snapflow_stripe as stripe
 g = graph()
 
 # Fetch Stripe charges from API:
-stripe_source_node = g.create_node(
+stripe_source_node = g.node(
     stripe.pipes.extract_charges,
     config={"api_key": "xxxxxxxxxxxx"},
 )
 
 # Accumulate all charges:
-stripe_charges_node = g.create_node("core.dataframe_accumulator")
+stripe_charges_node = g.node("core.dataframe_accumulator")
 stripe_charges_node.set_upstream(stripe_source_node)
 
 # Define custom pipe:
@@ -76,7 +75,7 @@ def customer_lifetime_sales(block):
     return df.groupby("customer")["amount"].sum().reset_index()
 
 # Add node and take latest accumulated output as input:
-lifetime_sales = g.create_node(customer_lifetime_sales)
+lifetime_sales = g.node(customer_lifetime_sales)
 lifetime_sales.set_upstream(operators.latest(stripe_charges_node))
 
 # Run:

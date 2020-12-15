@@ -5,6 +5,7 @@ from typing import Callable
 import pytest
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.execution import PipeContext
 from snapflow.core.graph import Graph, graph
 from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
 from snapflow.core.node import DeclaredNode, node
@@ -15,14 +16,13 @@ from snapflow.core.pipe_interface import (
     get_schema_translation,
     make_default_output_annotation,
 )
-from snapflow.core.runnable import PipeContext
 from snapflow.core.streams import StreamBuilder, block_as_stream
 from snapflow.modules import core
 from snapflow.utils.typing import T, U
 from tests.utils import (
     TestSchema1,
     make_test_env,
-    make_test_execution_context,
+    make_test_run_context,
     pipe_chain_t1_to_t2,
     pipe_generic,
     pipe_multiple_input,
@@ -278,26 +278,27 @@ def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
 
 
 def test_generic_schema_resolution():
-    ec = make_test_execution_context()
+    ec = make_test_run_context()
     env = ec.env
     g = Graph(env)
     n1 = g.create_node(key="node1", pipe=pipe_generic, upstream="n0")
     # pi = n1.get_interface()
-    im = NodeInterfaceManager(ctx=ec, node=n1)
-    block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema2",
-    )
-    env.session.add(block)
-    env.session.flush([block])
-    stream = block_as_stream(block, ec)
-    bi = im.get_bound_interface({"input": stream})
-    assert len(bi.inputs) == 1
-    assert bi.resolve_nominal_output_schema(env) is TestSchema1
+    with env.session_scope() as sess:
+        im = NodeInterfaceManager(ctx=ec, sess=sess, node=n1)
+        block = DataBlockMetadata(
+            nominal_schema_key="_test.TestSchema1",
+            realized_schema_key="_test.TestSchema2",
+        )
+        sess.add(block)
+        sess.flush([block])
+        stream = block_as_stream(block, ec, sess)
+        bi = im.get_bound_interface({"input": stream})
+        assert len(bi.inputs) == 1
+        assert bi.resolve_nominal_output_schema(env, sess) is TestSchema1
 
 
 def test_declared_schema_translation():
-    ec = make_test_execution_context()
+    ec = make_test_run_context()
     env = ec.env
     g = Graph(env)
     translation = {"f1": "mapped_f1"}
@@ -314,18 +315,20 @@ def test_declared_schema_translation():
     # bi = im.get_bound_stream_interface({"input": stream})
     # assert len(bi.inputs) == 1
     # input: StreamInput = bi.inputs[0]
-    schema_translation = get_schema_translation(
-        env,
-        block,
-        declared_schema=pi.inputs[0].schema(env),
-        declared_schema_translation=translation,
-    )
-    assert schema_translation.as_dict() == translation
+    with env.session_scope() as sess:
+        schema_translation = get_schema_translation(
+            env,
+            sess,
+            block,
+            declared_schema=pi.inputs[0].schema(env, sess),
+            declared_schema_translation=translation,
+        )
+        assert schema_translation.as_dict() == translation
 
 
 def test_natural_schema_translation():
     # TODO
-    ec = make_test_execution_context()
+    ec = make_test_run_context()
     env = ec.env
     g = Graph(env)
     translation = {"f1": "mapped_f1"}
@@ -338,13 +341,15 @@ def test_natural_schema_translation():
         nominal_schema_key="_test.TestSchema1",
         realized_schema_key="_test.TestSchema1",
     )
-    schema_translation = get_schema_translation(
-        env,
-        block,
-        declared_schema=pi.inputs[0].schema(env),
-        declared_schema_translation=translation,
-    )
-    assert schema_translation.as_dict() == translation
+    with env.session_scope() as sess:
+        schema_translation = get_schema_translation(
+            env,
+            sess,
+            block,
+            declared_schema=pi.inputs[0].schema(env, sess),
+            declared_schema_translation=translation,
+        )
+        assert schema_translation.as_dict() == translation
     # bpi = im.get_bound_stream_interface({"input": block})
     # assert len(bpi.inputs) == 1
     # input = bpi.inputs[0]
@@ -353,7 +358,7 @@ def test_natural_schema_translation():
 
 
 def test_inputs():
-    ec = make_test_execution_context()
+    ec = make_test_run_context()
     env = ec.env
     g = graph()
     n1 = g.create_node(pipe=pipe_t1_source)
@@ -366,18 +371,20 @@ def test_inputs():
     assert pi is not None
 
     ec.graph = g.instantiate(env)
-    im = NodeInterfaceManager(ctx=ec, node=n1.instantiate(env))
-    bi = im.get_bound_interface()
-    assert bi is not None
-    im = NodeInterfaceManager(ctx=ec, node=n4.instantiate(env))
-    db = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
-    )
-    ec.metadata_session.add(db)
-    ec.metadata_session.flush([db])
-    bi = im.get_bound_interface({"input": StreamBuilder().as_managed_stream(ec)})
-    assert bi is not None
+    with env.session_scope() as sess:
+        im = NodeInterfaceManager(ctx=ec, sess=sess, node=n1.instantiate(env))
+        bi = im.get_bound_interface()
+        assert bi is not None
+        im = NodeInterfaceManager(ctx=ec, sess=sess, node=n4.instantiate(env))
+        db = DataBlockMetadata(
+            nominal_schema_key="_test.TestSchema1",
+            realized_schema_key="_test.TestSchema1",
+        )
+        sess.add(db)
+        bi = im.get_bound_interface(
+            {"input": StreamBuilder().as_managed_stream(ec, sess)}
+        )
+        assert bi is not None
 
 
 def test_python_pipe():
@@ -446,8 +453,8 @@ def test_node_config():
         config_vals.append(ctx.get_config_value("test"))
 
     n = g.create_node(key="ctx", pipe=pipe_ctx, config={"test": 1, "extra_arg": 2})
-    with env.execution(g) as exe:
-        exe.run(n)
+    with env.run(g) as exe:
+        exe.execute(n)
     assert config_vals == [1]
 
 

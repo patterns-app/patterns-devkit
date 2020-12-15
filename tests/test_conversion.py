@@ -178,9 +178,10 @@ class TestConversions:
             {"f1": "bye", "f2": None},
         ]
         self.local_storage = new_local_memory_storage()
-        self.sess = self.env.get_new_metadata_session()
+        self.sess = self.env._get_new_metadata_session()
         self.db, self.sdb = create_data_block_from_records(
             self.env,
+            self.sess,
             self.local_storage,
             self.records,
             nominal_schema=TestSchema4,
@@ -188,34 +189,37 @@ class TestConversions:
         assert self.sdb.data_format == RecordsListFormat
 
     def tearDown(self):
-        self.sess.close_all()
+        self.sess.close()
 
     def test_memory_to_file(self):
         g = Graph(self.env)
-        ec = self.env.get_execution_context(g)
+        ec = self.env.get_run_context(g)
         for fmt in (DelimitedFileFormat, JsonListFileFormat):
-            out_sdb = convert_lowest_cost(ec, self.sdb, self.fs, fmt)
+            out_sdb = convert_lowest_cost(ec, self.sess, self.sdb, self.fs, fmt)
             assert out_sdb.data_format == fmt
-            assert out_sdb.nominal_schema(self.env) is TestSchema4
+            assert out_sdb.nominal_schema(self.env, self.sess) is TestSchema4
             assert (
-                out_sdb.realized_schema(self.env).field_names()
+                out_sdb.realized_schema(self.env, self.sess).field_names()
                 == TestSchema4.field_names()
             )  # TODO: really probably want "is" here as well, but we have inferred type as BigInteger and nominal type as Integer...
             fsapi = self.fs.get_file_system_api(self.env)
             assert fsapi.exists(out_sdb)
-            db = out_sdb.data_block.as_managed_data_block(ec)
+            db = out_sdb.data_block.as_managed_data_block(ec, self.sess)
             assert db.as_records_list() == self.records_full
 
     def test_memory_to_database(self):
         g = Graph(self.env)
         database = self.env.add_storage(get_tmp_sqlite_db_url())
-        ec = self.env.get_execution_context(g)
-        out_sdb = convert_lowest_cost(ec, self.sdb, database, DatabaseTableFormat)
+        ec = self.env.get_run_context(g)
+        out_sdb = convert_lowest_cost(
+            ec, self.sess, self.sdb, database, DatabaseTableFormat
+        )
         assert out_sdb.data_format == DatabaseTableFormat
-        assert out_sdb.nominal_schema(self.env) is TestSchema4
+        assert out_sdb.nominal_schema(self.env, self.sess) is TestSchema4
         assert (
-            out_sdb.realized_schema(self.env).field_names() == TestSchema4.field_names()
+            out_sdb.realized_schema(self.env, self.sess).field_names()
+            == TestSchema4.field_names()
         )
         assert database.get_database_api(self.env).exists(out_sdb.get_name(self.env))
-        db = out_sdb.data_block.as_managed_data_block(ec)
+        db = out_sdb.data_block.as_managed_data_block(ec, self.sess)
         assert db.as_records_list() == self.records_full

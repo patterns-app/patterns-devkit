@@ -7,7 +7,11 @@ from typing import TYPE_CHECKING, Callable, Iterator, List, Tuple, Type
 
 import sqlalchemy
 from loguru import logger
-from snapflow.core.data_block import DataBlockMetadata, StoredDataBlockMetadata
+from snapflow.core.data_block import (
+    DataBlockMetadata,
+    StoredDataBlockMetadata,
+    get_datablock_id,
+)
 from snapflow.core.data_formats import DatabaseTableFormat, RecordsList
 from snapflow.core.environment import Environment
 from snapflow.core.sql.utils import SchemaMapper
@@ -20,6 +24,7 @@ from snapflow.utils.data import conform_records_for_insert
 from sqlalchemy import MetaData
 from sqlalchemy.engine import Connection, Engine, ResultProxy
 from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy.orm.session import Session
 
 if TYPE_CHECKING:
     pass
@@ -60,7 +65,9 @@ class DatabaseAPI:
 
     def get_engine(self) -> sqlalchemy.engine.Engine:
         eng = sqlalchemy.create_engine(
-            self.url, json_serializer=self.json_serializer, echo=False
+            self.url,
+            json_serializer=self.json_serializer,
+            echo=False,
         )
         _sa_engines.append(eng)
         return eng
@@ -83,11 +90,11 @@ class DatabaseAPI:
         with self.connection() as conn:
             yield conn.execute(sql)
 
-    def ensure_table(self, sdb: StoredDataBlockMetadata) -> str:
+    def ensure_table(self, sess: Session, sdb: StoredDataBlockMetadata) -> str:
         name = sdb.get_name(self.env)
         if self.exists(name):
             return name
-        schema = sdb.realized_schema(self.env)
+        schema = sdb.realized_schema(self.env, sess)
         ddl = SchemaMapper(self.env).create_table_statement(
             schema=schema,
             storage_engine=sdb.storage.storage_engine,
@@ -106,8 +113,10 @@ class DatabaseAPI:
     def clean_sub_sql(self, sql: str) -> str:
         return sql.strip(" ;")
 
-    def insert_sql(self, destination_sdb: StoredDataBlockMetadata, sql: str):
-        name = self.ensure_table(destination_sdb)
+    def insert_sql(
+        self, sess: Session, destination_sdb: StoredDataBlockMetadata, sql: str
+    ):
+        name = self.ensure_table(sess, destination_sdb)
         schema = destination_sdb.get_realized_schema(self.env)
         sql = self.clean_sub_sql(sql)
         columns = "\n,".join(f.name for f in schema.fields)
@@ -126,6 +135,7 @@ class DatabaseAPI:
     def create_data_block_from_sql(
         self,
         sql: str,
+        sess: Session,
         nominal_schema: Schema = None,
         inferred_schema: Schema = None,
         created_by_node_key: str = None,
@@ -144,12 +154,12 @@ class DatabaseAPI:
         self.execute_sql(create_sql)
         cnt = self.count(tmp_name)
         if not nominal_schema:
-            nominal_schema = self.env.get_schema("Any")
+            nominal_schema = self.env.get_schema("Any", sess)
         if not inferred_schema:
             inferred_schema = infer_schema_from_db_table(self, tmp_name)
-            self.env.add_new_generated_schema(inferred_schema)
+            self.env.add_new_generated_schema(inferred_schema, sess)
         realized_schema = cast_to_realized_schema(
-            self.env, inferred_schema, nominal_schema
+            self.env, sess, inferred_schema, nominal_schema
         )
         # if is_any(nominal_schema):
         #     inferred_schema = infer_schema_from_db_table(self, tmp_name)
@@ -158,6 +168,7 @@ class DatabaseAPI:
         # else:
         #     realized_schema = nominal_schema
         block = DataBlockMetadata(
+            id=get_datablock_id(),
             inferred_schema_key=inferred_schema.key if inferred_schema else None,
             nominal_schema_key=nominal_schema.key,
             realized_schema_key=realized_schema.key,
@@ -166,23 +177,28 @@ class DatabaseAPI:
         )
         storage_url = self.url
         sdb = StoredDataBlockMetadata(
+            id=get_datablock_id(),
+            data_block_id=block.id,
             data_block=block,
             storage_url=storage_url,
             data_format=DatabaseTableFormat,
         )
-        self.env.session.add(block)
-        self.env.session.add(sdb)
-        self.env.session.flush([block, sdb])
+        sess.add(block)
+        sess.add(sdb)
+        sess.flush([block, sdb])
         # TODO: would be great to validate that a block/SDB resource is named right, or even to record the name
         #   eg what if we change the naming logic at some point...?  attr on SDB: storage_name or something
         self.rename_table(tmp_name, sdb.get_name(self.env))
         return block, sdb
 
     def bulk_insert_records_list(
-        self, destination_sdb: StoredDataBlockMetadata, records: RecordsList
+        self,
+        sess: Session,
+        destination_sdb: StoredDataBlockMetadata,
+        records: RecordsList,
     ):
         # Create table whether or not there is anything to insert (side-effect consistency)
-        name = self.ensure_table(destination_sdb)
+        name = self.ensure_table(sess, destination_sdb)
         if not records:
             return
         self._bulk_insert(name, records)

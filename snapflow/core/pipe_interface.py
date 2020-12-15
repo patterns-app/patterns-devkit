@@ -16,6 +16,7 @@ from snapflow.core.typing.schema import (
     is_any,
     is_generic,
 )
+from sqlalchemy.orm.session import Session
 
 if TYPE_CHECKING:
     from snapflow.core.pipe import (
@@ -24,7 +25,7 @@ if TYPE_CHECKING:
     )
     from snapflow.core.node import Node, Node, NodeLike
     from snapflow.core.storage.storage import Storage
-    from snapflow.core.runnable import ExecutionContext
+    from snapflow.core.execution import RunContext
     from snapflow.core.streams import (
         StreamBuilder,
         InputStreams,
@@ -141,13 +142,13 @@ class PipeAnnotation:
         args.update(**kwargs)
         return PipeAnnotation.create(**args)  # type: ignore
 
-    def schema(self, env: Environment) -> Schema:
+    def schema(self, env: Environment, sess: Session) -> Schema:
         if self.is_generic:
             raise GenericSchemaException("Generic Schema has no name")
-        return env.get_schema(self.schema_like)
+        return env.get_schema(self.schema_like, sess)
 
-    def schema_key(self, env: Environment) -> SchemaKey:
-        return self.schema(env).key
+    def schema_key(self, env: Environment, sess: Session) -> SchemaKey:
+        return self.schema(env, sess).key
 
 
 def make_default_output_annotation():
@@ -401,11 +402,13 @@ class BoundInterface:
             if i.bound_stream is not None
         }
 
-    def resolve_nominal_output_schema(self, env: Environment) -> Optional[Schema]:
+    def resolve_nominal_output_schema(
+        self, env: Environment, sess: Session
+    ) -> Optional[Schema]:
         if not self.output:
             return None
         if not self.output.is_generic:
-            return self.output.schema(env)
+            return self.output.schema(env, sess)
         output_generic = self.output.schema_like
         for input in self.inputs:
             if not input.annotation.is_generic:
@@ -420,6 +423,7 @@ class BoundInterface:
 
 def get_schema_translation(
     env: Environment,
+    sess: Session,
     data_block: DataBlockMetadata,
     declared_schema: Optional[Schema] = None,
     declared_schema_translation: Optional[Dict[str, str]] = None,
@@ -428,13 +432,15 @@ def get_schema_translation(
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
             translation=declared_schema_translation,
-            from_schema=data_block.realized_schema(env),
+            from_schema=data_block.realized_schema(env, sess),
         )
     if declared_schema is None or is_any(declared_schema):
         # Nothing expected, so no translation needed
         return None
     # Otherwise map found schema to expected schema
-    return data_block.realized_schema(env).get_translation_to(env, declared_schema)
+    return data_block.realized_schema(env, sess).get_translation_to(
+        env, declared_schema
+    )
 
 
 #
@@ -544,8 +550,11 @@ class NodeInterfaceManager:
     Node.
     """
 
-    def __init__(self, ctx: ExecutionContext, node: Node, strict_storages: bool = True):
+    def __init__(
+        self, ctx: RunContext, sess: Session, node: Node, strict_storages: bool = True
+    ):
         self.env = ctx.env
+        self.sess = sess
         self.ctx = ctx
         self.node = node
         self.pipe_interface: PipeInterface = self.node.get_interface()
@@ -607,7 +616,7 @@ class NodeInterfaceManager:
 
             In other words, if ANY block stream is empty, bail out. If ALL DS streams are empty, bail
             """
-            if stream_builder.get_count(self.ctx) == 0:
+            if stream_builder.get_count(self.ctx, self.sess) == 0:
                 logger.debug(
                     f"Couldnt find eligible DataBlocks for input `{input.name}` from {stream_builder}"
                 )
@@ -618,11 +627,12 @@ class NodeInterfaceManager:
             else:
                 declared_schema: Optional[Schema]
                 try:
-                    declared_schema = input.annotation.schema(self.env)
+                    declared_schema = input.annotation.schema(self.env, self.sess)
                 except GenericSchemaException:
                     declared_schema = None
                 input_streams[input.name] = stream_builder.as_managed_stream(
                     self.ctx,
+                    self.sess,
                     declared_schema=declared_schema,
                     declared_schema_translation=input.declared_schema_translation,
                 )
@@ -640,15 +650,19 @@ class NodeInterfaceManager:
         input: NodeInput,
         storages: List[Storage] = None,
     ) -> StreamBuilder:
-        logger.debug(f"{stream_builder.get_count(self.ctx)} available DataBlocks")
+        logger.debug(
+            f"{stream_builder.get_count(self.ctx, self.sess)} available DataBlocks"
+        )
         if storages:
             stream_builder = stream_builder.filter_storages(storages)
             logger.debug(
-                f"{stream_builder.get_count(self.ctx)} available DataBlocks in storages {storages}"
+                f"{stream_builder.get_count(self.ctx, self.sess)} available DataBlocks in storages {storages}"
             )
         logger.debug(f"Finding unprocessed input for: {stream_builder}")
         stream_builder = stream_builder.filter_unprocessed(
             self.node, allow_cycle=input.annotation.is_self_ref
         )
-        logger.debug(f"{stream_builder.get_count(self.ctx)} unprocessed DataBlocks")
+        logger.debug(
+            f"{stream_builder.get_count(self.ctx, self.sess)} unprocessed DataBlocks"
+        )
         return stream_builder

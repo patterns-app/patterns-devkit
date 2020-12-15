@@ -77,7 +77,7 @@ class MemoryToMemoryConverter(Converter):
         if (input_sdb.data_format, output_sdb.data_format) not in lookup:
             raise NotImplementedError((input_sdb.data_format, output_sdb.data_format))
         output_records_object = lookup[(input_sdb.data_format, output_sdb.data_format)](
-            input_ldr.records_object, input_sdb.realized_schema(self.env)
+            input_ldr.records_object, input_sdb.realized_schema(self.env, self.sess)
         )
         output_ldr = LocalMemoryDataRecords.from_records_object(output_records_object)
         output_memory_storage.store_local_memory_data_records(output_sdb, output_ldr)

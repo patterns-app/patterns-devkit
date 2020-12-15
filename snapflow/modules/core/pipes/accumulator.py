@@ -96,19 +96,19 @@ def test_accumulator():
     ]:
         for p in [sql_accumulator, dataframe_accumulator]:
             data_input = DataInput(input_data, schema="CoreTestSchema", module=core)
-            db = produce_pipe_output_for_static_input(
+            with produce_pipe_output_for_static_input(
                 p, input=data_input, target_storage=s
-            )
-            logger.debug(db)
-            logger.debug("TEST df conversion")
-            expected_df = DataInput(
-                expected, schema="CoreTestSchema", module=core
-            ).as_dataframe(db.manager.ctx.env)
-            logger.debug("TEST df conversion 2")
-            df = db.as_dataframe()
-            assert_dataframes_are_almost_equal(
-                df, expected_df, schema=core.schemas.CoreTestSchema
-            )
+            ) as db:
+                logger.debug(db)
+                logger.debug("TEST df conversion")
+                expected_df = DataInput(
+                    expected, schema="CoreTestSchema", module=core
+                ).as_dataframe(db.manager.ctx.env, db.manager.sess)
+                logger.debug("TEST df conversion 2")
+                df = db.as_dataframe()
+                assert_dataframes_are_almost_equal(
+                    df, expected_df, schema=core.schemas.CoreTestSchema
+                )
 
     # TODO: how to test `this`?
     # test_recursive_input=dict(

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from snapflow.core.data_block import DataBlock
+from snapflow.core.execution import PipeContext
 from snapflow.core.module import SnapflowModule
-from snapflow.core.runnable import PipeContext
 from snapflow.utils.typing import T
 
 

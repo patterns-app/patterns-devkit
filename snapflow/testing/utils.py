@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Iterator, Optional
 
 from pandas import DataFrame
 from snapflow import DataBlock, Environment, Graph, Pipe, Storage
@@ -60,10 +61,10 @@ class DataInput:
     schema: Optional[SchemaLike] = None
     module: Optional[SnapflowModule] = None
 
-    def as_dataframe(self, env: Environment):
+    def as_dataframe(self, env: Environment, sess: Session):
         schema = None
         if self.schema:
-            schema = env.get_schema(self.schema)
+            schema = env.get_schema(self.schema, sess)
         return str_as_dataframe(self.data, module=self.module, nominal_schema=schema)
 
     def get_schema_key(self) -> Optional[str]:
@@ -74,6 +75,7 @@ class DataInput:
         return self.schema.key
 
 
+@contextmanager
 def produce_pipe_output_for_static_input(
     pipe: Pipe,
     config: Dict[str, Any] = None,
@@ -82,37 +84,39 @@ def produce_pipe_output_for_static_input(
     env: Optional[Environment] = None,
     module: Optional[SnapflowModule] = None,
     target_storage: Optional[Storage] = None,
-) -> Optional[DataBlock]:
+) -> Iterator[Optional[DataBlock]]:
     input = input or upstream
     if env is None:
         db = get_tmp_sqlite_db_url()
         env = Environment(metadata_storage=db)
     if target_storage:
         target_storage = env.add_storage(target_storage)
-    g = Graph(env)
-    input_datas = input
-    input_nodes: Dict[str, Node] = {}
-    pi = pipe.get_interface()
-    if not isinstance(input, dict):
-        assert len(pi.get_non_recursive_inputs()) == 1
-        input_datas = {pi.get_non_recursive_inputs()[0].name: input}
-    for input in pi.inputs:
-        if input.is_self_ref:
-            continue
-        assert input.name is not None
-        input_data = input_datas[input.name]
-        if isinstance(input_data, str):
-            input_data = DataInput(data=input_data)
-        n = g.create_node(
-            key=f"_input_{input.name}",
-            pipe="core.extract_dataframe",
-            config={
-                "dataframe": input_data.as_dataframe(env),
-                "schema": input_data.get_schema_key(),
-            },
+    with env.session_scope() as sess:
+        g = Graph(env)
+        input_datas = input
+        input_nodes: Dict[str, Node] = {}
+        pi = pipe.get_interface()
+        if not isinstance(input, dict):
+            assert len(pi.get_non_recursive_inputs()) == 1
+            input_datas = {pi.get_non_recursive_inputs()[0].name: input}
+        for input in pi.inputs:
+            if input.is_self_ref:
+                continue
+            assert input.name is not None
+            input_data = input_datas[input.name]
+            if isinstance(input_data, str):
+                input_data = DataInput(data=input_data)
+            n = g.create_node(
+                key=f"_input_{input.name}",
+                pipe="core.extract_dataframe",
+                config={
+                    "dataframe": input_data.as_dataframe(env, sess),
+                    "schema": input_data.get_schema_key(),
+                },
+            )
+            input_nodes[input.name] = n
+        test_node = g.create_node(
+            key=f"{pipe.name}", pipe=pipe, config=config, upstream=input_nodes
         )
-        input_nodes[input.name] = n
-    test_node = g.create_node(
-        key=f"{pipe.name}", pipe=pipe, config=config, upstream=input_nodes
-    )
-    return env.produce(test_node, to_exhaustion=False, target_storage=target_storage)
+        db = env.produce(test_node, to_exhaustion=False, target_storage=target_storage)
+        yield db

@@ -43,7 +43,7 @@ class MemoryToFileConverter(Converter):
         output_api = output_sdb.storage.get_file_system_api(self.env)
         if output_sdb.data_format == DelimitedFileFormat:
             output_api.write_records_to_csv(
-                output_sdb, records_iterable=records_objects
+                self.sess, output_sdb, records_iterable=records_objects
             )
         elif output_sdb.data_format == JsonListFileFormat:
             output_api.write_records_as_json(

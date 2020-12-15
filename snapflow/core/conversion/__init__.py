@@ -13,9 +13,10 @@ from snapflow.core.data_block import StoredDataBlockMetadata
 from snapflow.core.data_formats import DataFormat
 from snapflow.core.storage.storage import Storage, StorageType
 from snapflow.utils.common import printd
+from sqlalchemy.orm.session import Session
 
 if TYPE_CHECKING:
-    from snapflow.core.runnable import ExecutionContext
+    from snapflow.core.execution import RunContext
 
 
 third_party_converters: List[Type[Converter]] = []
@@ -52,7 +53,8 @@ class ConversionPathDoesNotExist(Exception):
 
 
 def convert_lowest_cost(
-    ctx: ExecutionContext,
+    ctx: RunContext,
+    sess: Session,
     sdb: StoredDataBlockMetadata,
     target_storage: Storage,
     target_format: DataFormat,
@@ -63,7 +65,7 @@ def convert_lowest_cost(
         raise ConversionPathDoesNotExist(
             f"Converting {sdb} to {target_storage} {target_format}"
         )
-    return convert_sdb(ctx, sdb, cp)
+    return convert_sdb(ctx, sess, sdb, cp)
 
 
 def get_conversion_path_for_sdb(
@@ -84,7 +86,8 @@ def get_conversion_path_for_sdb(
 
 
 def convert_sdb(
-    ctx: ExecutionContext,
+    ctx: RunContext,
+    sess: Session,
     sdb: StoredDataBlockMetadata,
     conversion_path: ConversionPath,
 ) -> StoredDataBlockMetadata:
@@ -98,7 +101,7 @@ def convert_sdb(
         logger.debug(f"CONVERSION: {conversion[0]} -> {conversion[1]}")
         # printd("\t", storage)
         # printd("\t", next_sdb)
-        next_sdb = conversion_edge.converter_class(ctx).convert(
+        next_sdb = conversion_edge.converter_class(ctx, sess).convert(
             next_sdb, storage, target_storage_format.data_format
         )
     return next_sdb

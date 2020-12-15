@@ -6,7 +6,7 @@ from snapflow.core.node import DataBlockLog, Direction, PipeLog
 from snapflow.core.operators import filter, latest, operator
 from snapflow.core.streams import DataBlockStream, StreamBuilder
 from tests.utils import (
-    make_test_execution_context,
+    make_test_run_context,
     pipe_generic,
     pipe_t1_sink,
     pipe_t1_source,
@@ -16,7 +16,7 @@ from tests.utils import (
 
 class TestStreams:
     def setup(self):
-        ctx = make_test_execution_context()
+        ctx = make_test_run_context()
         self.ctx = ctx
         self.env = ctx.env
         self.g = Graph(self.env)
@@ -47,17 +47,20 @@ class TestStreams:
         self.node3 = self.g.create_node(
             key="pipe3", pipe=pipe_generic, upstream="pipe_source"
         )
-        self.sess = ctx.metadata_session
-        self.dr1t1 = ctx.merge(self.dr1t1)
-        self.dr2t1 = ctx.merge(self.dr2t1)
-        self.dr1t2 = ctx.merge(self.dr1t2)
-        self.dr2t2 = ctx.merge(self.dr2t2)
-        self.graph = ctx.merge(self.graph)
+        self.sess = self.env._get_new_metadata_session()
+        self.sess.add(self.dr1t1)
+        self.sess.add(self.dr2t1)
+        self.sess.add(self.dr1t2)
+        self.sess.add(self.dr2t2)
+        self.sess.add(self.graph)
+
+    def teardown(self):
+        self.sess.close()
 
     def test_stream_unprocessed_pristine(self):
         s = StreamBuilder(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query(self.ctx).first() is None
+        assert s.get_query(self.ctx, self.sess).first() is None
 
     def test_stream_unprocessed_eligible(self):
         dfl = PipeLog(
@@ -75,7 +78,7 @@ class TestStreams:
 
         s = StreamBuilder(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query(self.ctx).first() == self.dr1t1
+        assert s.get_query(self.ctx, self.sess).first() == self.dr1t1
 
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = PipeLog(
@@ -104,7 +107,7 @@ class TestStreams:
 
         s = StreamBuilder(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query(self.ctx).first() is None
+        assert s.get_query(self.ctx, self.sess).first() is None
 
     def test_stream_unprocessed_ineligible_already_output(self):
         """
@@ -137,11 +140,11 @@ class TestStreams:
 
         s = StreamBuilder(nodes=self.node_source)
         s1 = s.filter_unprocessed(self.node1)
-        assert s1.get_query(self.ctx).first() is None
+        assert s1.get_query(self.ctx, self.sess).first() is None
 
         # But ok with self reference
         s2 = s.filter_unprocessed(self.node1, allow_cycle=True)
-        assert s2.get_query(self.ctx).first() == self.dr1t1
+        assert s2.get_query(self.ctx, self.sess).first() == self.dr1t1
 
     def test_stream_unprocessed_eligible_schema(self):
         dfl = PipeLog(
@@ -159,11 +162,11 @@ class TestStreams:
 
         s = StreamBuilder(nodes=self.node_source, schema="TestSchema1")
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query(self.ctx).first() == self.dr1t1
+        assert s.get_query(self.ctx, self.sess).first() == self.dr1t1
 
         s = StreamBuilder(nodes=self.node_source, schema="TestSchema2")
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query(self.ctx).first() is None
+        assert s.get_query(self.ctx, self.sess).first() is None
 
     def test_operators(self):
         dfl = PipeLog(
@@ -193,17 +196,21 @@ class TestStreams:
                 yield db
 
         sb = StreamBuilder(nodes=self.node_source)
-        expected_cnt = sb.get_query(self.ctx).count()
+        expected_cnt = sb.get_query(self.ctx, self.sess).count()
         assert expected_cnt == 2
-        list(count(sb).as_managed_stream(self.ctx))
+        list(count(sb).as_managed_stream(self.ctx, self.sess))
         assert self._cnt == expected_cnt
 
         # Test composed operators
         self._cnt = 0
-        list(count(latest(sb)).as_managed_stream(self.ctx))
+        list(count(latest(sb)).as_managed_stream(self.ctx, self.sess))
         assert self._cnt == 1
 
         # Test kwargs
         self._cnt = 0
-        list(count(filter(sb, function=lambda db: False)).as_managed_stream(self.ctx))
+        list(
+            count(filter(sb, function=lambda db: False)).as_managed_stream(
+                self.ctx, self.sess
+            )
+        )
         assert self._cnt == 0

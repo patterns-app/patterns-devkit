@@ -89,17 +89,19 @@ class RuntimeSpecification:
     package_requirements: List[str]  # "extensions" for postgres, etc
 
 
-@dataclass(frozen=True)
-class Runnable:
+# TODO: Idea is to have this be easily serializable to pass around to workers, along with RunContext
+#      (Or subset RunConfiguration?). We're not really close to that yet...
+@dataclass
+class Executable:
     node_key: str
     compiled_pipe: CompiledPipe
     # runtime_specification: RuntimeSpecification # TODO: support this
-    bound_interface: BoundInterface
+    bound_interface: BoundInterface = None
     configuration: Dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
-class RunSession:
+class ExecutionSession:
     pipe_log: PipeLog
     metadata_session: Session  # Make this a URL or other jsonable and then runtime can connect
 
@@ -122,7 +124,7 @@ class RunSession:
 
 
 @dataclass
-class RunResult:
+class ExecutionResult:
     inputs_bound: List[str]
     input_blocks_processed: Dict[str, int]
     output_block: Optional[DataBlockMetadata] = None
@@ -130,10 +132,10 @@ class RunResult:
 
 
 @dataclass  # (frozen=True)
-class ExecutionContext:
+class RunContext:
     env: Environment
     graph: Graph
-    metadata_session: Session
+    # metadata_session: Session
     storages: List[Storage]
     runtimes: List[Runtime]
     target_storage: Storage
@@ -149,7 +151,7 @@ class ExecutionContext:
         args = dict(
             graph=self.graph,
             env=self.env,
-            metadata_session=self.metadata_session,
+            # metadata_session=self.metadata_session,
             storages=self.storages,
             runtimes=self.runtimes,
             target_storage=self.target_storage,
@@ -160,51 +162,44 @@ class ExecutionContext:
             logger=self.logger,
         )
         args.update(**kwargs)
-        return ExecutionContext(**args)  # type: ignore
+        return RunContext(**args)  # type: ignore
 
     @contextmanager
-    def start_pipe_run(self, node: Node) -> Iterator[RunSession]:
+    def start_pipe_run(self, node: Node) -> Iterator[ExecutionSession]:
         from snapflow.core.graph import GraphMetadata
 
         assert self.current_runtime is not None, "Runtime not set"
-        node_state = node.get_state(self.metadata_session) or {}
-        new_graph_meta = node.graph.get_metadata_obj()
-        graph_meta = self.metadata_session.query(GraphMetadata).get(new_graph_meta.hash)
-        if graph_meta is None:
-            graph_meta = self.metadata_session.merge(new_graph_meta)
-        pl = PipeLog(  # type: ignore
-            graph_id=graph_meta.hash,
-            node_key=node.key,
-            node_start_state=node_state,
-            node_end_state=node_state,
-            pipe_key=node.pipe.key,
-            pipe_config=node.config,
-            runtime_url=self.current_runtime.url,
-            started_at=utcnow(),
-        )
-        try:
-            yield RunSession(pl, self.metadata_session)
-            # Only persist state on successful run
-            pl.persist_state(self.metadata_session)
+        with self.env.session_scope() as sess:
+            node_state = node.get_state(sess) or {}
+            new_graph_meta = node.graph.get_metadata_obj()
+            graph_meta = sess.query(GraphMetadata).get(new_graph_meta.hash)
+            if graph_meta is None:
+                sess.add(new_graph_meta)
+                sess.flush([new_graph_meta])
+                graph_meta = new_graph_meta
 
-        except Exception as e:
-            pl.set_error(e)
-            raise e
-        finally:
-            pl.completed_at = utcnow()
-            self.metadata_session.add(pl)
-            self.metadata_session.flush()
+            pl = PipeLog(  # type: ignore
+                graph_id=graph_meta.hash,
+                node_key=node.key,
+                node_start_state=node_state,
+                node_end_state=node_state,
+                pipe_key=node.pipe.key,
+                pipe_config=node.config,
+                runtime_url=self.current_runtime.url,
+                started_at=utcnow(),
+            )
 
-    def add(self, obj: BaseModel) -> BaseModel:
-        try:
-            self.metadata_session.add(obj)
-        except InvalidRequestError as e:
-            # Already in session perhaps
-            logger.debug(f"Can't add obj {obj}: {e}")
-        return self.merge(obj)
+            try:
+                yield ExecutionSession(pl, sess)
+                # Only persist state on successful run
+                pl.persist_state(sess)
 
-    def merge(self, obj: BaseModel) -> BaseModel:
-        return self.metadata_session.merge(obj)
+            except Exception as e:
+                pl.set_error(e)
+                raise e
+            finally:
+                pl.completed_at = utcnow()
+                sess.add(pl)
 
     @property
     def all_storages(self) -> List[Storage]:
@@ -234,9 +229,10 @@ class ExecutionContext:
 
 @dataclass(frozen=True)
 class PipeContext:  # TODO: (Generic[C, S]):
-    execution_context: ExecutionContext
+    run_context: RunContext
+    execution_session: ExecutionSession
     worker: Worker
-    runnable: Runnable
+    executable: Executable
     inputs: List[StreamInput]
     pipe_log: PipeLog
     # state: Dict = field(default_factory=dict)
@@ -245,12 +241,12 @@ class PipeContext:  # TODO: (Generic[C, S]):
     # realized_output_schema: Optional[Schema]
 
     # def get_resolved_output_schema(self) -> Optional[Schema]:
-    #     return self.runnable.bound_interface.resolved_output_schema(
+    #     return self.execution.bound_interface.resolved_output_schema(
     #         self.execution_context.env
     #     )
     #
     # def set_resolved_output_schema(self, schema: Schema):
-    #     self.runnable.bound_interface.set_resolved_output_schema(schema)
+    #     self.execution.bound_interface.set_resolved_output_schema(schema)
     #
     # def set_output_schema(self, schema_like: SchemaLike):
     #     if not schema_like:
@@ -259,10 +255,10 @@ class PipeContext:  # TODO: (Generic[C, S]):
     #     self.set_resolved_output_schema(schema)
 
     def get_config_value(self, key: str, default: Any = None) -> Any:
-        return self.runnable.configuration.get(key, default)
+        return self.executable.configuration.get(key, default)
 
     def get_config(self) -> Dict[str, Any]:
-        return self.runnable.configuration
+        return self.executable.configuration
 
     def get_state_value(self, key: str, default: Any = None) -> Any:
         assert isinstance(self.pipe_log.node_end_state, dict)
@@ -286,14 +282,14 @@ class PipeContext:  # TODO: (Generic[C, S]):
         """
         # TODO: execution timelimit too?
         #   Since long running will often be generators, could also enforce this at generator evaluation time?
-        if not self.execution_context.node_timelimit_seconds:
+        if not self.run_context.node_timelimit_seconds:
             return True
         seconds_elapsed = (utcnow() - self.pipe_log.started_at).total_seconds()
-        return seconds_elapsed < self.execution_context.node_timelimit_seconds
+        return seconds_elapsed < self.run_context.node_timelimit_seconds
 
 
 class ExecutionManager:
-    def __init__(self, ctx: ExecutionContext):
+    def __init__(self, ctx: RunContext):
         self.ctx = ctx
         self.env = ctx.env
 
@@ -308,10 +304,12 @@ class ExecutionManager:
             f"No compatible runtime available for {node} (runtime class {compatible_runtimes} required)"
         )
 
-    def get_node_interface_manager(self, node: Node) -> NodeInterfaceManager:
-        return NodeInterfaceManager(self.ctx, node)
-
-    def run(self, node: Node, to_exhaustion: bool = False) -> Optional[DataBlock]:
+    def execute(
+        self,
+        node: Node,
+        to_exhaustion: bool = False,
+        output_session: Optional[Session] = None,
+    ) -> Optional[DataBlock]:
         runtime = self.select_runtime(node)
         run_ctx = self.ctx.clone(current_runtime=runtime)
         worker = Worker(run_ctx)
@@ -326,13 +324,13 @@ class ExecutionManager:
         # self.log(base_msg)
         # start = time.time()
         n_runs = 0
-        run_result = None
+        last_run_result = None
         try:
             while True:
-                run_result = self._run(node, worker)
+                last_run_result = self._execute(node, worker)
                 n_runs += 1
                 if (
-                    not to_exhaustion or not run_result.inputs_bound
+                    not to_exhaustion or not last_run_result.inputs_bound
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     # (they are responsible for creating their own generators)
                     break
@@ -342,34 +340,39 @@ class ExecutionManager:
             if e.args:
                 logger.debug(e)
             if n_runs == 0:
-                self.ctx.logger(INDENT + "No unprocessed inputs\n")
+                self.ctx.logger(INDENT + "Inputs: No unprocessed upstream\n")
             self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))
         except Exception as e:
             self.ctx.logger(INDENT + cf.error("Error " + error_symbol) + str(e) + "\n")
             raise e
 
-        if run_result is None:
+        # TODO: how to pass back with session?
+        #   maybe with env.produce() as output:
+        # Or just merge in new session in env.produce
+        if last_run_result is None:
             return None
-        last_output = run_result.output_block
+        last_output = last_run_result.output_block
         if last_output is None:
             return None
-        last_output = self.env.session.merge(last_output)
+        # last_output = self.env.session.merge(last_output)
         logger.debug(f"*DONE* RUNNING NODE {node.key} {node.pipe.key}")
-        return last_output.as_managed_data_block(self.ctx)
+        if output_session is not None:
+            last_output = output_session.merge(last_output)
+            return last_output.as_managed_data_block(self.ctx, output_session)
+        return None
 
-    def _run(self, node: Node, worker: Worker) -> RunResult:
-        interface_mgr = self.get_node_interface_manager(node)
+    def _execute(self, node: Node, worker: Worker) -> ExecutionResult:
         pipe = node.pipe
-        runnable = Runnable(
+        executable = Executable(
             node_key=node.key,
             compiled_pipe=CompiledPipe(
                 key=node.key,
                 pipe=pipe,
             ),
-            bound_interface=interface_mgr.get_bound_interface(),
+            # bound_interface=interface_mgr.get_bound_interface(),
             configuration=node.config or {},
         )
-        return worker.run(runnable)
+        return worker.execute(executable)
 
 
 def ensure_alias(node: Node, sdb: StoredDataBlockMetadata) -> Alias:
@@ -380,28 +383,33 @@ def ensure_alias(node: Node, sdb: StoredDataBlockMetadata) -> Alias:
 
 
 class Worker:
-    def __init__(self, ctx: ExecutionContext):
+    def __init__(self, ctx: RunContext):
         self.env = ctx.env
         self.ctx = ctx
 
-    def run(self, runnable: Runnable) -> RunResult:
+    def execute(self, executable: Executable) -> ExecutionResult:
         output_block: Optional[DataBlockMetadata] = None
-        node = self.ctx.graph.get_node(runnable.node_key)
-        with self.ctx.start_pipe_run(node) as run_session:
+        node = self.ctx.graph.get_node(executable.node_key)
+        with self.ctx.start_pipe_run(node) as execution_session:
+            interface_mgr = NodeInterfaceManager(
+                self.ctx, execution_session.metadata_session, node
+            )
+            executable.bound_interface = interface_mgr.get_bound_interface()
             pipe_ctx = PipeContext(
                 self.ctx,
                 worker=self,
-                runnable=runnable,
-                inputs=runnable.bound_interface.inputs,
-                pipe_log=run_session.pipe_log,
+                execution_session=execution_session,
+                executable=executable,
+                inputs=executable.bound_interface.inputs,
+                pipe_log=execution_session.pipe_log,
             )
             pipe_args = []
-            if runnable.bound_interface.requires_pipe_context:
+            if executable.bound_interface.requires_pipe_context:
                 pipe_args.append(pipe_ctx)
-            pipe_inputs = runnable.bound_interface.inputs_as_kwargs()
+            pipe_inputs = executable.bound_interface.inputs_as_kwargs()
             pipe_kwargs = pipe_inputs
             # Actually run the pipe
-            output = runnable.compiled_pipe.pipe.pipe_callable(
+            output = executable.compiled_pipe.pipe.pipe_callable(
                 *pipe_args, **pipe_kwargs
             )
             output_block = None
@@ -411,37 +419,46 @@ class Worker:
                 assert (
                     self.ctx.target_storage is not None
                 ), "Must specify target storage for output"
-                output_sdb = self.handle_output(run_session, output, runnable)
+                output_sdb = self.handle_output(execution_session, output, executable)
                 alias = None
                 # Output block may be none still if `output` was an empty generator
                 if output_sdb is not None:
+                    execution_session.metadata_session.flush(
+                        [output_sdb, output_sdb.data_block]
+                    )
                     output_block = output_sdb.data_block
-                    run_session.log_output(output_block)
+                    execution_session.log_output(output_block)
                     alias = ensure_alias(node, output_sdb)
-                    alias = self.ctx.merge(alias)
+                    execution_session.metadata_session.add(alias)
+                    execution_session.metadata_session.flush([alias])
+
+            # Flush
+            execution_session.metadata_session.flush()
 
             input_block_counts = {}
             total_input_count = 0
-            for input in runnable.bound_interface.inputs:
+            for input in executable.bound_interface.inputs:
                 if input.bound_stream is not None:
                     input_block_counts[input.name] = 0
                     for db in input.bound_stream.get_emitted_blocks():
                         input_block_counts[input.name] += 1
                         total_input_count += 1
-                        run_session.log_input(db)
+                        execution_session.log_input(db)
             # Log
-            if runnable.bound_interface.inputs:
+            if executable.bound_interface.inputs:
                 self.ctx.logger(
-                    INDENT + f"{total_input_count} input blocks processed\n"
+                    INDENT + f"Inputs: {total_input_count} blocks processed\n"
                 )
             if output_block is not None:
                 self.ctx.logger(
                     INDENT
-                    + f"Output block: ({alias.alias}) "
-                    + cf.dimmed(str(output_block.id))
+                    + f"Output: {alias.alias} "
+                    + cf.dimmed(
+                        f"({output_block.id}) {output_block.record_count} records"
+                    )
                     + "\n"
                 )
-        return RunResult(
+        return ExecutionResult(
             inputs_bound=list(pipe_inputs.keys()),
             input_blocks_processed=input_block_counts,
             output_block=output_block,
@@ -450,17 +467,17 @@ class Worker:
 
     def handle_output(
         self,
-        worker_session: RunSession,
+        execution_session: ExecutionSession,
         output: DataInterfaceType,
-        runnable: Runnable,
+        execution: Executable,
     ) -> Optional[StoredDataBlockMetadata]:
         logger.debug("HANDLING OUTPUT")
-        assert runnable.bound_interface.output is not None
+        assert execution.bound_interface.output is not None
         # TODO: can i return an existing DataBlock? Or do I need to create a "clone"?
         #   Answer: ok to return as is (just mark it as 'output' in DBL)
         assert self.ctx.target_storage is not None
         if isinstance(output, StoredDataBlockMetadata):
-            output = self.ctx.merge(output)
+            output = execution_session.metadata_session.merge(output)
             # TODO is it in local storage tho? we skip conversion below...
             return output
         elif isinstance(output, DataBlockMetadata):
@@ -471,12 +488,12 @@ class Worker:
             # TODO: handle generic generator "Generator" (or call it "Stream" or "OutputStream"?)
             if isinstance(output, abc.Generator):
                 if (
-                    runnable.bound_interface.output.data_format_class
+                    execution.bound_interface.output.data_format_class
                     == "DataFrameGenerator"
                 ):
                     output = DataFrameGenerator(output)
                 elif (
-                    runnable.bound_interface.output.data_format_class
+                    execution.bound_interface.output.data_format_class
                     == "RecordsListGenerator"
                 ):
                     output = RecordsListGenerator(output)
@@ -485,24 +502,27 @@ class Worker:
                 if output.get_one() is None:
                     # Empty generator
                     return None
-            nominal_output_schema = runnable.bound_interface.resolve_nominal_output_schema(
-                self.env
+            nominal_output_schema = execution.bound_interface.resolve_nominal_output_schema(
+                self.env,
+                execution_session.metadata_session,
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
             logger.debug(
-                f"Resolved output schema {nominal_output_schema} {runnable.bound_interface}"
+                f"Resolved output schema {nominal_output_schema} {execution.bound_interface}"
             )
             block, sdb = create_data_block_from_records(
                 self.env,
+                execution_session.metadata_session,
                 self.ctx.local_memory_storage,
                 output,
                 nominal_schema=nominal_output_schema,
-                created_by_node_key=runnable.node_key,
+                created_by_node_key=execution.node_key,
             )
 
         # TODO: check if existing storage_format is compatible with target storage, instead of using natural (no need to convert then)
         # Place output in target storage
         return convert_lowest_cost(
             self.ctx,
+            execution_session.metadata_session,
             sdb,
             self.ctx.target_storage,
             self.ctx.target_storage.natural_storage_format,

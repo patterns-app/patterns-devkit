@@ -40,7 +40,7 @@ class StorageClass(enum.Enum):
 
 class StorageEngine(enum.Enum):
     # RDBMS
-    POSTGRES = "postgres"
+    POSTGRES = "postgresql"
     MYSQL = "mysql"
     SQLITE = "sqlite"
     # FILE_SYSTEM
@@ -93,6 +93,7 @@ class Storage:
         scheme_to_type = {
             "file": StorageType.LOCAL_FILE_SYSTEM,
             "postgres": StorageType.POSTGRES_DATABASE,
+            "postgresql": StorageType.POSTGRES_DATABASE,
             "mysql": StorageType.MYSQL_DATABASE,
             "memory": StorageType.DICT_MEMORY,
             "sqlite": StorageType.SQLITE_DATABASE,
