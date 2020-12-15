@@ -48,6 +48,8 @@ pipelines (function graphs). This functional framework provides powerful benefit
   for high performance. Developers and analysts can work with clean mental models and strong
   guarantees without incurring performance costs at runtime.
 
+- ☁️&nbsp; **Cloud-ready** - Snapflow comes with [cloud](CLOUD) included!
+
 Snapflow brings the best practices learned over the last 60 years in software to the world of data,
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
 scale from laptop to AWS cluster.
