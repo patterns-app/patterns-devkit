@@ -439,7 +439,7 @@ def get_schema_translation(
         return None
     # Otherwise map found schema to expected schema
     return data_block.realized_schema(env, sess).get_translation_to(
-        env, declared_schema
+        env, sess, declared_schema
     )
 
 

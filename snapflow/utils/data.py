@@ -8,7 +8,7 @@ from typing import Any, Dict, Iterable, List, Union
 
 from pandas import Timestamp, isnull
 from snapflow.core.data_formats import RecordsList
-from snapflow.utils.common import DagsJSONEncoder
+from snapflow.utils.common import SnapflowJSONEncoder
 
 
 def records_list_as_dict_of_lists(dl: List[Dict]) -> Dict[str, List]:
@@ -71,7 +71,7 @@ def conform_csv_value(v: Any) -> Any:
     if v is None:
         return ""
     if isinstance(v, list) or isinstance(v, dict):
-        return json.dumps(v, cls=DagsJSONEncoder)
+        return json.dumps(v, cls=SnapflowJSONEncoder)
     return v
 
 
@@ -116,7 +116,7 @@ def conform_records_for_insert(
             o = r.get(c)
             # TODO: this is some magic buried down here. no bueno
             if adapt_objects_to_json and (isinstance(o, list) or isinstance(o, dict)):
-                o = json.dumps(o, cls=DagsJSONEncoder)
+                o = json.dumps(o, cls=SnapflowJSONEncoder)
             if conform_datetimes:
                 if isinstance(o, Timestamp):
                     o = o.to_pydatetime()

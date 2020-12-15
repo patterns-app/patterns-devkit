@@ -10,7 +10,7 @@ from loguru import logger
 from snapflow.core.data_block import DataBlockMetadata
 from snapflow.core.environment import Environment, current_env
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX
-from snapflow.core.node import PipeLog
+from snapflow.core.node import DataBlockLog, PipeLog
 from snapflow.core.typing.inference import dict_to_rough_schema
 from snapflow.core.typing.schema import schema_to_yaml
 from snapflow.project.project import SNAPFLOW_PROJECT_FILE_NAME, init_project_in_dir
@@ -72,44 +72,43 @@ def app(ctx, debug: bool = False, metadata: Optional[str] = None):
         logger.add(sys.stderr, level="DEBUG")
     else:
         logger.add(sys.stderr, level="INFO")
-    env = Environment(metadata_storage=metadata)
-    try:
-        env = current_env()
-    except ImportError:
-        pass
+    env = current_env()
+    if env is None:
+        env = Environment(metadata_storage=metadata)
+    logger.info(f"Using environment '{env.metadata_storage.url}'")
     ctx.obj = env
 
 
-@click.command()
-@click.option("-c", "--component_type")
-@click.argument("search")
-def search(query: str, component_type: str = None):
-    """Search for components in the snapflow Repository"""
-    params = {"q": query}
-    if component_type:
-        params["component_type"] = component_type
-    resp = requests.get(REPO_SERVER_API + "search", params)
-    resp.raise_for_status()
-    results = resp.json()
-    if not results["results"]:
-        click.secho(f"No results for '{query}'", bold=True)
-        return
+# @click.command()
+# @click.option("-c", "--component_type")
+# @click.argument("search")
+# def search(query: str, component_type: str = None):
+#     """Search for components in the snapflow Repository"""
+#     params = {"q": query}
+#     if component_type:
+#         params["component_type"] = component_type
+#     resp = requests.get(REPO_SERVER_API + "search", params)
+#     resp.raise_for_status()
+#     results = resp.json()
+#     if not results["results"]:
+#         click.secho(f"No results for '{query}'", bold=True)
+#         return
 
-    def result_generator(results):
-        first = True
-        while results["results"]:
-            headers = ["Component type", "Key", "Name"]
-            rows = [
-                [r["component_type"], r["name"], r["verbose_name"]] for r in results
-            ]
-            for ln in table_pager(headers, rows, show_header=first):
-                yield ln
-            first = False
-            resp = requests.get(results["next"])
-            resp.raise_for_status()
-            results = resp.json()
+#     def result_generator(results):
+#         first = True
+#         while results["results"]:
+#             headers = ["Component type", "Key", "Name"]
+#             rows = [
+#                 [r["component_type"], r["name"], r["verbose_name"]] for r in results
+#             ]
+#             for ln in table_pager(headers, rows, show_header=first):
+#                 yield ln
+#             first = False
+#             resp = requests.get(results["next"])
+#             resp.raise_for_status()
+#             results = resp.json()
 
-    click.echo_via_pager(result_generator(results))
+#     click.echo_via_pager(result_generator(results))
 
 
 @click.command()
@@ -131,19 +130,16 @@ def generate(component_type: str):
         raise CliAppException(f"Invalid component type {component_type}")
 
 
-@click.command("list")
-@click.argument("component_type")
+@click.command("blocks")
 @click.pass_obj
-def list_component(env: Environment, component_type):
-    """List components in environment"""
-    if component_type == "datablocks":
-        list_data_blocks(env)
-    elif component_type == "datasets":
-        list_data_sets(env)
-    elif component_type == "pipes":
-        list_pipes(env)
-    else:
-        click.echo(f"Unknown component type {component_type}")
+def blocks(env: Environment):
+    list_data_blocks(env)
+
+
+@click.command("nodes")
+@click.pass_obj
+def nodes(env: Environment):
+    list_nodes(env)
 
 
 def list_data_blocks(env: Environment):
@@ -153,12 +149,20 @@ def list_data_blocks(env: Environment):
             .filter(~DataBlockMetadata.deleted)
             .order_by(DataBlockMetadata.created_at)
         )
-        headers = ["ID", "BaseType", "Create by node", "Stored"]
+        headers = [
+            "ID",
+            "alias",
+            "Nominal schema",
+            "Created by node",
+            "Records",
+            "Stored cnt",
+        ]
         rows = [
             [
                 r.id,
                 r.nominal_schema_key,
                 r.created_by(sess),
+                r.record_count,
                 r.stored_data_blocks.count(),
             ]
             for r in query
@@ -166,45 +170,32 @@ def list_data_blocks(env: Environment):
         echo_table(headers, rows)
 
 
-def list_data_sets(env: Environment):
-    raise NotImplementedError
-    # with env.session_scope() as sess:
-    #     # query = sess.query(DataSetMetadata).order_by(DataSetMetadata.created_at)
-    #     headers = ["Name", "BaseType", "Stored"]
-    #     rows = [
-    #         [
-    #             r.name,
-    #             r.data_block.expected_schema_key,
-    #             r.data_block.stored_data_blocks.count(),
-    #         ]
-    #         for r in query
-    #     ]
-    # echo_table(headers, rows)
-
-
-def list_pipes(env: Environment):
+def list_nodes(env: Environment):
     with env.session_scope() as sess:
         query = (
             sess.query(
                 PipeLog.node_key,
                 func.count(PipeLog.id),
                 func.max(PipeLog.started_at),
+                func.count(DataBlockLog.id),
             )
+            .join(PipeLog.data_block_logs)
             .group_by(PipeLog.node_key)
             .all()
         )
         headers = [
-            "Name",
+            "Node key",
             "Run count",
             "Last run at",
+            "block count",
         ]
         rows = [(k, c, m.strftime("%F %T")) for k, c, m in query]
     echo_table(headers, rows)
 
 
-@click.command("log")
+@click.command("logs")
 @click.pass_obj
-def show_log(env: Environment):
+def logs(env: Environment):
     """Show log of Pipes on DataBlocks"""
     with env.session_scope() as sess:
         query = sess.query(PipeLog).order_by(PipeLog.updated_at.desc())
@@ -283,9 +274,9 @@ def init_project(ctx: click.Context):
     try:
         init_project_in_dir(curr_dir)
     except FileExistsError:
-        ctx.fail(f"{SNAPFLOW_PROJECT_FILE_NAME} already exists in {curr_dir}")
+        ctx.fail(f"{SNAPFLOW_PROJECT_FILE_NAME} already exists in '{curr_dir}/'")
     click.echo(
-        f"Created {SNAPFLOW_PROJECT_FILE_NAME} in {curr_dir}. Edit this file to configure your project."
+        f"Created {SNAPFLOW_PROJECT_FILE_NAME} in '{curr_dir}/'. Edit this file to configure your project."
     )
 
 
@@ -302,23 +293,18 @@ def run(env: Environment, node: str = None, deps: bool = False):
         if deps:
             env.produce(node)
         else:
-            env.update(node)
+            env.run_node(node)
     else:
-        env.update_all()
-
-
-# TODO: create new blank component (how diff from generate? Rename?)
-# @click.command("create")
-# @click.pass_obj
-# def create_component(env: Environment):
-#       pass
+        raise NotImplementedError
+        env.run_graph()
 
 
 app.add_command(run)
 app.add_command(generate)
-app.add_command(show_log)
-app.add_command(list_component)
-app.add_command(search)
+app.add_command(logs)
+app.add_command(blocks)
+app.add_command(nodes)
+# app.add_command(search)
 app.add_command(reset_metadata)
 app.add_command(test)
 app.add_command(init_project)

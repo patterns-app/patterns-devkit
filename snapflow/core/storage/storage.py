@@ -22,7 +22,7 @@ from snapflow.core.data_formats import (
     RecordsListGeneratorFormat,
 )
 from snapflow.core.environment import Environment
-from snapflow.utils.common import cf, printd, rand_str
+from snapflow.utils.common import cf, rand_str
 
 if TYPE_CHECKING:
     from snapflow.core.storage.file_system import (
@@ -270,8 +270,7 @@ class LocalMemoryStorageEngine(BaseStorageEngine):
         stored_data_block: StoredDataBlockMetadata,
         data_records: LocalMemoryDataRecords,
     ):
-        if data_records.records_object is None:
-            raise
+        assert data_records.records_object is not None
         key = self.get_key(stored_data_block)
         global_memory_storage[key] = data_records
 

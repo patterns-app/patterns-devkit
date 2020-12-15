@@ -19,7 +19,7 @@ from snapflow.core.storage.storage import Storage, StorageEngine
 from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.core.typing.inference import infer_schema_from_db_table
 from snapflow.core.typing.schema import Schema
-from snapflow.utils.common import DagsJSONEncoder, rand_str
+from snapflow.utils.common import SnapflowJSONEncoder, rand_str
 from snapflow.utils.data import conform_records_for_insert
 from sqlalchemy import MetaData
 from sqlalchemy.engine import Connection, Engine, ResultProxy
@@ -60,7 +60,7 @@ class DatabaseAPI:
         self.json_serializer = (
             json_serializer
             if json_serializer is not None
-            else lambda o: json.dumps(o, cls=DagsJSONEncoder)
+            else lambda o: json.dumps(o, cls=SnapflowJSONEncoder)
         )
 
     def get_engine(self) -> sqlalchemy.engine.Engine:
@@ -234,8 +234,6 @@ class DatabaseAPI:
     def count(self, table_name: str) -> int:
         with self.execute_sql_result(f"select count(*) from {table_name}") as res:
             row = res.fetchone()
-        if not row:
-            raise
         return row[0]
 
     def get_sqlalchemy_metadata(self):

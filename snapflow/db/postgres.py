@@ -1,10 +1,9 @@
-from typing import List, Optional
+from typing import List
 
 from loguru import logger
 from snapflow.core.data_formats import RecordsList
 from snapflow.core.sql.utils import compile_jinja_sql_template
 from snapflow.db.api import DatabaseAPI, conform_columns_for_insert
-from snapflow.utils.common import printd, title_to_snake_case
 from snapflow.utils.data import conform_records_for_insert
 from sqlalchemy.engine import Engine
 

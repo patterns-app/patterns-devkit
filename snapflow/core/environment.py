@@ -7,6 +7,7 @@ from dataclasses import asdict
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Tuple, Union
 
+import strictyaml
 from loguru import logger
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
@@ -280,7 +281,7 @@ class Environment:
         else:
             dependencies = graph.get_all_nodes_in_execution_order()
         output = None
-        sess = self._get_new_metadata_session()
+        sess = self._get_new_metadata_session()  # hanging session
         with self.run(graph, **execution_kwargs) as em:
             for dep in dependencies:
                 output = em.execute(
@@ -299,7 +300,7 @@ class Environment:
         assert node is not None
 
         logger.debug(f"Running: {node_like}")
-        sess = self._get_new_metadata_session()
+        sess = self._get_new_metadata_session()  # hanging session
         with self.run(graph, **execution_kwargs) as em:
             return em.execute(node, to_exhaustion=to_exhaustion, output_session=sess)
 
@@ -318,10 +319,11 @@ class Environment:
             for node in nodes:
                 em.execute(node, to_exhaustion=to_exhaustion)
 
-    # def get_latest_output(self, node: Node) -> Optional[DataBlock]:
-    #     session = self.get_new_metadata_session()  # TODO: hanging session
-    #     ctx = self.get_execution_context(session)
-    #     return node.get_latest_output(ctx)
+    def get_latest_output(self, node: NodeLike) -> Optional[DataBlock]:
+        sess = self._get_new_metadata_session()  # hanging session
+        n, g = self._get_graph_and_node(node)
+        ctx = self.get_run_context(g)
+        return n.get_latest_output(ctx, sess)
 
     def add_storage(
         self, storage_like: Union[Storage, str], add_runtime: bool = True
@@ -428,17 +430,16 @@ def run_graph(
     return env.run_graph(*args, **kwargs)
 
 
-# Not supporting yml project config atm
 # def load_environment_from_yaml(yml) -> Environment:
-#     from snapflow.core.storage.storage import StorageResource
-#
+#     from snapflow.core.storage.storage import Storage
+
 #     env = Environment(
 #         metadata_storage=yml.get("metadata_storage", None),
 #         add_default_python_runtime=yml.get("add_default_python_runtime", True),
 #     )
-#     for url in yml.get("storages"):
-#         env.add_storage(StorageResource.from_url(url))
-#     for module_name in yml.get("module_lookup_names"):
+#     for url in yml.get("storages", []):
+#         env.add_storage(Storage.from_url(url))
+#     for module_name in yml.get("modules", []):
 #         m = import_module(module_name)
 #         env.add_module(m)
 #     return env
@@ -453,15 +454,25 @@ def load_environment_from_project(project: Any) -> Environment:
     )
     for url in getattr(project, "storages", []):
         env.add_storage(Storage.from_url(url))
-    for module_name in getattr(project, "module_lookup_names", []):
+    for module_name in getattr(project, "modules", []):
         m = import_module(module_name)
         env.add_module(m)  # type: ignore  # We hijack the module
     return env
 
 
-def current_env(cfg_module: str = "project") -> Environment:
+def current_env(cfg_module: str = None) -> Optional[Environment]:
     import sys
+    from snapflow.project.project import SNAPFLOW_PROJECT_PACKAGE_NAME
 
+    if cfg_module is None:
+        cfg_module = SNAPFLOW_PROJECT_PACKAGE_NAME
     sys.path.append(os.getcwd())
-    cfg = import_module(cfg_module)
-    return load_environment_from_project(cfg)
+    try:
+        cfg = import_module(cfg_module)
+        return load_environment_from_project(cfg)
+    except ImportError:
+        pass
+    # with open(cfg_file) as f:
+    #     yml = strictyaml.load(f.read()).data
+    # return load_environment_from_yaml(yml)
+    return None

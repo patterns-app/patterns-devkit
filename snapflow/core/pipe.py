@@ -154,8 +154,7 @@ def pipe_factory(
     **kwargs: Any,
 ) -> Pipe:
     if name is None:
-        if pipe_callable is None:
-            raise
+        assert pipe_callable is not None
         name = make_pipe_name(pipe_callable)
     runtime_class = get_runtime_class(compatible_runtimes)
     if module is None:

@@ -7,7 +7,7 @@ import pytest
 from numpy import NaN
 from pandas import DataFrame
 from snapflow.utils.common import (
-    DagsJSONEncoder,
+    SnapflowJSONEncoder,
     StringEnum,
     is_datetime_str,
     snake_to_title_case,
@@ -74,7 +74,7 @@ def test_json_encoder():
         f=1 / 9,
         e=T.A,
     )
-    s = json.dumps(d, cls=DagsJSONEncoder)
+    s = json.dumps(d, cls=SnapflowJSONEncoder)
     assert (
         s.strip()
         == """

@@ -9,9 +9,15 @@ from snapflow.testing.utils import get_tmp_sqlite_db_url
 def test_app():
     db_url = get_tmp_sqlite_db_url()
     runner = CliRunner()
-    result = runner.invoke(app, ["-m", db_url, "log"])
+    result = runner.invoke(app, ["-m", db_url, "logs"])
     assert result.exit_code == 0
-    result = runner.invoke(app, ["-m", db_url, "list", "pipes"])
+    result = runner.invoke(app, ["-m", db_url, "nodes"])
+    assert result.exit_code == 0
+    result = runner.invoke(app, ["-m", db_url, "blocks"])
+    assert result.exit_code == 0
+    result = runner.invoke(
+        app, ["-m", db_url, "generate", "schema"], input='{"f1": 1, "f2": "hi"}'
+    )
     assert result.exit_code == 0
     with runner.isolated_filesystem():
         result = runner.invoke(app, ["-m", db_url, "init"])

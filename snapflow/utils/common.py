@@ -7,7 +7,7 @@ import random
 import re
 import string
 import uuid
-from dataclasses import dataclass, fields
+from dataclasses import field
 from datetime import date, datetime, time, timedelta
 from enum import Enum
 from typing import Any, Dict, Generic, List, Optional, Set, Tuple, Type, Union
@@ -16,13 +16,6 @@ import pytz
 from colorful import Colorful
 from dateutil import parser
 from snapflow.utils.typing import K, T, V
-
-DEBUG = False
-
-
-def printd(*o):
-    if DEBUG:
-        print(*[cf.dimmed(i) for i in o])
 
 
 class AttrDict(Dict[K, V]):
@@ -81,7 +74,7 @@ def md5_hash(s: str) -> str:
 
 
 def dataclass_kwargs(dc: Any, kwargs: Dict) -> Dict:
-    return {f.name: kwargs.get(f.name) for f in fields(dc)}
+    return {f.name: kwargs.get(f.name) for f in field(dc)}
 
 
 def remove_dupes(a: List[T]) -> List[T]:
@@ -291,7 +284,7 @@ class JSONEncoder(json.JSONEncoder):
             return super().default(o)
 
 
-class DagsJSONEncoder(json.JSONEncoder):
+class SnapflowJSONEncoder(json.JSONEncoder):
     def default(self, o: Any) -> str:
         # See "Date Time String Format" in the ECMA-262 specification.
         if isinstance(o, datetime):
@@ -323,7 +316,7 @@ class DagsJSONEncoder(json.JSONEncoder):
 
 
 def to_json(d: Any) -> str:
-    return json.dumps(d, cls=DagsJSONEncoder)
+    return json.dumps(d, cls=SnapflowJSONEncoder)
 
 
 def profile_stmt(stmt: str, globals: Dict, locals: Dict):

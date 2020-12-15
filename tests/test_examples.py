@@ -139,7 +139,7 @@ def test_repeated_runs():
     # Initial graph
     N = 2 * 4
     g.create_node(key="source", pipe=customer_source, config={"total_records": N})
-    g.create_node(key="metrics", pipe=shape_metrics, upstream="source")
+    metrics = g.create_node(key="metrics", pipe=shape_metrics, upstream="source")
     # Run first time
     output = env.produce("metrics", g, target_storage=s)
     assert output.nominal_schema_key.endswith("Metric")
@@ -151,6 +151,10 @@ def test_repeated_runs():
     assert records == expected_records
     # Run again, should get next batch
     output = env.produce("metrics", g, target_storage=s)
+    records = output.as_records_list()
+    assert records == expected_records
+    # Test get_latest_output
+    output = env.get_latest_output(metrics)
     records = output.as_records_list()
     assert records == expected_records
     # Run again, should be exhausted
