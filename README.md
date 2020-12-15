@@ -15,11 +15,8 @@ and document their inputs and outputs explicitly via `schemas`. These pipes oper
 sets of data records, called `datablocks`, and can be composed into simple or complex data
 pipelines (function graphs). This functional framework provides powerful benefits:
 
-### Features:
-
-- **Reusable components** — Pipes are self-contained data operations with well-defined interfaces
-  called schemas. This means not only can they be easily snapped together, but also shared and
-  reused across projects, open sourced, and catalogued in the snapflow repository (coming soon).
+- **Reusable components** — Pipes can be easily snapped together, shared and
+  reused across projects, open-sourced, and catalogued in the snapflow repository (coming soon).
   Some examples:
 
   - [Stripe](https://github.com/kvh/snapflow-stripe.git) module
@@ -28,25 +25,23 @@ pipelines (function graphs). This functional framework provides powerful benefit
   - [BI](https://github.com/kvh/snapflow-bi.git) (Business Intelligence) module
   - [FRED](https://github.com/kvh/snapflow-fred.git) (Federal Reserve Economic Data) module
 
-- **Testability** — Because pipes are self-contained, a developer can provide explicit test
-  inputs and the expected output under various data scenarios - a **data ETL unit test**. This
+- **Testability** — Pipes provide explicit test
+  inputs and the expected output under various data scenarios — a **data ETL unit test**. This
   brings the rigor and industrial-grade reliability of software to the world of data.
 
-- **Total reproducibility** — The functional nature of snapflow means that every data state
-  at every ETL step is preserved, along with the code and runtimes that produced it. This gives
-  the developer and operator the ability to audit and reproduce complex pipelines down to the byte.
-  With snapflow, every single data point has a history of what code produced it in what order
-  on which runtimes.
+- **Total reproducibility** — Every data record at every ETL step is preserved in snapflow,
+  along with the code and runtimes that produced it. This gives the developer and operator
+  the ability to audit and reproduce complex pipelines down to the byte.
 
-- **Portability** — Since snapflow units of work are explicit and testable, providing consistent
+- **Portability** — Modular and testable pipes means providing consistent
   operations and data across different database engines and storage systems is safe and efficient.
   Snapflow supports any major database vendor (postgres, mysql, snowflake, bigquery, redshift),
   file system (local, S3, etc), as well as any data format, whether it's csv, json, or apache arrow.
 
-- **Zero cost abstractions and high performance** — snapflow makes its type and immutability
-  guarantees at the abstraction level, so those guarantees can be compiled away at execution time
-  for high performance. Developers and analysts can work with clean mental models and strong
-  guarantees without incurring performance costs at runtime.
+- **Zero cost abstractions and high performance** — snapflow pipe operations and immutability
+  guarantees can be compiled down at execution time for high performance. This means developers and
+  analysts can work with clean mental models and strong guarantees without incurring performance
+  costs at runtime.
 
 - ☁️&nbsp; **Cloud-ready** - Snapflow comes with [cloud](CLOUD) included!
 
@@ -95,7 +90,7 @@ print(output.as_dataframe()
 All snapflow pipelines are directed graphs of nodes, consisting of one or more "source" nodes
 that emit or create datablocks when run. This stream of blocks is
 then be consumed by downstream nodes, each in turn may emit their own blocks. Nodes
-can be run in any order, any number of times. Each time, they consume any new blocks
+can be run in any order, any number of times. Each time run, they consume any new blocks
 from upstream until there are none left unprocessed, or they are requested to stop.
 
 ![Architecture](assets/architecture.svg)
@@ -277,10 +272,10 @@ effect on what is stored on disk. They only alter _which_ datablocks end up as i
 
 To the extent possible, snapflow maintains the same data and byte representation of `datablock`
 records across formats and storages. Not all formats and storages support all data representations,
-though -- for instance, empty / null / None / NA support differs
+though -- for instance, datetime support differs
 significantly across common data formats, runtimes, and storage engines. When it notices a
 conversion or storage operation may produce data loss or corruption, snapflow will try to emit a
-warning or, if serious enough, fail with an error.
+warning or, if serious enough, fail with an error. (Partially implemented, see #24)
 
 ### Environment and metadata
 
@@ -290,7 +285,7 @@ A snapflow `environment` tracks the pipe graph, and acts as a registry for the `
 nodes have processed which DataBlocks, and the state of nodes. In this sense, the environment and
 its associated metadata database contain all the "state" of a snapflow project. If you delete the
 metadata database, you will have effectively "reset" your snapflow project. (You will
-NOT have deleted any actual data produced by the pipeline, though it will be orphaned.)
+NOT have deleted any actual data produced by the pipeline, though it will be "orphaned".)
 
 ### Component Development
 
@@ -309,13 +304,14 @@ Data blocks have three associated schemas:
 The realized schema is determined by the following factors:
 
 - The setting of `CAST_TO_SCHEMA_LEVEL` to one of `hard`, `soft`, or `none`
+- The setting of `FAIL_ON_DOWNCAST` and `WARN_ON_DOWNCAST` (Not implemented yet)
 - The discrepancies, if any, between the inferred schema and the nominal schema
 
 The following table gives the logic for possible behavior of realized schema:
 
 |                                                                                                         | none                                      | soft (default)                                                                                                                                            | hard                                                       |
 | ------------------------------------------------------------------------------------------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| inferred has subset of nominal fields                                                                   | realized is always equivalent to inferred | realized schema == nominal schema, but use inferred field definitions for extra fields.                                                                   | realized equivalent to nominal, extra fields are discarded |
+| inferred has superset of nominal fields                                                                 | realized is always equivalent to inferred | realized schema == nominal schema, but use inferred field definitions for extra fields.                                                                   | realized equivalent to nominal, extra fields are discarded |
 | inferred is missing nullable fields from nominal                                                        | " "                                       | realized schema == nominal schema, but use inferred field definitions for extra fields, fill missing columns with NULL                                    | exception is raised                                        |
 | inferred is missing non-nullable fields from nominal                                                    | " "                                       | exception is raised                                                                                                                                       | exception is raised                                        |
 | inferred field has datatype mismatch with nominal field definition (eg string in a nominal float field) | " "                                       | realized schema is downcast to inferred datatype (and warning issued if `WARN_ON_DOWNCAST`). If `FAIL_ON_DOWNCAST` is set, an exception is raised instead | exception is raised                                        |
