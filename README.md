@@ -33,7 +33,7 @@ pipelines (function graphs). This functional framework provides powerful benefit
   along with the code and runtimes that produced it. This gives the developer and operator
   the ability to audit and reproduce complex pipelines down to the byte.
 
-- **Portability** — Modular and testable pipes means providing consistent
+- **Portability** — With modular and testable pipes, developing consistent
   operations and data across different database engines and storage systems is safe and efficient.
   Snapflow supports any major database vendor (postgres, mysql, snowflake, bigquery, redshift),
   file system (local, S3, etc), as well as any data format, whether it's csv, json, or apache arrow.
@@ -87,8 +87,8 @@ print(output.as_dataframe()
 
 ## Architecture overview
 
-All snapflow pipelines are directed graphs of nodes, consisting of one or more "source" nodes
-that emit or create datablocks when run. This stream of blocks is
+All snapflow pipelines are directed graphs of `pipe` nodes, consisting of one or more "source" nodes
+that create and emit datablocks when run. This stream of blocks is
 then be consumed by downstream nodes, each in turn may emit their own blocks. Nodes
 can be run in any order, any number of times. Each time run, they consume any new blocks
 from upstream until there are none left unprocessed, or they are requested to stop.
@@ -99,8 +99,8 @@ Below are more details on the key components of snapflow.
 
 ### Datablocks
 
-A `datablock` is an immutable set of data records of uniform `schema` -- think csv file
-or database table. `datablocks` are the basic data unit of snapflow, the unit that `pipes` take
+A `datablock` is an immutable set of data records of uniform `schema` -- think csv file, pandas
+dataframe, or database table. `datablocks` are the basic data unit of snapflow, the unit that `pipes` take
 as input and produce as output. Once created, a datablock's data will never change: no records will
 be added or deleted or data points modified. More precisely, `datablocks` are a reference to an
 abstract ideal of a set of records, and will have one or more `StoredDataBlocks` persisting those
@@ -121,7 +121,7 @@ is just one operation.)
 input via `streams`. Pipes are written in python or sql. Below are two equivalent example pipes:
 
 ```python
-def sales(txs: DataBlock) -> DataBlock:
+def sales(txs: DataBlock) -> DataFrame:
     df = txs.as_dataframe()
     return df.groupby("customer_id").sum("amount").reset_index()
 ```
@@ -132,6 +132,28 @@ select
   , sum(amount) as amount
 from txs
 group by customer_id
+```
+
+Pipes may take any number of inputs, and optionally may output data. A pipe with no datablock inputs
+is a "source" pipe. These pipes are often used to fetch data from an external API or data source.
+Pipes can also take configuration options. Snapflow relies on Python 3 type annotations to understand
+a pipe's interface and what inputs are required or optional:
+
+```python
+@dataclass
+class ExtractJsonApiConfig:
+    api_url: str
+    query_params: Optional[Dict[str, str]] = None
+
+
+@pipe(configuration_class=ExtractJsonApiConfig)
+def extract_json_api(ctx: PipeContext) -> List[Dict]:
+    # PipeContext is automatically injected when type-annotated
+    url = ctx.get_config_value("api_url")
+    params = ctx.get_config_value("query_params")
+    resp = requests.get(url, params or {})
+    resp.raise_for_status()
+    return resp.json()["data"]
 ```
 
 ### Schemas
