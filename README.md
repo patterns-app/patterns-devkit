@@ -13,7 +13,7 @@
 components. It lets developers write pure data functions, called `pipes`, in **Python or SQL**
 and document their inputs and outputs explicitly via `schemas`. These pipes operate on immutable
 sets of data records, called `datablocks`, and can be composed into simple or complex data
-pipelines (function graphs). This functional framework provides powerful benefits:
+pipelines. This functional framework provides powerful benefits:
 
 - **Reusable components** — Pipes can be easily snapped together, shared and
   reused across projects, open-sourced, and catalogued in the snapflow repository (coming soon).
@@ -30,20 +30,20 @@ pipelines (function graphs). This functional framework provides powerful benefit
   brings the rigor and industrial-grade reliability of software to the world of data.
 
 - **Total reproducibility** — Every data record at every ETL step is preserved in snapflow,
-  along with the code and runtimes that produced it. This gives the developer and operator
+  along with the code and runtimes that produced it. This gives the user
   the ability to audit and reproduce complex pipelines down to the byte.
 
 - **Portability** — With modular and testable pipes, developing consistent
-  operations and data across different database engines and storage systems is safe and efficient.
+  data operations across different database engines and storage systems is safe and efficient.
   Snapflow supports any major database vendor (postgres, mysql, snowflake, bigquery, redshift),
   file system (local, S3, etc), as well as any data format, whether it's csv, json, or apache arrow.
 
-- **Zero cost abstractions and high performance** — snapflow pipe operations and immutability
+- **Zero cost abstractions and high performance** — Snapflow pipe operations and immutability
   guarantees can be compiled down at execution time for high performance. This means developers and
   analysts can work with clean mental models and strong guarantees without incurring performance
   costs at runtime.
 
-- ☁️&nbsp; **Cloud-ready** - Snapflow comes with [cloud](CLOUD) included!
+- ☁️&nbsp; **Cloud-Ready** - Snapflow comes with [cloud](CLOUD) included!
 
 Snapflow brings the best practices learned over the last 60 years in software to the world of data,
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
@@ -51,7 +51,7 @@ scale from laptop to AWS cluster.
 
 > 🚨️ &nbsp; snapflow is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️
 
-### Example
+## Example
 
 `pip install snapflow snapflow-stripe snapflow-bi`
 
@@ -102,17 +102,12 @@ Below are more details on the key components of snapflow.
 A `datablock` is an immutable set of data records of uniform `schema` -- think csv file, pandas
 dataframe, or database table. `datablocks` are the basic data unit of snapflow, the unit that `pipes` take
 as input and produce as output. Once created, a datablock's data will never change: no records will
-be added or deleted or data points modified. More precisely, `datablocks` are a reference to an
+be added or deleted, or data points modified. More precisely, `datablocks` are a reference to an
 abstract ideal of a set of records, and will have one or more `StoredDataBlocks` persisting those
-records on a specific `storage` mediums in a specific `dataformat` -- a CSV on the
+records on a specific `storage` medium in a specific `dataformat` -- a CSV on the
 local file, a JSON string in memory, or a table in Postgres. Snapflow abstracts over specific
-formats and storage engines, and provides conversion and i/o between them while doing its best
-to maintain byte-perfect consistency -- to the extent possible for a given format and storage.
-
-Note, because all data in snapflow is a datablock, and datablocks are immutable, there is effectively
-just **ONE** data operation in the snapflow framework: _create new datablock_. (Under the hood,
-snapflow may do more complex operations for performance reasons, but at the abstraction level, there
-is just one operation.)
+formats and storage engines, and provides conversion and i/o between them while
+maintaining byte-perfect consistency -- to the extent possible for a given format and storage.
 
 ### Pipes
 
@@ -156,6 +151,8 @@ def extract_json_api(ctx: PipeContext) -> List[Dict]:
     return resp.json()["data"]
 ```
 
+In the case of sql pipes, the inputs are inferred from table identifiers in the query.
+
 ### Schemas
 
 `schemas` are record type definitions (think database table schema) that let `pipes` specify the
@@ -163,13 +160,13 @@ data structure they expect and allow them to inter-operate safely. They also
 provide a natural place for field descriptions, validation logic, deduplication
 behavior, relations to other schemas, and other metadata associated with a specific type of data record.
 
-`schemas` behave like _interfaces_ in other languages. The snapflow type system is structurally and
+`schemas` behave like _interfaces_ in other typed languages. The snapflow type system is structurally and
 gradually typed -- types are both optional and inferred, there is no explicit type hierarchy, and
 type compatibility can be inspected at runtime. A type is a subtype of, or "compatible" with, another
 type if it defines a superset of compatible fields or if it provides an `implementation`
 of that type.
 
-A minimal type example, in yaml:
+A minimal `schema` example, in yaml:
 
 ```yaml
 name: Order
@@ -195,37 +192,6 @@ fields:
     type: Unicode(256)
 ```
 
-We could also specify `relations` and `implementations` of this type with other types:
-
-```yaml
-relations:
-  customer:
-    type: Customer
-    fields:
-      id: customer_id
-implementations:
-  common.TimeSeries:
-    datetime: date
-    value: amount
-```
-
-Here we have _implemented_ the `common.TimeSeries` schema, so any `pipe` that accepts
-timeseries data, say a seasonality modeling pipe, can now be applied to this `Order` data. We could
-also apply this schema implementation ad-hoc at node declaration time with the
-`schema_translation` arg:
-
-```python
-orders = node(order_source)
-n = node(
-   "seasonality",
-   seasonality,
-   upstream=orders,
-   schema_translation={
-       "datetime": "date",
-       "value": "amount",
-   })
-```
-
 `pipes` can declare the `schemas` they expect with type hints, allowing them to specify the
 (minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
 
@@ -247,6 +213,37 @@ select -- :CustomerMetric
   , sum(amount) as amount
 from txs -- :Transaction
 group by customer_id
+```
+
+We could also specify `relations` and `implementations` of this type with other types:
+
+```yaml
+relations:
+  customer:
+    type: Customer
+    fields:
+      id: customer_id
+implementations:
+  common.TimeSeries:
+    datetime: date
+    value: amount
+```
+
+Here we have _implemented_ the `common.TimeSeries` schema, so any `pipe` that accepts
+timeseries data, say a seasonality modeling pipe, can now be applied to this `Order` data. We could
+also apply this schema implementation ad-hoc at node declaration time with the
+`schema_translation` kwarg:
+
+```python
+orders = node(order_source)
+n = node(
+   "seasonality",
+   seasonality,
+   upstream=orders,
+   schema_translation={
+       "date": "datetime",
+       "amount": "value",
+   })
 ```
 
 Typing is always optional, our original pipe definitions were valid with
