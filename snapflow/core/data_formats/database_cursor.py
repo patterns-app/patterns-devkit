@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar
+from typing import Any, Iterator, List, Optional, Type, TypeVar
 
-from snapflow.core.data_formats.base import DataFormatBase, MemoryDataFormatBase
+from snapflow.core.data_formats.base import (
+    DataFormatBase,
+    MemoryDataFormatBase,
+    make_corresponding_iterator_format,
+)
 from sqlalchemy.engine import ResultProxy
 
 
@@ -26,3 +30,6 @@ class DatabaseCursorFormat(MemoryDataFormatBase):
 
 
 DatabaseCursor = TypeVar("DatabaseCursor", bound=ResultProxy)
+DatabaseCursorIterator = Iterator[DatabaseCursor]
+
+DatabaseCursorIteratorFormat = make_corresponding_iterator_format(DatabaseCursorFormat)

@@ -47,8 +47,8 @@ VALID_DATA_INTERFACE_TYPES = [
     "DataBlock",
     "DataFrame",
     "RecordsList",
-    "RecordsListGenerator",
-    "DataFrameGenerator",
+    "RecordsListIterator",
+    "DataFrameIterator",
     "DatabaseTableRef",
     "DataRecordsObject",
     "Any",
@@ -95,9 +95,10 @@ class PipeAnnotation:
         if isinstance(schema_name, str):
             kwargs["is_generic"] = is_generic(schema_name)
         if kwargs["data_format_class"] not in VALID_DATA_INTERFACE_TYPES:
-            raise TypeError(
-                f"`{kwargs['data_format_class']}` is not a valid data input type"
-            )
+            if name:
+                raise TypeError(
+                    f"`{kwargs['data_format_class']}` is not a valid data input type"
+                )
         if kwargs["data_format_class"] in {"Stream", "DataBlockStream"}:
             kwargs["is_stream"] = True
         return PipeAnnotation(**kwargs)

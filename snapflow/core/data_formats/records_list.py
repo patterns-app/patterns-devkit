@@ -1,8 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional
 
-from snapflow.core.data_formats.base import MemoryDataFormatBase
+from snapflow.core.data_formats.base import (
+    MemoryDataFormatBase,
+    make_corresponding_iterator_format,
+)
 
 if TYPE_CHECKING:
     from snapflow import Schema
@@ -35,6 +38,10 @@ class RecordsListFormat(MemoryDataFormatBase):
         return len(obj)
 
     @classmethod
+    def get_records_sample(cls, obj: Any, n: int = 200) -> Optional[List[Dict]]:
+        return obj[:n]
+
+    @classmethod
     def maybe_instance(cls, obj: Any) -> bool:
         if not isinstance(obj, cls.type()):
             return False
@@ -49,19 +56,12 @@ class RecordsListFormat(MemoryDataFormatBase):
         return isinstance(obj, list) and len(obj) > 0 and isinstance(obj[0], dict)
 
     @classmethod
-    def infer_schema_from_records(cls, records: RecordsList) -> Schema:
-        from snapflow.core.typing.inference import infer_schema_from_records_list
-        from snapflow.core.data_formats import get_records_list_sample
-
-        dl = get_records_list_sample(records)
-        if dl is None:
-            raise ValueError("Empty records object")
-        inferred_schema = infer_schema_from_records_list(dl)
-        return inferred_schema
-
-    @classmethod
     def apply_schema_translation(
         cls, translation: SchemaTranslation, records: RecordsList
     ) -> RecordsList:
         m = translation.as_dict()
         return map_recordslist(m, records)
+
+
+RecordsListIteratorFormat = make_corresponding_iterator_format(RecordsListFormat)
+RecordsListIterator = Iterator[RecordsList]

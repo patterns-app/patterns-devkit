@@ -4,6 +4,7 @@ from collections import abc
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
+from io import IOBase
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional
 
 import sqlalchemy
@@ -17,8 +18,8 @@ from snapflow.core.data_block import (
     StoredDataBlockMetadata,
     create_data_block_from_records,
 )
-from snapflow.core.data_formats import DataFrameGenerator, RecordsListGenerator
-from snapflow.core.data_formats.base import ReusableGenerator
+from snapflow.core.data_formats import DataFrameIterator, RecordsListIterator
+from snapflow.core.data_formats.base import SampleableIterator
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DataBlockLog, Direction, Node, PipeLog, get_state
@@ -31,6 +32,7 @@ from snapflow.core.pipe_interface import (
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.storage.storage import LocalMemoryStorageEngine, Storage
 from snapflow.utils.common import cf, error_symbol, success_symbol, utcnow
+from snapflow.utils.data import SampleableIO
 from sqlalchemy.engine import ResultProxy
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import Session
@@ -214,7 +216,7 @@ class RunContext:
     #             runtimes=self.runtimes,
     #             target_storage=self.target_storage,
     #         ),
-    #         cls=DagsJSONEncoder,
+    #         cls=SnapflowJSONEncoder,
     #     )
     #
     # @classmethod
@@ -446,7 +448,7 @@ class Worker:
             # Log
             if executable.bound_interface.inputs:
                 self.ctx.logger(
-                    INDENT + f"Inputs: {total_input_count} blocks processed\n"
+                    INDENT + f"Inputs: {total_input_count} block(s) processed\n"
                 )
             if output_block is not None:
                 self.ctx.logger(
@@ -484,21 +486,12 @@ class Worker:
         elif isinstance(output, ManagedDataBlock):
             raise NotImplementedError
         else:
-            # TODO: handle generic generator "Generator" (or call it "Stream" or "OutputStream"?)
-            if isinstance(output, abc.Generator):
-                if (
-                    execution.bound_interface.output.data_format_class
-                    == "DataFrameGenerator"
-                ):
-                    output = DataFrameGenerator(output)
-                elif (
-                    execution.bound_interface.output.data_format_class
-                    == "RecordsListGenerator"
-                ):
-                    output = RecordsListGenerator(output)
-                else:
-                    output = ReusableGenerator(output)
-                if output.get_one() is None:
+            # TODO: handle DataBlock stream output (iterator that goes into separate blocks)
+            if isinstance(output, IOBase):
+                output = SampleableIO(output)
+            elif isinstance(output, abc.Iterator):
+                output = SampleableIterator(output)
+                if output.get_first() is None:
                     # Empty generator
                     return None
             nominal_output_schema = execution.bound_interface.resolve_nominal_output_schema(

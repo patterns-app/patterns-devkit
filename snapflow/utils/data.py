@@ -2,13 +2,29 @@ from __future__ import annotations
 
 import csv
 import json
+import typing
 from datetime import datetime
 from io import IOBase
-from typing import Any, Dict, Iterable, List, Union
+from itertools import tee
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Union,
+)
 
+from loguru import logger
 from pandas import Timestamp, isnull
-from snapflow.core.data_formats import RecordsList
 from snapflow.utils.common import SnapflowJSONEncoder
+from snapflow.utils.typing import T
+
+if TYPE_CHECKING:
+    from snapflow.core.data_formats import RecordsList
 
 
 def records_list_as_dict_of_lists(dl: List[Dict]) -> Dict[str, List]:
@@ -37,7 +53,7 @@ def is_nullish(o: Any, null_strings=["None", "null", "na", ""]) -> bool:
     return False
 
 
-class DagsCsvDialect(csv.Dialect):
+class SnapflowCsvDialect(csv.Dialect):
     delimiter = ","
     quotechar = '"'
     escapechar = "\\"
@@ -53,7 +69,7 @@ def process_csv_value(v: Any) -> Any:
     return v
 
 
-def read_csv(lines: Iterable, dialect=DagsCsvDialect) -> List[Dict]:
+def read_csv(lines: Iterable, dialect=SnapflowCsvDialect) -> List[Dict]:
     reader = csv.reader(lines, dialect=dialect)
     headers = next(reader)
     records = [
@@ -80,7 +96,7 @@ def write_csv(
     file_like: IOBase,
     columns: List[str] = None,
     append: bool = False,
-    dialect=DagsCsvDialect,
+    dialect=SnapflowCsvDialect,
 ):
     if not records:
         return
@@ -123,3 +139,74 @@ def conform_records_for_insert(
             row.append(o)
         rows.append(row)
     return rows
+
+
+def head(file_obj: IOBase, n: int) -> Iterator:
+    if not hasattr(file_obj, "seek"):
+        raise TypeError("Missing seek method")
+    i = 0
+    for v in file_obj:
+        if i >= n:
+            break
+        yield v
+        i += 1
+    file_obj.seek(0)
+
+
+class SampleableIterator(Generic[T]):
+    def __init__(
+        self, iterator: typing.Iterator, iterated_values: Optional[List[T]] = None
+    ):
+        self._iterator = iterator
+        self._iterated_values: List[T] = iterated_values or []
+        self._i = 0
+        self._has_been_iterated = False
+
+    def __iter__(self) -> Iterator[T]:
+        for v in self._iterated_values:
+            yield v
+        for v in self._iterator:
+            yield v
+
+    # def __next__(self) -> T:
+    #     if self._i < len(self._iterated_values) - 1:
+    #         self._i += 1
+    #         return self._iterated_values[i]
+    #     nxt = next(self._iterator)
+    #     self._iterated_values.append(nxt)
+    #     self._i += 1
+    #     return nxt
+
+    def get_first(self) -> Optional[T]:
+        return next(self.head(1), None)
+
+    def copy(self) -> SampleableIterator[T]:
+        logger.warning("Copying an iterator, this requires bringing it into memory.")
+        self._iterator, it2 = tee(self._iterator, 2)
+        return SampleableIterator(it2, self._iterated_values)
+
+    def head(self, n: int) -> Iterator[T]:
+        i = 0
+        for v in self._iterated_values:
+            if i >= n:
+                return
+            yield v
+            i += 1
+        for v in self._iterator:
+            if i >= n:
+                return
+            self._iterated_values.append(v)
+            yield v
+            i += 1
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._iterator, name)
+
+
+class SampleableIO(SampleableIterator):
+    def __init__(self, file_obj: IOBase):
+        super().__init__(file_obj)
+
+    def copy(self) -> SampleableIterator[T]:
+        logger.warning("Cannot copy file object, reusing existing")
+        return self

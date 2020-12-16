@@ -10,7 +10,7 @@ import pytest
 from loguru import logger
 from pandas._testing import assert_almost_equal
 from snapflow import DataBlock, pipe, sql_pipe
-from snapflow.core.data_formats import RecordsList, RecordsListGenerator
+from snapflow.core.data_formats import RecordsList, RecordsListIterator
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import PipeContext
 from snapflow.core.graph import Graph
@@ -59,7 +59,7 @@ def aggregate_metrics(i1: DataBlock) -> RecordsList[Metric]:
 
 
 @pipe
-def customer_source(ctx: PipeContext) -> RecordsListGenerator[Customer]:
+def customer_source(ctx: PipeContext) -> RecordsListIterator[Customer]:
     N = ctx.get_config_value("total_records")
     n = ctx.get_state_value("records_extracted", 0)
     if n >= N:

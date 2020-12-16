@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+from io import IOBase
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
@@ -8,11 +9,12 @@ from snapflow.core.data_formats.base import (
     DataFormat,
     DataFormatBase,
     MemoryDataFormatBase,
+    SampleableIterator,
 )
-from snapflow.core.data_formats.data_frame import DataFrameFormat
-from snapflow.core.data_formats.data_frame_generator import (
-    DataFrameGenerator,
-    DataFrameGeneratorFormat,
+from snapflow.core.data_formats.data_frame import (
+    DataFrameFormat,
+    DataFrameIterator,
+    DataFrameIteratorFormat,
 )
 from snapflow.core.data_formats.database_cursor import DatabaseCursorFormat
 from snapflow.core.data_formats.database_table import DatabaseTableFormat
@@ -21,12 +23,17 @@ from snapflow.core.data_formats.database_table_ref import (
     DatabaseTableRefFormat,
 )
 from snapflow.core.data_formats.delimited_file import DelimitedFileFormat
-from snapflow.core.data_formats.delimited_file_pointer import DelimitedFilePointerFormat
+from snapflow.core.data_formats.delimited_file_object import (
+    DelimitedFileObjectFormat,
+    DelimitedFileObjectIterator,
+    DelimitedFileObjectIteratorFormat,
+)
 from snapflow.core.data_formats.json_list_file import JsonListFileFormat
-from snapflow.core.data_formats.records_list import RecordsList, RecordsListFormat
-from snapflow.core.data_formats.records_list_generator import (
-    RecordsListGenerator,
-    RecordsListGeneratorFormat,
+from snapflow.core.data_formats.records_list import (
+    RecordsList,
+    RecordsListFormat,
+    RecordsListIterator,
+    RecordsListIteratorFormat,
 )
 from sqlalchemy import types
 
@@ -59,9 +66,10 @@ core_data_formats_precedence: List[DataFormat] = [
     DataFrameFormat,
     DatabaseCursorFormat,
     DatabaseTableRefFormat,
-    RecordsListGeneratorFormat,
-    DataFrameGeneratorFormat,
-    DelimitedFilePointerFormat,
+    RecordsListIteratorFormat,
+    DataFrameIteratorFormat,
+    DelimitedFileObjectIteratorFormat,
+    DelimitedFileObjectFormat,
     ### Non-memory formats (can't be concrete python objects)
     DelimitedFileFormat,
     JsonListFileFormat,
@@ -110,19 +118,24 @@ class DataFormatType(types.TypeDecorator):
         return data_format_registry[value]
 
 
-def get_records_list_sample(
-    obj: Union[pd.DataFrame, RecordsList, RecordsListGenerator, DataFrameGenerator],
-    max_sample: int = 1000,
-) -> Optional[RecordsList]:
-    """Helper for getting a small records list sample (poor man's converter? DRY?)"""
-    if isinstance(obj, list):
-        return obj[:max_sample]
-    if isinstance(obj, pd.DataFrame):
-        return obj.to_dict(orient="records")[:max_sample]
-    if isinstance(obj, DataFrameGenerator):
-        return get_records_list_sample(obj.get_one())
-    if isinstance(obj, RecordsListGenerator):
-        return get_records_list_sample(obj.get_one())
-    if isinstance(obj, collections.abc.Generator):
-        raise TypeError("Generators must be `tee`d before being sampled")
-    raise TypeError(obj)
+# def get_records_list_sample(
+#     obj: Union[pd.DataFrame, RecordsList, SampleableIterator],
+#     max_sample: int = 1000,
+# ) -> Optional[RecordsList]:
+#     """Helper for getting a small records list sample (poor man's converter? DRY?)"""
+#     if isinstance(obj, list):
+#         return obj[:max_sample]
+#     if isinstance(obj, pd.DataFrame):
+#         return obj.to_dict(orient="records")[:max_sample]
+#     if isinstance(obj, SampleableIterator):
+#         return get_records_list_sample(obj.get_one())
+#     if isinstance(obj, IOBase):
+#         pass
+#     if isinstance(obj, collections.abc.Iterator):
+#         raise TypeError("Iterators must be `tee`d before being sampled")
+#     raise TypeError(obj)
+
+
+# Deprecated formats
+RecordsListGenerator = RecordsListIterator
+DataFrameGenerator = DataFrameIterator

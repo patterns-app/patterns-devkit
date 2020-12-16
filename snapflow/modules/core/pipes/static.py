@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pandas import DataFrame
 from snapflow.core.data_block import DataRecordsObject, as_records
 from snapflow.core.data_formats import DataFrameFormat, RecordsListFormat
+from snapflow.core.data_formats.delimited_file_object import DelimitedFileObjectFormat
 from snapflow.core.execution import PipeContext
 from snapflow.core.pipe import pipe
 from snapflow.core.typing.schema import SchemaLike
@@ -57,8 +58,7 @@ def extract_csv(ctx: PipeContext) -> DataRecordsObject:
         return
         # Static resource, if already emitted, return
     path = ctx.get_config_value("path")
-    with open(path) as f:
-        records = read_csv(f.readlines())
+    f = open(path)
     ctx.emit_state_value("extracted", True)
     schema = ctx.get_config_value("schema")
-    return as_records(records, data_format=RecordsListFormat, schema=schema)
+    return as_records(f, data_format=DelimitedFileObjectFormat, schema=schema)

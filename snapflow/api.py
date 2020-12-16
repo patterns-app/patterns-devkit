@@ -2,9 +2,9 @@ from .core import operators
 from .core.data_block import DataBlock
 from .core.data_formats import (
     DataFormat,
-    DataFrameGenerator,
+    DataFrameIterator,
     RecordsList,
-    RecordsListGenerator,
+    RecordsListIterator,
 )
 from .core.environment import Environment, current_env, produce, run_graph, run_node
 from .core.execution import PipeContext
