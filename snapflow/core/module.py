@@ -20,7 +20,7 @@ from typing import (
 )
 
 from snapflow.core.component import ComponentLibrary
-from snapflow.core.typing.schema import Schema, SchemaLike, schema_from_yaml
+from snapflow.schema.base import Schema, SchemaLike, schema_from_yaml
 from snapflow.utils.common import AttrDict
 
 if TYPE_CHECKING:

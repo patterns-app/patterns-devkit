@@ -7,10 +7,10 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Uni
 
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
-from snapflow.core.data_formats import DatabaseTableRef, RecordsList
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.core.pipe_interface import PipeAnnotation, PipeInterface
-from snapflow.core.runtime import RuntimeClass
+from snapflow.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
+from snapflow.storage.data_formats import DatabaseTableRef, Records
 
 if TYPE_CHECKING:
     from snapflow.core.execution import PipeContext
@@ -29,23 +29,23 @@ PipeCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
     DataFrame,
-    RecordsList,
+    Records,
     DatabaseTableRef,
     DataBlockMetadata,
     DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
-def get_runtime_class(runtime: Optional[str]) -> RuntimeClass:
+def get_runtime_class(runtime: Optional[str]) -> Type[RuntimeClass]:
     if runtime is None:
-        return RuntimeClass.PYTHON
+        return PythonRuntimeClass
     if (
         "ql" in runtime.lower()
         or "database" in runtime.lower()
         or "postgre" in runtime.lower()
     ):
-        return RuntimeClass.DATABASE
-    return RuntimeClass.PYTHON
+        return DatabaseRuntimeClass
+    return PythonRuntimeClass
 
 
 def make_pipe_name(pipe: Union[PipeCallable, str]) -> str:
@@ -66,7 +66,7 @@ class Pipe:
     name: str
     module_name: str
     pipe_callable: Callable
-    compatible_runtime_classes: List[RuntimeClass]
+    compatible_runtime_classes: List[Type[RuntimeClass]]
     config_class: Optional[Type] = None
     state_class: Optional[Type] = None
     declared_inputs: Optional[Dict[str, str]] = None

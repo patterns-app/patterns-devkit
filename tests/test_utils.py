@@ -16,7 +16,7 @@ from snapflow.utils.common import (
 from snapflow.utils.data import is_nullish
 from snapflow.utils.pandas import (
     assert_dataframes_are_almost_equal,
-    dataframe_to_records_list,
+    dataframe_to_records,
     empty_dataframe_for_schema,
 )
 from tests.utils import TestSchema4
@@ -114,12 +114,12 @@ def test_empty_dataframe_from_schema():
     assert set(d.name for d in df.dtypes) == {"string", "Int32"}
 
 
-def test_dataframe_to_records_list():
+def test_dataframe_to_records():
     df = DataFrame({"a": range(10), "b": range(10)})
-    assert dataframe_to_records_list(df) == [{"a": i, "b": i} for i in range(10)]
+    assert dataframe_to_records(df) == [{"a": i, "b": i} for i in range(10)]
     df["c"] = datetime(2012, 1, 1)
     df.loc[0, "c"] = None  # Add a NaT
-    records = dataframe_to_records_list(df)
+    records = dataframe_to_records(df)
     for r in records:
         if r["a"] == 0:
             # NaT has been converted to None

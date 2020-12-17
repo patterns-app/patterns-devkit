@@ -9,19 +9,13 @@ from pandas import DataFrame
 from snapflow import DataBlock, Environment, Graph, Pipe, Storage
 from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DataBlockLog, Node, PipeLog
-from snapflow.core.typing.inference import infer_schema_from_records_list
-from snapflow.core.typing.schema import Schema, SchemaLike
+from snapflow.core.typing.inference import infer_schema_from_records
+from snapflow.schema.base import Schema, SchemaLike
+from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.utils.common import rand_str
 from snapflow.utils.data import read_csv, read_json, read_raw_string_csv
-from snapflow.utils.pandas import records_list_to_dataframe
+from snapflow.utils.pandas import records_to_dataframe
 from sqlalchemy.orm import Session
-
-
-def get_tmp_sqlite_db_url(dbname=None):
-    if dbname is None:
-        dbname = rand_str(10)
-    dir = tempfile.mkdtemp()
-    return f"sqlite:///{dir}/{dbname}.db"
 
 
 def display_pipe_log(sess: Session):
@@ -39,7 +33,7 @@ def str_as_dataframe(
         if module is None:
             raise
         with module.open_module_file(test_data) as f:
-            raw_records = read_csv(f.readlines())
+            raw_records = list(read_csv(f.readlines()))
     elif test_data.endswith(".json"):
         if module is None:
             raise
@@ -49,9 +43,9 @@ def str_as_dataframe(
         # Raw str csv
         raw_records = read_raw_string_csv(test_data)
     if nominal_schema is None:
-        auto_schema = infer_schema_from_records_list(raw_records)
+        auto_schema = infer_schema_from_records(raw_records)
         nominal_schema = auto_schema
-    df = records_list_to_dataframe(raw_records, nominal_schema)
+    df = records_to_dataframe(raw_records, nominal_schema)
     return df
 
 

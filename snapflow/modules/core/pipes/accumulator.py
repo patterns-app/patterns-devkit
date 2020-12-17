@@ -9,9 +9,9 @@ from snapflow.core.pipe import pipe
 from snapflow.core.sql.pipe import sql_pipe
 from snapflow.core.streams import Stream
 from snapflow.core.typing.inference import conform_dataframe_to_schema
+from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.testing.utils import (
     DataInput,
-    get_tmp_sqlite_db_url,
     produce_pipe_output_for_static_input,
     str_as_dataframe,
 )

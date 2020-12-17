@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 from pandas import DataFrame
-from snapflow import DataBlockStream
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment
 from snapflow.core.execution import ExecutionManager, PipeContext, RunContext
 from snapflow.core.graph import Graph
 from snapflow.core.module import SnapflowModule
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
-from snapflow.core.storage.storage import Storage, StorageClass, StorageEngine
-from snapflow.core.typing.schema import create_quick_schema
+from snapflow.core.streams import DataBlockStream
+from snapflow.schema.base import create_quick_schema
+from snapflow.storage.storage import Storage, StorageClass, StorageEngine
 from snapflow.utils.common import rand_str
 from snapflow.utils.typing import T
 
@@ -45,25 +45,17 @@ def make_test_env(**kwargs) -> Environment:
 
 
 def make_test_run_context(**kwargs) -> RunContext:
-    s = Storage(  # type: ignore
-        url=f"memory://_test_default_{rand_str(6)}",
-        storage_class=StorageClass.MEMORY,
-        storage_engine=StorageEngine.DICT,
+    s = Storage.from_url(
+        url=f"python://_test_default_{rand_str(6)}",
     )
     env = make_test_env()
     g = Graph(env)
     args = dict(
         graph=g,
         env=env,
-        runtimes=[
-            Runtime(
-                url="python://local",
-                runtime_class=RuntimeClass.PYTHON,
-                runtime_engine=RuntimeEngine.LOCAL,
-            )
-        ],
+        runtimes=[Runtime.from_storage(s)],
         storages=[s],
-        local_memory_storage=s,
+        local_python_storage=s,
         target_storage=s,
     )
     args.update(**kwargs)

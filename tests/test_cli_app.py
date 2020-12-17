@@ -3,7 +3,7 @@ import os
 from click.testing import CliRunner
 from snapflow.cli import app
 from snapflow.project.project import SNAPFLOW_PROJECT_FILE_NAME
-from snapflow.testing.utils import get_tmp_sqlite_db_url
+from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 
 
 def test_app():

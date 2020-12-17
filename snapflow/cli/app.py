@@ -12,8 +12,8 @@ from snapflow.core.environment import Environment, current_env
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX
 from snapflow.core.node import DataBlockLog, PipeLog
 from snapflow.core.typing.inference import dict_to_rough_schema
-from snapflow.core.typing.schema import schema_to_yaml
 from snapflow.project.project import SNAPFLOW_PROJECT_FILE_NAME, init_project_in_dir
+from snapflow.schema.base import schema_to_yaml
 from snapflow.utils import common
 from snapflow.utils.common import cf
 from sqlalchemy import func
@@ -66,7 +66,7 @@ class CliAppException(Exception):
 @click.pass_context
 def app(ctx, debug: bool = False, metadata: Optional[str] = None):
     """Modern Data Pipelines"""
-    logger.enable("snapflow")
+    # logger.enable("snapflow")
     logger.warning("The snapflow CLI is experimental and not officially supported yet")
     if debug:
         logger.add(sys.stderr, level="DEBUG")

@@ -4,11 +4,8 @@ from pandas import DataFrame
 from snapflow import DataBlock, pipe
 from snapflow.core.node import DataBlockLog
 from snapflow.core.sql.pipe import sql_pipe
-from snapflow.testing.utils import (
-    DataInput,
-    get_tmp_sqlite_db_url,
-    produce_pipe_output_for_static_input,
-)
+from snapflow.storage.db.utils import get_tmp_sqlite_db_url
+from snapflow.testing.utils import DataInput, produce_pipe_output_for_static_input
 from snapflow.utils.pandas import assert_dataframes_are_almost_equal
 from snapflow.utils.typing import T
 

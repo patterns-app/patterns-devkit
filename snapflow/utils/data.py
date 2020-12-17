@@ -7,9 +7,12 @@ from datetime import datetime
 from io import IOBase
 from itertools import tee
 from typing import (
+    IO,
     TYPE_CHECKING,
     Any,
+    AnyStr,
     Dict,
+    Generator,
     Generic,
     Iterable,
     Iterator,
@@ -22,12 +25,13 @@ from loguru import logger
 from pandas import Timestamp, isnull
 from snapflow.utils.common import SnapflowJSONEncoder
 from snapflow.utils.typing import T
+from sqlalchemy.engine.result import ResultProxy
 
 if TYPE_CHECKING:
-    from snapflow.core.data_formats import RecordsList
+    from snapflow.storage.data_formats import Records
 
 
-def records_list_as_dict_of_lists(dl: List[Dict]) -> Dict[str, List]:
+def records_as_dict_of_lists(dl: List[Dict]) -> Dict[str, List]:
     series: Dict[str, List] = {}
     for r in dl:
         for k, v in r.items():
@@ -69,16 +73,35 @@ def process_csv_value(v: Any) -> Any:
     return v
 
 
-def read_csv(lines: Iterable, dialect=SnapflowCsvDialect) -> List[Dict]:
+def ensure_strings(i: Iterator[AnyStr]) -> Iterator[str]:
+    for s in i:
+        if isinstance(s, bytes):
+            s = s.decode("utf8")
+        yield s
+
+
+def iterate_chunks(iterator: Iterator[T], chunk_size: int) -> Iterator[List[T]]:
+    chunk = []
+    for v in iterator:
+        chunk.append(v)
+        if len(chunk) >= chunk_size:
+            yield chunk
+            chunk = []
+    yield chunk
+
+
+def read_csv(lines: Iterable[AnyStr], dialect=SnapflowCsvDialect) -> Iterator[Dict]:
+    lines = ensure_strings(lines)
     reader = csv.reader(lines, dialect=dialect)
-    headers = next(reader)
-    records = [
-        {h: process_csv_value(v) for h, v in zip(headers, line)} for line in reader
-    ]
-    return records
+    try:
+        headers = next(reader)
+    except StopIteration:
+        return
+    for line in reader:
+        yield {h: process_csv_value(v) for h, v in zip(headers, line)}
 
 
-def read_raw_string_csv(csv_str: str, **kwargs) -> List[Dict]:
+def read_raw_string_csv(csv_str: str, **kwargs) -> Iterator[Dict]:
     lines = [ln.strip() for ln in csv_str.split("\n") if ln.strip()]
     return read_csv(lines, **kwargs)
 
@@ -93,7 +116,7 @@ def conform_csv_value(v: Any) -> Any:
 
 def write_csv(
     records: List[Dict],
-    file_like: IOBase,
+    file_like: IO,
     columns: List[str] = None,
     append: bool = False,
     dialect=SnapflowCsvDialect,
@@ -120,7 +143,7 @@ def read_json(j: str) -> Union[Dict, List]:
 
 
 def conform_records_for_insert(
-    records: RecordsList,
+    records: Records,
     columns: List[str],
     adapt_objects_to_json: bool = True,
     conform_datetimes: bool = True,
@@ -160,12 +183,15 @@ class SampleableIterator(Generic[T]):
         self._iterator = iterator
         self._iterated_values: List[T] = iterated_values or []
         self._i = 0
-        self._has_been_iterated = False
+        self._is_used = False
 
     def __iter__(self) -> Iterator[T]:
+        if self._is_used:
+            raise Exception("Iterator already used")  # TODO: better exception
         for v in self._iterated_values:
             yield v
         for v in self._iterator:
+            self._is_used = True
             yield v
 
     # def __next__(self) -> T:
@@ -186,18 +212,25 @@ class SampleableIterator(Generic[T]):
         return SampleableIterator(it2, self._iterated_values)
 
     def head(self, n: int) -> Iterator[T]:
+        from snapflow.storage.data_records import wrap_records_object
+
+        if n < 1:
+            return
         i = 0
         for v in self._iterated_values:
-            if i >= n:
-                return
             yield v
             i += 1
+            if i >= n:
+                return
         for v in self._iterator:
+            # Important: we are uncovering a new records object potentially
+            # so we must wrap it immediately
+            wrapped_v = wrap_records_object(v)
+            self._iterated_values.append(wrapped_v)
+            yield wrapped_v
+            i += 1
             if i >= n:
                 return
-            self._iterated_values.append(v)
-            yield v
-            i += 1
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._iterator, name)
@@ -210,3 +243,17 @@ class SampleableIO(SampleableIterator):
     def copy(self) -> SampleableIterator[T]:
         logger.warning("Cannot copy file object, reusing existing")
         return self
+
+
+class SampleableCursor(SampleableIterator):
+    def __init__(self, cursor: ResultProxy):
+        super().__init__(cursor)
+
+    def copy(self) -> SampleableIterator[T]:
+        logger.warning("Cannot copy cursor object, reusing existing")
+        return self
+
+
+class SampleableGenerator(SampleableIterator):
+    def __init__(self, gen: Generator):
+        super().__init__(gen)

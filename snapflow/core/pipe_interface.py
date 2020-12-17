@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Union
 from loguru import logger
 from snapflow.core.data_block import DataBlock, DataBlockMetadata, ManagedDataBlock
 from snapflow.core.environment import Environment
-from snapflow.core.typing.schema import (
+from snapflow.schema.base import (
     Schema,
     SchemaKey,
     SchemaLike,
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
         PipeCallable,
     )
     from snapflow.core.node import Node, Node, NodeLike
-    from snapflow.core.storage.storage import Storage
+    from snapflow.storage.storage import Storage
     from snapflow.core.execution import RunContext
     from snapflow.core.streams import (
         StreamBuilder,
@@ -46,8 +46,8 @@ VALID_DATA_INTERFACE_TYPES = [
     "Block",
     "DataBlock",
     "DataFrame",
-    "RecordsList",
-    "RecordsListIterator",
+    "Records",
+    "RecordsIterator",
     "DataFrameIterator",
     "DatabaseTableRef",
     "DataRecordsObject",

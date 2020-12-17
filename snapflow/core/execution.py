@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional
 
 import sqlalchemy
 from loguru import logger
-from snapflow.core.conversion import convert_lowest_cost
 from snapflow.core.data_block import (
     Alias,
     DataBlock,
@@ -18,8 +17,6 @@ from snapflow.core.data_block import (
     StoredDataBlockMetadata,
     create_data_block_from_records,
 )
-from snapflow.core.data_formats import DataFrameIterator, RecordsListIterator
-from snapflow.core.data_formats.base import SampleableIterator
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DataBlockLog, Direction, Node, PipeLog, get_state
@@ -30,7 +27,15 @@ from snapflow.core.pipe_interface import (
     StreamInput,
 )
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
-from snapflow.core.storage.storage import LocalMemoryStorageEngine, Storage
+from snapflow.core.storage import copy_lowest_cost
+from snapflow.storage.data_formats import DataFrameIterator, RecordsIterator
+from snapflow.storage.data_formats.base import SampleableIterator
+from snapflow.storage.data_records import (
+    as_records,
+    records_object_is_definitely_empty,
+    wrap_records_object,
+)
+from snapflow.storage.storage import LocalPythonStorageEngine, PythonStorageApi, Storage
 from snapflow.utils.common import cf, error_symbol, success_symbol, utcnow
 from snapflow.utils.data import SampleableIO
 from sqlalchemy.engine import ResultProxy
@@ -133,6 +138,24 @@ class ExecutionResult:
     output_stored_block: Optional[StoredDataBlockMetadata] = None
 
 
+class ImproperlyStoredDataBlockException(Exception):
+    pass
+
+
+def validate_data_blocks(sess: Session):
+    # TODO: More checks?
+    sess.flush()
+    for obj in sess.identity_map.values():
+        if isinstance(obj, DataBlockMetadata):
+            urls = set([sdb.storage_url for sdb in obj.stored_data_blocks])
+            if all(u.startswith("python") for u in urls):
+                fmts = set([sdb.data_format for sdb in obj.stored_data_blocks])
+                if all(not f.is_storable() for f in fmts):
+                    raise ImproperlyStoredDataBlockException(
+                        f"DataBlock {obj} is not properly stored (no storeable format(s): {fmts})"
+                    )
+
+
 @dataclass  # (frozen=True)
 class RunContext:
     env: Environment
@@ -141,7 +164,7 @@ class RunContext:
     storages: List[Storage]
     runtimes: List[Runtime]
     target_storage: Storage
-    local_memory_storage: Storage
+    local_python_storage: Storage
     current_runtime: Optional[Runtime] = None
     node_timelimit_seconds: Optional[
         int
@@ -157,7 +180,7 @@ class RunContext:
             storages=self.storages,
             runtimes=self.runtimes,
             target_storage=self.target_storage,
-            local_memory_storage=self.local_memory_storage,
+            local_python_storage=self.local_python_storage,
             current_runtime=self.current_runtime,
             node_timelimit_seconds=self.node_timelimit_seconds,
             execution_timelimit_seconds=self.execution_timelimit_seconds,
@@ -193,6 +216,8 @@ class RunContext:
 
             try:
                 yield ExecutionSession(pl, sess)
+                # Validate local memory objects: Did we leave any non-storeables hanging?
+                validate_data_blocks(sess)
                 # Only persist state on successful run
                 pl.persist_state(sess)
 
@@ -206,7 +231,7 @@ class RunContext:
     @property
     def all_storages(self) -> List[Storage]:
         # TODO: should it be in the list of storages already?
-        return [self.local_memory_storage] + self.storages
+        return [self.local_python_storage] + self.storages
 
     # def to_json(self) -> str:
     #     return json.dumps(
@@ -299,7 +324,7 @@ class ExecutionManager:
         compatible_runtimes = node.pipe.compatible_runtime_classes
         for runtime in self.ctx.runtimes:
             if (
-                runtime.runtime_class in compatible_runtimes
+                runtime.runtime_engine.runtime_class in compatible_runtimes
             ):  # TODO: Just taking the first one...
                 return runtime
         raise Exception(
@@ -338,16 +363,16 @@ class ExecutionManager:
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     # (they are responsible for creating their own generators)
                     break
-            self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))
+            self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))  # type: ignore
         except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
             logger.debug(INDENT + cf.warning("Input Exhausted"))
             if e.args:
                 logger.debug(e)
             if n_runs == 0:
                 self.ctx.logger(INDENT + "Inputs: No unprocessed upstream\n")
-            self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))
+            self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))  # type: ignore
         except Exception as e:
-            self.ctx.logger(INDENT + cf.error("Error " + error_symbol) + str(e) + "\n")
+            self.ctx.logger(INDENT + cf.error("Error " + error_symbol) + str(e) + "\n")  # type: ignore
             raise e
 
         # TODO: how to pass back with session?
@@ -358,7 +383,7 @@ class ExecutionManager:
         logger.debug(f"*DONE* RUNNING NODE {node.key} {node.pipe.key}")
         if output_session is not None:
             last_non_none_output = output_session.merge(last_non_none_output)
-            return last_non_none_output.as_managed_data_block(self.ctx, output_session)
+            return last_non_none_output.as_managed_data_block(run_ctx, output_session)
         return None
 
     def _execute(self, node: Node, worker: Worker) -> ExecutionResult:
@@ -388,7 +413,6 @@ class Worker:
         self.ctx = ctx
 
     def execute(self, executable: Executable) -> ExecutionResult:
-        output_block: Optional[DataBlockMetadata] = None
         node = self.ctx.graph.get_node(executable.node_key)
         with self.ctx.start_pipe_run(node) as execution_session:
             interface_mgr = NodeInterfaceManager(
@@ -409,91 +433,94 @@ class Worker:
             pipe_inputs = executable.bound_interface.inputs_as_kwargs()
             pipe_kwargs = pipe_inputs
             # Actually run the pipe
-            output = executable.compiled_pipe.pipe.pipe_callable(
+            output_obj = executable.compiled_pipe.pipe.pipe_callable(
                 *pipe_args, **pipe_kwargs
             )
-            output_block = None
-            output_block = None
-            output_sdb = None
-            if output is not None:
-                assert (
-                    self.ctx.target_storage is not None
-                ), "Must specify target storage for output"
-                output_sdb = self.handle_output(execution_session, output, executable)
-                alias = None
-                # Output block may be none still if `output` was an empty generator
-                if output_sdb is not None:
-                    execution_session.metadata_session.flush(
-                        [output_sdb, output_sdb.data_block]
-                    )
-                    output_block = output_sdb.data_block
-                    execution_session.log_output(output_block)
-                    alias = ensure_alias(
-                        execution_session.metadata_session, node, output_sdb
-                    )
-                    execution_session.metadata_session.flush([alias])
+            result = self.process_execution_result(
+                executable, execution_session, output_obj
+            )
+        return result
 
-            # Flush
-            execution_session.metadata_session.flush()
+    def process_execution_result(
+        self,
+        executable: Executable,
+        execution_session: ExecutionSession,
+        output_obj: DataInterfaceType,
+    ) -> ExecutionResult:
+        node = self.ctx.graph.get_node(executable.node_key)
+        output_block: Optional[DataBlockMetadata] = None
+        output_sdb: Optional[StoredDataBlockMetadata] = None
+        if output_obj is not None:
+            output_sdb = self.handle_raw_output_object(
+                execution_session, output_obj, executable
+            )
+            alias = None
+            # Output block may be none still if `output` was an empty generator
+            if output_sdb is not None:
+                execution_session.metadata_session.flush(
+                    [output_sdb.data_block, output_sdb]
+                )
+                output_block = output_sdb.data_block
+                execution_session.log_output(output_block)
+                alias = ensure_alias(
+                    execution_session.metadata_session, node, output_sdb
+                )
+                execution_session.metadata_session.flush([alias])
 
-            input_block_counts = {}
-            total_input_count = 0
-            for input in executable.bound_interface.inputs:
-                if input.bound_stream is not None:
-                    input_block_counts[input.name] = 0
-                    for db in input.bound_stream.get_emitted_blocks():
-                        input_block_counts[input.name] += 1
-                        total_input_count += 1
-                        execution_session.log_input(db)
-            # Log
-            if executable.bound_interface.inputs:
-                self.ctx.logger(
-                    INDENT + f"Inputs: {total_input_count} block(s) processed\n"
-                )
-            if output_block is not None:
-                self.ctx.logger(
-                    INDENT
-                    + f"Output: {alias.alias} "
-                    + cf.dimmed(
-                        f"({output_block.id}) {output_block.record_count} records"
-                    )
-                    + "\n"
-                )
+        # Flush
+        execution_session.metadata_session.flush()
+
+        input_block_counts = {}
+        total_input_count = 0
+        for input in executable.bound_interface.inputs:
+            if input.bound_stream is not None:
+                input_block_counts[input.name] = 0
+                for db in input.bound_stream.get_emitted_blocks():
+                    input_block_counts[input.name] += 1
+                    total_input_count += 1
+                    execution_session.log_input(db)
+        # Log
+        if executable.bound_interface.inputs:
+            self.ctx.logger(
+                INDENT + f"Inputs: {total_input_count} block(s) processed\n"
+            )
+        if output_block is not None:
+            self.ctx.logger(
+                INDENT
+                + f"Output: {alias.alias} "
+                + cf.dimmed(
+                    f"({output_block.id}) {output_block.record_count} records"
+                )  # type: ignore
+                + "\n"
+            )
+
         return ExecutionResult(
-            inputs_bound=list(pipe_inputs.keys()),
+            inputs_bound=list(executable.bound_interface.inputs_as_kwargs().keys()),
             input_blocks_processed=input_block_counts,
             output_block=output_block,
             output_stored_block=output_sdb,
         )
 
-    def handle_output(
+    def handle_raw_output_object(
         self,
         execution_session: ExecutionSession,
-        output: DataInterfaceType,
+        output_obj: DataInterfaceType,
         execution: Executable,
     ) -> Optional[StoredDataBlockMetadata]:
         logger.debug("HANDLING OUTPUT")
-        assert execution.bound_interface.output is not None
         # TODO: can i return an existing DataBlock? Or do I need to create a "clone"?
         #   Answer: ok to return as is (just mark it as 'output' in DBL)
-        assert self.ctx.target_storage is not None
-        if isinstance(output, StoredDataBlockMetadata):
-            output = execution_session.metadata_session.merge(output)
+        if isinstance(output_obj, StoredDataBlockMetadata):
             # TODO is it in local storage tho? we skip conversion below...
-            return output
-        elif isinstance(output, DataBlockMetadata):
+            # This is just special case right now to support SQL pipe
+            # Will need better solution for explicitly creating DB/SDBs inside of pipes
+            return output_obj
+        elif isinstance(output_obj, DataBlockMetadata):
             raise NotImplementedError
-        elif isinstance(output, ManagedDataBlock):
+        elif isinstance(output_obj, ManagedDataBlock):
             raise NotImplementedError
         else:
             # TODO: handle DataBlock stream output (iterator that goes into separate blocks)
-            if isinstance(output, IOBase):
-                output = SampleableIO(output)
-            elif isinstance(output, abc.Iterator):
-                output = SampleableIterator(output)
-                if output.get_first() is None:
-                    # Empty generator
-                    return None
             nominal_output_schema = execution.bound_interface.resolve_nominal_output_schema(
                 self.env,
                 execution_session.metadata_session,
@@ -501,23 +528,45 @@ class Worker:
             logger.debug(
                 f"Resolved output schema {nominal_output_schema} {execution.bound_interface}"
             )
+            output_obj = wrap_records_object(output_obj)
+            if records_object_is_definitely_empty(output_obj):
+                # TODO
+                # Are we sure we'd never want to process an empty object?
+                # Like maybe create the db table, but leave it empty? could be useful
+                return None
+            dro = as_records(output_obj, schema=nominal_output_schema)
             block, sdb = create_data_block_from_records(
                 self.env,
                 execution_session.metadata_session,
-                self.ctx.local_memory_storage,
-                output,
-                nominal_schema=nominal_output_schema,
+                self.ctx.local_python_storage,
+                dro,
                 created_by_node_key=execution.node_key,
             )
 
-        # TODO: check if existing storage_format is compatible with target storage, instead of using natural (no need to convert then)
+        # TODO: need target_format option too
+        if self.ctx.target_storage is None or self.ctx.target_storage == sdb.storage:
+            # Already good on target storage
+            if sdb.data_format.is_storable():
+                # And its storable
+                return sdb
+
+        # check if existing storage_format is compatible with target storage,
+        # and it's storable, then use instead of natural (no need to convert)
+        target_format = self.ctx.target_storage.storage_engine.get_natural_format()
+        if self.ctx.target_storage.storage_engine.is_supported_format(sdb.data_format):
+            if sdb.data_format.is_storable():
+                target_format = sdb.data_format
+
+        assert target_format.is_storable()
+
         # Place output in target storage
-        return convert_lowest_cost(
-            self.ctx,
+        return copy_lowest_cost(
+            self.ctx.env,
             execution_session.metadata_session,
-            sdb,
-            self.ctx.target_storage,
-            self.ctx.target_storage.natural_storage_format,
+            sdb=sdb,
+            target_storage=self.ctx.target_storage,
+            target_format=target_format,
+            eligible_storages=self.ctx.storages,
         )
 
     # TODO: where does this sql stuff really belong?
