@@ -12,7 +12,7 @@ from snapflow.core.data_formats import (
     DatabaseTableRefFormat,
     DataFormat,
     RecordsListFormat,
-    RecordsListGeneratorFormat,
+    RecordsListIteratorFormat,
 )
 from snapflow.core.storage.storage import LocalMemoryStorageEngine, StorageType
 
@@ -20,7 +20,7 @@ from snapflow.core.storage.storage import LocalMemoryStorageEngine, StorageType
 class MemoryToDatabaseConverter(Converter):
     supported_input_formats: Sequence[StorageFormat] = (
         StorageFormat(StorageType.DICT_MEMORY, RecordsListFormat),
-        StorageFormat(StorageType.DICT_MEMORY, RecordsListGeneratorFormat),
+        StorageFormat(StorageType.DICT_MEMORY, RecordsListIteratorFormat),
         # StorageFormat(StorageType.DICT_MEMORY, DataFrameFormat),  # Note: supporting this via MemoryToMemory
         StorageFormat(StorageType.DICT_MEMORY, DatabaseTableRefFormat),
         # StorageFormat(StorageType.DICT_MEMORY, DatabaseCursorFormat), # TODO: need to figure out how to get db url from ResultProxy
@@ -50,13 +50,13 @@ class MemoryToDatabaseConverter(Converter):
                 )
         assert input_sdb.data_format in (
             RecordsListFormat,
-            RecordsListGeneratorFormat,
+            RecordsListIteratorFormat,
         )
         records_objects = input_ldr.records_object
         if input_sdb.data_format == RecordsListFormat:
             records_objects = [records_objects]
-        if input_sdb.data_format == RecordsListGeneratorFormat:
-            records_objects = records_objects.get_generator()
+        if input_sdb.data_format == RecordsListIteratorFormat:
+            records_objects = records_objects
         output_api = output_sdb.storage.get_database_api(self.env)
         # TODO: this loop is what is actually calling our Iterable Pipe in RECORDS_LIST_GENERATOR case. Is that ok?
         #   Seems a bit opaque. Why don't we just iterate this at the conform_output level?

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import typing
+from collections import abc
 from copy import deepcopy
 from itertools import tee
-from typing import TYPE_CHECKING, Any, Generic, Optional, Type
+from typing import TYPE_CHECKING, Any, Dict, Generic, Iterator, List, Optional, Type
 
+from snapflow.utils.data import SampleableIterator
 from snapflow.utils.typing import T
 
 if TYPE_CHECKING:
@@ -88,28 +90,74 @@ class MemoryDataFormatBase(DataFormatBase[T]):
         return None
 
     @classmethod
+    def get_records_sample(cls, obj: Any, n: int = 200) -> Optional[List[Dict]]:
+        return None
+
+    @classmethod
     def copy_records(cls, obj: Any) -> Any:
         if hasattr(obj, "copy") and callable(obj.copy):
             return obj.copy()
         else:
             return deepcopy(obj)
 
+    @classmethod
+    def infer_schema_from_records(cls, records: T) -> Schema:
+        from snapflow.core.typing.inference import infer_schema_from_records_list
+
+        dl = cls.get_records_sample(records)
+        if dl is None:
+            raise ValueError("Empty records object")
+        inferred_schema = infer_schema_from_records_list(dl)
+        return inferred_schema
+
+    @classmethod
+    def conform_records_to_schema(cls, records: T) -> T:
+        raise NotImplementedError
+
 
 DataFormat = Type[DataFormatBase]
 MemoryDataFormat = Type[MemoryDataFormatBase]
 
 
-class ReusableGenerator(Generic[T]):
-    def __init__(self, generator: typing.Generator):
-        self._generator = generator
+class IteratorFormatBase(MemoryDataFormatBase):
+    iterator_cls: Type
+    object_format: DataFormat
 
-    def get_generator(self) -> typing.Generator:
-        copy1, copy2 = tee(self._generator, 2)
-        self._generator = typing.cast(typing.Generator, copy1)
-        return typing.cast(typing.Generator, copy2)
+    @classmethod
+    def type(cls) -> Type:
+        return cls.iterator_cls
 
-    def get_one(self) -> Optional[T]:
-        return next(self.get_generator(), None)
+    @classmethod
+    def get_records_sample(cls, obj: Any, n: int = 200) -> Optional[List[Dict]]:
+        if isinstance(obj, SampleableIterator):
+            o = obj.get_first()
+            return cls.object_format.get_records_sample(o, n)
+        return None
 
-    def copy(self) -> ReusableGenerator[T]:
-        return self.__class__(self.get_generator())
+    @classmethod
+    def maybe_instance(cls, obj: Any) -> bool:
+        return isinstance(obj, abc.Iterator)
+
+    @classmethod
+    def definitely_instance(cls, obj: Any) -> bool:
+        if isinstance(obj, SampleableIterator):
+            one = obj.get_first()
+            return cls.object_format.definitely_instance(one)
+        return False
+
+    @classmethod
+    def apply_schema_translation(
+        cls, translation: SchemaTranslation, obj: SampleableIterator
+    ) -> Iterator:
+        for records in obj.get_iterator():
+            yield cls.object_format.apply_schema_translation(translation, records)
+
+
+def make_corresponding_iterator_format(fmt: DataFormat) -> DataFormat:
+    name = fmt.__name__[:-6] + "IteratorFormat"
+    iterator_cls = SampleableIterator  # TODO: specific classes?
+    return type(
+        name,
+        (IteratorFormatBase,),
+        {"iterator_cls": iterator_cls, "object_format": fmt},
+    )

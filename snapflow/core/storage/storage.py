@@ -14,12 +14,12 @@ from snapflow.core.data_formats import (
     DatabaseTableRefFormat,
     DataFormat,
     DataFrameFormat,
-    DataFrameGeneratorFormat,
+    DataFrameIteratorFormat,
     DelimitedFileFormat,
-    DelimitedFilePointerFormat,
+    DelimitedFileObjectFormat,
     JsonListFileFormat,
     RecordsListFormat,
-    RecordsListGeneratorFormat,
+    RecordsListIteratorFormat,
 )
 from snapflow.core.environment import Environment
 from snapflow.utils.common import cf, rand_str
@@ -72,12 +72,12 @@ NATURAL_STORAGE_CLASS_FOR_FORMAT = {
     DataFrameFormat: StorageClass.MEMORY,
     DatabaseTableRefFormat: StorageClass.MEMORY,
     DatabaseCursorFormat: StorageClass.MEMORY,
-    DelimitedFilePointerFormat: StorageClass.MEMORY,
+    DelimitedFileObjectFormat: StorageClass.MEMORY,
     DatabaseTableFormat: StorageClass.DATABASE,
     DelimitedFileFormat: StorageClass.FILE_SYSTEM,
     JsonListFileFormat: StorageClass.FILE_SYSTEM,
-    RecordsListGeneratorFormat: StorageClass.MEMORY,
-    DataFrameGeneratorFormat: StorageClass.MEMORY,
+    RecordsListIteratorFormat: StorageClass.MEMORY,
+    DataFrameIteratorFormat: StorageClass.MEMORY,
 }
 
 

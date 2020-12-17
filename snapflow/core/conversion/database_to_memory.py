@@ -14,8 +14,8 @@ from snapflow.core.data_formats import (
     DatabaseTableRefFormat,
     DataFormat,
     RecordsListFormat,
-    RecordsListGenerator,
-    RecordsListGeneratorFormat,
+    RecordsListIterator,
+    RecordsListIteratorFormat,
 )
 from snapflow.core.storage.storage import LocalMemoryStorageEngine, StorageType
 from snapflow.db.utils import db_result_batcher, result_proxy_to_records_list
@@ -57,8 +57,8 @@ class DatabaseToMemoryConverter(Converter):
         #     output_records = pd.read_sql_table(name, con=db_conn)
         elif output_sdb.data_format == RecordsListFormat:
             output_records = result_proxy_to_records_list(db_conn.execute(select_sql))
-        elif output_sdb.data_format == RecordsListGeneratorFormat:
-            output_records = RecordsListGenerator(
+        elif output_sdb.data_format == RecordsListIteratorFormat:
+            output_records = RecordsListIterator(
                 db_result_batcher(db_conn.execute(select_sql))
             )
         else:

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, cast
 
 import pandas as pd
 from pandas import DataFrame
-from snapflow.core.data_formats.base import MemoryDataFormatBase
+from snapflow.core.data_formats.base import (
+    MemoryDataFormatBase,
+    make_corresponding_iterator_format,
+)
 from snapflow.utils.typing import T
 
 if TYPE_CHECKING:
@@ -24,20 +27,13 @@ class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
         return len(obj)
 
     @classmethod
+    def get_records_sample(cls, obj: Any, n: int = 200) -> Optional[List[Dict]]:
+        return obj.to_dict(orient="records")[:n]
+
+    @classmethod
     def definitely_instance(cls, obj: Any) -> bool:
         # DataFrame is unambiguous
         return cls.maybe_instance(obj)
-
-    @classmethod
-    def infer_schema_from_records(cls, records: DataFrame) -> Schema:
-        from snapflow.core.typing.inference import infer_schema_from_records_list
-        from snapflow.core.data_formats import get_records_list_sample
-
-        dl = get_records_list_sample(records)
-        if dl is None:
-            raise ValueError("Empty records object")
-        inferred_schema = infer_schema_from_records_list(dl)
-        return inferred_schema
 
     @classmethod
     def conform_records_to_schema(cls, records: T) -> T:
@@ -48,3 +44,7 @@ class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
         cls, translation: SchemaTranslation, df: DataFrame
     ) -> DataFrame:
         return df.rename(translation.as_dict(), axis=1)
+
+
+DataFrameIteratorFormat = make_corresponding_iterator_format(DataFrameFormat)
+DataFrameIterator = Iterator[DataFrame]

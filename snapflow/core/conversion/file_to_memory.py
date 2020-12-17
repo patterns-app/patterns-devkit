@@ -1,5 +1,5 @@
 from io import IOBase
-from typing import Any, Generator, Sequence
+from typing import Any, Generator, Iterator, Sequence
 
 import pandas as pd
 from snapflow.core.conversion.converter import (
@@ -13,13 +13,13 @@ from snapflow.core.data_formats import (
     DelimitedFileFormat,
     JsonListFileFormat,
     RecordsListFormat,
-    RecordsListGenerator,
-    RecordsListGeneratorFormat,
+    RecordsListIterator,
+    RecordsListIteratorFormat,
 )
 from snapflow.core.storage.file_system import FileSystemAPI
 from snapflow.core.storage.storage import LocalMemoryStorageEngine, StorageType
 from snapflow.core.typing.inference import conform_records_list_to_schema
-from snapflow.utils.data import read_csv, read_json
+from snapflow.utils.data import SampleableIterator, read_csv, read_json
 
 
 class FileToMemoryConverter(Converter):
@@ -29,7 +29,7 @@ class FileToMemoryConverter(Converter):
     )
     supported_output_formats: Sequence[StorageFormat] = (
         StorageFormat(StorageType.DICT_MEMORY, RecordsListFormat),
-        StorageFormat(StorageType.DICT_MEMORY, RecordsListGeneratorFormat),
+        StorageFormat(StorageType.DICT_MEMORY, RecordsListIteratorFormat),
     )
     cost_level = ConversionCostLevel.DISK
 
@@ -55,7 +55,7 @@ class FileToMemoryConverter(Converter):
                     ]  # TODO: ensure string not bytes
             else:
                 raise NotImplementedError(input_sdb.data_format)
-        elif output_sdb.data_format == RecordsListGeneratorFormat:
+        elif output_sdb.data_format == RecordsListIteratorFormat:
             if input_sdb.data_format == DelimitedFileFormat:
                 output_records = self.delimited_file_to_records_list_generator(
                     input_api, input_sdb
@@ -76,7 +76,7 @@ class FileToMemoryConverter(Converter):
 
     def delimited_file_to_records_list_generator(
         self, input_api: FileSystemAPI, input_sdb: StoredDataBlockMetadata
-    ) -> RecordsListGenerator:
+    ) -> Iterator:
         def generate_chunks(
             sdb: StoredDataBlockMetadata, chunk_size: int = 1000
         ) -> Generator:
@@ -93,11 +93,11 @@ class FileToMemoryConverter(Converter):
                         read_csv(chunk), input_sdb.realized_schema(self.env, self.sess)
                     )
 
-        return RecordsListGenerator(generate_chunks(input_sdb))
+        return SampleableIterator(generate_chunks(input_sdb))
 
     def json_list_file_to_records_list_generator(
         self, input_api: FileSystemAPI, input_sdb: StoredDataBlockMetadata
-    ) -> RecordsListGenerator:
+    ) -> Iterator:
         def generate_chunks(
             sdb: StoredDataBlockMetadata, chunk_size: int = 1000
         ) -> Generator:
@@ -109,4 +109,4 @@ class FileToMemoryConverter(Converter):
                         yield [read_json(line) for line in chunk]
                         chunk = []
 
-        return RecordsListGenerator(generate_chunks(input_sdb))
+        return SampleableIterator(generate_chunks(input_sdb))
