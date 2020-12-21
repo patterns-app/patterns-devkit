@@ -37,10 +37,12 @@ from snapflow.storage.db.api import DatabaseApi, DatabaseStorageApi
 from snapflow.storage.storage import (
     DatabaseStorageClass,
     FileSystemStorageClass,
+    LocalFileSystemStorageEngine,
     LocalPythonStorageEngine,
     PostgresStorageEngine,
     PythonStorageApi,
     PythonStorageClass,
+    SqliteStorageEngine,
     Storage,
     clear_local_storage,
     new_local_python_storage,
@@ -123,120 +125,27 @@ def test_data_copy_lookup():
             ),
             1,
         ),
-        # (
-        #     (
-        #         StorageFormat(StorageType.DICT_MEMORY, RecordsIteratorFormat),
-        #         StorageFormat(StorageType.POSTGRES_DATABASE, DatabaseTableFormat),
-        #     ),
-        #     ConversionCostLevel.OVER_WIRE.value,
-        # ),
-        # (
-        #     (
-        #         StorageFormat(StorageType.DICT_MEMORY, DatabaseTableRefFormat),
-        #         StorageFormat(StorageType.POSTGRES_DATABASE, DatabaseTableFormat),
-        #     ),
-        #     ConversionCostLevel.OVER_WIRE.value,  # TODO Not really over the wire! Converter doesn't understand the REF is free
-        # ),
-        # # DB to memory
-        # (
-        #     (
-        #         StorageFormat(StorageType.POSTGRES_DATABASE, DatabaseTableFormat),
-        #         StorageFormat(StorageType.DICT_MEMORY, DatabaseTableRefFormat),
-        #     ),
-        #     ConversionCostLevel.OVER_WIRE.value,  # TODO see above
-        # ),
-        # (
-        #     (
-        #         StorageFormat(StorageType.POSTGRES_DATABASE, DatabaseTableFormat),
-        #         StorageFormat(StorageType.DICT_MEMORY, RecordsFormat),
-        #     ),
-        #     ConversionCostLevel.OVER_WIRE.value,
-        # ),
-        # (
-        #     (
-        #         StorageFormat(StorageType.POSTGRES_DATABASE, DatabaseTableFormat),
-        #         StorageFormat(StorageType.DICT_MEMORY, DataFrameFormat),
-        #     ),
-        #     ConversionCostLevel.OVER_WIRE.value
-        #     + ConversionCostLevel.MEMORY.value,  # DB -> Records -> DF
-        # ),
-        # # Memory to memory
-        # (
-        #     (
-        #         StorageFormat(StorageType.DICT_MEMORY, RecordsFormat),
-        #         StorageFormat(StorageType.DICT_MEMORY, DataFrameFormat),
-        #     ),
-        #     ConversionCostLevel.MEMORY.value,
-        # ),
-        # (
-        #     (
-        #         StorageFormat(StorageType.DICT_MEMORY, DataFrameFormat),
-        #         StorageFormat(StorageType.DICT_MEMORY, RecordsFormat),
-        #     ),
-        #     ConversionCostLevel.MEMORY.value,
-        # ),
-        # (
-        #     (
-        #         StorageFormat(StorageType.DICT_MEMORY, DelimitedFileObjectFormat),
-        #         StorageFormat(StorageType.DICT_MEMORY, RecordsFormat),
-        #     ),
-        #     ConversionCostLevel.MEMORY.value,
-        # ),
-        # (
-        #     (
-        #         StorageFormat(StorageType.DICT_MEMORY, DelimitedFileObjectFormat),
-        #         StorageFormat(StorageType.DICT_MEMORY, DataFrameFormat),
-        #     ),
-        #     ConversionCostLevel.MEMORY.value,  # TODO: should be * 2
-        # ),
-        # # Memory to DB round-trip
-        # (
-        #     (
-        #         StorageFormat(StorageType.DICT_MEMORY, DatabaseTableRefFormat),
-        #         StorageFormat(StorageType.DICT_MEMORY, RecordsFormat),
-        #     ),
-        #     ConversionCostLevel.OVER_WIRE.value
-        #     * 2,  # TODO Not really 2x! Converter doesn't understand the REF is free
-        # ),
-        # (
-        #     (
-        #         StorageFormat(StorageType.DICT_MEMORY, RecordsFormat),
-        #         StorageFormat(StorageType.DICT_MEMORY, DatabaseTableRefFormat),
-        #     ),
-        #     ConversionCostLevel.OVER_WIRE.value * 2,
-        #     # TODO see above
-        # ),
-        # # DB to memory round-trip
-        # (
-        #     (
-        #         StorageFormat(StorageType.POSTGRES_DATABASE, DatabaseTableFormat),
-        #         StorageFormat(StorageType.MYSQL_DATABASE, DatabaseTableFormat),
-        #     ),
-        #     ConversionCostLevel.OVER_WIRE.value * 2,
-        # ),
-        # # Unsupported conversions (currently)
-        # (
-        #     (
-        #         StorageFormat(StorageType.DICT_MEMORY, DatabaseCursorFormat),
-        #         StorageFormat(StorageType.MYSQL_DATABASE, DatabaseTableFormat),
-        #     ),
-        #     None,
-        # ),
-        # # File system
-        # (
-        #     (
-        #         StorageFormat(StorageType.LOCAL_FILE_SYSTEM, DelimitedFileFormat),
-        #         StorageFormat(StorageType.DICT_MEMORY, RecordsIteratorFormat),
-        #     ),
-        #     ConversionCostLevel.DISK.value,
-        # ),
-        # (
-        #     (
-        #         StorageFormat(StorageType.LOCAL_FILE_SYSTEM, JsonLinesFileFormat),
-        #         StorageFormat(StorageType.DICT_MEMORY, RecordsFormat),
-        #     ),
-        #     ConversionCostLevel.DISK.value,
-        # ),
+        (
+            (
+                StorageFormat(LocalPythonStorageEngine, RecordsIteratorFormat),
+                StorageFormat(SqliteStorageEngine, DatabaseTableFormat),
+            ),
+            1,
+        ),
+        (
+            (
+                StorageFormat(LocalPythonStorageEngine, DelimitedFileObjectFormat),
+                StorageFormat(SqliteStorageEngine, DatabaseTableFormat),
+            ),
+            2,
+        ),
+        (
+            (
+                StorageFormat(LocalFileSystemStorageEngine, DelimitedFileFormat),
+                StorageFormat(SqliteStorageEngine, DatabaseTableFormat),
+            ),
+            3,  # file -> file obj -> records iter -> db table
+        ),
     ],
 )
 def test_conversion_costs(conversion: Conversion, length: Optional[int]):
@@ -245,4 +154,6 @@ def test_conversion_costs(conversion: Conversion, length: Optional[int]):
         assert cp is None
     else:
         assert cp is not None
-        assert len(cp) == length
+        # for c in cp.conversions:
+        #     print(f"{c.copier.copier_function} {c.conversion}")
+        assert len(cp.conversions) == length

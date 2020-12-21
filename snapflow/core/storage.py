@@ -42,7 +42,7 @@ def copy_lowest_cost(
     cp = get_copy_path_for_sdb(sdb, target_storage_format, eligible_storages)
     if cp is None:
         raise CopyPathDoesNotExist(
-            f"Converting {sdb} to {target_storage} {target_format}"
+            f"Copying {sdb} to format {target_format} on storage {target_storage}"
         )
     return convert_sdb(
         env,

@@ -46,43 +46,45 @@ BUFFER_SIZE = 100
 
 @dataclass(frozen=True)
 class DataCopyCost:
-    network_cost: CostFunction
+    # TODO: we're not really using the cost parameter n
+    # Maybe easier to just assume data n >> buffer n and nothing else matters?
+    wire_cost: CostFunction
     memory_cost: CostFunction
     time_cost: CostFunction = (
         lambda n: n
     )  # Always the same? this is just dumb data copying
 
     def total_cost(self, n: int) -> int:
-        return self.network_cost(n) + self.time_cost(n) + self.memory_cost(n)
+        return self.wire_cost(n) + self.time_cost(n) + self.memory_cost(n)
 
     def __add__(self, other: DataCopyCost) -> DataCopyCost:
         return DataCopyCost(
-            network_cost=lambda n: self.network_cost(n) + other.network_cost(n),
+            wire_cost=lambda n: self.wire_cost(n) + other.wire_cost(n),
             memory_cost=lambda n: self.memory_cost(n) + other.memory_cost(n),
             time_cost=lambda n: self.time_cost(n) + other.time_cost(n),
         )
 
 
 NoOpCost = DataCopyCost(
-    network_cost=lambda n: 0, memory_cost=lambda n: 0, time_cost=lambda n: 0
+    wire_cost=lambda n: 0, memory_cost=lambda n: 0, time_cost=lambda n: 0
 )
-MemoryToMemoryCost = DataCopyCost(network_cost=lambda n: 0, memory_cost=lambda n: n)
-BufferToMemoryCost = DataCopyCost(network_cost=lambda n: 0, memory_cost=lambda n: n)
 BufferToBufferCost = DataCopyCost(
-    network_cost=lambda n: 0, memory_cost=lambda n: BUFFER_SIZE
+    wire_cost=lambda n: 0, memory_cost=lambda n: BUFFER_SIZE
 )
-DiskToMemoryCost = DataCopyCost(network_cost=lambda n: n, memory_cost=lambda n: n)
+MemoryToBufferCost = DataCopyCost(wire_cost=lambda n: 0, memory_cost=lambda n: n)
+MemoryToMemoryCost = DataCopyCost(wire_cost=lambda n: 0, memory_cost=lambda n: n)
 DiskToBufferCost = DataCopyCost(
-    network_cost=lambda n: n, memory_cost=lambda n: BUFFER_SIZE
+    wire_cost=lambda n: n, memory_cost=lambda n: BUFFER_SIZE
 )
+DiskToMemoryCost = DataCopyCost(wire_cost=lambda n: n, memory_cost=lambda n: n)
 NetworkToMemoryCost = DataCopyCost(
-    network_cost=(
+    wire_cost=(
         lambda n: n * 5
     ),  # What is this factor in practice? What's a good default (think S3 vs local SSD?)
     memory_cost=lambda n: n,
 )
 NetworkToBufferCost = DataCopyCost(
-    network_cost=(lambda n: n * 5), memory_cost=lambda n: BUFFER_SIZE
+    wire_cost=(lambda n: n * 5), memory_cost=lambda n: BUFFER_SIZE
 )
 
 

@@ -4,7 +4,7 @@ import pandas as pd
 from snapflow.schema.base import Schema
 from snapflow.storage.data_copy.base import (
     BufferToBufferCost,
-    BufferToMemoryCost,
+    MemoryToBufferCost,
     Conversion,
     DiskToMemoryCost,
     MemoryToMemoryCost,
@@ -193,7 +193,7 @@ def copy_dataframe_iterator_to_dataframe(
     from_data_formats=[DelimitedFileObjectFormat],
     to_storage_classes=[PythonStorageClass],
     to_data_formats=[RecordsFormat],
-    cost=BufferToMemoryCost,
+    cost=MemoryToBufferCost,
 )
 def copy_file_object_to_records(
     from_name: str,

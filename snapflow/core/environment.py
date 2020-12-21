@@ -199,6 +199,8 @@ class Environment:
 
         if target_storage is None:
             target_storage = self.get_default_storage()
+        if isinstance(target_storage, str):
+            target_storage = self.add_storage(target_storage)
         if issubclass(target_storage.storage_engine.storage_class, PythonStorageClass):
             # TODO: handle multiple targets better
             logging.warning(
