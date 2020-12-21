@@ -1,12 +1,10 @@
 ![snapflow](https://github.com/kvh/snapflow/workflows/snapflow/badge.svg)
 
-<p align="center">
-  <img width="80" src="assets/bolt.png">
-</p>
+<p>&nbsp;</p>
 <p align="center">
   <img width="500" src="assets/snapflow.svg">
 </p>
-<h3 align="center">Bullet-proof data</h3>
+<h3 align="center">Collaborative data</h3>
 <p>&nbsp;</p>
 
 **Snapflow** is a framework for building end-to-end **functional data pipelines** from modular
@@ -45,7 +43,7 @@ pipelines. This functional framework provides powerful benefits:
 
 - ☁️&nbsp; **Cloud-Ready** - Snapflow comes with [cloud](CLOUD) included!
 
-Snapflow brings the best practices learned over the last 60 years in software to the world of data,
+Snapflow brings the best practices learned in software over the last 60 years to the world of data,
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
 scale from laptop to AWS cluster.
 
