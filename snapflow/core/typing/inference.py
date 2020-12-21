@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import pandas as pd
 from dateutil.parser import ParserError
@@ -310,8 +311,11 @@ def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
 def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
     if obj is None:
         return None
-    if pd.isna(obj):
-        return None
+    try:
+        if not isinstance(obj, Iterable) and not isinstance(obj, dict) and pd.isna(obj):
+            return None
+    except ValueError:
+        pass
     ft = satype.lower()
     if ft.startswith("datetime"):
         return ensure_datetime(obj)

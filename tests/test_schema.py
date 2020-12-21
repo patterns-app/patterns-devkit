@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import date, datetime
+import decimal
 
+import pandas as pd
 import pytest
 from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
 from snapflow.core.typing.inference import (
+    cast_python_object_to_sqlalchemy_type,
     infer_schema_fields_from_records,
     infer_schema_from_records,
 )
@@ -115,6 +119,47 @@ def test_any_schema():
     with env.session_scope() as sess:
         anyschema = env.get_schema("Any", sess)
     assert anyschema.fields == []
+
+
+ERROR = "_ERROR"
+
+
+@pytest.mark.parametrize(
+    "satype,obj,expected",
+    [
+        ("Integer", 1, 1),
+        ("Integer", "1", 1),
+        ("Integer", "01", 1),
+        ("Integer", None, None),
+        ("Integer", pd.NA, None),
+        ("DateTime", "2020-01-01", datetime(2020, 1, 1)),
+        ("DateTime", "2020-01-01 00:00:00", datetime(2020, 1, 1)),
+        ("DateTime", 1577836800, datetime(2020, 1, 1)),
+        ("JSON", [1, 2], [1, 2]),
+        ("JSON", {"a": 2}, {"a": 2}),
+        ("JSON", '{"1":2}', {"1": 2}),
+        ("JSON", None, None),
+        ("Boolean", "true", True),
+        ("Boolean", "false", False),
+        ("Boolean", "t", True),
+        ("Boolean", "f", False),
+        ("Boolean", 1, True),
+        ("Boolean", 0, False),
+        ("Boolean", "Hi", ERROR),
+        ("Date", "2020-01-01", date(2020, 1, 1)),
+        ("Date", "2020-01-01 00:00:00", date(2020, 1, 1)),
+        ("Date", "Hi", ERROR),
+        ("Unicode", "Hi", "Hi"),
+        ("Unicode", 0, "0"),
+        ("Unicode", None, None),
+    ],
+)
+def test_value_casting(satype, obj, expected):
+    if expected == ERROR:
+        with pytest.raises(Exception):
+            cast_python_object_to_sqlalchemy_type(obj, satype)
+    else:
+        assert cast_python_object_to_sqlalchemy_type(obj, satype) == expected
 
 
 def test_schema_casting():

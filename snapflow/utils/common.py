@@ -115,6 +115,8 @@ def ensure_datetime(x: Optional[Union[str, datetime]]) -> Optional[datetime]:
         return None
     if isinstance(x, datetime):
         return x
+    if isinstance(x, int):
+        return datetime.utcfromtimestamp(x)
     return parser.parse(x)
 
 
@@ -148,6 +150,10 @@ def ensure_bool(x: Optional[Union[str, bool]]) -> Optional[bool]:
         raise ValueError(x)
     elif isinstance(x, bool):
         return x
+    if x == 0:
+        return False
+    if x == 1:
+        return True
     raise TypeError(x)
 
 
