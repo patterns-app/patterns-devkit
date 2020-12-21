@@ -6,13 +6,7 @@ from functools import total_ordering
 from typing import TYPE_CHECKING
 
 from loguru import logger
-from snapflow.schema.base import (
-    ConflictBehavior,
-    Field,
-    Schema,
-    create_quick_field,
-    create_quick_schema,
-)
+from snapflow.schema.base import Field, Schema, create_quick_field, create_quick_schema
 from sqlalchemy.orm.session import Session
 
 if TYPE_CHECKING:

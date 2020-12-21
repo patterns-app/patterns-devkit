@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 import strictyaml
 from loguru import logger
 from snapflow.core.metadata.orm import BaseModel
-from snapflow.utils.common import StringEnum, title_to_snake_case
+from snapflow.utils.common import StringEnum, ensure_bool, title_to_snake_case
 from sqlalchemy import JSON, Column, String
 from sqlalchemy.orm.session import Session
 
@@ -93,17 +93,6 @@ class Implementation:
         )
 
 
-# TODO: support these?
-class ConflictBehavior(StringEnum):
-    ReplaceWithNewer = "ReplaceWithNewer"
-    UpdateNullValues = "UpdateNullValues"
-    UpdateWithNewerNotNullValues = "UpdateWithNewerNotNullValues"
-    CreateNewVersion = (
-        "CreateNewVersion"  # TODO: would need a field ("_record_version") or something
-    )
-    KeepOldest = "KeepOldest"
-
-
 def schema_key_to_identifier(key: str) -> str:
     key = key.replace(".", "_")
     return title_to_snake_case(key)
@@ -116,10 +105,10 @@ class Schema:
     version: Optional[str]
     description: str
     unique_on: List[str]
-    on_conflict: Optional[ConflictBehavior]
     fields: List[Field]
     relations: List[Relation] = field(default_factory=list)
     implementations: List[Implementation] = field(default_factory=list)
+    immutable_records: bool = False
     raw_definition: Optional[str] = None
     extends: Optional[
         SchemaKey
@@ -169,9 +158,6 @@ class Schema:
 
     @classmethod
     def from_dict(cls, d: Dict) -> Schema:
-        oc = d["on_conflict"]
-        if isinstance(oc, str):
-            d["on_conflict"] = ConflictBehavior(oc)
         fields = []
         for f in d["fields"]:
             if isinstance(f, dict):
@@ -270,9 +256,9 @@ def clean_raw_schema_defintion(raw_def: dict) -> dict:
         raw_def["unique_on"] = []
     if isinstance(raw_def.get("unique_on"), str):
         raw_def["unique_on"] = [raw_def["unique_on"]]
-    oc = raw_def.get("on_conflict")
-    if isinstance(oc, str):
-        raw_def["on_conflict"] = ConflictBehavior(oc)
+    ir = raw_def.get("immutable_records")
+    if isinstance(ir, str):
+        raw_def["immutable_records"] = ensure_bool(ir)
     # raw_def["type_class"] = raw_def.pop("class", None)
     if "module_name" not in raw_def:
         raw_def["module_name"] = raw_def.pop("module", None)
@@ -308,22 +294,22 @@ def load_validator_from_dict(v: str) -> Validator:
 
 
 def schema_to_yaml(schema: Schema) -> str:
+    # TODO: Very rough version, not for production use. Also, use existing tool for this?
     if schema.raw_definition:
         return schema.raw_definition
     yml = f"name: {schema.name}\nversion: {schema.version}\ndescription: {schema.description}\n"
     unique_list = "\n  - ".join(schema.unique_on)
-    yml += f"unique on: \n  - {unique_list}\n"
-    yml += f"on conflict: {schema.on_conflict}\nfields:\n"
+    yml += f"unique_on: \n  - {unique_list}\n"
+    yml += f"immutable_records: {schema.immutable_records}\nfields:\n"
     for f in schema.fields:
         y = field_to_yaml(f)
         yml += f"  {y}\n"
     return yml
 
-    # TODO:
-    # on_conflict: ConflictBehavior
-    # relations: List[Reference] = field(default_factory=list)
-    # implementations: List[SchemaName] = field(default_factory=list)
-    # extends: Optional[SchemaName] = None
+
+#     # TODO:
+#     # relations: List[Reference] = field(default_factory=list)
+#     # implementations: List[SchemaName] = field(default_factory=list)
 
 
 def field_to_yaml(f: Field) -> str:
@@ -352,7 +338,6 @@ def create_quick_schema(name: str, fields: List[Tuple[str, str]], **kwargs):
         description="...",
         unique_on=[],
         implementations=[],
-        on_conflict="ReplaceWithNewer",
     )
     defaults.update(kwargs)
     defaults["fields"] = [create_quick_field(f[0], f[1]) for f in fields]
@@ -365,7 +350,6 @@ AnySchema = Schema(
     module_name="core",  # TODO: out of place?
     version="0",
     description="The Any root/super schema is compatible with all other Schemas",
-    on_conflict=ConflictBehavior.ReplaceWithNewer,  # TODO: awkward required field here
     unique_on=[],
     fields=[],
 )

@@ -28,8 +28,8 @@ test_schema_yml = """
 name: TestSchema
 version: 3
 description: Description
-unique on: uniq
-on conflict: UpdateNullValues
+unique_on: uniq
+immutable_records: false
 fields:
   uniq:
     type: Unicode(3)

@@ -13,7 +13,6 @@ from snapflow.schema.base import (
     DEFAULT_UNICODE_TEXT_TYPE,
     DEFAULT_UNICODE_TYPE,
     MAX_UNICODE_LENGTH,
-    ConflictBehavior,
     Field,
     Schema,
     create_quick_field,
@@ -108,7 +107,6 @@ def generate_auto_schema(fields, **kwargs) -> Schema:
         description="Automatically inferred schema",
         unique_on=[],
         implementations=[],
-        on_conflict=ConflictBehavior("ReplaceWithNewer"),
         fields=fields,
     )
     args.update(kwargs)

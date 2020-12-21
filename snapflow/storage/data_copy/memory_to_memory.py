@@ -4,9 +4,9 @@ import pandas as pd
 from snapflow.schema.base import Schema
 from snapflow.storage.data_copy.base import (
     BufferToBufferCost,
-    MemoryToBufferCost,
     Conversion,
     DiskToMemoryCost,
+    MemoryToBufferCost,
     MemoryToMemoryCost,
     datacopy,
 )

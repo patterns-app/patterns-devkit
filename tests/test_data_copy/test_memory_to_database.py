@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import tempfile
 import types
+import warnings
 from io import StringIO
 from typing import Optional, Type
-import warnings
 
 import pytest
 from snapflow.core.data_block import DataBlockMetadata, create_data_block_from_records
@@ -52,7 +52,7 @@ from snapflow.storage.storage import (
 from tests.utils import TestSchema1, TestSchema4
 
 records = [{"f1": "hi", "f2": 1}, {"f1": "bye", "f2": 2}]
-records_itr = lambda: ([r] for r in records)
+records_itr = (lambda: ([r] for r in records),)[0]
 
 
 @pytest.mark.parametrize(

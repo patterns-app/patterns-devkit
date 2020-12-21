@@ -1,8 +1,7 @@
 name: TestSchema
 version: 3
 description: Description
-unique on: uniq
-on conflict: UpdateNullValues
+unique_on: uniq
 fields:
   uniq:
     type: Unicode(3)
