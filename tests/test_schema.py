@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import decimal
 from dataclasses import asdict
 from datetime import date, datetime
-import decimal
 
 import pandas as pd
 import pytest
