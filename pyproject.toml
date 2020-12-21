@@ -32,8 +32,6 @@ pydeps = "^1.9.0"
 pytest = "^4.6"
 pytest-cov = "^2.8.1"
 sqlalchemy-stubs = "^0.3"
-mysqlclient = "^2.0.2"
-psycopg2 = "^2.8.6"
 
 [tool.poetry.scripts]
 snapflow = "snapflow.cli:app"
