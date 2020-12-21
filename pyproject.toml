@@ -3,7 +3,7 @@ authors = ["Ken Van Haren <kenvanharen@gmail.com>"]
 description = "Functional Data Pipelines"
 license = "BSD-3-Clause"
 name = "snapflow"
-version = "0.1.7"
+version = "0.2.0"
 
 [tool.poetry.dependencies]
 click = "^7.1.1"
