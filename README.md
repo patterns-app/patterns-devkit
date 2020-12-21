@@ -20,18 +20,18 @@ pipelines. This functional framework provides powerful benefits:
   Some examples:
 
   - [Stripe](https://github.com/kvh/snapflow-stripe.git) module
+  - [BI](https://github.com/kvh/snapflow-bi.git) (Business Intelligence) module
   - [Shopify](https://github.com/kvh/snapflow-shopify.git) module
   - [Stocks](https://github.com/kvh/snapflow-stocks.git) module
-  - [BI](https://github.com/kvh/snapflow-bi.git) (Business Intelligence) module
   - [FRED](https://github.com/kvh/snapflow-fred.git) (Federal Reserve Economic Data) module
 
 - **Testability** — Pipes provide explicit test
-  inputs and the expected output under various data scenarios — a **data ETL unit test**. This
-  brings the rigor and industrial-grade reliability of software to the world of data.
+  inputs and the expected output under various data scenarios — a **data ETL unit test**, bringing
+  the rigor and reliability of software to the world of data.
 
 - **Total reproducibility** — Every data record at every ETL step is preserved in snapflow,
-  along with the code and runtimes that produced it. This gives the user
-  the ability to audit and reproduce complex pipelines down to the byte.
+  along with the code and runtimes that produced it, so you can audit and reproduce
+  complex pipelines down to the byte.
 
 - **Portability** — With modular and testable pipes, developing consistent
   data operations across different database engines and storage systems is safe and efficient.
