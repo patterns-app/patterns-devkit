@@ -7,9 +7,8 @@ import pandas as pd
 from dateutil.parser import ParserError
 from loguru import logger
 from pandas import DataFrame, Series
-from snapflow.core.data_formats import RecordsList
 from snapflow.core.module import DEFAULT_LOCAL_MODULE
-from snapflow.core.typing.schema import (
+from snapflow.schema.base import (
     DEFAULT_UNICODE_TEXT_TYPE,
     DEFAULT_UNICODE_TYPE,
     MAX_UNICODE_LENGTH,
@@ -19,6 +18,7 @@ from snapflow.core.typing.schema import (
     create_quick_field,
     create_quick_schema,
 )
+from snapflow.storage.data_formats import Records
 from snapflow.utils.common import (
     ensure_bool,
     ensure_date,
@@ -28,11 +28,11 @@ from snapflow.utils.common import (
     rand_str,
     title_to_snake_case,
 )
-from snapflow.utils.data import is_nullish, read_json, records_list_as_dict_of_lists
+from snapflow.utils.data import is_nullish, read_json, records_as_dict_of_lists
 from sqlalchemy import Table
 
 if TYPE_CHECKING:
-    from snapflow.db.api import DatabaseAPI
+    from snapflow.storage.db.api import DatabaseApi
 
 
 def get_highest_precedence_sa_type(types: List[str]) -> str:
@@ -75,11 +75,11 @@ def get_sample(
 
 
 def infer_schema_fields_from_records(
-    records: RecordsList, sample_size: int = 100
+    records: Records, sample_size: int = 100
 ) -> List[Field]:
     records = get_sample(records, sample_size=sample_size)
     # df = pd.DataFrame(records)
-    d = records_list_as_dict_of_lists(records)
+    d = records_as_dict_of_lists(records)
     fields = []
     for s in d:
         # satype = pandas_series_to_sqlalchemy_type(df[s])
@@ -93,7 +93,7 @@ def infer_schema_fields_from_records(
     return fields
 
 
-def infer_schema_from_records_list(records: RecordsList, **kwargs) -> Schema:
+def infer_schema_from_records(records: Records, **kwargs) -> Schema:
     fields = infer_schema_fields_from_records(records)
     return generate_auto_schema(fields, **kwargs)
 
@@ -114,7 +114,7 @@ def generate_auto_schema(fields, **kwargs) -> Schema:
     return Schema(**args)
 
 
-def create_sa_table(dbapi: DatabaseAPI, table_name: str) -> Table:
+def create_sa_table(dbapi: DatabaseApi, table_name: str) -> Table:
     sa_table = Table(
         table_name,
         dbapi.get_sqlalchemy_metadata(),
@@ -125,9 +125,9 @@ def create_sa_table(dbapi: DatabaseAPI, table_name: str) -> Table:
 
 
 def infer_schema_from_db_table(
-    dbapi: DatabaseAPI, table_name: str, **schema_kwargs
+    dbapi: DatabaseApi, table_name: str, **schema_kwargs
 ) -> Schema:
-    from snapflow.core.sql.utils import fields_from_sqlalchemy_table
+    from snapflow.storage.db.schema import fields_from_sqlalchemy_table
 
     fields = fields_from_sqlalchemy_table(create_sa_table(dbapi, table_name))
     return generate_auto_schema(fields, **schema_kwargs)
@@ -344,21 +344,22 @@ def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
     raise NotImplementedError
 
 
-def conform_records_list_to_schema(d: RecordsList, schema: Schema) -> RecordsList:
+def conform_records_to_schema(d: Records, schema: Schema) -> Records:
     conformed = []
     for r in d:
         new_record = {}
         for k, v in r.items():
-            new_v = cast_python_object_to_sqlalchemy_type(
-                v, schema.get_field(k).field_type
-            )
-            new_record[k] = new_v
+            if k in schema.field_names():
+                v = cast_python_object_to_sqlalchemy_type(
+                    v, schema.get_field(k).field_type
+                )
+            new_record[k] = v
         conformed.append(new_record)
     return conformed
 
 
 def conform_dataframe_to_schema(df: DataFrame, schema: Schema) -> DataFrame:
-    logger.debug(f"conforming {df.head()} to schema {schema}")
+    logger.debug(f"conforming {df.head(5)} to schema {schema}")
     for field in schema.fields:
         pd_type = sqlalchemy_type_to_pandas_type(field.field_type)
         try:

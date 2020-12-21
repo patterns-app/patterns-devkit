@@ -38,7 +38,6 @@ class GraphMetadata(BaseModel):
 
     def __repr__(self) -> str:
         return self._repr(
-            id=self.id,
             hash=self.hash,
         )
 

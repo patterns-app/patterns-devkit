@@ -12,11 +12,12 @@ from loguru import logger
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
-from snapflow.core.typing.schema import GeneratedSchema, Schema, SchemaLike
+from snapflow.schema.base import GeneratedSchema, Schema, SchemaLike
+from snapflow.storage.storage import DatabaseStorageClass, PythonStorageClass
 from sqlalchemy.orm import Session, sessionmaker
 
 if TYPE_CHECKING:
-    from snapflow.core.storage.storage import Storage
+    from snapflow.storage.storage import Storage
     from snapflow.core.pipe import Pipe
     from snapflow.core.node import Node, NodeLike
     from snapflow.core.execution import RunContext, ExecutionManager
@@ -38,10 +39,8 @@ class Environment:
         add_default_python_runtime: bool = True,
         initial_modules: List[SnapflowModule] = None,  # Defaults to `core` module
     ):
-        from snapflow.core.runtime import Runtime
-        from snapflow.core.runtime import RuntimeClass
-        from snapflow.core.runtime import RuntimeEngine
-        from snapflow.core.storage.storage import Storage, new_local_memory_storage
+        from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
+        from snapflow.storage.storage import Storage, new_local_python_storage
         from snapflow.modules import core
 
         self.name = name
@@ -61,31 +60,30 @@ class Environment:
         self.storages = []
         self.runtimes = []
         self._metadata_sessions: List[Session] = []
-        if add_default_python_runtime:
-            self.runtimes.append(
-                Runtime(
-                    url="python://local",
-                    runtime_class=RuntimeClass.PYTHON,
-                    runtime_engine=RuntimeEngine.LOCAL,
-                )
-            )
+        # if add_default_python_runtime:
+        #     self.runtimes.append(
+        #         Runtime(
+        #             url="python://local",
+        #             runtime_engine=LocalPythonRuntimeEngine,
+        #         )
+        #     )
         if initial_modules is None:
             initial_modules = [core]
         for m in initial_modules:
             self.add_module(m)
 
-        self._local_memory_storage = new_local_memory_storage()
-        self.add_storage(self._local_memory_storage)
+        self._local_python_storage = new_local_python_storage()
+        self.add_storage(self._local_python_storage)
+        self.runtimes.append(Runtime.from_storage(self._local_python_storage))
 
     def initialize_metadata_database(self):
-        from snapflow.core.metadata.listeners import add_persisting_sdb_listener
-        from snapflow.core.storage.storage import StorageClass
-
-        if self.metadata_storage.storage_class != StorageClass.DATABASE:
+        if not issubclass(
+            self.metadata_storage.storage_engine.storage_class, DatabaseStorageClass
+        ):
             raise ValueError(
                 f"metadata storage expected a database, got {self.metadata_storage}"
             )
-        conn = self.metadata_storage.get_database_api(self).get_engine()
+        conn = self.metadata_storage.get_api().get_engine()
         BaseModel.metadata.create_all(conn)
         self.Session = sessionmaker(bind=conn)
 
@@ -95,7 +93,7 @@ class Environment:
         return sess
 
     def clean_up_db_sessions(self):
-        from snapflow.db.api import dispose_all
+        from snapflow.storage.db.api import dispose_all
 
         self.close_all_sessions()
         dispose_all()
@@ -105,8 +103,8 @@ class Environment:
             s.close()
         self._metadata_sessions = []
 
-    def get_default_local_memory_storage(self) -> Storage:
-        return self._local_memory_storage
+    def get_default_local_python_storage(self) -> Storage:
+        return self._local_python_storage
 
     def get_local_module(self) -> SnapflowModule:
         return self._local_module
@@ -181,14 +179,14 @@ class Environment:
             session.close()
 
     def get_default_storage(self) -> Storage:
-        from snapflow.core.storage.storage import StorageClass
+        from snapflow.storage.storage import StorageClass
 
         if len(self.storages) == 1:
             return self.storages[0]
         for s in self.storages:
             if s.url == self.metadata_storage.url:
                 continue
-            if s.storage_class == StorageClass.MEMORY:
+            if s.storage_engine.storage_class == PythonStorageClass:
                 continue
             return s
         return self.storages[0]
@@ -196,12 +194,13 @@ class Environment:
     def get_run_context(
         self, graph: Graph, target_storage: Storage = None, **kwargs
     ) -> RunContext:
-        from snapflow.core.storage.storage import StorageClass
+        from snapflow.storage.storage import StorageClass
         from snapflow.core.execution import RunContext
 
         if target_storage is None:
             target_storage = self.get_default_storage()
-        if target_storage.storage_class == StorageClass.MEMORY:
+        if issubclass(target_storage.storage_engine.storage_class, PythonStorageClass):
+            # TODO: handle multiple targets better
             logging.warning(
                 "Using MEMORY storage -- results of execution will NOT "
                 "be persisted. Add a database or file storage to persist results."
@@ -213,7 +212,7 @@ class Environment:
             runtimes=self.runtimes,
             storages=self.storages,
             target_storage=target_storage,
-            local_memory_storage=self.get_default_local_memory_storage(),
+            local_python_storage=self.get_default_local_python_storage(),
         )
         args.update(**kwargs)
         return RunContext(**args)  # type: ignore
@@ -328,7 +327,7 @@ class Environment:
     def add_storage(
         self, storage_like: Union[Storage, str], add_runtime: bool = True
     ) -> Storage:
-        from snapflow.core.storage.storage import Storage
+        from snapflow.storage.storage import Storage
 
         if isinstance(storage_like, str):
             sr = Storage.from_url(storage_like)
@@ -431,7 +430,7 @@ def run_graph(
 
 
 # def load_environment_from_yaml(yml) -> Environment:
-#     from snapflow.core.storage.storage import Storage
+#     from snapflow.storage.storage import Storage
 
 #     env = Environment(
 #         metadata_storage=yml.get("metadata_storage", None),
@@ -446,7 +445,7 @@ def run_graph(
 
 
 def load_environment_from_project(project: Any) -> Environment:
-    from snapflow.core.storage.storage import Storage
+    from snapflow.storage.storage import Storage
 
     env = Environment(
         metadata_storage=getattr(project, "metadata_storage", None),

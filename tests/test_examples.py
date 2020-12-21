@@ -10,21 +10,18 @@ import pytest
 from loguru import logger
 from pandas._testing import assert_almost_equal
 from snapflow import DataBlock, pipe, sql_pipe
-from snapflow.core.data_formats import RecordsList, RecordsListIterator
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import PipeContext
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, PipeLog
-from snapflow.core.typing.schema import create_quick_schema
 from snapflow.modules import core
-from snapflow.testing.utils import get_tmp_sqlite_db_url
-from snapflow.utils.common import utcnow
+from snapflow.schema.base import create_quick_schema
+from snapflow.storage.data_formats import Records, RecordsIterator
+from snapflow.storage.storage import new_local_python_storage
 
 
 def test_example():
     env = Environment(metadata_storage="sqlite://")
     g = Graph(env)
-    env.add_storage("memory://test")
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
     g.create_node(key="n1", pipe="extract_dataframe", config={"dataframe": df})
@@ -41,7 +38,7 @@ Metric = create_quick_schema(
 
 
 @pipe
-def shape_metrics(i1: DataBlock) -> RecordsList[Metric]:
+def shape_metrics(i1: DataBlock) -> Records[Metric]:
     df = i1.as_dataframe()
     return [
         {"metric": "row_count", "value": len(df)},
@@ -50,7 +47,7 @@ def shape_metrics(i1: DataBlock) -> RecordsList[Metric]:
 
 
 @pipe
-def aggregate_metrics(i1: DataBlock) -> RecordsList[Metric]:
+def aggregate_metrics(i1: DataBlock) -> Records[Metric]:
     df = i1.as_dataframe()
     return [
         {"metric": "row_count", "value": len(df)},
@@ -59,7 +56,7 @@ def aggregate_metrics(i1: DataBlock) -> RecordsList[Metric]:
 
 
 @pipe
-def customer_source(ctx: PipeContext) -> RecordsListIterator[Customer]:
+def customer_source(ctx: PipeContext) -> RecordsIterator[Customer]:
     N = ctx.get_config_value("total_records")
     n = ctx.get_state_value("records_extracted", 0)
     if n >= N:
@@ -135,7 +132,7 @@ def get_env():
 def test_repeated_runs():
     env = get_env()
     g = Graph(env)
-    s = env.add_storage("memory://test")
+    s = env._local_python_storage
     # Initial graph
     N = 2 * 4
     g.create_node(key="source", pipe=customer_source, config={"total_records": N})
@@ -143,7 +140,7 @@ def test_repeated_runs():
     # Run first time
     output = env.produce("metrics", g, target_storage=s)
     assert output.nominal_schema_key.endswith("Metric")
-    records = output.as_records_list()
+    records = output.as_records()
     expected_records = [
         {"metric": "row_count", "value": 4},
         {"metric": "col_count", "value": 3},
@@ -151,11 +148,11 @@ def test_repeated_runs():
     assert records == expected_records
     # Run again, should get next batch
     output = env.produce("metrics", g, target_storage=s)
-    records = output.as_records_list()
+    records = output.as_records()
     assert records == expected_records
     # Test get_latest_output
     output = env.get_latest_output(metrics)
-    records = output.as_records_list()
+    records = output.as_records()
     assert records == expected_records
     # Run again, should be exhausted
     output = env.produce("metrics", g, target_storage=s)
@@ -169,7 +166,7 @@ def test_repeated_runs():
         key="new_accumulator", pipe="core.dataframe_accumulator", upstream="source"
     )
     output = env.produce("new_accumulator", g, target_storage=s)
-    records = output.as_records_list()
+    records = output.as_records()
     assert len(records) == N
     output = env.produce("new_accumulator", g, target_storage=s)
     assert output is None
@@ -178,7 +175,7 @@ def test_repeated_runs():
 def test_alternate_apis():
     env = get_env()
     g = Graph(env)
-    s = env.add_storage("memory://test")
+    s = env._local_python_storage
     # Initial graph
     N = 2 * 4
     source = g.create_node(customer_source, config={"total_records": N})
@@ -186,7 +183,7 @@ def test_alternate_apis():
     # Run first time
     output = produce(metrics, graph=g, target_storage=s, env=env)
     assert output.nominal_schema_key.endswith("Metric")
-    records = output.as_records_list()
+    records = output.as_records()
     expected_records = [
         {"metric": "row_count", "value": 4},
         {"metric": "col_count", "value": 3},

@@ -6,7 +6,7 @@ from functools import total_ordering
 from typing import TYPE_CHECKING
 
 from loguru import logger
-from snapflow.core.typing.schema import (
+from snapflow.schema.base import (
     ConflictBehavior,
     Field,
     Schema,

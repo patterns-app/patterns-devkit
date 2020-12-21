@@ -9,15 +9,19 @@ from snapflow.core.data_block import (
     DataBlock,
     DataBlockMetadata,
     StoredDataBlockMetadata,
+    create_data_block_from_sql,
 )
 from snapflow.core.execution import PipeContext
 from snapflow.core.module import SnapflowModule
+from snapflow.core.node import DataBlockLog
 from snapflow.core.pipe import DataInterfaceType, Pipe, PipeInterface, pipe_factory
 from snapflow.core.pipe_interface import (
     BadAnnotationException,
     PipeAnnotation,
     make_default_output_annotation,
 )
+from snapflow.core.streams import DataBlockStream, ManagedDataBlockStream
+from snapflow.storage.data_formats.database_table import DatabaseTableFormat
 from sqlparse import tokens
 
 
@@ -182,17 +186,27 @@ class SqlPipeWrapper:
         if ctx.run_context.current_runtime is None:
             raise Exception("Current runtime not set")
 
-        sql = self.get_compiled_sql(ctx, inputs)
-        # if ctx.resolved_output_schema is None:
-        #     raise Exception("SQL pipe should always produce output!")
+        # for input in inputs.values():
+        #     if isinstance(input, ManagedDataBlockStream):
+        #         dbs = input
+        #     elif isinstance(input, DataBlock):
+        #         dbs = [input]
+        #     else:
+        #         raise
+        #     for db in dbs:
+        #         assert db.has_format(DatabaseTableFormat)
 
-        db_api = ctx.run_context.current_runtime.get_database_api(ctx.run_context.env)
+        sql = self.get_compiled_sql(ctx, inputs)
+
+        db_api = ctx.run_context.current_runtime.get_api()
         logger.debug(
             f"Resolved in sql pipe {ctx.executable.bound_interface.resolve_nominal_output_schema( ctx.worker.env, ctx.execution_session.metadata_session)}"
         )
-        block, sdb = db_api.create_data_block_from_sql(
+        block, sdb = create_data_block_from_sql(
+            ctx.run_context.env,
             sql,
             sess=ctx.execution_session.metadata_session,
+            db_api=db_api,
             nominal_schema=ctx.executable.bound_interface.resolve_nominal_output_schema(
                 ctx.worker.env, ctx.execution_session.metadata_session
             ),
@@ -210,8 +224,7 @@ class SqlPipeWrapper:
         table_stmts = {}
         for input_name, block in inputs.items():
             if isinstance(block, DataBlock):
-                schema = block.as_table()
-                table_stmts[input_name] = schema.get_table_stmt()
+                table_stmts[input_name] = block.as_table_stmt()
         return table_stmts
 
     def get_compiled_sql(
@@ -219,7 +232,7 @@ class SqlPipeWrapper:
         ctx: PipeContext,
         inputs: Dict[str, DataBlock] = None,
     ):
-        from snapflow.core.sql.utils import compile_jinja_sql
+        from snapflow.storage.db.utils import compile_jinja_sql
 
         sql = self.get_typed_statement(inputs).cleaned_sql
         sql_ctx = dict(

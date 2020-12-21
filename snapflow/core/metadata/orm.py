@@ -29,7 +29,7 @@ class _BaseModel:
         at_least_one_attached_attribute = False
         for key, field in fields.items():
             try:
-                from snapflow.core.typing.schema import Schema
+                from snapflow.schema.base import Schema
 
                 if isinstance(field, Schema):
                     field_strings.append(f"{key}={field.name}")

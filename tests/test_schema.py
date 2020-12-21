@@ -6,9 +6,10 @@ import pytest
 from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
 from snapflow.core.typing.inference import (
     infer_schema_fields_from_records,
-    infer_schema_from_records_list,
+    infer_schema_from_records,
 )
-from snapflow.core.typing.schema import (
+from snapflow.modules import core
+from snapflow.schema.base import (
     DEFAULT_UNICODE_TEXT_TYPE,
     DEFAULT_UNICODE_TYPE,
     GeneratedSchema,
@@ -17,7 +18,6 @@ from snapflow.core.typing.schema import (
     is_generic,
     schema_from_yaml,
 )
-from snapflow.modules import core
 from tests.utils import make_test_env, sample_records
 
 test_schema_yml = """
@@ -93,7 +93,7 @@ def test_schema_inference():
 
 
 def test_generated_schema():
-    new_schema = infer_schema_from_records_list(sample_records)
+    new_schema = infer_schema_from_records(sample_records)
     got = GeneratedSchema(key=new_schema.key, definition=asdict(new_schema))
     env = make_test_env()
     with env.session_scope() as sess:

@@ -30,8 +30,8 @@ from snapflow.core.node import (
     PipeLog,
 )
 from snapflow.core.pipe_interface import get_schema_translation
-from snapflow.core.storage.storage import Storage
-from snapflow.core.typing.schema import Schema, SchemaLike, SchemaTranslation
+from snapflow.schema.base import Schema, SchemaLike, SchemaTranslation
+from snapflow.storage.storage import Storage
 from snapflow.utils.common import ensure_list
 from sqlalchemy import and_, not_
 from sqlalchemy.orm import Query

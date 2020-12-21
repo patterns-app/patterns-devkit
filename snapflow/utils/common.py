@@ -10,7 +10,21 @@ import uuid
 from dataclasses import field
 from datetime import date, datetime, time, timedelta
 from enum import Enum
-from typing import Any, Dict, Generic, List, Optional, Set, Tuple, Type, Union
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    NewType,
+    Optional,
+    OrderedDict,
+    Set,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import pytz
 from colorful import Colorful

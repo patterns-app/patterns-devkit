@@ -2,89 +2,123 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, Optional
+from typing import TYPE_CHECKING, Dict, List, Optional, Type
 
 from snapflow.core.environment import Environment
-from snapflow.core.storage.storage import Storage, StorageClass, StorageEngine
+from snapflow.storage.storage import (
+    DatabaseStorageClass,
+    LocalPythonStorageEngine,
+    MysqlStorageEngine,
+    PostgresStorageEngine,
+    PythonStorageClass,
+    SqliteStorageEngine,
+    Storage,
+    StorageApi,
+    StorageClass,
+    StorageEngine,
+)
 from snapflow.utils.common import rand_str
+from snapflow.utils.registry import global_registry
 
 if TYPE_CHECKING:
-    from snapflow.db.api import DatabaseAPI
+    from snapflow.storage.db.api import DatabaseApi
 
 
-class RuntimeClass(Enum):
-    PYTHON = "python"
-    DATABASE = "database"
-    # R = "r" # TODO
+class RuntimeClass:
+    natural_storage_class: Type[StorageClass]
 
 
-class RuntimeEngine(Enum):
-    # Python
-    LOCAL = "local"
-    # RDBMS
-    POSTGRES = "postgres"
-    MYSQL = "mysql"  # TODO
-    SQLITE = "sqlite"
+class DatabaseRuntimeClass(RuntimeClass):
+    natural_storage_class = DatabaseStorageClass
 
 
-class RuntimeType(Enum):
-    LOCAL_PYTHON = (RuntimeClass.PYTHON, RuntimeEngine.LOCAL)
-    POSTGRES_DATABASE = (RuntimeClass.DATABASE, RuntimeEngine.POSTGRES)
-    MYSQL_DATABASE = (RuntimeClass.DATABASE, RuntimeEngine.MYSQL)
+class PythonRuntimeClass(RuntimeClass):
+    natural_storage_class = PythonStorageClass
 
 
-runtime_storage_dual_mapping = {
-    # Storages
-    StorageClass.DATABASE: RuntimeClass.DATABASE,
-    StorageEngine.POSTGRES: RuntimeEngine.POSTGRES,
-    StorageEngine.MYSQL: RuntimeEngine.MYSQL,
-    StorageEngine.SQLITE: RuntimeEngine.SQLITE,
-    # Runtimes
-    RuntimeClass.DATABASE: StorageClass.DATABASE,
-    RuntimeEngine.POSTGRES: StorageEngine.POSTGRES,
-    RuntimeEngine.MYSQL: StorageEngine.MYSQL,
-    RuntimeEngine.SQLITE: StorageEngine.SQLITE,
-}
+class RuntimeEngine:
+    runtime_class: Type[RuntimeClass]
+    natural_storage_engine: Type[StorageEngine]
+    schemes: List[str]
+
+
+class SqliteRuntimeEngine(RuntimeEngine):
+    runtime_class = DatabaseRuntimeClass
+    natural_storage_engine = SqliteStorageEngine
+    schemes = ["sqlite"]
+
+
+class PostgresRuntimeEngine(RuntimeEngine):
+    runtime_class = DatabaseRuntimeClass
+    natural_storage_engine = PostgresStorageEngine
+    schemes = ["postgres", "postgresql"]
+
+
+class MysqlRuntimeEngine(RuntimeEngine):
+    runtime_class = DatabaseRuntimeClass
+    natural_storage_engine = MysqlStorageEngine
+    schemes = ["mysql"]
+
+
+class LocalPythonRuntimeEngine(RuntimeEngine):
+    runtime_class = PythonRuntimeClass
+    natural_storage_engine = LocalPythonStorageEngine
+    schemes = ["python"]
+
+
+core_runtime_engines: List[Type[RuntimeEngine]] = [
+    SqliteRuntimeEngine,
+    PostgresRuntimeEngine,
+    MysqlRuntimeEngine,
+    LocalPythonRuntimeEngine,
+]
+
+for eng in core_runtime_engines:
+    global_registry.register(eng)
+
+
+def register_runtime_engine(eng: Type[RuntimeEngine]):
+    global_registry.register(eng)
+
+
+def get_engine_for_scheme(scheme: str) -> Type[RuntimeEngine]:
+    # Take first match IN REVERSE ORDER they were added
+    # (so an Engine added later - by user perhaps - takes precedence)
+    for eng in list(global_registry.all(RuntimeEngine))[::-1]:
+        if scheme in eng.schemes:
+            return eng
+    raise Exception(f"No matching engine for scheme {scheme}")  # TODO
 
 
 @dataclass(frozen=True)
 class Runtime:
     url: str
-    runtime_class: RuntimeClass
-    runtime_engine: RuntimeEngine
+    runtime_engine: Type[RuntimeEngine]
     configuration: Optional[Dict] = None
 
     @classmethod
     def from_storage(cls, storage: Storage) -> Runtime:
-        if storage.storage_class not in runtime_storage_dual_mapping:
-            raise ValueError(f"Storage {storage} cannot be adapted to a Runtime")
-        return Runtime(
-            url=storage.url,
-            runtime_class=runtime_storage_dual_mapping[storage.storage_class],  # type: ignore # TODO
-            runtime_engine=runtime_storage_dual_mapping[storage.storage_engine],  # type: ignore # TODO
-        )
+        for eng in global_registry.all(RuntimeEngine):
+            if eng.natural_storage_engine == storage.storage_engine:
+                return Runtime(storage.url, eng)
+        raise NotImplementedError(f"No matching runtime {storage}")
 
-    def as_storage(self):
-        if self.runtime_class not in runtime_storage_dual_mapping:
-            raise ValueError(f"Runtime {self} cannot be adapted to a Storage")
+    def as_storage(self) -> Storage:
         return Storage(
             url=self.url,
-            storage_class=runtime_storage_dual_mapping[self.runtime_class],  # type: ignore # TODO
-            storage_engine=runtime_storage_dual_mapping[self.runtime_engine],  # type: ignore # TODO
+            storage_engine=self.runtime_engine.natural_storage_engine,
         )
 
     # def get_default_local_storage(self):
     #     try:
     #         return self.as_storage()
     #     except KeyError:
-    #         return Storage(  # type: ignore
+    #         return Runtime(  # type: ignore
     #             url=f"memory://_runtime_default_{rand_str(6)}",
-    #             storage_class=StorageClass.MEMORY,
-    #             storage_engine=StorageEngine.DICT,
+    #             storage_class=RuntimeClass.MEMORY,
+    #             storage_engine=RuntimeEngine.DICT,
     #         )
 
-    def get_database_api(self, env: Environment) -> DatabaseAPI:
-        from snapflow.db.api import get_database_api_class
-
-        db_api_cls = get_database_api_class(self.as_storage().storage_engine)
-        return db_api_cls(env, self.url)
+    def get_api(self) -> StorageApi:
+        # TODO: separate runtime apis eventually
+        return self.as_storage().get_api()

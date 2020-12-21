@@ -30,7 +30,7 @@ if TYPE_CHECKING:
         Pipe,
     )
     from snapflow.core.module import SnapflowModule
-    from snapflow.core.typing.schema import SchemaLike, Schema
+    from snapflow.schema.base import SchemaLike, Schema
 
 
 class ComponentLibrary:
@@ -78,7 +78,7 @@ class ComponentLibrary:
     def get_schema(
         self, schema_like: Union[Schema, str], try_module_lookups=True
     ) -> Schema:
-        from snapflow.core.typing.schema import Schema
+        from snapflow.schema.base import Schema
 
         if isinstance(schema_like, Schema):
             return schema_like

@@ -3,12 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from pandas import DataFrame
-from snapflow.core.data_block import DataRecordsObject, as_records
-from snapflow.core.data_formats import DataFrameFormat, RecordsListFormat
-from snapflow.core.data_formats.delimited_file_object import DelimitedFileObjectFormat
 from snapflow.core.execution import PipeContext
 from snapflow.core.pipe import pipe
-from snapflow.core.typing.schema import SchemaLike
+from snapflow.schema.base import SchemaLike
+from snapflow.storage.data_formats import DataFrameFormat, RecordsFormat
+from snapflow.storage.data_formats.delimited_file_object import (
+    DelimitedFileObjectFormat,
+)
+from snapflow.storage.data_records import MemoryDataRecords, as_records
 from snapflow.utils.data import read_csv
 
 
@@ -29,7 +31,7 @@ class ExtractDataFrameConfig:
     config_class=ExtractDataFrameConfig,
     state_class=LocalExtractState,
 )
-def extract_dataframe(ctx: PipeContext) -> DataRecordsObject:
+def extract_dataframe(ctx: PipeContext) -> MemoryDataRecords:  # TODO optional
     extracted = ctx.get_state_value("extracted")
     if extracted:
         # Just emit once
@@ -52,7 +54,7 @@ class ExtractLocalCSVConfig:
     config_class=ExtractLocalCSVConfig,
     state_class=LocalExtractState,
 )
-def extract_csv(ctx: PipeContext) -> DataRecordsObject:
+def extract_csv(ctx: PipeContext) -> MemoryDataRecords:
     extracted = ctx.get_state_value("extracted")
     if extracted:
         return

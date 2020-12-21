@@ -5,9 +5,9 @@ from typing import List, Optional
 import pandas as pd
 from pandas import DataFrame, Index, Series
 from pandas._testing import assert_almost_equal
-from snapflow.core.data_formats import RecordsList
-from snapflow.core.typing.schema import Schema
-from snapflow.utils.data import is_nullish, records_list_as_dict_of_lists
+from snapflow.schema.base import Schema
+from snapflow.storage.data_formats import Records
+from snapflow.utils.data import is_nullish, records_as_dict_of_lists
 
 
 def sortable_columns(dtypes: Series) -> List[str]:
@@ -51,18 +51,17 @@ def empty_dataframe_for_schema(schema: Schema) -> DataFrame:
     return df
 
 
-def records_list_to_dataframe(records: RecordsList, schema: Schema) -> DataFrame:
+def records_to_dataframe(records: Records, schema: Schema) -> DataFrame:
     from snapflow.core.typing.inference import conform_dataframe_to_schema
 
     df = DataFrame(records)
     return conform_dataframe_to_schema(df, schema)
 
 
-def dataframe_to_records_list(df: DataFrame, schema: Schema = None) -> RecordsList:
+def dataframe_to_records(df: DataFrame, schema: Schema = None) -> Records:
+    # TODO
     for c in df:
         dfc = df[c].astype(object)
         dfc.loc[pd.isna(dfc)] = None
         df[c] = dfc
     return df.to_dict(orient="records")
-
-    # astype("M8[us]").astype(object)

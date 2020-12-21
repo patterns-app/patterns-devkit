@@ -6,7 +6,7 @@
 <p align="center">
   <img width="500" src="assets/snapflow.svg">
 </p>
-<h3 align="center">Modern Data Pipelines</h3>
+<h3 align="center">Bullet-proof data</h3>
 <p>&nbsp;</p>
 
 **Snapflow** is a framework for building end-to-end **functional data pipelines** from modular
