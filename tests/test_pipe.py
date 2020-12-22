@@ -319,8 +319,8 @@ def test_declared_schema_translation():
         schema_translation = get_schema_translation(
             env,
             sess,
-            block,
-            declared_schema=pi.inputs[0].schema(env, sess),
+            block.realized_schema(env, sess),
+            target_schema=pi.inputs[0].schema(env, sess),
             declared_schema_translation=translation,
         )
         assert schema_translation.as_dict() == translation
@@ -345,8 +345,8 @@ def test_natural_schema_translation():
         schema_translation = get_schema_translation(
             env,
             sess,
-            block,
-            declared_schema=pi.inputs[0].schema(env, sess),
+            block.realized_schema(env, sess),
+            target_schema=pi.inputs[0].schema(env, sess),
             declared_schema_translation=translation,
         )
         assert schema_translation.as_dict() == translation

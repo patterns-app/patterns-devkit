@@ -425,124 +425,22 @@ class BoundInterface:
 def get_schema_translation(
     env: Environment,
     sess: Session,
-    data_block: DataBlockMetadata,
-    declared_schema: Optional[Schema] = None,
+    source_schema: Schema,
+    target_schema: Optional[Schema] = None,
     declared_schema_translation: Optional[Dict[str, str]] = None,
 ) -> Optional[SchemaTranslation]:
+    # THE place to determine requested/necessary schema translation
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
             translation=declared_schema_translation,
-            from_schema=data_block.realized_schema(env, sess),
+            from_schema=source_schema,
         )
-    if declared_schema is None or is_any(declared_schema):
+    if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed
         return None
     # Otherwise map found schema to expected schema
-    return data_block.realized_schema(env, sess).get_translation_to(
-        env, sess, declared_schema
-    )
-
-
-#
-# @dataclass
-# class BoundPipeInterface:
-#     inputs: List[NodeInput]
-#     output: Optional[PipeAnnotation]
-#     requires_pipe_context: bool = True
-#     resolved_generics: Dict[str, SchemaKey] = field(default_factory=dict)
-#     manually_set_resolved_output_schema: Optional[
-#         Schema
-#     ] = None  # TODO: move to PipeContext?
-#
-#     def get_input(self, name: str) -> NodeInput:
-#         for input in self.inputs:
-#             if input.name == name:
-#                 return input
-#         raise KeyError(name)
-#
-#     def connect(self, input_nodes: Dict[str, Node]):
-#         for name, input_node in input_nodes.items():
-#             i = self.get_input(name)
-#             i.input_node = input_node
-#
-#     def bind(self, input_block_streams: Dict[str, DataBlockStreamBuilder]):
-#         for name, dbs in input_block_streams.items():
-#             i = self.get_input(name)
-#             i.bound_data_block_stream = dbs
-#             if i.annotation.is_generic:
-#                 self.resolved_generics[
-#                     i.annotation.schema_like
-#                 ] = i.bound_data_block.most_abstract_schema_key
-#
-#     @classmethod
-#     def from_dfi(cls, pi: PipeInterface) -> BoundPipeInterface:
-#         return BoundPipeInterface(
-#             inputs=[NodeInput(name=a.name, original_annotation=a) for a in pi.inputs],
-#             output=pi.output,
-#             requires_pipe_context=pi.requires_pipe_context,
-#         )
-#
-#     # def inputs_as_kwargs(self):
-#     #     return {
-#     #         i.name: i.bound_data_block
-#     #         for i in self.inputs
-#     #         if i.bound_data_block is not None
-#     #     }
-#     #
-#     # def inputs_as_managed_data_blocks(
-#     #     self, ctx: ExecutionContext
-#     # ) -> Dict[str, ManagedDataBlock]:
-#     #     inputs: Dict[str, ManagedDataBlock] = {}
-#     #     for i in self.inputs:
-#     #         if i.bound_data_block is None:
-#     #             continue
-#     #         inputs[i.name] = i.bound_data_block.as_managed_data_block(
-#     #             ctx, translation=i.get_schema_translation(ctx.env)
-#     #         )
-#     #     return inputs
-#
-#     def resolved_output_schema(self, env: Environment) -> Optional[Schema]:
-#         if self.manually_set_resolved_output_schema is not None:
-#             return self.manually_set_resolved_output_schema
-#         if self.output is None:
-#             return None
-#         if self.output.is_generic:
-#             k = self.resolved_generics[self.output.schema_like]
-#             return env.get_schema(k)
-#         return self.output.schema(env)
-#
-#     def set_resolved_output_schema(self, schema: Schema):
-#         self.manually_set_resolved_output_schema = schema
-#
-
-#
-#     def bind_and_specify_schemas(self, env: Environment, input_blocks: InputBlocks):
-#         if self.is_bound:
-#             raise Exception("Already bound")
-#         realized_generics: Dict[str, Schema] = {}
-#         for name, input_block in input_blocks.items():
-#             i = self.get_input(name)
-#             i.bound_data_block = input_block
-#             i.realized_schema = env.get_schema(input_block.realized_schema_key)
-#             if i.original_annotation.is_generic:
-#                 assert isinstance(i.original_annotation.schema_like, str)
-#                 realized_generics[i.original_annotation.schema_like] = i.realized_schema
-#         if (
-#             self.output is not None
-#             and is_any(self.resolved_output_schema)
-#             and self.output.is_generic
-#         ):
-#             # Further specify resolved type now that we have something concrete for Any
-#             # TODO: man this is too complex. how do we simplify different type levels
-#             assert isinstance(self.output.schema_like, str)
-#             self.resolved_output_schema = realized_generics[self.output.schema_like]
-#         self.is_bound = True
-#
-#     def as_kwargs(self):
-#         if not self.is_bound:
-#             raise Exception("Interface not bound")
-#         return {i.name: i.bound_data_block for i in self.inputs}
+    return source_schema.get_translation_to(env, sess, target_schema)
 
 
 class NodeInterfaceManager:

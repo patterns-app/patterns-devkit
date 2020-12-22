@@ -27,7 +27,7 @@ def format_line(cols, max_lens):
     s = ""
     for c, m in zip(cols, max_lens):
         fmt = "{0:" + str(m) + "}" + PADDING
-        s += fmt.format(c)
+        s += fmt.format(str(c))
     return s
 
 
@@ -151,17 +151,16 @@ def list_data_blocks(env: Environment):
         )
         headers = [
             "ID",
-            "alias",
             "Nominal schema",
             "Created by node",
-            "Records",
-            "Stored cnt",
+            "# Records",
+            "Stored",
         ]
         rows = [
             [
                 r.id,
                 r.nominal_schema_key,
-                r.created_by(sess),
+                r.created_by_node_key,
                 r.record_count,
                 r.stored_data_blocks.count(),
             ]

@@ -88,8 +88,10 @@ class Implementation:
     def as_schema_translation(
         self, env: Environment, sess: Session, other: Schema
     ) -> SchemaTranslation:
+        # TODO: this inversion is a bit confusing
+        trans = {v: k for k, v in self.fields.items()}
         return SchemaTranslation(
-            translation=self.fields, from_schema=self.schema(env, sess), to_schema=other
+            translation=trans, from_schema=self.schema(env, sess), to_schema=other
         )
 
 
@@ -108,7 +110,7 @@ class Schema:
     fields: List[Field]
     relations: List[Relation] = field(default_factory=list)
     implementations: List[Implementation] = field(default_factory=list)
-    immutable_records: bool = False
+    immutable: bool = False
     raw_definition: Optional[str] = None
     extends: Optional[
         SchemaKey
@@ -176,7 +178,8 @@ class Schema:
         if not self.implementations:
             return None
         for impl in self.implementations:
-            if impl.schema_key == other.key:
+            schema = env.get_schema(impl.schema_key, sess)
+            if schema.key == other.key:
                 return impl.as_schema_translation(env, sess, other)
         return None
 
@@ -256,9 +259,9 @@ def clean_raw_schema_defintion(raw_def: dict) -> dict:
         raw_def["unique_on"] = []
     if isinstance(raw_def.get("unique_on"), str):
         raw_def["unique_on"] = [raw_def["unique_on"]]
-    ir = raw_def.get("immutable_records")
+    ir = raw_def.get("immutable")
     if isinstance(ir, str):
-        raw_def["immutable_records"] = ensure_bool(ir)
+        raw_def["immutable"] = ensure_bool(ir)
     # raw_def["type_class"] = raw_def.pop("class", None)
     if "module_name" not in raw_def:
         raw_def["module_name"] = raw_def.pop("module", None)
@@ -267,6 +270,9 @@ def clean_raw_schema_defintion(raw_def: dict) -> dict:
 
 def build_schema_from_dict(d: dict, **overrides: Any) -> Schema:
     fields = [build_field_from_dict(f) for f in d.pop("fields", [])]
+    d["implementations"] = [
+        Implementation(k, v) for k, v in d.pop("implementations", {}).items()
+    ]
     # TODO: relations and implementations
     d["fields"] = fields
     d.update(**overrides)
@@ -300,7 +306,7 @@ def schema_to_yaml(schema: Schema) -> str:
     yml = f"name: {schema.name}\nversion: {schema.version}\ndescription: {schema.description}\n"
     unique_list = "\n  - ".join(schema.unique_on)
     yml += f"unique_on: \n  - {unique_list}\n"
-    yml += f"immutable_records: {schema.immutable_records}\nfields:\n"
+    yml += f"immutable: {schema.immutable}\nfields:\n"
     for f in schema.fields:
         y = field_to_yaml(f)
         yml += f"  {y}\n"

@@ -505,7 +505,7 @@ class Worker:
         self,
         execution_session: ExecutionSession,
         output_obj: DataInterfaceType,
-        execution: Executable,
+        executable: Executable,
     ) -> Optional[StoredDataBlockMetadata]:
         logger.debug("HANDLING OUTPUT")
         # TODO: can i return an existing DataBlock? Or do I need to create a "clone"?
@@ -521,12 +521,12 @@ class Worker:
             raise NotImplementedError
         else:
             # TODO: handle DataBlock stream output (iterator that goes into separate blocks)
-            nominal_output_schema = execution.bound_interface.resolve_nominal_output_schema(
+            nominal_output_schema = executable.bound_interface.resolve_nominal_output_schema(
                 self.env,
                 execution_session.metadata_session,
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
             logger.debug(
-                f"Resolved output schema {nominal_output_schema} {execution.bound_interface}"
+                f"Resolved output schema {nominal_output_schema} {executable.bound_interface}"
             )
             output_obj = wrap_records_object(output_obj)
             if records_object_is_definitely_empty(output_obj):
@@ -540,7 +540,7 @@ class Worker:
                 execution_session.metadata_session,
                 self.ctx.local_python_storage,
                 dro,
-                created_by_node_key=execution.node_key,
+                created_by_node_key=executable.node_key,
             )
 
         # TODO: need target_format option too

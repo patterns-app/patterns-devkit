@@ -109,23 +109,23 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
             manager=mgr,
         )
 
-    def created_by(self, sess: Session) -> Optional[str]:
-        from snapflow.core.node import DataBlockLog
-        from snapflow.core.node import PipeLog
-        from snapflow.core.node import Direction
+    # def created_by(self, sess: Session) -> Optional[str]:
+    #     from snapflow.core.node import DataBlockLog
+    #     from snapflow.core.node import PipeLog
+    #     from snapflow.core.node import Direction
 
-        result = (
-            sess.query(PipeLog.node_key)
-            .join(DataBlockLog)
-            .filter(
-                DataBlockLog.direction == Direction.OUTPUT,
-                DataBlockLog.data_block_id == self.id,
-            )
-            .first()
-        )
-        if result:
-            return result[0]
-        return None
+    #     result = (
+    #         sess.query(PipeLog.node_key)
+    #         .join(DataBlockLog)
+    #         .filter(
+    #             DataBlockLog.direction == Direction.OUTPUT,
+    #             DataBlockLog.data_block_id == self.id,
+    #         )
+    #         .first()
+    #     )
+    #     if result:
+    #         return result[0]
+    #     return None
 
 
 @dataclass(frozen=True)

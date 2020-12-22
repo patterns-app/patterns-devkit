@@ -194,13 +194,11 @@ class Environment:
     def get_run_context(
         self, graph: Graph, target_storage: Storage = None, **kwargs
     ) -> RunContext:
-        from snapflow.storage.storage import StorageClass
         from snapflow.core.execution import RunContext
 
         if target_storage is None:
             target_storage = self.get_default_storage()
-        if isinstance(target_storage, str):
-            target_storage = self.add_storage(target_storage)
+        target_storage = self.add_storage(target_storage)
         if issubclass(target_storage.storage_engine.storage_class, PythonStorageClass):
             # TODO: handle multiple targets better
             logging.warning(

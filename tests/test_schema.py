@@ -3,10 +3,12 @@ from __future__ import annotations
 import decimal
 from dataclasses import asdict
 from datetime import date, datetime
+from sys import implementation
 
 import pandas as pd
 import pytest
 from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
+from snapflow.core.pipe_interface import get_schema_translation
 from snapflow.core.typing.inference import (
     cast_python_object_to_sqlalchemy_type,
     infer_schema_fields_from_records,
@@ -17,6 +19,7 @@ from snapflow.schema.base import (
     DEFAULT_UNICODE_TEXT_TYPE,
     DEFAULT_UNICODE_TYPE,
     GeneratedSchema,
+    Implementation,
     Schema,
     create_quick_schema,
     is_generic,
@@ -29,7 +32,7 @@ name: TestSchema
 version: 3
 description: Description
 unique_on: uniq
-immutable_records: false
+immutable: false
 fields:
   uniq:
     type: Unicode(3)
@@ -78,6 +81,27 @@ def test_schema_yaml():
     assert len(tt.fields) == 2
     assert len(tt.relations) == 1
     assert len(tt.implementations) == 1
+    assert tt.implementations[0].schema_key == "SubType"
+    assert tt.implementations[0].fields == {"sub_uniq": "uniq"}
+
+
+def test_schema_translation():
+    env = make_test_env()
+    t_base = create_quick_schema(
+        "t_base", fields=[("f1", "Unicode"), ("f2", "Integer")]
+    )
+    t_impl = create_quick_schema(
+        "t_impl",
+        fields=[("g1", "Unicode"), ("g2", "Integer")],
+        implementations=[Implementation("t_base", {"f1": "g1", "f2": "g2"})],
+    )
+    env.add_schema(t_base)
+    env.add_schema(t_impl)
+    with env.session_scope() as sess:
+        trans = get_schema_translation(
+            env, sess, source_schema=t_impl, target_schema=t_base
+        )
+        assert trans.translation == {"g1": "f1", "g2": "f2"}
 
 
 def test_schema_inference():

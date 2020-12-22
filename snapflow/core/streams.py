@@ -328,13 +328,16 @@ class ManagedDataBlockStream:
         self, stream: Iterator[DataBlockMetadata]
     ) -> Iterator[DataBlock]:
         for db in stream:
-            schema_translation = get_schema_translation(
-                self.ctx.env,
-                self.sess,
-                db,
-                declared_schema=self.declared_schema,
-                declared_schema_translation=self.declared_schema_translation,
-            )
+            if db.nominal_schema_key:
+                schema_translation = get_schema_translation(
+                    self.ctx.env,
+                    self.sess,
+                    source_schema=db.nominal_schema(self.ctx.env, self.sess),
+                    target_schema=self.declared_schema,
+                    declared_schema_translation=self.declared_schema_translation,
+                )
+            else:
+                schema_translation = None
             mdb = db.as_managed_data_block(
                 self.ctx, self.sess, schema_translation=schema_translation
             )
