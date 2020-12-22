@@ -51,10 +51,10 @@ scale from laptop to AWS cluster.
 
 ## Example
 
-`pip install snapflow snapflow-stripe snapflow-bi`
+`pip install snapflow snapflow-stripe`
 
 ```python
-from snapflow import graph, produce, operators
+from snapflow import graph, produce, operators, sql_pipe
 import snapflow_stripe as stripe
 
 g = graph()
@@ -70,9 +70,15 @@ stripe_charges_node = g.node("core.dataframe_accumulator")
 stripe_charges_node.set_upstream(stripe_source_node)
 
 # Define custom pipe:
-def customer_lifetime_sales(block):
-    df = block.as_dataframe()
-    return df.groupby("customer")["amount"].sum().reset_index()
+def customer_lifetime_sales(txs):
+    txs_df = txs.as_dataframe()
+    return txs_df.groupby("customer")["amount"].sum().reset_index()
+
+# Or equivalent in sql (typically a separate file)
+customer_lifetime_sales_sql = sql_pipe(
+    "customer_lifetime_sales_sql",
+    "select customer, sum(amount) as amount from txs group by customer"
+)
 
 # Add node and take latest accumulated output as input:
 lifetime_sales = g.node(customer_lifetime_sales)
