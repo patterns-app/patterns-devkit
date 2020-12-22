@@ -15,13 +15,13 @@ pipelines. This functional framework provides powerful benefits:
 
 - **Reusable components** — Pipes can be easily snapped together, shared and
   reused across projects, open-sourced, and catalogued in the snapflow repository (coming soon).
-  Some examples:
+  Some example snapflow modules:
 
-  - [Stripe](https://github.com/kvh/snapflow-stripe.git) module
-  - [BI](https://github.com/kvh/snapflow-bi.git) (Business Intelligence) module
-  - [Shopify](https://github.com/kvh/snapflow-shopify.git) module
-  - [Stocks](https://github.com/kvh/snapflow-stocks.git) module
-  - [FRED](https://github.com/kvh/snapflow-fred.git) (Federal Reserve Economic Data) module
+  - [Stripe](https://github.com/kvh/snapflow-stripe.git)
+  - [BI](https://github.com/kvh/snapflow-bi.git) (Business Intelligence)
+  - [Shopify](https://github.com/kvh/snapflow-shopify.git)
+  - [Stocks](https://github.com/kvh/snapflow-stocks.git)
+  - [FRED](https://github.com/kvh/snapflow-fred.git) (Federal Reserve Economic Data)
 
 - **Testability** — Pipes provide explicit test
   inputs and the expected output under various data scenarios — a **data ETL unit test**, bringing
