@@ -18,10 +18,10 @@ pipelines. This functional framework provides powerful benefits:
   Some example snapflow modules:
 
   - [Stripe](https://github.com/kvh/snapflow-stripe.git)
-  - [BI](https://github.com/kvh/snapflow-bi.git) (Business Intelligence)
   - [Shopify](https://github.com/kvh/snapflow-shopify.git)
   - [Stocks](https://github.com/kvh/snapflow-stocks.git)
   - [FRED](https://github.com/kvh/snapflow-fred.git) (Federal Reserve Economic Data)
+  <!-- - [BI](https://github.com/kvh/snapflow-bi.git) (Business Intelligence) -->
 
 - **Testability** — Pipes provide explicit test
   inputs and the expected output under various data scenarios — a **data ETL unit test**, bringing
