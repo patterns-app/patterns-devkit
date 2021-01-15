@@ -13,7 +13,7 @@ from snapflow.utils.common import (
     snake_to_title_case,
     title_to_snake_case,
 )
-from snapflow.utils.data import is_nullish
+from snapflow.utils.data import is_nullish, with_header
 from snapflow.utils.pandas import (
     assert_dataframes_are_almost_equal,
     dataframe_to_records,
@@ -124,6 +124,16 @@ def test_dataframe_to_records():
         if r["a"] == 0:
             # NaT has been converted to None
             assert r["c"] is None
+
+
+def test_with_header():
+    i2 = (range(i) for i in range(1, 6))
+    i2h = with_header(i2)
+    i2hl = list(i2h)
+    assert list(i2hl[0]) == [0]
+    assert list(i2hl[1]) == [0, 0, 1]
+    assert list(i2hl[2]) == [0, 0, 1, 2]
+    assert list(i2hl[3]) == [0, 0, 1, 2, 3]
 
 
 # def test_coerce_dataframe_to_schema():

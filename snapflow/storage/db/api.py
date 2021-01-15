@@ -161,6 +161,7 @@ class DatabaseApi:
 
     def bulk_insert_records(self, name: str, records: Records, schema: Schema):
         # Create table whether or not there is anything to insert (side-effect consistency)
+        # TODO: is it right to create the table? Seems useful to have an "empty" datablock, for instance.
         self.ensure_table(name, schema=schema)
         if not records:
             return

@@ -150,8 +150,8 @@ def test_repeated_runs():
     output = env.produce("metrics", g, target_storage=s)
     records = output.as_records()
     assert records == expected_records
-    # Test get_latest_output
-    output = env.get_latest_output(metrics)
+    # Test latest_output
+    output = env.latest_output(metrics)
     records = output.as_records()
     assert records == expected_records
     # Run again, should be exhausted

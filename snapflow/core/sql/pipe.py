@@ -102,6 +102,9 @@ def extract_interface(
     Get all table names in a sql statement, optionally sub them with new names.
     Also extract comment-style Schema annotations if they exists.
     """
+    # TODO: we don't want to swap out table names here (obviously). Best to make explicit with jinja in sql query
+    #       OR we can add jinja here that we later replace
+    # TODO: handle table alias (`table1 as t1`), right now it would be `actualtable as table1 as t1`
     replace_with_names = replace_with_names or {}
     table_identifier_annotations: Dict[str, Optional[str]] = {}
     output_annotation: Optional[str] = None
@@ -160,7 +163,7 @@ def extract_interface(
                     if table_ref in replace_with_names:
                         new_sql.pop()
                         new_sql.append(
-                            replace_with_names[table_ref] + f' as "{table_ref}"'
+                            replace_with_names[table_ref] + f" as {table_ref}"
                         )
     return make_typed_statement_from_parse(
         new_sql, table_identifier_annotations, output_annotation

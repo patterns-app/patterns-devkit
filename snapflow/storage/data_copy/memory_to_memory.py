@@ -36,7 +36,13 @@ from snapflow.storage.storage import (
     PythonStorageClass,
     StorageApi,
 )
-from snapflow.utils.data import SampleableIterator, iterate_chunks, read_csv, write_csv
+from snapflow.utils.data import (
+    SampleableIterator,
+    iterate_chunks,
+    read_csv,
+    with_header,
+    write_csv,
+)
 from snapflow.utils.pandas import dataframe_to_records, records_to_dataframe
 
 
@@ -230,8 +236,12 @@ def copy_file_object_to_records_iterator(
     assert isinstance(from_storage_api, PythonStorageApi)
     assert isinstance(to_storage_api, PythonStorageApi)
     mdr = from_storage_api.get(from_name)
+    # Note: must keep header on each chunk when iterating delimited file object!
     # TODO: ugly hard-coded 1000 here, but how could we ever make it configurable? Not a big deal I guess
-    itr = (read_csv(chunk) for chunk in iterate_chunks(mdr.records_object, 1000))
+    itr = (
+        read_csv(chunk)
+        for chunk in with_header(iterate_chunks(mdr.records_object, 1000))
+    )
     to_mdr = as_records(itr, data_format=RecordsIteratorFormat, schema=schema)
     to_mdr = to_mdr.conform_to_schema()
     to_storage_api.put(to_name, to_mdr)
@@ -255,7 +265,7 @@ def copy_file_object_iterator_to_records_iterator(
     assert isinstance(from_storage_api, PythonStorageApi)
     assert isinstance(to_storage_api, PythonStorageApi)
     mdr = from_storage_api.get(from_name)
-    itr = (read_csv(chunk) for chunk in mdr.records_object)
+    itr = (read_csv(chunk) for chunk in with_header(mdr.records_object))
     to_mdr = as_records(itr, data_format=RecordsIteratorFormat, schema=schema)
     to_mdr = to_mdr.conform_to_schema()
     to_storage_api.put(to_name, to_mdr)

@@ -90,6 +90,24 @@ def iterate_chunks(iterator: Iterator[T], chunk_size: int) -> Iterator[List[T]]:
     yield chunk
 
 
+def add_header(itr: Iterable[T], header: Dict[str, Optional[T]]) -> Iterable[T]:
+    first = True
+    for v in itr:
+        if header["header"] is None:
+            header["header"] = v  # "return" this header value back to caller
+        elif first:
+            yield header["header"]
+        yield v
+        first = False
+
+
+def with_header(iterator: Iterator[Iterable[T]]) -> Iterator[Iterable[T]]:
+    header = {"header": None}
+    for chunk in iterator:
+        chunk = add_header(chunk, header)
+        yield chunk
+
+
 def read_csv(lines: Iterable[AnyStr], dialect=SnapflowCsvDialect) -> Iterator[Dict]:
     lines = ensure_strings(lines)
     reader = csv.reader(lines, dialect=dialect)

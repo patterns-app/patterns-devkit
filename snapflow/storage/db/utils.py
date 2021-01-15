@@ -32,6 +32,7 @@ def conform_columns_for_insert(
     columns: List[str] = None,
 ) -> List[str]:
     if columns is None:
+        assert len(records) > 0, "No records to infer columns from"
         # Use first object's keys as columns. Assumes uniform dicts
         columns = list(records[0].keys())
     return columns

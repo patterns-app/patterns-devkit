@@ -141,7 +141,6 @@ def ensure_data_block_on_storage(
     sdbs = sess.query(StoredDataBlockMetadata).filter(
         StoredDataBlockMetadata.data_block == block
     )
-
     match = sdbs.filter(StoredDataBlockMetadata.storage_url == storage.url)
     if fmt:
         match = match.filter(StoredDataBlockMetadata.data_format == fmt)
