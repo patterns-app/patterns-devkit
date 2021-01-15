@@ -219,10 +219,10 @@ def create_db(url: str, database_name: str):
         conn.close()
 
 
-def drop_db(url: str, database_name: str):
+def drop_db(url: str, database_name: str, force: bool = False):
     if url.startswith("sqlite"):
         return drop_sqlite_db(url, database_name)
-    if "test" not in database_name and "tmp" not in database_name:
+    if "test" not in database_name and "tmp" not in database_name and not force:
         i = input(f"Dropping db {database_name}, are you sure? (y/N)")
         if not i.lower().startswith("y"):
             return
