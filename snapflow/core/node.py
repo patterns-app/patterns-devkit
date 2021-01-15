@@ -203,7 +203,7 @@ class Node:
 
         return StreamBuilder(nodes=self)
 
-    def get_latest_output(self, ctx: RunContext, sess: Session) -> Optional[DataBlock]:
+    def latest_output(self, ctx: RunContext, sess: Session) -> Optional[DataBlock]:
         block: DataBlockMetadata = (
             sess.query(DataBlockMetadata)
             .join(DataBlockLog)

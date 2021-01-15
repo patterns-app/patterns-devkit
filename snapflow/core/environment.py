@@ -318,11 +318,11 @@ class Environment:
             for node in nodes:
                 em.execute(node, to_exhaustion=to_exhaustion)
 
-    def get_latest_output(self, node: NodeLike) -> Optional[DataBlock]:
+    def latest_output(self, node: NodeLike) -> Optional[DataBlock]:
         sess = self._get_new_metadata_session()  # hanging session
         n, g = self._get_graph_and_node(node)
         ctx = self.get_run_context(g)
-        return n.get_latest_output(ctx, sess)
+        return n.latest_output(ctx, sess)
 
     def add_storage(
         self, storage_like: Union[Storage, str], add_runtime: bool = True
