@@ -92,3 +92,9 @@ def test_mem_to_mem(from_fmt, to_fmt):
         )
     else:
         assert list(mem_api.get(to_name).records_object) == list(expected())
+
+
+def test_record_count():
+    for fmt, obj in [rf, dff]:
+        cnt = fmt.get_record_count(obj())
+        assert cnt == 2

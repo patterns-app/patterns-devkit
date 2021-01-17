@@ -109,6 +109,14 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
             manager=mgr,
         )
 
+    def compute_record_count(self) -> bool:
+        for sdb in self.stored_data_blocks.all():
+            cnt = sdb.record_count()
+            if cnt is not None:
+                self.record_count = cnt
+                return True
+        return False
+
     # def created_by(self, sess: Session) -> Optional[str]:
     #     from snapflow.core.node import DataBlockLog
     #     from snapflow.core.node import PipeLog
@@ -228,15 +236,15 @@ class StoredDataBlockMetadata(BaseModel):
     def get_storage_format(self) -> StorageFormat:
         return StorageFormat(self.storage.storage_engine, self.data_format)
 
-    def exists(self, env: Environment) -> bool:
+    def exists(self) -> bool:
         return self.storage.get_api().exists(self.get_name())
 
-    def record_count(self, env: Environment) -> Optional[int]:
+    def record_count(self) -> Optional[int]:
         if self.data_block.record_count is not None:
             return self.data_block.record_count
         return self.storage.get_api().record_count(self.get_name())
 
-    def create_alias(self, env: Environment, sess: Session, alias: str) -> Alias:
+    def create_alias(self, sess: Session, alias: str) -> Alias:
         # Create or update Alias
         a: Alias = sess.query(Alias).filter(Alias.alias == alias).first()
         if a is None:

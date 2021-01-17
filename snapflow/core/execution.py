@@ -404,7 +404,7 @@ def ensure_alias(sess: Session, node: Node, sdb: StoredDataBlockMetadata) -> Ali
     logger.debug(
         f"Creating alias {node.get_alias()} for node {node.key} on storage {sdb.storage_url}"
     )
-    return sdb.create_alias(node.env, sess, node.get_alias())
+    return sdb.create_alias(sess, node.get_alias())
 
 
 class Worker:
