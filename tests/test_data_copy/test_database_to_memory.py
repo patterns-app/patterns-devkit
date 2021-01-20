@@ -16,7 +16,11 @@ from snapflow.storage.data_copy.base import (
     datacopy,
     get_datacopy_lookup,
 )
-from snapflow.storage.data_copy.database_to_memory import copy_db_to_records
+from snapflow.storage.data_copy.database_to_memory import (
+    copy_db_to_cursor,
+    copy_db_to_records,
+    copy_db_to_records_iterator,
+)
 from snapflow.storage.data_copy.memory_to_database import copy_records_to_db
 from snapflow.storage.data_formats import (
     DatabaseCursorFormat,
@@ -49,12 +53,7 @@ from tests.utils import TestSchema1, TestSchema4
 
 
 @pytest.mark.parametrize(
-    "url",
-    [
-        "sqlite://",
-        "postgresql://localhost",
-        "mysql://",
-    ],
+    "url", ["sqlite://", "postgresql://localhost", "mysql://",],
 )
 def test_db_to_mem(url):
     s: Storage = Storage.from_url(url)
@@ -73,10 +72,23 @@ def test_db_to_mem(url):
         )
         copy_db_to_records.copy(name, name, conversion, api, mem_api)
         assert mem_api.get(name).records_object == [{"a": 1, "b": 2}]
+        # Records iterator
+        conversion = Conversion(
+            StorageFormat(s.storage_engine, DatabaseTableFormat),
+            StorageFormat(LocalPythonStorageEngine, RecordsIteratorFormat),
+        )
+        try:
+            copy_db_to_records_iterator.copy(name, name, conversion, api, mem_api)
+            assert list(mem_api.get(name).records_object) == [[{"a": 1, "b": 2}]]
+        finally:
+            mem_api.get(name).closeable()
         # DatabaseCursor
         conversion = Conversion(
             StorageFormat(s.storage_engine, DatabaseTableFormat),
             StorageFormat(LocalPythonStorageEngine, DatabaseCursorFormat),
         )
-        copy_db_to_records.copy(name, name, conversion, api, mem_api)
-        assert list(mem_api.get(name).records_object) == [{"a": 1, "b": 2}]
+        try:
+            copy_db_to_cursor.copy(name, name, conversion, api, mem_api)
+            assert list(mem_api.get(name).records_object) == [(1, 2)]
+        finally:
+            mem_api.get(name).closeable()

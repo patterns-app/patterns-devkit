@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import abc
 from dataclasses import dataclass
 from io import IOBase
-from typing import TYPE_CHECKING, Any, Generic, Optional, Tuple, Type
+from typing import Callable, TYPE_CHECKING, Any, Generic, Optional, Tuple, Type
 
 from pandas.core.frame import DataFrame
 from snapflow.schema.base import Schema, SchemaLike
@@ -28,6 +28,7 @@ class MemoryDataRecords:
     _record_count: Optional[int] = None
     # _closeable_resource: Optional[Any] = none  # TODO: when / how to use?
     nominal_schema: Optional[SchemaLike] = None
+    closeable: Optional[Callable] = None
 
     @property
     def data_format(self) -> DataFormat:

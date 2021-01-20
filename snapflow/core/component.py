@@ -99,7 +99,7 @@ class ComponentLibrary:
                 return d[m + "." + k]
             except KeyError:
                 pass
-        raise KeyError(k)
+        raise KeyError(f"`{k}` not found in modules {self.module_lookup_names}")
 
     def all_pipes(self) -> List[Pipe]:
         return list(self.pipes.values())

@@ -153,10 +153,7 @@ class PipeAnnotation:
 
 
 def make_default_output_annotation():
-    return PipeAnnotation.create(
-        data_format_class="Any",
-        schema_like="Any",
-    )
+    return PipeAnnotation.create(data_format_class="Any", schema_like="Any",)
 
 
 @dataclass(frozen=True)
@@ -205,9 +202,7 @@ class PipeInterface:
                 else:
                     raise Exception(f"Invalid data pipe parameter {param}")
         return cls.create(
-            inputs=inputs,
-            output=output,
-            requires_pipe_context=requires_context,
+            inputs=inputs, output=output, requires_pipe_context=requires_context,
         )
 
     def get_input(self, name: str) -> PipeAnnotation:
@@ -375,18 +370,29 @@ class StreamInput:
     bound_stream: Optional[DataBlockStream] = None
     bound_block: Optional[DataBlock] = None
 
-    def get_bound_nominal_schema(self) -> Optional[Schema]:
-        # TODO: what is this and what is this called? "resolved"?
+    def get_bound_block_property(self, prop: str):
         if self.bound_block:
-            return self.bound_block.nominal_schema
+            return getattr(self.bound_block, prop)
         if self.bound_stream:
             emitted = self.bound_stream.get_emitted_managed_blocks()
             if not emitted:
                 # if self.bound_stream.count():
                 #     logger.warning("No blocks emitted yet from non-empty stream")
                 return None
-            return emitted[0].nominal_schema
+            return getattr(emitted[0], prop)
         return None
+
+    def get_bound_nominal_schema(self) -> Optional[Schema]:
+        # TODO: what is this and what is this called? "resolved"?
+        return self.get_bound_block_property("nominal_schema")
+
+    @property
+    def nominal_schema(self) -> Optional[Schema]:
+        return self.get_bound_block_property("nominal_schema")
+
+    @property
+    def realized_schema(self) -> Optional[Schema]:
+        return self.get_bound_block_property("realized_schema")
 
 
 @dataclass(frozen=True)
@@ -433,8 +439,7 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation,
-            from_schema=source_schema,
+            translation=declared_schema_translation, from_schema=source_schema,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed
