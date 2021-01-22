@@ -62,9 +62,9 @@ def snake_to_title_case(s: str) -> str:
 
 def as_identifier(s: str) -> str:
     # make db-compatible identifier from str
-    s = re.sub(r"\W+", "_", s).lower().strip("_")
+    s = re.sub(r"\W+", "_", s).lower()
     if s and not re.match(r"[a-z_]", s[0]):
-        s = "_" + s  # Must start with alpha
+        s = "_" + s  # Must start with alpha or underscore
     return s
 
 
