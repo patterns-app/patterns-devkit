@@ -1,4 +1,5 @@
 from snapflow.core.module import SnapflowModule
+from snapflow.modules.core.pipes import conform_to_schema
 from snapflow.schema.base import AnySchema
 
 from .pipes import accumulator, dedupe, static
@@ -9,6 +10,8 @@ module = SnapflowModule(
     py_module_name=__name__,
     schemas=[AnySchema, "schemas/core_test_type.yml"],
     pipes=[
+        conform_to_schema.dataframe_conform_to_schema,
+        conform_to_schema.sql_conform_to_schema,
         dedupe.sql_dedupe_unique_keep_newest_row,
         dedupe.dataframe_dedupe_unique_keep_newest_row,
         accumulator.sql_accumulator,
@@ -19,6 +22,7 @@ module = SnapflowModule(
     tests=[
         accumulator.test_accumulator,
         dedupe.test_dedupe,
+        conform_to_schema.test_conform,
     ],
 )
 module.export()

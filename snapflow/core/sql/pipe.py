@@ -268,12 +268,13 @@ def sql_pipe_factory(
     module: Optional[Union[SnapflowModule, str]] = None,
     version: str = None,
     compatible_runtimes: str = None,  # TODO: engine support
+    wrapper_cls: type = SqlPipeWrapper,
     **kwargs,  # TODO: explicit options
 ) -> Pipe:
     if not sql:
         raise ValueError("Must provide sql")
     return pipe_factory(
-        SqlPipeWrapper(sql),
+        wrapper_cls(sql),
         name=name,
         module=module,
         compatible_runtimes=compatible_runtimes or "database",

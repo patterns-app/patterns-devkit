@@ -153,7 +153,10 @@ class PipeAnnotation:
 
 
 def make_default_output_annotation():
-    return PipeAnnotation.create(data_format_class="Any", schema_like="Any",)
+    return PipeAnnotation.create(
+        data_format_class="Any",
+        schema_like="Any",
+    )
 
 
 @dataclass(frozen=True)
@@ -202,7 +205,9 @@ class PipeInterface:
                 else:
                     raise Exception(f"Invalid data pipe parameter {param}")
         return cls.create(
-            inputs=inputs, output=output, requires_pipe_context=requires_context,
+            inputs=inputs,
+            output=output,
+            requires_pipe_context=requires_context,
         )
 
     def get_input(self, name: str) -> PipeAnnotation:
@@ -439,7 +444,8 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation, from_schema=source_schema,
+            translation=declared_schema_translation,
+            from_schema=source_schema,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed

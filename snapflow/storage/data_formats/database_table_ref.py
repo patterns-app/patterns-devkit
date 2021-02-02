@@ -34,24 +34,23 @@ class DatabaseTableRefFormat(MemoryDataFormatBase):
     def apply_schema_translation(
         cls, translation: SchemaTranslation, dtr: DatabaseTableRef
     ) -> DatabaseTableRef:
+        from snapflow.storage.db.utils import column_map
+
         """
         Apply translation as a sub-select, aliasing column names
         """
         if not translation.from_schema:
             raise NotImplementedError(
-                f"Schema translation must provide `from_schema` when translation a db table {translation}"
+                f"Schema translation must provide `from_schema` when translating a db table {translation}"
             )
-        table_stmt = dtr.table_stmt_sql
-        m = translation.as_dict()
-        col_stmts = []
-        for f in translation.from_schema.fields:
-            col_stmts.append(f"{f.name} as {m.get(f.name, f.name)}")
-        columns_stmt = ",".join(col_stmts)
-        sql = f"""
+        sql = column_map(
+            dtr.table_stmt_sql,
+            translation.from_schema.field_names(),
+            translation.as_dict(),
+        )
+        table_stmt = f"""
         (
-            select
-                {columns_stmt}
-            from {table_stmt}
+            {sql}
         )
         """
-        return DatabaseTableRef(table_stmt_sql=sql, storage_url=dtr.storage_url)
+        return DatabaseTableRef(table_stmt_sql=table_stmt, storage_url=dtr.storage_url)

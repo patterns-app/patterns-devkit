@@ -182,6 +182,9 @@ class SnapflowModule:
             try:
                 test()
             except Exception as e:
+                import traceback
+
+                print(traceback.format_exc())
                 print(e)
                 raise e
 

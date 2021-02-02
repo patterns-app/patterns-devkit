@@ -138,6 +138,14 @@ def ensure_time(x: Optional[Union[str, time]]) -> Optional[time]:
     return parser.parse(x).time()
 
 
+def ensure_utc(x: datetime) -> datetime:
+    try:
+        return pytz.utc.localize(x)
+    except ValueError:
+        pass
+    return x
+
+
 def ensure_bool(x: Optional[Union[str, bool]]) -> Optional[bool]:
     if x is None:
         return None
@@ -345,7 +353,10 @@ def profile_stmt(stmt: str, globals: Dict, locals: Dict):
     from pstats import SortKey
 
     cProfile.runctx(
-        stmt, globals=globals, locals=locals, filename="profile.stats",
+        stmt,
+        globals=globals,
+        locals=locals,
+        filename="profile.stats",
     )
     p = pstats.Stats("profile.stats")
     p.strip_dirs().sort_stats(SortKey.CUMULATIVE).print_stats(100)

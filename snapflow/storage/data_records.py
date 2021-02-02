@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections import abc
 from dataclasses import dataclass
 from io import IOBase
-from typing import Callable, TYPE_CHECKING, Any, Generic, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, Tuple, Type
 
 from pandas.core.frame import DataFrame
 from snapflow.schema.base import Schema, SchemaLike
