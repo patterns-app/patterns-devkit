@@ -1,6 +1,6 @@
 from __future__ import annotations
-from textwrap import wrap
 
+from textwrap import wrap
 from typing import Dict, Optional
 
 from loguru import logger
@@ -26,7 +26,10 @@ from snapflow.utils.typing import T
 
 
 @pipe("dataframe_conform_to_schema", module="core")
-def dataframe_conform_to_schema(ctx: PipeContext, input: DataBlock,) -> DataFrame:
+def dataframe_conform_to_schema(
+    ctx: PipeContext,
+    input: DataBlock,
+) -> DataFrame:
     env = ctx.run_context.env
     to_schema_key = ctx.get_config_value("schema")
     to_schema = env.get_schema(to_schema_key, ctx.execution_session.metadata_session)
@@ -59,7 +62,7 @@ class SqlConformToSchema(SqlPipeWrapper):
         mapping = translation.as_dict()
         sql = super().get_compiled_sql(ctx, inputs=inputs)
         sql = column_map(
-            f"({sql})",
+            f"({sql}) as __conformed",
             [c for c in schema.field_names() if c in fields or c in mapping],
             mapping,
         )
@@ -122,4 +125,3 @@ def test_conform():
             )
             df = db.as_dataframe()
             assert_dataframes_are_almost_equal(df, expected_df, schema=TestSchemaA)
-

@@ -51,6 +51,6 @@ class DatabaseTableRefFormat(MemoryDataFormatBase):
         table_stmt = f"""
         (
             {sql}
-        )
+        ) as __translated
         """
         return DatabaseTableRef(table_stmt_sql=table_stmt, storage_url=dtr.storage_url)
