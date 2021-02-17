@@ -42,9 +42,7 @@ from sqlalchemy.orm import RelationshipProperty, Session, relationship
 if TYPE_CHECKING:
     from snapflow.core.storage import ensure_data_block_on_storage
     from snapflow.core.storage import convert_sdb, get_copy_path_for_sdb
-    from snapflow.storage.data_copy.base import (
-        StorageFormat,
-    )
+    from snapflow.storage.data_copy.base import StorageFormat
     from snapflow.core.execution import RunContext
     from snapflow.storage.storage import (
         Storage,
@@ -151,8 +149,14 @@ class ManagedDataBlock(Generic[T]):
     def as_dataframe(self) -> DataFrame:
         return self.manager.as_dataframe()
 
+    def as_dataframe_iterator(self) -> DataFrame:
+        return self.manager.as_format(DataFrameIteratorFormat)
+
     def as_records(self) -> Records:
         return self.manager.as_records()
+
+    def as_records_iterator(self) -> Records:
+        return self.manager.as_format(RecordsIteratorFormat)
 
     def as_table(self) -> DatabaseTableRef:
         return self.manager.as_table()

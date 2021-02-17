@@ -15,6 +15,7 @@ from snapflow.utils.typing import T
 
 # TODO: is there a generic minimal ANSI sql solution to dedupe keep newest? hmmmm
 #  Does not appear to be, only hacks that require the sort column to be unique
+# TODO: tests!
 sql_dedupe_unique_keep_newest_row = sql_pipe(
     name="sql_dedupe_unique_keep_newest_row",
     module="core",

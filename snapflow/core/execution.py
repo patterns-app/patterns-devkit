@@ -493,6 +493,8 @@ class Worker:
                 )  # type: ignore
                 + "\n"
             )
+        else:
+            self.ctx.logger(INDENT + "Output: None")
 
         return ExecutionResult(
             inputs_bound=list(executable.bound_interface.inputs_as_kwargs().keys()),

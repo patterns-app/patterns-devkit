@@ -62,9 +62,9 @@ def snake_to_title_case(s: str) -> str:
 
 def as_identifier(s: str) -> str:
     # make db-compatible identifier from str
-    s = re.sub(r"\W+", "_", s).lower().strip("_")
+    s = re.sub(r"\W+", "_", s).lower()
     if s and not re.match(r"[a-z_]", s[0]):
-        s = "_" + s  # Must start with alpha
+        s = "_" + s  # Must start with alpha or underscore
     return s
 
 
@@ -136,6 +136,14 @@ def ensure_time(x: Optional[Union[str, time]]) -> Optional[time]:
     if isinstance(x, time):
         return x
     return parser.parse(x).time()
+
+
+def ensure_utc(x: datetime) -> datetime:
+    try:
+        return pytz.utc.localize(x)
+    except ValueError:
+        pass
+    return x
 
 
 def ensure_bool(x: Optional[Union[str, bool]]) -> Optional[bool]:

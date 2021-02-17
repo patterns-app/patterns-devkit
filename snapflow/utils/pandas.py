@@ -31,7 +31,7 @@ def assert_dataframes_are_almost_equal(
         df2 = df2[[c for c in df2.columns if c not in ignored_columns]]
     assert df1.shape == df2.shape, f"Different shapes: {df1.shape} {df2.shape}"
     assert set(df1.columns) == set(df2.columns)
-    if schema is not None:
+    if schema is not None and schema.unique_on:
         df1.sort_values(schema.unique_on, inplace=True)
         df2.sort_values(schema.unique_on, inplace=True)
     for (i, r), (i2, r2) in zip(df1.iterrows(), df2.iterrows()):

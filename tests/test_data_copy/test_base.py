@@ -127,6 +127,13 @@ def test_data_copy_lookup():
         ),
         (
             (
+                StorageFormat(PostgresStorageEngine, DatabaseTableFormat),
+                StorageFormat(LocalPythonStorageEngine, DataFrameIteratorFormat),
+            ),
+            2,  # DTF -> RIF -> DIF
+        ),
+        (
+            (
                 StorageFormat(LocalPythonStorageEngine, RecordsIteratorFormat),
                 StorageFormat(SqliteStorageEngine, DatabaseTableFormat),
             ),

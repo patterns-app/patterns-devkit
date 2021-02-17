@@ -1,7 +1,7 @@
 import os
 import tempfile
 from collections.abc import Generator
-from typing import Iterable, List
+from typing import Dict, Iterable, List
 
 import jinja2
 from snapflow.storage.data_formats import Records
@@ -75,3 +75,17 @@ def get_tmp_sqlite_db_url(dbname=None):
         dbname = rand_str(10)
     dir = tempfile.mkdtemp()
     return f"sqlite:///{dir}/{dbname}.db"
+
+
+def column_map(table_stmt: str, from_fields: List[str], mapping: Dict[str, str]) -> str:
+    # TODO: identifier quoting
+    col_stmts = []
+    for f in from_fields:
+        col_stmts.append(f"{f} as {mapping.get(f, f)}")
+    columns_stmt = ",".join(col_stmts)
+    sql = f"""
+    select
+        {columns_stmt}
+    from {table_stmt}
+    """
+    return sql
