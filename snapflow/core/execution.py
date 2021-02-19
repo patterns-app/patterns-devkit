@@ -138,9 +138,10 @@ class ExecutionResult:
     inputs_bound: List[str]
     input_blocks_processed: Dict[str, int]
     output_block_count: int
-    output_block: Optional[DataBlockMetadata] = None
-    output_stored_block: Optional[StoredDataBlockMetadata] = None
-    output_alias: Optional[Alias] = None
+    output_blocks_record_count: Optional[int] = None
+    output_block_id: Optional[str] = None
+    output_stored_block_id: Optional[str] = None
+    output_alias: Optional[str] = None
 
     @classmethod
     def empty(cls) -> ExecutionResult:
@@ -366,8 +367,8 @@ class PipeContext:  # TODO: (Generic[C, S]):
         logger.debug(
             f"Resolved output schema {nominal_output_schema} {self.executable.bound_interface}"
         )
-        wrapped_obj = wrap_records_object(records_obj)
-        if records_object_is_definitely_empty(wrapped_obj):
+        records_obj = wrap_records_object(records_obj)
+        if records_object_is_definitely_empty(records_obj):
             # TODO
             # Are we sure we'd never want to process an empty object?
             # Like maybe create the db table, but leave it empty? could be useful
@@ -488,12 +489,12 @@ class ExecutionManager:
         # start = time.time()
         n_runs: int = 0
         last_execution_result: Optional[ExecutionResult] = None
-        last_non_none_output: Optional[DataBlockMetadata] = None
+        last_non_none_output: Optional[str] = None
         try:
             while True:
                 last_execution_result = self._execute(node, worker)
-                if last_execution_result.output_block is not None:
-                    last_non_none_output = last_execution_result.output_block
+                if last_execution_result.output_block_id is not None:
+                    last_non_none_output = last_execution_result.output_block_id
                 n_runs += 1
                 if (
                     not to_exhaustion or not last_execution_result.inputs_bound
@@ -520,8 +521,10 @@ class ExecutionManager:
             return None
         logger.debug(f"*DONE* RUNNING NODE {node.key} {node.pipe.key}")
         if output_session is not None:
-            last_non_none_output = output_session.merge(last_non_none_output)
-            return last_non_none_output.as_managed_data_block(run_ctx, output_session)
+            db: DataBlockMetadata = output_session.query(DataBlockMetadata).get(
+                DataBlockMetadata.id == last_non_none_output
+            )
+            return db.as_managed_data_block(run_ctx, output_session)
         return None
 
     def _execute(self, node: Node, worker: Worker) -> ExecutionResult:
@@ -544,13 +547,13 @@ class ExecutionManager:
                 )
         else:
             self.ctx.logger("None\n")
-        self.ctx.logger(INDENT + f"Outputs: {result.output_block_count} blocks ")
-        if result.output_block is not None:
+        self.ctx.logger(INDENT + f"Outputs: {result.output_block_count} blocks")
+        if result.output_blocks_record_count:
+            self.ctx.logger(f" ({result.output_blocks_record_count} records)")
+        if result.output_block_id is not None:
             self.ctx.logger(
-                f"Alias: {result.output_alias.alias if result.output_alias is not None else '-'} "
-                + cf.dimmed(
-                    f"({result.output_block.id}) {result.output_block.record_count} records"
-                )  # type: ignore
+                f" Alias: {result.output_alias if result.output_alias is not None else '-'} "
+                + cf.dimmed(f"({result.output_block_id})")  # type: ignore
             )
         self.ctx.logger("\n")
 
@@ -646,10 +649,17 @@ class Worker:
         return ExecutionResult(
             inputs_bound=list(executable.bound_interface.inputs_as_kwargs().keys()),
             input_blocks_processed=input_block_counts,
-            output_block=last_output_block,
-            output_stored_block=last_output_sdb,
-            output_alias=last_output_alias,
+            output_block_id=last_output_block.id,
+            output_stored_block_id=last_output_sdb.id,
+            output_alias=last_output_alias.alias,
             output_block_count=len(pipe_ctx.outputs),
+            output_blocks_record_count=sum(
+                [
+                    db.record_count
+                    for db in pipe_ctx.outputs
+                    if db.record_count is not None
+                ]
+            ),
         )
 
     # TODO: where does this sql stuff really belong? Are we still using this?
