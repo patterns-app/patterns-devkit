@@ -522,7 +522,7 @@ class ExecutionManager:
         logger.debug(f"*DONE* RUNNING NODE {node.key} {node.pipe.key}")
         if output_session is not None:
             db: DataBlockMetadata = output_session.query(DataBlockMetadata).get(
-                DataBlockMetadata.id == last_non_none_output
+                last_non_none_output
             )
             return db.as_managed_data_block(run_ctx, output_session)
         return None
@@ -598,6 +598,8 @@ class Worker:
             result = self.process_execution_result(
                 executable, execution_session, output_obj, pipe_ctx
             )
+        logger.debug("EXECUTION RESULT2")
+        logger.debug(result)
         return result
 
     def process_execution_result(
@@ -613,11 +615,17 @@ class Worker:
                 output_iterator = output_obj
             else:
                 output_iterator = [output_obj]
+            i = 0
             for output_obj in output_iterator:
+                logger.debug(f"HERE {i}")
+                print(output_obj)
+                i += 1
                 pipe_ctx.emit(output_obj)
                 result = self.execution_result_info(
                     executable, execution_session, pipe_ctx
                 )
+                logger.debug("EXECUTION RESULT")
+                logger.debug(result)
         return result
 
     def execution_result_info(
@@ -655,9 +663,9 @@ class Worker:
             output_block_count=len(pipe_ctx.outputs),
             output_blocks_record_count=sum(
                 [
-                    db.record_count
+                    db.record_count()
                     for db in pipe_ctx.outputs
-                    if db.record_count is not None
+                    if db.record_count() is not None
                 ]
             ),
         )

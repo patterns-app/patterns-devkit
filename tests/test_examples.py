@@ -20,6 +20,9 @@ from snapflow.storage.data_formats import Records, RecordsIterator
 from snapflow.storage.storage import new_local_python_storage
 
 
+logger.enable("snapflow")
+
+
 def test_example():
     env = Environment(metadata_storage="sqlite://")
     g = Graph(env)
