@@ -248,6 +248,9 @@ class StoredDataBlockMetadata(BaseModel):
             return self.data_block.record_count
         return self.storage.get_api().record_count(self.get_name())
 
+    def get_alias(self, sess: Session) -> Optional[Alias]:
+        return sess.query(Alias).filter(Alias.stored_data_block_id == self.id).first()
+
     def create_alias(self, sess: Session, alias: str) -> Alias:
         # Create or update Alias
         a: Alias = sess.query(Alias).filter(Alias.alias == alias).first()

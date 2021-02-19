@@ -13,6 +13,7 @@ from snapflow.core.execution import (
     Worker,
 )
 from snapflow.core.graph import Graph
+from snapflow.core.node import DataBlockLog, Direction, PipeLog
 from snapflow.core.pipe_interface import NodeInterfaceManager
 from snapflow.modules import core
 from snapflow.storage.data_formats import Records
@@ -48,14 +49,18 @@ def test_worker():
         w = Worker(ec)
         dfi_mgr = NodeInterfaceManager(ec, sess, node)
         bdfi = dfi_mgr.get_bound_interface()
-        r = Executable(
-            node.key,
-            CompiledPipe(node.pipe.key, node.pipe),
-            bdfi,
-        )
+        r = Executable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
         run_result = w.execute(r)
         output = run_result.output_block
         assert output is None
+        assert sess.query(PipeLog).count() == 1
+        pl = sess.query(PipeLog).first()
+        assert pl.node_key == node.key
+        assert pl.graph_id == g.get_metadata_obj().hash
+        assert pl.node_start_state == {}
+        assert pl.node_end_state == {}
+        assert pl.pipe_key == node.pipe.key
+        assert pl.pipe_config == {}
 
 
 def test_worker_output():
@@ -73,11 +78,7 @@ def test_worker_output():
         w = Worker(ec)
         dfi_mgr = NodeInterfaceManager(ec, sess, node)
         bdfi = dfi_mgr.get_bound_interface()
-        r = Executable(
-            node.key,
-            CompiledPipe(node.pipe.key, node.pipe),
-            bdfi,
-        )
+        r = Executable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
         run_result = w.execute(r)
         outputblock = run_result.output_block
         assert outputblock is not None
@@ -91,6 +92,10 @@ def test_worker_output():
             sess.query(Alias).filter(Alias.alias == output_alias).first().data_block_id
             == block.data_block_id
         )
+        assert sess.query(DataBlockLog).count() == 1
+        dbl = sess.query(DataBlockLog).first()
+        assert dbl.data_block_id == outputblock.id
+        assert dbl.direction == Direction.OUTPUT
 
 
 def test_non_terminating_pipe():

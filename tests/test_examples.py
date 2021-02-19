@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 from loguru import logger
 from pandas._testing import assert_almost_equal
+from snapflow.core.node import DataBlockLog, PipeLog
 from snapflow import DataBlock, pipe, sql_pipe
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import PipeContext
@@ -55,9 +56,13 @@ def aggregate_metrics(i1: DataBlock) -> Records[Metric]:
     ]
 
 
+FAIL_MSG = "Failure triggered"
+
+
 @pipe
 def customer_source(ctx: PipeContext) -> RecordsIterator[Customer]:
     N = ctx.get_config_value("total_records")
+    fail = ctx.get_config_value("fail")
     n = ctx.get_state_value("records_extracted", 0)
     if n >= N:
         return
@@ -74,6 +79,9 @@ def customer_source(ctx: PipeContext) -> RecordsIterator[Customer]:
             n += 1
         yield records
         ctx.emit_state_value("records_extracted", n)
+        if fail:
+            # Fail AFTER yielding one record set
+            raise Exception(FAIL_MSG)
         if n >= N:
             return
 
@@ -189,3 +197,43 @@ def test_alternate_apis():
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
+
+
+def test_pipe_failure():
+    env = get_env()
+    g = Graph(env)
+    s = env._local_python_storage
+    # Initial graph
+    N = 2 * 4
+    cfg = {"total_records": N, "fail": True}
+    source = g.create_node(customer_source, config=cfg)
+    output = produce(source, graph=g, target_storage=s, env=env)
+    assert output is not None
+    records = output.as_records()
+    assert len(records) == 2
+    with env.session_scope() as sess:
+        assert sess.query(PipeLog).count() == 1
+        assert sess.query(DataBlockLog).count() == 1
+        pl = sess.query(PipeLog).first()
+        assert pl.node_key == source.key
+        assert pl.graph_id == g.get_metadata_obj().hash
+        assert pl.node_start_state == {}
+        assert pl.node_end_state == {"records_extracted": 2}
+        assert pl.pipe_key == source.pipe.key
+        assert pl.pipe_config == cfg
+        assert pl.error is not None
+        assert FAIL_MSG in pl.error["error"]
+
+    source.config["fail"] = False
+    output = produce(source, graph=g, target_storage=s, env=env)
+    with env.session_scope() as sess:
+        assert sess.query(PipeLog).count() == 2
+        assert sess.query(DataBlockLog).count() == 1
+        pl = sess.query(PipeLog).order_by(PipeLog.completed_at.desc()).first()
+        assert pl.node_key == source.key
+        assert pl.graph_id == g.get_metadata_obj().hash
+        assert pl.node_start_state == {}
+        assert pl.node_end_state == {"records_extracted": 4}
+        assert pl.pipe_key == source.pipe.key
+        assert pl.pipe_config == cfg
+        assert pl.error is None
