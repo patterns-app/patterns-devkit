@@ -218,7 +218,7 @@ class RunContext:
             pl = PipeLog(  # type: ignore
                 graph_id=graph_meta.hash,
                 node_key=node.key,
-                node_start_state=node_state,
+                node_start_state={k: v for k, v in node_state.items()},
                 node_end_state=node_state,
                 pipe_key=node.pipe.key,
                 pipe_config=node.config,
@@ -230,13 +230,12 @@ class RunContext:
                 yield ExecutionSession(pl, sess)
                 # Validate local memory objects: Did we leave any non-storeables hanging?
                 validate_data_blocks(sess)
-                # Only persist state on successful run
-                pl.persist_state(sess)
-
             except Exception as e:
                 pl.set_error(e)
                 # raise e
             finally:
+                # Persist state on success OR error:
+                pl.persist_state(sess)
                 pl.completed_at = utcnow()
                 sess.add(pl)
 
@@ -595,11 +594,11 @@ class Worker:
             output_obj = executable.compiled_pipe.pipe.pipe_callable(
                 *pipe_args, **pipe_kwargs
             )
-            result = self.process_execution_result(
+            for res in self.process_execution_result(
                 executable, execution_session, output_obj, pipe_ctx
-            )
-        logger.debug("EXECUTION RESULT2")
-        logger.debug(result)
+            ):
+                result = res
+        logger.debug(f"EXECUTION RESULT {result}")
         return result
 
     def process_execution_result(
@@ -608,7 +607,7 @@ class Worker:
         execution_session: ExecutionSession,
         output_obj: DataInterfaceType,
         pipe_ctx: PipeContext,
-    ) -> ExecutionResult:
+    ) -> Iterator[ExecutionResult]:
         result = ExecutionResult.empty()
         if output_obj is not None:
             if is_records_generator(output_obj):
@@ -617,16 +616,13 @@ class Worker:
                 output_iterator = [output_obj]
             i = 0
             for output_obj in output_iterator:
-                logger.debug(f"HERE {i}")
-                print(output_obj)
+                logger.debug(output_obj)
                 i += 1
                 pipe_ctx.emit(output_obj)
                 result = self.execution_result_info(
                     executable, execution_session, pipe_ctx
                 )
-                logger.debug("EXECUTION RESULT")
-                logger.debug(result)
-        return result
+                yield result
 
     def execution_result_info(
         self,

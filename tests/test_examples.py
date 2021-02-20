@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from loguru import logger
 from pandas._testing import assert_almost_equal
-from snapflow.core.node import DataBlockLog, PipeLog
+from snapflow.core.node import DataBlockLog, NodeState, PipeLog
 from snapflow import DataBlock, pipe, sql_pipe
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import PipeContext
@@ -153,7 +153,7 @@ def test_repeated_runs():
     assert output.nominal_schema_key.endswith("Metric")
     records = output.as_records()
     expected_records = [
-        {"metric": "row_count", "value": 4},
+        {"metric": "row_count", "value": 2},  # Just the latest block
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
@@ -196,7 +196,7 @@ def test_alternate_apis():
     assert output.nominal_schema_key.endswith("Metric")
     records = output.as_records()
     expected_records = [
-        {"metric": "row_count", "value": 4},
+        {"metric": "row_count", "value": 2},  # Just the last block
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
@@ -226,17 +226,23 @@ def test_pipe_failure():
         assert pl.pipe_config == cfg
         assert pl.error is not None
         assert FAIL_MSG in pl.error["error"]
+        ns = sess.query(NodeState).filter(NodeState.node_key == pl.node_key).first()
+        assert ns.state == {"records_extracted": 2}
 
     source.config["fail"] = False
     output = produce(source, graph=g, target_storage=s, env=env)
+    records = output.as_records()
+    assert len(records) == 2
     with env.session_scope() as sess:
         assert sess.query(PipeLog).count() == 2
-        assert sess.query(DataBlockLog).count() == 1
+        assert sess.query(DataBlockLog).count() == 3
         pl = sess.query(PipeLog).order_by(PipeLog.completed_at.desc()).first()
         assert pl.node_key == source.key
         assert pl.graph_id == g.get_metadata_obj().hash
-        assert pl.node_start_state == {}
-        assert pl.node_end_state == {"records_extracted": 4}
+        assert pl.node_start_state == {"records_extracted": 2}
+        assert pl.node_end_state == {"records_extracted": 6}
         assert pl.pipe_key == source.pipe.key
         assert pl.pipe_config == cfg
         assert pl.error is None
+        ns = sess.query(NodeState).filter(NodeState.node_key == pl.node_key).first()
+        assert ns.state == {"records_extracted": 6}
