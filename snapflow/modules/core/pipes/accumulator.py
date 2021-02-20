@@ -21,8 +21,7 @@ from snapflow.utils.typing import T
 
 @pipe("dataframe_accumulator", module="core")
 def dataframe_accumulator(
-    input: Stream[T],
-    this: Optional[DataBlock[T]] = None,
+    input: Stream[T], this: Optional[DataBlock[T]] = None,
 ) -> DataFrame[T]:
     # TODO: make this return a dataframe iterator right?
     accumulated_dfs = [block.as_dataframe() for block in input]
@@ -100,6 +99,7 @@ def test_accumulator():
             with produce_pipe_output_for_static_input(
                 p, input=data_input, target_storage=s
             ) as db:
+                assert db is not None
                 logger.debug(db)
                 logger.debug("TEST df conversion")
                 expected_df = DataInput(

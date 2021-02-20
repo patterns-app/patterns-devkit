@@ -4,7 +4,7 @@ from typing import Optional
 
 import pytest
 from pandas import DataFrame
-from snapflow.core.data_block import Alias, DataBlock
+from snapflow.core.data_block import Alias, DataBlock, DataBlockMetadata
 from snapflow.core.execution import (
     CompiledPipe,
     Executable,
@@ -51,8 +51,7 @@ def test_worker():
         bdfi = dfi_mgr.get_bound_interface()
         r = Executable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
         run_result = w.execute(r)
-        output = run_result.output_block
-        assert output is None
+        assert run_result.output_block_id is None
         assert sess.query(PipeLog).count() == 1
         pl = sess.query(PipeLog).first()
         assert pl.node_key == node.key
@@ -80,7 +79,7 @@ def test_worker_output():
         bdfi = dfi_mgr.get_bound_interface()
         r = Executable(node.key, CompiledPipe(node.pipe.key, node.pipe), bdfi,)
         run_result = w.execute(r)
-        outputblock = run_result.output_block
+        outputblock = sess.query(DataBlockMetadata).get(run_result.output_block_id)
         assert outputblock is not None
         outputblock = sess.merge(outputblock)
         block = outputblock.as_managed_data_block(ec, sess)

@@ -238,6 +238,7 @@ class RunContext:
                 pl.persist_state(sess)
                 pl.completed_at = utcnow()
                 sess.add(pl)
+                sess.flush()
 
     @property
     def all_storages(self) -> List[Storage]:
@@ -329,9 +330,13 @@ class PipeContext:  # TODO: (Generic[C, S]):
         replace_state: Dict[str, Any] = None,
     ):
         if records_obj is not None:
-            self.handle_records_object(
+            sdb = self.handle_records_object(
                 records_obj, data_format=data_format, schema=schema
             )
+            if sdb is not None:
+                self.create_alias(sdb)
+                self.execution_session.log_output(sdb.data_block)
+                self.outputs.append(sdb)
         if update_state is not None:
             for k, v in update_state.items():
                 self.emit_state_value(k, v)
@@ -346,7 +351,7 @@ class PipeContext:  # TODO: (Generic[C, S]):
         data_format: DataFormat = None,
         schema: Schema = None,
     ) -> Optional[StoredDataBlockMetadata]:
-        logger.debug("HANDLING EMITTED OBJECT")
+        logger.debug(f"HANDLING EMITTED OBJECT (of type {type(records_obj)})")
         # TODO: can i return an existing DataBlock? Or do I need to create a "clone"?
         #   Answer: ok to return as is (just mark it as 'output' in DBL)
         if isinstance(records_obj, StoredDataBlockMetadata):
@@ -376,10 +381,6 @@ class PipeContext:  # TODO: (Generic[C, S]):
             records_obj, data_format=data_format, schema=nominal_output_schema
         )
         sdb = self.store_output_block(dro)
-        if sdb is not None:
-            self.create_alias(sdb)
-            self.execution_session.log_output(sdb.data_block)
-            self.outputs.append(sdb)
         return sdb
 
     def create_alias(self, sdb: StoredDataBlockMetadata) -> Optional[Alias]:
