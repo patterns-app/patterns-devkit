@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from decimal import Decimal
+import traceback
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import pandas as pd
@@ -306,7 +307,9 @@ def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
     return dom_type
 
 
-def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
+def cast_python_object_to_sqlalchemy_type(
+    obj: Any, satype: str, ignore_error_as_null: bool = True
+) -> Any:
     if obj is None:
         return None
     try:
@@ -315,35 +318,42 @@ def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
     except ValueError:
         # isna() throws ValueError
         pass
-    ft = satype.lower()
-    if ft.startswith("datetime"):
-        return ensure_datetime(obj)
-    if ft.startswith("date"):
-        return ensure_date(obj)
-    if ft.startswith("time"):
-        return ensure_time(obj)
-    if ft.startswith("float") or ft.startswith("real"):
-        return float(obj)
-    if ft.startswith("numeric"):
-        return Decimal(obj)
-    if ft.startswith("integer"):
-        return int(obj)
-    if ft.startswith("biginteger"):
-        return int(obj)
-    if ft.startswith("boolean"):
-        return ensure_bool(obj)
-    if (
-        ft.startswith("string")
-        or ft.startswith("unicode")
-        or ft.startswith("varchar")
-        or ft.startswith("text")
-    ):
-        return str(obj)
-    if ft.startswith("json"):
-        if isinstance(obj, str):
-            return read_json(obj)
-        else:
-            return obj
+    try:
+        ft = satype.lower()
+        if ft.startswith("datetime"):
+            return ensure_datetime(obj)
+        if ft.startswith("date"):
+            return ensure_date(obj)
+        if ft.startswith("time"):
+            return ensure_time(obj)
+        if ft.startswith("float") or ft.startswith("real"):
+            return float(obj)
+        if ft.startswith("numeric"):
+            return Decimal(obj)
+        if ft.startswith("integer"):
+            return int(obj)
+        if ft.startswith("biginteger"):
+            return int(obj)
+        if ft.startswith("boolean"):
+            return ensure_bool(obj)
+        if (
+            ft.startswith("string")
+            or ft.startswith("unicode")
+            or ft.startswith("varchar")
+            or ft.startswith("text")
+        ):
+            return str(obj)
+        if ft.startswith("json"):
+            if isinstance(obj, str):
+                return read_json(obj)
+            else:
+                return obj
+    except Exception as e:
+        logger.error(
+            f"Error casting python object ({obj}) to type {satype}: {traceback.format_exc()}"
+        )
+        if ignore_error_as_null:
+            return None
     raise NotImplementedError
 
 
