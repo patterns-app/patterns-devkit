@@ -313,6 +313,7 @@ def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
         if not isinstance(obj, Iterable) and not isinstance(obj, dict) and pd.isna(obj):
             return None
     except ValueError:
+        # isna() throws ValueError
         pass
     ft = satype.lower()
     if ft.startswith("datetime"):
