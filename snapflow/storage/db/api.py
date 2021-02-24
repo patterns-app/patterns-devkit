@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Callable, Iterator, List, Optional, Tuple, Type
+from typing import Dict, TYPE_CHECKING, Callable, Iterator, List, Optional, Tuple, Type
 
 import sqlalchemy
 from loguru import logger
@@ -24,11 +24,11 @@ if TYPE_CHECKING:
     pass
 
 
-_sa_engines: List[Engine] = []
+_sa_engines: Dict[str, Engine] = {}
 
 
 def dispose_all(keyword: Optional[str] = None):
-    for e in _sa_engines:
+    for k, e in _sa_engines.items():
         if keyword:
             if keyword not in str(e.url):
                 continue
@@ -37,9 +37,7 @@ def dispose_all(keyword: Optional[str] = None):
 
 class DatabaseApi:
     def __init__(
-        self,
-        url: str,
-        json_serializer: Callable = None,
+        self, url: str, json_serializer: Callable = None,
     ):
         self.url = url
         self.json_serializer = (
@@ -49,15 +47,19 @@ class DatabaseApi:
         )
         self.eng: Optional[sqlalchemy.engine.Engine] = None
 
+    def _get_engine_key(self) -> str:
+        return f"{self.url}_{self.json_serializer.__class__.__name__}"
+
     def get_engine(self) -> sqlalchemy.engine.Engine:
         if self.eng is not None:
             return self.eng
+        key = self._get_engine_key()
+        if key in _sa_engines:
+            return _sa_engines[key]
         self.eng = sqlalchemy.create_engine(
-            self.url,
-            json_serializer=self.json_serializer,
-            echo=False,
+            self.url, json_serializer=self.json_serializer, echo=False,
         )
-        _sa_engines.append(self.eng)
+        _sa_engines[key] = self.eng
         return self.eng
 
     def dialect_is_supported(self) -> bool:
@@ -85,9 +87,7 @@ class DatabaseApi:
         if self.exists(name):
             return name
         ddl = SchemaMapper().create_table_statement(
-            schema=schema,
-            dialect=self.get_engine().dialect,
-            table_name=name,
+            schema=schema, dialect=self.get_engine().dialect, table_name=name,
         )
         self.execute_sql(ddl)
         return name
@@ -141,9 +141,7 @@ class DatabaseApi:
         self.execute_sql(insert_sql)
 
     def create_table_from_sql(
-        self,
-        name: str,
-        sql: str,
+        self, name: str, sql: str,
     ):
         sql = self.clean_sub_sql(sql)
         create_sql = f"""
@@ -197,8 +195,7 @@ class DatabaseApi:
 
 class DatabaseStorageApi(DatabaseApi, StorageApi):
     def __init__(
-        self,
-        storage: Storage,
+        self, storage: Storage,
     ):
         super().__init__(storage.url)
         self.storage = storage
