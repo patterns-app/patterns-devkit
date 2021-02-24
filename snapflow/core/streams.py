@@ -154,6 +154,7 @@ class StreamBuilder:
             Query(DataBlockLog.data_block_id)
             .join(PipeLog)
             .filter(filter_clause)
+            .filter(DataBlockLog.invalidated == False)  # noqa
             .distinct()
         )
         return query.filter(not_(DataBlockMetadata.id.in_(already_processed_drs)))
@@ -184,6 +185,7 @@ class StreamBuilder:
                 DataBlockLog.direction == Direction.OUTPUT,
                 PipeLog.node_key.in_([c.key for c in self.get_upstream(ctx.graph)]),
             )
+            .filter(DataBlockLog.invalidated == False)  # noqa
             .distinct()
         )
         return query.filter(DataBlockMetadata.id.in_(eligible_input_drs))

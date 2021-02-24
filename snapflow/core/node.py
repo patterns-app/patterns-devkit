@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.schema import Column, ForeignKey
-from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
+from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
 if TYPE_CHECKING:
     from snapflow.core.execution import RunContext
@@ -219,6 +219,36 @@ class Node:
             return None
         return block.as_managed_data_block(ctx, sess)
 
+    def _reset_state(self, sess: Session):
+        """
+        Resets the node's state only.
+        This is usually not something you want to do by itself, but
+        instead as part of a full reset.
+        """
+        state = self.get_state(sess)
+        sess.delete(state)
+
+    def _invalidate_output_datablocks(self, sess: Session):
+        """
+        TODO: would be better to invalidate / deactivate here than to actually delete?
+        We're orphaning datablocks this way.
+        """
+        sess.query(DataBlockLog).join(PipeLog).filter(
+            PipeLog.node_key == self.key, DataBlockLog.direction == Direction.OUTPUT
+        ).update({"invalidated": True})
+
+    def reset(self, sess: Session):
+        """
+        Resets the node, meaning all state is cleared, and all OUTPUT datablock
+        logs are invalidated. Output datablocks are NOT deleted.
+        NB: If downstream nodes have already processed an output datablock,
+        this will have no effect on them.
+        TODO: consider "cascading reset" for downstream recursive pipes (which will still have
+        accumulated output from this node)
+        """
+        self._reset_state(sess)
+        self._invalidate_output_datablocks(sess)
+
 
 class NodeState(BaseModel):
     node_key = Column(String(128), primary_key=True)
@@ -323,6 +353,7 @@ class DataBlockLog(BaseModel):
     )
     direction = Column(Enum(Direction, native_enum=False), nullable=False)
     processed_at = Column(DateTime, default=func.now(), nullable=False)
+    invalidated = Column(Boolean, default=False)
     # Hints
     data_block: "DataBlockMetadata"
     pipe_log: PipeLog

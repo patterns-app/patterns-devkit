@@ -47,8 +47,8 @@ global_registry = ClassRegistry()
 class ClassBasedEnumSqlalchemyType(types.TypeDecorator):
     impl = types.Unicode
 
-    def __init__(self):
-        super().__init__(128)
+    def __init__(self, length: int = 128):
+        super().__init__(length)
 
     def process_bind_param(self, value, dialect):
         if not issubclass(value, ClassBasedEnum):
