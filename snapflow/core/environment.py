@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from dataclasses import asdict
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Tuple, Union
+from sqlalchemy.exc import ProgrammingError
 
 import strictyaml
 from alembic.config import Config
@@ -91,7 +92,15 @@ class Environment:
             )
         conn = self.metadata_storage.get_api().get_engine()
         # BaseModel.metadata.create_all(conn)
-        self.migrate_metdata_database(conn)
+        try:
+            self.migrate_metdata_database(conn)
+        except ProgrammingError as e:
+            # For initial migration
+            # TODO: remove once all 0.2 systems migrated
+            logger.warning(e)
+            self.stamp_metadata_database(conn)
+            self.migrate_metdata_database(conn)
+
         self.Session = sessionmaker(bind=conn)
 
     def get_alembic_config(self) -> Config:
@@ -106,6 +115,12 @@ class Environment:
         if conn is not None:
             alembic_cfg.attributes["connection"] = conn
         command.upgrade(alembic_cfg, "head")
+
+    def stamp_metadata_database(self, conn: Connection = None):
+        alembic_cfg = self.get_alembic_config()
+        if conn is not None:
+            alembic_cfg.attributes["connection"] = conn
+        command.stamp(alembic_cfg, "8e9953e3605f")
 
     def _get_new_metadata_session(self) -> Session:
         sess = self.Session()
