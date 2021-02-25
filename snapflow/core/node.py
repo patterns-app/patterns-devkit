@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+from operator import and_
 import traceback
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
@@ -15,6 +16,7 @@ from snapflow.core.pipe_interface import (
     DeclaredStreamLikeInput,
     PipeInterface,
 )
+from snapflow.storage.storage import SqliteStorageEngine
 from snapflow.utils.common import as_identifier
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
@@ -118,9 +120,7 @@ def node(
 
 
 def instantiate_node(
-    env: Environment,
-    graph: Graph,
-    declared_node: DeclaredNode,
+    env: Environment, graph: Graph, declared_node: DeclaredNode,
 ):
     if isinstance(declared_node.pipe, str):
         pipe = env.get_pipe(declared_node.pipe)
@@ -175,11 +175,8 @@ class Node:
     def __hash__(self):
         return hash(self.key)
 
-    def get_state(self, sess: Session) -> Optional[Dict]:
-        state = sess.query(NodeState).filter(NodeState.node_key == self.key).first()
-        if state:
-            return state.state
-        return None
+    def get_state(self, sess: Session) -> Optional[NodeState]:
+        return sess.query(NodeState).filter(NodeState.node_key == self.key).first()
 
     def get_alias(self) -> str:
         if self.output_alias:
@@ -233,9 +230,18 @@ class Node:
         TODO: would be better to invalidate / deactivate here than to actually delete?
         We're orphaning datablocks this way.
         """
-        sess.query(DataBlockLog).join(PipeLog).filter(
-            PipeLog.node_key == self.key, DataBlockLog.direction == Direction.OUTPUT
-        ).update({"invalidated": True})
+        dbl_ids = [
+            r[0]
+            for r in sess.query(DataBlockLog.id)
+            .join(PipeLog)
+            .filter(
+                PipeLog.node_key == self.key, DataBlockLog.direction == Direction.OUTPUT
+            )
+            .all()
+        ]
+        sess.query(DataBlockLog).filter(DataBlockLog.id.in_(dbl_ids)).update(
+            {"invalidated": True}, synchronize_session=False
+        )
 
     def reset(self, sess: Session):
         """
@@ -255,10 +261,7 @@ class NodeState(BaseModel):
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(
-            node_key=self.node_key,
-            state=self.state,
-        )
+        return self._repr(node_key=self.node_key, state=self.state,)
 
 
 def get_state(sess: Session, node_key: str) -> Optional[Dict]:

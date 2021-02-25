@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import pathlib
 import os
 from contextlib import contextmanager
 from dataclasses import asdict
@@ -8,12 +9,15 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Tuple, Union
 
 import strictyaml
+from alembic.config import Config
+from alembic import command
 from loguru import logger
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.schema.base import GeneratedSchema, Schema, SchemaLike
 from snapflow.storage.storage import DatabaseStorageClass, PythonStorageClass
+from sqlalchemy.engine.base import Connection
 from sqlalchemy.orm import Session, sessionmaker
 
 if TYPE_CHECKING:
@@ -38,6 +42,7 @@ class Environment:
         metadata_storage: Union["Storage", str] = None,
         add_default_python_runtime: bool = True,
         initial_modules: List[SnapflowModule] = None,  # Defaults to `core` module
+        initialize_metadata_storage: bool = True,
     ):
         from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
         from snapflow.storage.storage import Storage, new_local_python_storage
@@ -54,7 +59,8 @@ class Environment:
         if metadata_storage is None:
             raise Exception("Must specify metadata_storage or allow default")
         self.metadata_storage = metadata_storage
-        self.initialize_metadata_database()
+        if initialize_metadata_storage:
+            self.initialize_metadata_database()
         self._local_module = DEFAULT_LOCAL_MODULE
         self.library = ComponentLibrary()
         self.storages = []
@@ -84,8 +90,22 @@ class Environment:
                 f"metadata storage expected a database, got {self.metadata_storage}"
             )
         conn = self.metadata_storage.get_api().get_engine()
-        BaseModel.metadata.create_all(conn)
+        # BaseModel.metadata.create_all(conn)
+        self.migrate_metdata_database(conn)
         self.Session = sessionmaker(bind=conn)
+
+    def get_alembic_config(self) -> Config:
+        dir_path = pathlib.Path(__file__).parent.absolute()
+        cfg_path = dir_path / "../migrations/alembic.ini"
+        alembic_cfg = Config(str(cfg_path))
+        alembic_cfg.set_main_option("sqlalchemy.url", self.metadata_storage.url)
+        return alembic_cfg
+
+    def migrate_metdata_database(self, conn: Connection = None):
+        alembic_cfg = self.get_alembic_config()
+        if conn is not None:
+            alembic_cfg.attributes["connection"] = conn
+        command.upgrade(alembic_cfg, "head")
 
     def _get_new_metadata_session(self) -> Session:
         sess = self.Session()

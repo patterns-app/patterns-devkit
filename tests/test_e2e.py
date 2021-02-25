@@ -10,6 +10,7 @@ import pytest
 from loguru import logger
 from pandas._testing import assert_almost_equal
 from snapflow.core.node import DataBlockLog, NodeState, PipeLog
+from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow import DataBlock, pipe, sql_pipe
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import PipeContext
@@ -24,7 +25,8 @@ logger.enable("snapflow")
 
 
 def test_example():
-    env = Environment(metadata_storage="sqlite://")
+    dburl = get_tmp_sqlite_db_url()
+    env = Environment(metadata_storage=dburl)
     g = Graph(env)
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
@@ -133,7 +135,7 @@ mixed_inputs_sql = sql_pipe(
 
 
 def get_env():
-    env = Environment(metadata_storage="sqlite://")
+    env = Environment(metadata_storage=get_tmp_sqlite_db_url())
     env.add_module(core)
     env.add_schema(Customer)
     env.add_schema(Metric)
@@ -246,3 +248,33 @@ def test_pipe_failure():
         assert pl.error is None
         ns = sess.query(NodeState).filter(NodeState.node_key == pl.node_key).first()
         assert ns.state == {"records_extracted": 6}
+
+
+def test_node_reset():
+    env = get_env()
+    g = Graph(env)
+    s = env._local_python_storage
+    # Initial graph
+    N = 2 * 4
+    source = g.create_node(customer_source, config={"total_records": N})
+    accum = g.create_node("core.dataframe_accumulator", upstream=source)
+    metrics = g.create_node(shape_metrics, upstream=accum)
+    # Run first time
+    produce(source, graph=g, target_storage=s, env=env)
+
+    # Now reset node
+    with env.session_scope() as sess:
+        state = source.get_state(sess)
+        assert state.state is not None
+        source.reset(sess)
+        state = source.get_state(sess)
+        assert state is None
+
+    output = produce(metrics, graph=g, target_storage=s, env=env)
+    records = output.as_records()
+    expected_records = [
+        {"metric": "row_count", "value": 4},  # Just one run of source, not two
+        {"metric": "col_count", "value": 3},
+    ]
+    assert records == expected_records
+

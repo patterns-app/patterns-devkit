@@ -9,6 +9,7 @@ from snapflow.core.module import SnapflowModule
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.streams import DataBlockStream
 from snapflow.schema.base import create_quick_schema
+from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.storage.storage import Storage, StorageClass, StorageEngine
 from snapflow.utils.common import rand_str
 from snapflow.utils.typing import T
@@ -32,22 +33,19 @@ TestSchema4 = create_quick_schema(
 
 def make_test_env(**kwargs) -> Environment:
     if "metadata_storage" not in kwargs:
-        url = "sqlite://"
+        url = get_tmp_sqlite_db_url()
         metadata_storage = Storage.from_url(url)
         kwargs["metadata_storage"] = metadata_storage
     env = Environment(**kwargs)
     test_module = SnapflowModule(
-        "_test",
-        schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
+        "_test", schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
     )
     env.add_module(test_module)
     return env
 
 
 def make_test_run_context(**kwargs) -> RunContext:
-    s = Storage.from_url(
-        url=f"python://_test_default_{rand_str(6)}",
-    )
+    s = Storage.from_url(url=f"python://_test_default_{rand_str(6)}",)
     env = make_test_env()
     g = Graph(env)
     args = dict(

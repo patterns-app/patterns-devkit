@@ -207,7 +207,11 @@ class RunContext:
 
         assert self.current_runtime is not None, "Runtime not set"
         with self.env.session_scope() as sess:
-            node_state = node.get_state(sess) or {}
+            node_state_obj = node.get_state(sess)
+            if node_state_obj is None:
+                node_state = {}
+            else:
+                node_state = node_state_obj.state
             new_graph_meta = node.graph.get_metadata_obj()
             graph_meta = sess.query(GraphMetadata).get(new_graph_meta.hash)
             if graph_meta is None:

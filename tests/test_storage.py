@@ -49,12 +49,7 @@ def test_storage_api():
 
 
 @pytest.mark.parametrize(
-    "url",
-    [
-        "sqlite://",
-        "postgresql://localhost",
-        "mysql://",
-    ],
+    "url", ["sqlite://", "postgresql://localhost", "mysql://",],
 )
 def test_database_api_core_operations(url):
     s: Storage = Storage.from_url(url)
@@ -75,10 +70,7 @@ def test_database_api_core_operations(url):
 
 
 @pytest.mark.parametrize(
-    "url",
-    [
-        f"file://{tempfile.mkdtemp()}",
-    ],
+    "url", [f"file://{tempfile.mkdtemp()}",],
 )
 def test_filesystem_api_core_operations(url):
     api: FileSystemStorageApi = Storage.from_url(url).get_api()
@@ -96,10 +88,7 @@ def test_filesystem_api_core_operations(url):
 
 
 @pytest.mark.parametrize(
-    "url",
-    [
-        "python://",
-    ],
+    "url", ["python://",],
 )
 def test_filesystem_api_core_operations(url):
     api: PythonStorageApi = Storage.from_url(url).get_api()
