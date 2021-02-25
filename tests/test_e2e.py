@@ -9,17 +9,16 @@ import pandas as pd
 import pytest
 from loguru import logger
 from pandas._testing import assert_almost_equal
-from snapflow.core.node import DataBlockLog, NodeState, PipeLog
-from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow import DataBlock, pipe, sql_pipe
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import PipeContext
 from snapflow.core.graph import Graph
+from snapflow.core.node import DataBlockLog, NodeState, PipeLog
 from snapflow.modules import core
 from snapflow.schema.base import create_quick_schema
 from snapflow.storage.data_formats import Records, RecordsIterator
+from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.storage.storage import new_local_python_storage
-
 
 logger.enable("snapflow")
 
@@ -277,4 +276,3 @@ def test_node_reset():
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
-

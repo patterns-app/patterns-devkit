@@ -5,8 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
 from io import IOBase
-from typing import Set, TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional
-from snapflow.schema.base import Schema
+from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Set
 
 import sqlalchemy
 from loguru import logger
@@ -29,6 +28,7 @@ from snapflow.core.pipe_interface import (
 )
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.storage import copy_lowest_cost
+from snapflow.schema.base import Schema
 from snapflow.storage.data_formats import DataFrameIterator, RecordsIterator
 from snapflow.storage.data_formats.base import DataFormat, SampleableIterator
 from snapflow.storage.data_records import (
@@ -370,7 +370,8 @@ class PipeContext:  # TODO: (Generic[C, S]):
         nominal_output_schema = schema
         if nominal_output_schema is None:
             nominal_output_schema = self.executable.bound_interface.resolve_nominal_output_schema(
-                self.run_context.env, self.execution_session.metadata_session,
+                self.run_context.env,
+                self.execution_session.metadata_session,
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
         logger.debug(
             f"Resolved output schema {nominal_output_schema} {self.executable.bound_interface}"
@@ -389,7 +390,6 @@ class PipeContext:  # TODO: (Generic[C, S]):
 
     def create_alias(self, sdb: StoredDataBlockMetadata) -> Optional[Alias]:
         self.execution_session.metadata_session.flush([sdb.data_block, sdb])
-        output_block = sdb.data_block
         alias = ensure_alias(
             self.execution_session.metadata_session, self.get_node(), sdb
         )
@@ -535,14 +535,17 @@ class ExecutionManager:
         pipe = node.pipe
         executable = Executable(
             node_key=node.key,
-            compiled_pipe=CompiledPipe(key=node.key, pipe=pipe,),
+            compiled_pipe=CompiledPipe(
+                key=node.key,
+                pipe=pipe,
+            ),
             # bound_interface=interface_mgr.get_bound_interface(),
             configuration=node.config or {},
         )
         return worker.execute(executable)
 
     def log_execution_result(self, result: ExecutionResult):
-        self.ctx.logger(INDENT + f"Inputs: ")
+        self.ctx.logger(INDENT + "Inputs: ")
         if result.input_blocks_processed:
             self.ctx.logger("\n")
             for input_name, cnt in result.input_blocks_processed.items():

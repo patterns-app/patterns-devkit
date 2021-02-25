@@ -1,14 +1,13 @@
 """Initial migration
 
 Revision ID: 8e9953e3605f
-Revises: 
+Revises:
 Create Date: 2021-02-23 18:35:40.827985
 
 """
-from alembic import op
-import sqlalchemy as sa
 import snapflow
-
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "8e9953e3605f"
@@ -72,7 +71,10 @@ def upgrade():
         sa.Column("started_at", sa.DateTime(), nullable=True),
         sa.Column("completed_at", sa.DateTime(), nullable=True),
         sa.Column("error", sa.JSON(), nullable=True),
-        sa.ForeignKeyConstraint(["graph_id"], ["_snapflow_graph_metadata.hash"],),
+        sa.ForeignKeyConstraint(
+            ["graph_id"],
+            ["_snapflow_graph_metadata.hash"],
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(
@@ -89,7 +91,8 @@ def upgrade():
             nullable=False,
         ),
         sa.ForeignKeyConstraint(
-            ["data_block_id"], ["_snapflow_data_block_metadata.id"],
+            ["data_block_id"],
+            ["_snapflow_data_block_metadata.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -101,10 +104,12 @@ def upgrade():
         sa.Column("data_block_id", sa.String(length=128), nullable=False),
         sa.Column("stored_data_block_id", sa.String(length=128), nullable=False),
         sa.ForeignKeyConstraint(
-            ["data_block_id"], ["_snapflow_data_block_metadata.id"],
+            ["data_block_id"],
+            ["_snapflow_data_block_metadata.id"],
         ),
         sa.ForeignKeyConstraint(
-            ["stored_data_block_id"], ["_snapflow_stored_data_block_metadata.id"],
+            ["stored_data_block_id"],
+            ["_snapflow_stored_data_block_metadata.id"],
         ),
         sa.PrimaryKeyConstraint("alias"),
     )
@@ -122,9 +127,13 @@ def upgrade():
         ),
         sa.Column("processed_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(
-            ["data_block_id"], ["_snapflow_data_block_metadata.id"],
+            ["data_block_id"],
+            ["_snapflow_data_block_metadata.id"],
         ),
-        sa.ForeignKeyConstraint(["pipe_log_id"], ["_snapflow_pipe_log.id"],),
+        sa.ForeignKeyConstraint(
+            ["pipe_log_id"],
+            ["_snapflow_pipe_log.id"],
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     # ### end Alembic commands ###

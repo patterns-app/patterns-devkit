@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import enum
-from operator import and_
 import traceback
 from dataclasses import dataclass, field
+from operator import and_
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from loguru import logger
@@ -120,7 +120,9 @@ def node(
 
 
 def instantiate_node(
-    env: Environment, graph: Graph, declared_node: DeclaredNode,
+    env: Environment,
+    graph: Graph,
+    declared_node: DeclaredNode,
 ):
     if isinstance(declared_node.pipe, str):
         pipe = env.get_pipe(declared_node.pipe)
@@ -261,7 +263,10 @@ class NodeState(BaseModel):
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(node_key=self.node_key, state=self.state,)
+        return self._repr(
+            node_key=self.node_key,
+            state=self.state,
+        )
 
 
 def get_state(sess: Session, node_key: str) -> Optional[Dict]:

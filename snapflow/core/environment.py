@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import logging
-import pathlib
 import os
+import pathlib
 from contextlib import contextmanager
 from dataclasses import asdict
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Tuple, Union
-from sqlalchemy.exc import ProgrammingError
 
 import strictyaml
-from alembic.config import Config
 from alembic import command
+from alembic.config import Config
 from loguru import logger
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
@@ -19,6 +18,7 @@ from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.schema.base import GeneratedSchema, Schema, SchemaLike
 from snapflow.storage.storage import DatabaseStorageClass, PythonStorageClass
 from sqlalchemy.engine.base import Connection
+from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session, sessionmaker
 
 if TYPE_CHECKING:
