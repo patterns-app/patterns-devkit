@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Callable, Iterator, List, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Callable, Dict, Iterator, List, Optional, Tuple, Type
 
 import sqlalchemy
 from loguru import logger
@@ -24,11 +24,11 @@ if TYPE_CHECKING:
     pass
 
 
-_sa_engines: List[Engine] = []
+_sa_engines: Dict[str, Engine] = {}
 
 
 def dispose_all(keyword: Optional[str] = None):
-    for e in _sa_engines:
+    for k, e in _sa_engines.items():
         if keyword:
             if keyword not in str(e.url):
                 continue
@@ -49,15 +49,21 @@ class DatabaseApi:
         )
         self.eng: Optional[sqlalchemy.engine.Engine] = None
 
+    def _get_engine_key(self) -> str:
+        return f"{self.url}_{self.json_serializer.__class__.__name__}"
+
     def get_engine(self) -> sqlalchemy.engine.Engine:
         if self.eng is not None:
             return self.eng
+        key = self._get_engine_key()
+        if key in _sa_engines:
+            return _sa_engines[key]
         self.eng = sqlalchemy.create_engine(
             self.url,
             json_serializer=self.json_serializer,
             echo=False,
         )
-        _sa_engines.append(self.eng)
+        _sa_engines[key] = self.eng
         return self.eng
 
     def dialect_is_supported(self) -> bool:

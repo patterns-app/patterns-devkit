@@ -100,6 +100,7 @@ def test_accumulator():
             with produce_pipe_output_for_static_input(
                 p, input=data_input, target_storage=s
             ) as db:
+                assert db is not None
                 logger.debug(db)
                 logger.debug("TEST df conversion")
                 expected_df = DataInput(

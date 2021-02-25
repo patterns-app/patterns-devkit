@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 from collections.abc import Iterable
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -306,14 +307,7 @@ def get_sqlalchemy_type_for_python_objects(objects: Iterable[Any]) -> str:
     return dom_type
 
 
-def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
-    if obj is None:
-        return None
-    try:
-        if not isinstance(obj, Iterable) and not isinstance(obj, dict) and pd.isna(obj):
-            return None
-    except ValueError:
-        pass
+def _cast_satype(satype: str, obj: Any) -> Any:
     ft = satype.lower()
     if ft.startswith("datetime"):
         return ensure_datetime(obj)
@@ -343,6 +337,29 @@ def cast_python_object_to_sqlalchemy_type(obj: Any, satype: str) -> Any:
             return read_json(obj)
         else:
             return obj
+    raise NotImplementedError
+
+
+def cast_python_object_to_sqlalchemy_type(
+    obj: Any, satype: str, ignore_error_as_null: bool = True
+) -> Any:
+    if obj is None:
+        return None
+    try:
+        if not isinstance(obj, Iterable) and not isinstance(obj, dict) and pd.isna(obj):
+            return None
+    except ValueError:
+        # isna() throws ValueError
+        pass
+    try:
+        return _cast_satype(satype, obj)
+    except Exception:
+        logger.error(
+            f"Error casting python object ({obj}) to type {satype}: {traceback.format_exc()}"
+        )
+        # TODO: Make this configurable
+        if ignore_error_as_null:
+            return None
     raise NotImplementedError
 
 

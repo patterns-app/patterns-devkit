@@ -3,6 +3,7 @@ from __future__ import annotations
 import enum
 import traceback
 from dataclasses import dataclass, field
+from operator import and_
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from loguru import logger
@@ -15,12 +16,13 @@ from snapflow.core.pipe_interface import (
     DeclaredStreamLikeInput,
     PipeInterface,
 )
+from snapflow.storage.storage import SqliteStorageEngine
 from snapflow.utils.common import as_identifier
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.schema import Column, ForeignKey
-from sqlalchemy.sql.sqltypes import JSON, DateTime, Enum, Integer, String
+from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
 if TYPE_CHECKING:
     from snapflow.core.execution import RunContext
@@ -175,11 +177,8 @@ class Node:
     def __hash__(self):
         return hash(self.key)
 
-    def get_state(self, sess: Session) -> Optional[Dict]:
-        state = sess.query(NodeState).filter(NodeState.node_key == self.key).first()
-        if state:
-            return state.state
-        return None
+    def get_state(self, sess: Session) -> Optional[NodeState]:
+        return sess.query(NodeState).filter(NodeState.node_key == self.key).first()
 
     def get_alias(self) -> str:
         if self.output_alias:
@@ -218,6 +217,45 @@ class Node:
         if block is None:
             return None
         return block.as_managed_data_block(ctx, sess)
+
+    def _reset_state(self, sess: Session):
+        """
+        Resets the node's state only.
+        This is usually not something you want to do by itself, but
+        instead as part of a full reset.
+        """
+        state = self.get_state(sess)
+        sess.delete(state)
+
+    def _invalidate_output_datablocks(self, sess: Session):
+        """
+        TODO: would be better to invalidate / deactivate here than to actually delete?
+        We're orphaning datablocks this way.
+        """
+        dbl_ids = [
+            r[0]
+            for r in sess.query(DataBlockLog.id)
+            .join(PipeLog)
+            .filter(
+                PipeLog.node_key == self.key, DataBlockLog.direction == Direction.OUTPUT
+            )
+            .all()
+        ]
+        sess.query(DataBlockLog).filter(DataBlockLog.id.in_(dbl_ids)).update(
+            {"invalidated": True}, synchronize_session=False
+        )
+
+    def reset(self, sess: Session):
+        """
+        Resets the node, meaning all state is cleared, and all OUTPUT datablock
+        logs are invalidated. Output datablocks are NOT deleted.
+        NB: If downstream nodes have already processed an output datablock,
+        this will have no effect on them.
+        TODO: consider "cascading reset" for downstream recursive pipes (which will still have
+        accumulated output from this node)
+        """
+        self._reset_state(sess)
+        self._invalidate_output_datablocks(sess)
 
 
 class NodeState(BaseModel):
@@ -323,6 +361,7 @@ class DataBlockLog(BaseModel):
     )
     direction = Column(Enum(Direction, native_enum=False), nullable=False)
     processed_at = Column(DateTime, default=func.now(), nullable=False)
+    invalidated = Column(Boolean, default=False)
     # Hints
     data_block: "DataBlockMetadata"
     pipe_log: PipeLog

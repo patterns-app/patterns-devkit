@@ -170,6 +170,7 @@ ERROR = "_ERROR"
         ("Boolean", 1, True),
         ("Boolean", 0, False),
         ("Boolean", "Hi", ERROR),
+        ("Boolean", "Hi", None),  # If we ignore the error, it should be null
         ("Date", "2020-01-01", date(2020, 1, 1)),
         ("Date", "2020-01-01 00:00:00", date(2020, 1, 1)),
         ("Date", "Hi", ERROR),
@@ -181,7 +182,9 @@ ERROR = "_ERROR"
 def test_value_casting(satype, obj, expected):
     if expected == ERROR:
         with pytest.raises(Exception):
-            cast_python_object_to_sqlalchemy_type(obj, satype)
+            cast_python_object_to_sqlalchemy_type(
+                obj, satype, ignore_error_as_null=False
+            )
     else:
         assert cast_python_object_to_sqlalchemy_type(obj, satype) == expected
 

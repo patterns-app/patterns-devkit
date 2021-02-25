@@ -23,7 +23,7 @@ from typing import (
 
 from loguru import logger
 from pandas import Timestamp, isnull
-from snapflow.utils.common import SnapflowJSONEncoder
+from snapflow.utils.common import SnapflowJSONEncoder, title_to_snake_case
 from snapflow.utils.typing import T
 from sqlalchemy.engine.result import ResultProxy
 
@@ -42,12 +42,14 @@ def records_as_dict_of_lists(dl: List[Dict]) -> Dict[str, List]:
     return series
 
 
-def is_nullish(o: Any, null_strings=["None", "null", "na", ""]) -> bool:
+def is_nullish(
+    o: Any, null_strings=["None", "null", "na", "", "NULL", "NA", "N/A"]
+) -> bool:
     # TOOD: is "na" too aggressive?
     if o is None:
         return True
     if isinstance(o, str):
-        if o.lower() in null_strings:
+        if o in null_strings:
             return True
     if isinstance(o, Iterable):
         # No basic python object is "nullish", even if empty
@@ -67,10 +69,18 @@ class SnapflowCsvDialect(csv.Dialect):
     lineterminator = "\n"
 
 
-def process_csv_value(v: Any) -> Any:
+def process_raw_value(v: Any) -> Any:
     if is_nullish(v):
         return None
     return v
+
+
+def clean_record(
+    record: Dict[str, Any], ensure_keys_snake_case: bool = True
+) -> Dict[str, Any]:
+    if ensure_keys_snake_case:
+        return {title_to_snake_case(k): process_raw_value(v) for k, v in record.items()}
+    return {k: process_raw_value(v) for k, v in record.items()}
 
 
 def ensure_strings(i: Iterator[AnyStr]) -> Iterator[str]:
@@ -116,7 +126,7 @@ def read_csv(lines: Iterable[AnyStr], dialect=SnapflowCsvDialect) -> Iterator[Di
     except StopIteration:
         return
     for line in reader:
-        yield {h: process_csv_value(v) for h, v in zip(headers, line)}
+        yield {h: process_raw_value(v) for h, v in zip(headers, line)}
 
 
 def read_raw_string_csv(csv_str: str, **kwargs) -> Iterator[Dict]:
@@ -124,7 +134,7 @@ def read_raw_string_csv(csv_str: str, **kwargs) -> Iterator[Dict]:
     return read_csv(lines, **kwargs)
 
 
-def conform_csv_value(v: Any) -> Any:
+def conform_to_csv_value(v: Any) -> Any:
     if v is None:
         return ""
     if isinstance(v, list) or isinstance(v, dict):
@@ -151,7 +161,7 @@ def write_csv(
         row = []
         for c in columns:
             v = record.get(c)
-            v = conform_csv_value(v)
+            v = conform_to_csv_value(v)
             row.append(v)
         writer.writerow(row)
 

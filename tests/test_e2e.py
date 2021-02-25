@@ -13,14 +13,19 @@ from snapflow import DataBlock, pipe, sql_pipe
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import PipeContext
 from snapflow.core.graph import Graph
+from snapflow.core.node import DataBlockLog, NodeState, PipeLog
 from snapflow.modules import core
 from snapflow.schema.base import create_quick_schema
 from snapflow.storage.data_formats import Records, RecordsIterator
+from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.storage.storage import new_local_python_storage
+
+logger.enable("snapflow")
 
 
 def test_example():
-    env = Environment(metadata_storage="sqlite://")
+    dburl = get_tmp_sqlite_db_url()
+    env = Environment(metadata_storage=dburl)
     g = Graph(env)
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
@@ -55,9 +60,13 @@ def aggregate_metrics(i1: DataBlock) -> Records[Metric]:
     ]
 
 
+FAIL_MSG = "Failure triggered"
+
+
 @pipe
 def customer_source(ctx: PipeContext) -> RecordsIterator[Customer]:
     N = ctx.get_config_value("total_records")
+    fail = ctx.get_config_value("fail")
     n = ctx.get_state_value("records_extracted", 0)
     if n >= N:
         return
@@ -74,6 +83,9 @@ def customer_source(ctx: PipeContext) -> RecordsIterator[Customer]:
             n += 1
         yield records
         ctx.emit_state_value("records_extracted", n)
+        if fail:
+            # Fail AFTER yielding one record set
+            raise Exception(FAIL_MSG)
         if n >= N:
             return
 
@@ -122,7 +134,7 @@ mixed_inputs_sql = sql_pipe(
 
 
 def get_env():
-    env = Environment(metadata_storage="sqlite://")
+    env = Environment(metadata_storage=get_tmp_sqlite_db_url())
     env.add_module(core)
     env.add_schema(Customer)
     env.add_schema(Metric)
@@ -142,7 +154,7 @@ def test_repeated_runs():
     assert output.nominal_schema_key.endswith("Metric")
     records = output.as_records()
     expected_records = [
-        {"metric": "row_count", "value": 4},
+        {"metric": "row_count", "value": 2},  # Just the latest block
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
@@ -185,7 +197,82 @@ def test_alternate_apis():
     assert output.nominal_schema_key.endswith("Metric")
     records = output.as_records()
     expected_records = [
-        {"metric": "row_count", "value": 4},
+        {"metric": "row_count", "value": 2},  # Just the last block
+        {"metric": "col_count", "value": 3},
+    ]
+    assert records == expected_records
+
+
+def test_pipe_failure():
+    env = get_env()
+    g = Graph(env)
+    s = env._local_python_storage
+    # Initial graph
+    N = 2 * 4
+    cfg = {"total_records": N, "fail": True}
+    source = g.create_node(customer_source, config=cfg)
+    output = produce(source, graph=g, target_storage=s, env=env)
+    assert output is not None
+    records = output.as_records()
+    assert len(records) == 2
+    with env.session_scope() as sess:
+        assert sess.query(PipeLog).count() == 1
+        assert sess.query(DataBlockLog).count() == 1
+        pl = sess.query(PipeLog).first()
+        assert pl.node_key == source.key
+        assert pl.graph_id == g.get_metadata_obj().hash
+        assert pl.node_start_state == {}
+        assert pl.node_end_state == {"records_extracted": 2}
+        assert pl.pipe_key == source.pipe.key
+        assert pl.pipe_config == cfg
+        assert pl.error is not None
+        assert FAIL_MSG in pl.error["error"]
+        ns = sess.query(NodeState).filter(NodeState.node_key == pl.node_key).first()
+        assert ns.state == {"records_extracted": 2}
+
+    source.config["fail"] = False
+    output = produce(source, graph=g, target_storage=s, env=env)
+    records = output.as_records()
+    assert len(records) == 2
+    with env.session_scope() as sess:
+        assert sess.query(PipeLog).count() == 2
+        assert sess.query(DataBlockLog).count() == 3
+        pl = sess.query(PipeLog).order_by(PipeLog.completed_at.desc()).first()
+        assert pl.node_key == source.key
+        assert pl.graph_id == g.get_metadata_obj().hash
+        assert pl.node_start_state == {"records_extracted": 2}
+        assert pl.node_end_state == {"records_extracted": 6}
+        assert pl.pipe_key == source.pipe.key
+        assert pl.pipe_config == cfg
+        assert pl.error is None
+        ns = sess.query(NodeState).filter(NodeState.node_key == pl.node_key).first()
+        assert ns.state == {"records_extracted": 6}
+
+
+def test_node_reset():
+    env = get_env()
+    g = Graph(env)
+    s = env._local_python_storage
+    # Initial graph
+    N = 2 * 4
+    source = g.create_node(customer_source, config={"total_records": N})
+    accum = g.create_node("core.dataframe_accumulator", upstream=source)
+    metrics = g.create_node(shape_metrics, upstream=accum)
+    # Run first time
+    produce(source, graph=g, target_storage=s, env=env)
+
+    # Now reset node
+    with env.session_scope() as sess:
+        state = source.get_state(sess)
+        assert state.state is not None
+        source.reset(sess)
+        state = source.get_state(sess)
+        assert state is None
+
+    output = produce(metrics, graph=g, target_storage=s, env=env)
+    records = output.as_records()
+    expected_records = [
+        {"metric": "row_count", "value": 4},  # Just one run of source, not two
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
