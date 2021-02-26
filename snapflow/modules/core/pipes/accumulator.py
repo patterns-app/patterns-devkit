@@ -21,8 +21,7 @@ from snapflow.utils.typing import T
 
 @pipe("dataframe_accumulator", module="core")
 def dataframe_accumulator(
-    input: Stream[T],
-    this: Optional[DataBlock[T]] = None,
+    input: Stream[T], this: Optional[DataBlock[T]] = None,
 ) -> DataFrame[T]:
     # TODO: make this return a dataframe iterator right?
     accumulated_dfs = [block.as_dataframe() for block in input]
@@ -48,8 +47,9 @@ sql_accumulator = sql_pipe(
     {% endif %}
     {% endfor %}
     """,
-    inputs={"this": "DataBlock[T]", "input": "Stream[T]"},
-    output="DataBlock[T]",
+    # TODO FIXME
+    # inputs={"this": "DataBlock[T]", "input": "Stream[T]"},
+    # output="DataBlock[T]",
 )
 
 

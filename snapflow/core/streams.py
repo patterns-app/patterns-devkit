@@ -127,16 +127,10 @@ class StreamBuilder:
     def filter_unprocessed(
         self, unprocessed_by: Node, allow_cycle=False
     ) -> StreamBuilder:
-        return self.clone(
-            unprocessed_by=unprocessed_by,
-            allow_cycle=allow_cycle,
-        )
+        return self.clone(unprocessed_by=unprocessed_by, allow_cycle=allow_cycle,)
 
     def _filter_unprocessed(
-        self,
-        ctx: RunContext,
-        sess: Session,
-        query: Query,
+        self, ctx: RunContext, sess: Session, query: Query,
     ) -> Query:
         if not self.unprocessed_by:
             return query
@@ -166,16 +160,9 @@ class StreamBuilder:
         return [g.get_node(c) for c in nodes]
 
     def filter_upstream(self, upstream: Union[Node, List[Node]]) -> StreamBuilder:
-        return self.clone(
-            upstream=ensure_list(upstream),
-        )
+        return self.clone(upstream=ensure_list(upstream),)
 
-    def _filter_upstream(
-        self,
-        ctx: RunContext,
-        sess: Session,
-        query: Query,
-    ) -> Query:
+    def _filter_upstream(self, ctx: RunContext, sess: Session, query: Query,) -> Query:
         if not self.nodes:
             return query
         eligible_input_drs = (
@@ -245,11 +232,7 @@ class StreamBuilder:
         return self.clone(operators=(self.get_operators() + [op]))
 
     def is_unprocessed(
-        self,
-        ctx: RunContext,
-        sess: Session,
-        block: DataBlockMetadata,
-        node: Node,
+        self, ctx: RunContext, sess: Session, block: DataBlockMetadata, node: Node,
     ) -> bool:
         blocks = self.filter_unprocessed(node)
         q = blocks.get_query(ctx, sess)
@@ -307,23 +290,31 @@ class ManagedDataBlockStream:
         self.sess = sess
         self.declared_schema = declared_schema
         self.declared_schema_translation = declared_schema_translation
-        self._blocks: List[DataBlock] = list(self._build_stream(stream_builder))
-        self._stream: Iterator[DataBlock] = self.log_emitted(self._blocks)
-        self._emitted_blocks: List[DataBlockMetadata] = []
-        self._emitted_managed_blocks: List[DataBlock] = []
+        self._stream_builder = stream_builder
+        self._stream: Optional[Iterator[DataBlock]] = None
+        # self._build_stream()
+        # self._blocks: List[DataBlock] = list(self._build_stream(stream_builder))
+        # self._stream: Iterator[DataBlock] = self.log_emitted(self._blocks)
+        # self._emitted_blocks: List[DataBlockMetadata] = []
+        # self._emitted_managed_blocks: List[DataBlock] = []
 
-    def _build_stream(self, stream_builder: StreamBuilder) -> Iterator[DataBlock]:
-        query = stream_builder.get_query(self.ctx, self.sess)
+    def _build_stream(self):
+        query = self._stream_builder.get_query(self.ctx, self.sess)
         stream = (b for b in query)
-        stream = self.as_managed_block(stream)
-        for op in stream_builder.get_operators():
-            stream = op.op_callable(stream, **op.kwargs)
-        return stream
+        self._stream = self.as_managed_block(stream)
+        for op in self._stream_builder.get_operators():
+            self._stream = op.op_callable(self._stream, **op.kwargs)
 
     def __iter__(self) -> Iterator[DataBlock]:
+        if self._stream is None:
+            self._build_stream()
+        assert self._stream is not None
         return self._stream
 
     def __next__(self) -> DataBlock:
+        if self._stream is None:
+            self._build_stream()
+        assert self._stream is not None
         return next(self._stream)
 
     def as_managed_block(
@@ -345,24 +336,33 @@ class ManagedDataBlockStream:
             )
             yield mdb
 
-    @property
-    def all_blocks(self) -> List[DataBlock]:
-        return self._blocks
+    def consume(self) -> DataBlock:
+        db = next(self)
+        self.log_emitted(db)
+        return db
 
-    def count(self) -> int:
-        return len(self._blocks)
+    def reference(self) -> DataBlock:
+        self = self.latest()
+        db = next(self)
+        # DO NOT log, just reference
+        # WELL, we need to log, but as a
+        return db
 
-    def log_emitted(self, stream: Iterator[DataBlock]) -> Iterator[DataBlock]:
-        for mdb in stream:
-            self._emitted_blocks.append(mdb.data_block_metadata)
-            self._emitted_managed_blocks.append(mdb)
-            yield mdb
+    def latest(self) -> ManagedDataBlockStream:
+        from snapflow.core import operators
 
-    def get_emitted_blocks(self) -> List[DataBlockMetadata]:
-        return self._emitted_blocks
+        self.apply(operators.latest)  # Idempotent, so fine if latest already applied
+        return self
 
-    def get_emitted_managed_blocks(self) -> List[DataBlock]:
-        return self._emitted_managed_blocks
+    def next(self) -> ManagedDataBlockStream:
+        # This is no op, since it is default behavior
+        return self
+
+    def apply(self, operator: Operator, **kwargs):
+        if self._stream is not None:
+            raise Exception("Cannot apply operator after iterating stream")
+        bound = BoundOperator(op_callable=operator.op_callable, kwargs=kwargs)
+        self._stream_builder = self._stream_builder.apply_operator(bound)
 
 
 DataBlockStream = Iterator[DataBlock]

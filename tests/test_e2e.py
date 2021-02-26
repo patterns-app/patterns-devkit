@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from datetime import datetime
 from pprint import pprint
-from typing import Generator
+from typing import Generator, Optional
 
 import pandas as pd
 import pytest
@@ -23,17 +23,6 @@ from snapflow.storage.storage import new_local_python_storage
 logger.enable("snapflow")
 
 
-def test_example():
-    dburl = get_tmp_sqlite_db_url()
-    env = Environment(metadata_storage=dburl)
-    g = Graph(env)
-    env.add_module(core)
-    df = pd.DataFrame({"a": range(10), "b": range(10)})
-    g.create_node(key="n1", pipe="extract_dataframe", config={"dataframe": df})
-    output = env.produce("n1", g)
-    assert_almost_equal(output.as_dataframe(), df)
-
-
 Customer = create_quick_schema(
     "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "JSON")]
 )
@@ -51,13 +40,54 @@ def shape_metrics(i1: DataBlock) -> Records[Metric]:
     ]
 
 
+@pipe(autoconsume=True)
+@input(name="symbols", reference=True, schema="Schema", required=True)
+@input(name="", reference=True, schema="Schema", required=False)
+@output()
+def prices(symbols: DataBlock) -> Records[Price]:
+    """
+    Is stale: when symbols updates
+    Needs reference dataset: symbols latest always
+    """
+    df = symbols.as_dataframe()
+    return prices_for_symbols(symbols)
+
+
+@input(name="symbols", reference=True, schema="Schema", required=True)
+@input(name="", reference=True, schema="Schema", required=False)
+def add_fundamentals(
+    prices: DataBlock[Price], fundamentals: Datablock[Fundamentals]
+) -> DataFrame[Extend[Price, Fundamentals]]:
+    """
+    Is stale: when new unseen fundamentals OR prices
+    Needs reference dataset: fundamentals latest always
+    Needs to process all just once (consume): prices
+    THESE SEMANTICS ARE DETERMINED BY THE PIPE! so should be specified here
+    """
+    prices_df = prices.as_dataframe()
+    fundamentals_df = fundamentals.as_dataframe()
+    return prices_df.merge(fundamentals_df, on="symbol")
+
+
 @pipe
-def aggregate_metrics(i1: DataBlock) -> Records[Metric]:
+def aggregate_metrics(
+    i1: DataBlock, this: Optional[DataBlock] = None
+) -> Records[Metric]:
+    if this is not None:
+        metrics = this.as_records()
+    else:
+        metrics = [
+            {"metric": "row_count", "value": 0},
+            {"metric": "blocks", "value": 0},
+        ]
     df = i1.as_dataframe()
-    return [
-        {"metric": "row_count", "value": len(df)},
-        {"metric": "col_count", "value": len(df.columns)},
-    ]
+    rows = len(df)
+    for m in metrics:
+        if m["metric"] == "row_count":
+            m["value"] += rows
+        if m["metric"] == "blocks":
+            m["value"] += 1
+    return metrics
 
 
 FAIL_MSG = "Failure triggered"
@@ -139,6 +169,17 @@ def get_env():
     env.add_schema(Customer)
     env.add_schema(Metric)
     return env
+
+
+def test_simple_extract():
+    dburl = get_tmp_sqlite_db_url()
+    env = Environment(metadata_storage=dburl)
+    g = Graph(env)
+    env.add_module(core)
+    df = pd.DataFrame({"a": range(10), "b": range(10)})
+    g.create_node(key="n1", pipe="extract_dataframe", config={"dataframe": df})
+    output = env.produce("n1", g)
+    assert_almost_equal(output.as_dataframe(), df)
 
 
 def test_repeated_runs():

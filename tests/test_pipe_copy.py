@@ -1,0 +1,392 @@
+from __future__ import annotations
+from snapflow.core.new_pipe_interface import (
+    DeclaredInput,
+    DeclaredOutput,
+    ParsedAnnotation,
+    make_default_output,
+    parse_annotation,
+    pipe_interface_from_callable,
+)
+
+from typing import Callable
+
+import pytest
+from pandas import DataFrame
+from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.execution import PipeContext
+from snapflow.core.graph import Graph, graph
+from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
+from snapflow.core.node import DeclaredNode, node
+from snapflow.core.pipe import Pipe, DeclaredPipeInterface, PipeLike, pipe
+from snapflow.core.pipe_interface import (
+    NodeInterfaceManager,
+    get_schema_translation,
+    make_default_output_annotation,
+)
+from snapflow.core.streams import StreamBuilder, block_as_stream
+from snapflow.modules import core
+from snapflow.utils.typing import T, U
+from tests.utils import (
+    TestSchema1,
+    make_test_env,
+    make_test_run_context,
+    pipe_chain_t1_to_t2,
+    pipe_generic,
+    pipe_multiple_input,
+    pipe_self,
+    pipe_stream,
+    pipe_t1_sink,
+    pipe_t1_source,
+    pipe_t1_to_t2,
+)
+
+context_input = DeclaredInput(
+    name="ctx",
+    schema_like="Any",
+    data_format="PipeContext",
+    reference=False,
+    required=True,
+    from_self=False,
+    stream=False,
+    context=True,
+)
+
+
+@pytest.mark.parametrize(
+    "annotation,expected",
+    [
+        (
+            "DataBlock[Type]",
+            ParsedAnnotation(
+                data_format_class="DataBlock",
+                schema_like="Type",
+                is_optional=False,
+                original_annotation="DataBlock[Type]",
+            ),
+        ),
+        (
+            "Optional[DataBlock[Type]]",
+            ParsedAnnotation(
+                data_format_class="DataBlock",
+                schema_like="Type",
+                is_optional=True,
+                original_annotation="Optional[DataBlock[Type]]",
+            ),
+        ),
+        (
+            "DataFrame[Type]",
+            ParsedAnnotation(
+                data_format_class="DataFrame",
+                schema_like="Type",
+                is_optional=False,
+                original_annotation="DataFrame[Type]",
+            ),
+        ),
+        (
+            "DataBlock[T]",
+            ParsedAnnotation(
+                data_format_class="DataBlock",
+                schema_like="T",
+                is_optional=False,
+                original_annotation="DataBlock[T]",
+            ),
+        ),
+        (
+            "DataBlockStream[Type]",
+            ParsedAnnotation(
+                data_format_class="DataBlockStream",
+                schema_like="Type",
+                is_optional=False,
+                original_annotation="DataBlockStream[Type]",
+            ),
+        ),
+    ],
+)
+def test_typed_annotation(annotation: str, expected: ParsedAnnotation):
+    tda = parse_annotation(annotation)
+    assert tda == expected
+
+
+def pipe_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
+    # Bad args
+    pass
+
+
+def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
+    pass
+
+
+@pytest.mark.parametrize(
+    "pipe_like,expected",
+    [
+        (
+            pipe_t1_sink,
+            DeclaredPipeInterface(
+                inputs=[
+                    context_input,
+                    DeclaredInput(
+                        data_format="DataBlock",
+                        schema_like="TestSchema1",
+                        name="input",
+                        required=True,
+                    ),
+                ],
+                output=make_default_output(),
+            ),
+        ),
+        (
+            pipe_t1_to_t2,
+            DeclaredPipeInterface(
+                inputs=[
+                    DeclaredInput(
+                        data_format="DataBlock",
+                        schema_like="TestSchema1",
+                        name="input",
+                        required=True,
+                    ),
+                ],
+                output=DeclaredOutput(
+                    data_format="DataFrame", schema_like="TestSchema2",
+                ),
+            ),
+        ),
+        (
+            pipe_generic,
+            DeclaredPipeInterface(
+                inputs=[
+                    DeclaredInput(
+                        data_format="DataBlock",
+                        schema_like="T",
+                        name="input",
+                        required=True,
+                    ),
+                ],
+                output=DeclaredOutput(data_format="DataFrame", schema_like="T",),
+            ),
+        ),
+        (
+            pipe_self,
+            DeclaredPipeInterface(
+                inputs=[
+                    DeclaredInput(
+                        data_format="DataBlock",
+                        schema_like="T",
+                        name="input",
+                        required=True,
+                    ),
+                    DeclaredInput(
+                        data_format="DataBlock",
+                        schema_like="T",
+                        name="this",
+                        required=False,
+                        from_self=True,
+                        reference=True,
+                    ),
+                ],
+                output=DeclaredOutput(data_format="DataFrame", schema_like="T",),
+            ),
+        ),
+    ],
+)
+def test_pipe_interface(pipe_like: PipeLike, expected: DeclaredPipeInterface):
+    env = make_test_env()
+    p = pipe(pipe_like)
+    val = p.get_interface()
+    assert set(val.inputs) == set(expected.inputs)
+    assert val.output == expected.output
+    # node = DeclaredNode(key="_test", pipe=pipe, upstream={"input": "mock"}).instantiate(
+    #     env
+    # )
+    # assert node.get_interface() == expected
+
+
+def test_generic_schema_resolution():
+    ec = make_test_run_context()
+    env = ec.env
+    g = Graph(env)
+    n1 = g.create_node(key="node1", pipe=pipe_generic, upstream="n0")
+    # pi = n1.get_interface()
+    with env.session_scope() as sess:
+        im = NodeInterfaceManager(ctx=ec, sess=sess, node=n1)
+        block = DataBlockMetadata(
+            nominal_schema_key="_test.TestSchema1",
+            realized_schema_key="_test.TestSchema2",
+        )
+        sess.add(block)
+        sess.flush([block])
+        stream = block_as_stream(block, ec, sess)
+        bi = im.get_bound_interface({"input": stream})
+        assert len(bi.inputs) == 1
+        assert bi.resolve_nominal_output_schema(env, sess) is TestSchema1
+
+
+def test_declared_schema_translation():
+    ec = make_test_run_context()
+    env = ec.env
+    g = Graph(env)
+    translation = {"f1": "mapped_f1"}
+    n1 = g.create_node(
+        key="node1", pipe=pipe_t1_to_t2, upstream="n0", schema_translation=translation
+    )
+    pi = n1.get_interface()
+    # im = NodeInterfaceManager(ctx=ec, node=n1)
+    block = DataBlockMetadata(
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+    )
+    # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
+    # bi = im.get_bound_stream_interface({"input": stream})
+    # assert len(bi.inputs) == 1
+    # input: StreamInput = bi.inputs[0]
+    with env.session_scope() as sess:
+        schema_translation = get_schema_translation(
+            env,
+            sess,
+            block.realized_schema(env, sess),
+            target_schema=pi.inputs[0].schema(env, sess),
+            declared_schema_translation=translation,
+        )
+        assert schema_translation.as_dict() == translation
+
+
+def test_natural_schema_translation():
+    # TODO
+    ec = make_test_run_context()
+    env = ec.env
+    g = Graph(env)
+    translation = {"f1": "mapped_f1"}
+    n1 = g.create_node(
+        key="node1", pipe=pipe_t1_to_t2, upstream="n0", schema_translation=translation
+    )
+    pi = n1.get_interface()
+    # im = NodeInterfaceManager(ctx=ec, node=n1)
+    block = DataBlockMetadata(
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+    )
+    with env.session_scope() as sess:
+        schema_translation = get_schema_translation(
+            env,
+            sess,
+            block.realized_schema(env, sess),
+            target_schema=pi.inputs[0].schema(env, sess),
+            declared_schema_translation=translation,
+        )
+        assert schema_translation.as_dict() == translation
+    # bpi = im.get_bound_stream_interface({"input": block})
+    # assert len(bpi.inputs) == 1
+    # input = bpi.inputs[0]
+    # schema_translation = input.get_schema_translation(env)
+    # assert schema_translation.as_dict() == translation
+
+
+def test_inputs():
+    ec = make_test_run_context()
+    env = ec.env
+    g = graph()
+    n1 = g.create_node(pipe=pipe_t1_source)
+    n2 = g.create_node(pipe=pipe_t1_to_t2, upstream={"input": n1})
+    pi = n2.instantiate(env).get_interface()
+    assert pi is not None
+    n4 = g.create_node(pipe=pipe_multiple_input)
+    n4.set_upstream({"input": n1})
+    pi = n4.instantiate(env).get_interface()
+    assert pi is not None
+
+    ec.graph = g.instantiate(env)
+    with env.session_scope() as sess:
+        im = NodeInterfaceManager(ctx=ec, sess=sess, node=n1.instantiate(env))
+        bi = im.get_bound_interface()
+        assert bi is not None
+        im = NodeInterfaceManager(ctx=ec, sess=sess, node=n4.instantiate(env))
+        db = DataBlockMetadata(
+            nominal_schema_key="_test.TestSchema1",
+            realized_schema_key="_test.TestSchema1",
+        )
+        sess.add(db)
+        bi = im.get_bound_interface(
+            {"input": StreamBuilder().as_managed_stream(ec, sess)}
+        )
+        assert bi is not None
+
+
+def test_python_pipe():
+    p = pipe(pipe_t1_sink)
+    assert (
+        p.name == pipe_t1_sink.__name__
+    )  # TODO: do we really want this implicit name? As long as we error on duplicate should be ok
+
+    k = "name1"
+    p = pipe(pipe_t1_sink, name=k)
+    assert p.name == k
+    assert p.key == f"{DEFAULT_LOCAL_MODULE_NAME}.{k}"
+
+    pi = p.get_interface()
+    assert pi is not None
+
+
+@pipe("k1", compatible_runtimes="python")
+def df1():
+    pass
+
+
+@pipe("k1", compatible_runtimes="mysql")
+def df2():
+    pass
+
+
+def test_node_no_inputs():
+    env = make_test_env()
+    g = Graph(env)
+    df = pipe(pipe_t1_source)
+    node1 = g.create_node(key="node1", pipe=df)
+    assert {node1: node1}[node1] is node1  # Test hash
+    pi = node1.get_interface()
+    assert pi.inputs == []
+    assert pi.output is not None
+    assert node1.declared_inputs == {}
+
+
+def test_node_inputs():
+    env = make_test_env()
+    g = Graph(env)
+    df = pipe(pipe_t1_source)
+    node = g.create_node(key="node", pipe=df)
+    df = pipe(pipe_t1_sink)
+    node1 = g.create_node(key="node1", pipe=df, upstream=node)
+    pi = node1.get_interface()
+    assert len(pi.inputs) == 1
+    assert pi.output == make_default_output_annotation()
+    assert list(node1.declared_inputs.keys()) == ["input"]
+    # assert node1.get_input("input").get_upstream(env)[0] is node
+
+
+def test_node_stream_inputs():
+    pi = pipe(pipe_stream).get_interface()
+    assert len(pi.inputs) == 1
+    assert pi.inputs[0].is_stream
+
+
+def test_node_config():
+    env = make_test_env()
+    g = Graph(env)
+    config_vals = []
+
+    def pipe_ctx(ctx: PipeContext):
+        config_vals.append(ctx.get_config_value("test"))
+
+    n = g.create_node(key="ctx", pipe=pipe_ctx, config={"test": 1, "extra_arg": 2})
+    with env.run(g) as exe:
+        exe.execute(n)
+    assert config_vals == [1]
+
+
+def test_any_schema_interface():
+    env = make_test_env()
+    env.add_module(core)
+
+    def pipe_any(input: DataBlock) -> DataFrame:
+        pass
+
+    df = pipe(pipe_any)
+    pi = df.get_interface()
+    assert pi.inputs[0].schema_like == "Any"
+    assert pi.output.schema_like == "Any"

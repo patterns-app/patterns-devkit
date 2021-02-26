@@ -14,10 +14,11 @@ from snapflow.core.data_block import (
 from snapflow.core.execution import PipeContext
 from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DataBlockLog
-from snapflow.core.pipe import DataInterfaceType, Pipe, PipeInterface, pipe_factory
+from snapflow.core.pipe import DataInterfaceType, Pipe, pipe_factory
 from snapflow.core.pipe_interface import (
     BadAnnotationException,
     PipeAnnotation,
+    PipeInterface,
     make_default_output_annotation,
 )
 from snapflow.core.streams import DataBlockStream, ManagedDataBlockStream
@@ -219,8 +220,7 @@ class SqlPipeWrapper:
         return sdb
 
     def get_input_table_stmts(
-        self,
-        inputs: Dict[str, DataBlock] = None,
+        self, inputs: Dict[str, DataBlock] = None,
     ) -> Dict[str, str]:
         if inputs is None:
             return {}
@@ -231,9 +231,7 @@ class SqlPipeWrapper:
         return table_stmts
 
     def get_compiled_sql(
-        self,
-        ctx: PipeContext,
-        inputs: Dict[str, DataBlock] = None,
+        self, ctx: PipeContext, inputs: Dict[str, DataBlock] = None,
     ):
         from snapflow.storage.db.utils import compile_jinja_sql
 
@@ -252,8 +250,7 @@ class SqlPipeWrapper:
         return compile_jinja_sql(sql, sql_ctx)
 
     def get_typed_statement(
-        self,
-        inputs: Dict[str, DataBlock] = None,
+        self, inputs: Dict[str, DataBlock] = None,
     ) -> TypedSqlStatement:
         return extract_types(self.sql, self.get_input_table_stmts(inputs))
 
