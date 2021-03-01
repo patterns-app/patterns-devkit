@@ -1,28 +1,28 @@
 # from __future__ import annotations
 #
-# from snapflow.core.pipe import Pipe, pipe_chain
-# from snapflow.modules.core.pipes.accumulator import dataframe_accumulator, sql_accumulator
-# from snapflow.modules.core.pipes.dedupe import (
+# from snapflow.core.snap import _Snap, snap_chain
+# from snapflow.modules.core.snaps.accumulator import dataframe_accumulator, sql_accumulator
+# from snapflow.modules.core.snaps.dedupe import (
 #     dataframe_dedupe_unique_keep_newest_row,
 #     sql_dedupe_unique_keep_newest_row,
 # )
 # from snapflow.testing.utils import (
 #     DataInput,
 #     get_tmp_sqlite_db_url,
-#     produce_pipe_output_for_static_input,
+#     produce_snap_output_for_static_input,
 # )
 # from snapflow.utils.pandas import assert_dataframes_are_almost_equal
 #
-# sql_accumulate_as_dataset = pipe_chain(
+# sql_accumulate_as_dataset = snap_chain(
 #     name="sql_accumulate_as_dataset",
 #     module="core",
-#     pipe_chain=[sql_accumulator, sql_dedupe_unique_keep_newest_row],
+#     snap_chain=[sql_accumulator, sql_dedupe_unique_keep_newest_row],
 # )
 #
-# dataframe_accumulate_as_dataset = pipe_chain(
+# dataframe_accumulate_as_dataset = snap_chain(
 #     name="dataframe_accumulate_as_dataset",
 #     module="core",
-#     pipe_chain=[
+#     snap_chain=[
 #         dataframe_accumulator,
 #         dataframe_dedupe_unique_keep_newest_row,
 #     ],
@@ -53,7 +53,7 @@
 #         # sql_accumulate_as_dataset,  # TODO: Need sqlite support to test, or non-sqlite testing db
 #         dataframe_accumulate_as_dataset
 #     ]:
-#         db = produce_pipe_output_for_static_input(
+#         db = produce_snap_output_for_static_input(
 #             p, input=data_input, target_storage=s, config={"dataset_name": "test"}
 #         )
 #         env = db.manager.ctx.env

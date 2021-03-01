@@ -117,11 +117,11 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 
     # def created_by(self, sess: Session) -> Optional[str]:
     #     from snapflow.core.node import DataBlockLog
-    #     from snapflow.core.node import PipeLog
+    #     from snapflow.core.node import SnapLog
     #     from snapflow.core.node import Direction
 
     #     result = (
-    #         sess.query(PipeLog.node_key)
+    #         sess.query(SnapLog.node_key)
     #         .join(DataBlockLog)
     #         .filter(
     #             DataBlockLog.direction == Direction.OUTPUT,
@@ -513,7 +513,7 @@ def create_data_block_from_sql(
     # TODO: we are special casing sql right now, but could create another DataFormat (SqlQueryFormat, non-storable).
     #       but, not sure how well it fits paradigm (it's a fundamentally non-python operation, the only one for now --
     #       if we had an R runtime or any other shell command, they would also be in this bucket)
-    #       fine here for now, but there is a generalization that might make the sql pipe less awkward (returning sdb)
+    #       fine here for now, but there is a generalization that might make the sql snap less awkward (returning sdb)
     logger.debug("CREATING DATA BLOCK from sql")
     tmp_name = f"_tmp_{rand_str(10)}".lower()
     sql = db_api.clean_sub_sql(sql)

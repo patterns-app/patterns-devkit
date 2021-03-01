@@ -25,23 +25,23 @@ from typing import (
 from snapflow.utils.common import AttrDict, StringEnum
 
 if TYPE_CHECKING:
-    from snapflow.core.pipe import (
-        PipeLike,
-        Pipe,
+    from snapflow.core.snap import (
+        SnapLike,
+        _Snap,
     )
     from snapflow.core.module import SnapflowModule
     from snapflow.schema.base import SchemaLike, Schema
 
 
 class ComponentLibrary:
-    pipes: Dict[str, Pipe]
+    snaps: Dict[str, _Snap]
     schemas: Dict[str, Schema]
     module_lookup_names: List[str]
 
     def __init__(self, module_lookup_keys: List[str] = None):
         from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
 
-        self.pipes = {}
+        self.snaps = {}
         self.schemas = {}
         self.module_lookup_names = [DEFAULT_LOCAL_MODULE_NAME]
         if module_lookup_keys:
@@ -55,24 +55,24 @@ class ComponentLibrary:
     def add_module(self, module: SnapflowModule):
         self.merge(module.library)
 
-    def add_pipe(self, p: Pipe):
-        self.pipes[p.key] = p
+    def add_snap(self, p: _Snap):
+        self.snaps[p.key] = p
 
     def add_schema(self, schema: Schema):
         self.schemas[schema.key] = schema
 
-    def get_pipe(self, pipe_like: Union[Pipe, str], try_module_lookups=True) -> Pipe:
-        from snapflow.core.pipe import Pipe
+    def get_snap(self, snap_like: Union[_Snap, str], try_module_lookups=True) -> _Snap:
+        from snapflow.core.snap import _Snap
 
-        if isinstance(pipe_like, Pipe):
-            return pipe_like
-        if not isinstance(pipe_like, str):
-            raise TypeError(pipe_like)
+        if isinstance(snap_like, _Snap):
+            return snap_like
+        if not isinstance(snap_like, str):
+            raise TypeError(snap_like)
         try:
-            return self.pipes[pipe_like]
+            return self.snaps[snap_like]
         except KeyError as e:
             if try_module_lookups:
-                return self.module_name_lookup(self.pipes, pipe_like)
+                return self.module_name_lookup(self.snaps, snap_like)
             raise e
 
     def get_schema(
@@ -101,14 +101,14 @@ class ComponentLibrary:
                 pass
         raise KeyError(f"`{k}` not found in modules {self.module_lookup_names}")
 
-    def all_pipes(self) -> List[Pipe]:
-        return list(self.pipes.values())
+    def all_snaps(self) -> List[_Snap]:
+        return list(self.snaps.values())
 
     def all_schemas(self) -> List[Schema]:
         return list(self.schemas.values())
 
     def merge(self, other: ComponentLibrary):
-        self.pipes.update(other.pipes)
+        self.snaps.update(other.snaps)
         self.schemas.update(other.schemas)
         for k in other.module_lookup_names:
             self.add_module_name(k)
@@ -120,8 +120,8 @@ class ComponentLibrary:
             ad[k.split(".")[-1]] = p  # TODO: module precedence
         return ad
 
-    def get_pipes_view(self) -> AttrDict[str, Pipe]:
-        return self.get_view(self.pipes)
+    def get_snaps_view(self) -> AttrDict[str, _Snap]:
+        return self.get_view(self.snaps)
 
     def get_schemas_view(self) -> AttrDict[str, Schema]:
         return self.get_view(self.schemas)

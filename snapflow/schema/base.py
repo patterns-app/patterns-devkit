@@ -359,3 +359,7 @@ AnySchema = Schema(
     unique_on=[],
     fields=[],
 )
+
+
+class GenericSchemaException(Exception):
+    pass

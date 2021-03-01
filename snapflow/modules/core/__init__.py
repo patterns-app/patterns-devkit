@@ -1,15 +1,15 @@
 from snapflow.core.module import SnapflowModule
-from snapflow.modules.core.pipes import conform_to_schema
+from snapflow.modules.core.snaps import conform_to_schema
 from snapflow.schema.base import AnySchema
 
-from .pipes import accumulator, dedupe, static
+from .snaps import accumulator, dedupe, static
 
 module = SnapflowModule(
     "core",
     py_module_path=__file__,
     py_module_name=__name__,
     schemas=[AnySchema, "schemas/core_test_type.yml"],
-    pipes=[
+    snaps=[
         conform_to_schema.dataframe_conform_to_schema,
         conform_to_schema.sql_conform_to_schema,
         dedupe.sql_dedupe_unique_keep_newest_row,

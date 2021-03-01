@@ -28,8 +28,7 @@ def db_result_batcher(result_proxy: ResultProxy, batch_size: int = 1000) -> Gene
 
 
 def conform_columns_for_insert(
-    records: Records,
-    columns: List[str] = None,
+    records: Records, columns: List[str] = None,
 ) -> List[str]:
     if columns is None:
         assert len(records) > 0, "No records to infer columns from"

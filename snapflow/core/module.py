@@ -24,10 +24,10 @@ from snapflow.schema.base import Schema, SchemaLike, schema_from_yaml
 from snapflow.utils.common import AttrDict
 
 if TYPE_CHECKING:
-    from snapflow.core.pipe import (
-        PipeLike,
-        Pipe,
-        make_pipe,
+    from snapflow.core.snap import (
+        SnapLike,
+        _Snap,
+        make_snap,
     )
 
 DEFAULT_LOCAL_MODULE_NAME = "_local_"
@@ -51,7 +51,7 @@ class SnapflowModule:
         py_module_path: Optional[str] = None,
         py_module_name: Optional[str] = None,
         schemas: Optional[Sequence[SchemaLike]] = None,
-        pipes: Optional[Sequence[Union[PipeLike, str]]] = None,
+        snaps: Optional[Sequence[Union[SnapLike, str]]] = None,
         tests: Optional[Sequence[Callable]] = None,
         dependencies: List[
             SnapflowModule
@@ -68,8 +68,8 @@ class SnapflowModule:
         self.dependencies = []
         for schema in schemas or []:
             self.add_schema(schema)
-        for fn in pipes or []:
-            self.add_pipe(fn)
+        for fn in snaps or []:
+            self.add_snap(fn)
         for t in tests or []:
             self.add_test(t)
         for d in dependencies or []:
@@ -94,12 +94,12 @@ class SnapflowModule:
             return schema_like
         return self.library.get_schema(schema_like)
 
-    def get_pipe(self, pipe_like: Union[Pipe, str]) -> Pipe:
-        from snapflow.core.pipe import Pipe
+    def get_snap(self, snap_like: Union[_Snap, str]) -> _Snap:
+        from snapflow.core.snap import _Snap
 
-        if isinstance(pipe_like, Pipe):
-            return pipe_like
-        return self.library.get_pipe(pipe_like)
+        if isinstance(snap_like, _Snap):
+            return snap_like
+        return self.library.get_snap(snap_like)
 
     def export(self):
         if self.py_module_name is None:
@@ -111,8 +111,8 @@ class SnapflowModule:
         return self.library.get_schemas_view()
 
     @property
-    def pipes(self) -> AttrDict[str, Pipe]:
-        return self.library.get_pipes_view()
+    def snaps(self) -> AttrDict[str, _Snap]:
+        return self.library.get_snaps_view()
 
     def validate_key(self, obj: Any):
         if obj.module_name != self.name:
@@ -137,40 +137,40 @@ class SnapflowModule:
             raise TypeError(schema_like)
         return schema
 
-    def add_pipe(self, pipe_like: Union[PipeLike, str]) -> Pipe:
-        p = self.process_pipe(pipe_like)
+    def add_snap(self, snap_like: Union[SnapLike, str]) -> _Snap:
+        p = self.process_snap(snap_like)
         self.validate_key(p)
-        self.library.add_pipe(p)
+        self.library.add_snap(p)
         return p
 
-    def process_pipe(self, pipe_like: Union[PipeLike, str]) -> Pipe:
-        from snapflow.core.pipe import (
-            Pipe,
-            make_pipe,
-            Pipe,
+    def process_snap(self, snap_like: Union[SnapLike, str]) -> _Snap:
+        from snapflow.core.snap import (
+            _Snap,
+            make_snap,
+            _Snap,
         )
-        from snapflow.core.sql.pipe import sql_pipe
+        from snapflow.core.sql.sql_snap import sql_snap
 
-        if isinstance(pipe_like, Pipe):
-            pipe = pipe_like
+        if isinstance(snap_like, _Snap):
+            snap = snap_like
         else:
-            if callable(pipe_like):
-                pipe = make_pipe(pipe_like, module=self.name)
-            elif isinstance(pipe_like, str) and pipe_like.endswith(".sql"):
+            if callable(snap_like):
+                snap = make_snap(snap_like, module=self.name)
+            elif isinstance(snap_like, str) and snap_like.endswith(".sql"):
                 if not self.py_module_path:
                     raise Exception(
-                        f"Module path not set, cannot read sql definition {pipe_like}"
+                        f"Module path not set, cannot read sql definition {snap_like}"
                     )
-                sql_file_path = os.path.join(self.py_module_path, pipe_like)
+                sql_file_path = os.path.join(self.py_module_path, snap_like)
                 with open(sql_file_path) as f:
                     sql = f.read()
-                file_name = os.path.basename(pipe_like)[:-4]
-                pipe = sql_pipe(
+                file_name = os.path.basename(snap_like)[:-4]
+                snap = sql_snap(
                     name=file_name, module=self.name, sql=sql
                 )  # TODO: versions, runtimes, etc for sql (someway to specify in a .sql file)
             else:
-                raise TypeError(pipe_like)
-        return pipe
+                raise TypeError(snap_like)
+        return snap
 
     def add_test(self, test_case: Callable):
         self.test_cases.append(test_case)

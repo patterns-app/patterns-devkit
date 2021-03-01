@@ -125,7 +125,7 @@ def is_records_generator(obj: Any) -> bool:
     if isinstance(obj, DataFrame):
         return False
     if isinstance(obj, list):
-        # TODO: could see a pipe returning e.g. a list of DataFrames and thinking that would be valid
+        # TODO: could see a snap returning e.g. a list of DataFrames and thinking that would be valid
         return False
     if isinstance(obj, abc.Generator):
         return True

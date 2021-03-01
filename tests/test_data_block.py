@@ -8,7 +8,7 @@ from snapflow.core.data_block import (
 )
 from snapflow.core.execution import RunContext
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, Direction, PipeLog
+from snapflow.core.node import DataBlockLog, Direction, SnapLog
 from snapflow.core.operators import filter, latest, operator
 from snapflow.core.streams import DataBlockStream, StreamBuilder
 from snapflow.storage.data_formats.database_table import DatabaseTableFormat
@@ -21,10 +21,10 @@ from tests.utils import (
     TestSchema3,
     make_test_env,
     make_test_run_context,
-    pipe_generic,
-    pipe_t1_sink,
-    pipe_t1_source,
-    pipe_t1_to_t2,
+    snap_generic,
+    snap_t1_sink,
+    snap_t1_source,
+    snap_t1_to_t2,
 )
 
 

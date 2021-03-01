@@ -17,7 +17,7 @@ def test_env_init():
             _test_module.name,
         ]
         assert env.get_schema("TestSchema", sess) is _test_module.schemas.TestSchema
-        assert env.get_pipe("test_sql") is _test_module.pipes.test_sql
+        assert env.get_snap("test_sql") is _test_module.snaps.test_sql
         # Test runtime / storage
         env.add_storage("postgresql://test")
         assert len(env.storages) == 2  # added plus default local memory

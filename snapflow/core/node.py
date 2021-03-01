@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+from snapflow.core.snap_interface import DeclaredSnapInterface, DeclaredStreamInput
 import traceback
 from dataclasses import dataclass, field
 from operator import and_
@@ -10,12 +11,7 @@ from loguru import logger
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
-from snapflow.core.pipe import Pipe, PipeLike, ensure_pipe, make_pipe, make_pipe_name
-from snapflow.core.pipe_interface import (
-    DeclaredStreamInput,
-    DeclaredStreamLikeInput,
-    PipeInterface,
-)
+from snapflow.core.snap import _Snap, SnapLike, ensure_snap, make_snap, make_snap_name
 from snapflow.storage.storage import SqliteStorageEngine
 from snapflow.utils.common import as_identifier
 from sqlalchemy.orm import Session, relationship
@@ -41,15 +37,23 @@ def ensure_stream(stream_like: StreamLike) -> StreamBuilder:
     if isinstance(stream_like, DeclaredNode) or isinstance(stream_like, Node):
         return stream_like.as_stream_builder()
     if isinstance(stream_like, str):
-        return StreamBuilder(nodes=[stream_like])
+        return StreamBuilder().filter_upstream([stream_like])
     raise TypeError(stream_like)
 
 
 @dataclass
 class DeclaredNode:
-    pipe: Union[PipeLike, str]
+    """
+    Node as it is declared, which may be before
+    we have loaded necessary modules, or seen the full graph,
+    so we will not have schema or snap definitions, will not know the
+    interfaces, and will not be able to hook up the graph
+    yet. Only after a call to `instantiate_node` do we then do these things.
+    """
+
+    snap: Union[SnapLike, str]
     key: str
-    config: Dict[str, Any] = field(default_factory=dict)
+    params: Dict[str, Any] = field(default_factory=dict)
     upstream: Union[StreamLike, Dict[str, StreamLike]] = field(default_factory=dict)
     graph: Optional[DeclaredGraph] = None
     output_alias: Optional[str] = None
@@ -65,7 +69,7 @@ class DeclaredNode:
         # self.graph.add_node(self)
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}(key={self.key}, pipe={self.pipe})>"
+        return f"<{self.__class__.__name__}(key={self.key}, snap={self.snap})>"
 
     def __hash__(self):
         return hash(self.key)
@@ -87,7 +91,7 @@ class DeclaredNode:
     def as_stream_builder(self) -> StreamBuilder:
         from snapflow.core.streams import StreamBuilder
 
-        return StreamBuilder(nodes=self)
+        return StreamBuilder().filter_upstream(self)
 
     def instantiate(self, env: Environment, g: Graph = None) -> Node:
         from snapflow.core.graph import Graph
@@ -98,20 +102,20 @@ class DeclaredNode:
 
 
 def node(
-    pipe: Union[PipeLike, str],
+    snap: Union[SnapLike, str],
     key: Optional[str] = None,
-    config: Dict[str, Any] = None,
+    params: Dict[str, Any] = None,
     upstream: Union[StreamLike, Dict[str, StreamLike]] = None,
     graph: Optional[DeclaredGraph] = None,
     output_alias: Optional[str] = None,
     schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
 ) -> DeclaredNode:
     if key is None:
-        key = make_pipe_name(pipe)
+        key = make_snap_name(snap)
     return DeclaredNode(
-        pipe=pipe,
+        snap=snap,
         key=key,
-        config=config or {},
+        params=params or {},
         upstream=upstream or {},
         graph=graph,
         output_alias=output_alias,
@@ -120,15 +124,13 @@ def node(
 
 
 def instantiate_node(
-    env: Environment,
-    graph: Graph,
-    declared_node: DeclaredNode,
+    env: Environment, graph: Graph, declared_node: DeclaredNode,
 ):
-    if isinstance(declared_node.pipe, str):
-        pipe = env.get_pipe(declared_node.pipe)
+    if isinstance(declared_node.snap, str):
+        snap = env.get_snap(declared_node.snap)
     else:
-        pipe = make_pipe(declared_node.pipe)
-    interface = pipe.get_interface()
+        snap = make_snap(declared_node.snap)
+    interface = snap.get_interface()
     schema_translation = interface.assign_translations(declared_node.schema_translation)
     declared_inputs: Dict[str, DeclaredStreamInput] = {}
     if declared_node.upstream is not None:
@@ -143,8 +145,8 @@ def instantiate_node(
         env=env,
         graph=graph,
         key=declared_node.key,
-        pipe=pipe,
-        config=declared_node.config,
+        snap=snap,
+        params=declared_node.params,
         interface=interface,
         declared_inputs=declared_inputs,
         declared_schema_translation=schema_translation,
@@ -164,15 +166,15 @@ class Node:
     env: Environment
     graph: Graph
     key: str
-    pipe: Pipe
-    config: Dict[str, Any]
-    interface: PipeInterface
+    snap: _Snap
+    params: Dict[str, Any]
+    interface: DeclaredSnapInterface
     declared_inputs: Dict[str, DeclaredStreamInput]
     output_alias: Optional[str] = None
     declared_schema_translation: Optional[Dict[str, Dict[str, str]]] = None
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}(key={self.key}, pipe={self.pipe.key})>"
+        return f"<{self.__class__.__name__}(key={self.key}, snap={self.snap.key})>"
 
     def __hash__(self):
         return hash(self.key)
@@ -189,7 +191,7 @@ class Node:
             ident
         )  # TODO: this logic should be storage api specific! and then shared back?
 
-    def get_interface(self) -> PipeInterface:
+    def get_interface(self) -> DeclaredSnapInterface:
         return self.interface
 
     def get_schema_translation_for_input(
@@ -200,16 +202,16 @@ class Node:
     def as_stream_builder(self) -> StreamBuilder:
         from snapflow.core.streams import StreamBuilder
 
-        return StreamBuilder(nodes=self)
+        return StreamBuilder().filter_upstream(self)
 
     def latest_output(self, ctx: RunContext, sess: Session) -> Optional[DataBlock]:
         block: DataBlockMetadata = (
             sess.query(DataBlockMetadata)
             .join(DataBlockLog)
-            .join(PipeLog)
+            .join(SnapLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                PipeLog.node_key == self.key,
+                SnapLog.node_key == self.key,
             )
             .order_by(DataBlockLog.created_at.desc())
             .first()
@@ -235,9 +237,9 @@ class Node:
         dbl_ids = [
             r[0]
             for r in sess.query(DataBlockLog.id)
-            .join(PipeLog)
+            .join(SnapLog)
             .filter(
-                PipeLog.node_key == self.key, DataBlockLog.direction == Direction.OUTPUT
+                SnapLog.node_key == self.key, DataBlockLog.direction == Direction.OUTPUT
             )
             .all()
         ]
@@ -251,7 +253,7 @@ class Node:
         logs are invalidated. Output datablocks are NOT deleted.
         NB: If downstream nodes have already processed an output datablock,
         this will have no effect on them.
-        TODO: consider "cascading reset" for downstream recursive pipes (which will still have
+        TODO: consider "cascading reset" for downstream recursive snaps (which will still have
         accumulated output from this node)
         """
         self._reset_state(sess)
@@ -263,10 +265,7 @@ class NodeState(BaseModel):
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(
-            node_key=self.node_key,
-            state=self.state,
-        )
+        return self._repr(node_key=self.node_key, state=self.state,)
 
 
 def get_state(sess: Session, node_key: str) -> Optional[Dict]:
@@ -276,7 +275,7 @@ def get_state(sess: Session, node_key: str) -> Optional[Dict]:
     return None
 
 
-class PipeLog(BaseModel):
+class SnapLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     graph_id = Column(
         String(128),
@@ -286,15 +285,15 @@ class PipeLog(BaseModel):
     node_key = Column(String(128), nullable=False)
     node_start_state = Column(JSON, nullable=True)
     node_end_state = Column(JSON, nullable=True)
-    pipe_key = Column(String(128), nullable=False)
-    pipe_config = Column(JSON, nullable=True)
+    snap_key = Column(String(128), nullable=False)
+    snap_params = Column(JSON, nullable=True)
     runtime_url = Column(String(128), nullable=False)
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     error = Column(JSON, nullable=True)
     data_block_logs: RelationshipProperty = relationship(
-        "DataBlockLog", backref="pipe_log"
+        "DataBlockLog", backref="snap_log"
     )
     graph: "GraphMetadata"
 
@@ -303,7 +302,7 @@ class PipeLog(BaseModel):
             id=self.id,
             graph_id=self.graph_id,
             node_key=self.node_key,
-            pipe_key=self.pipe_key,
+            snap_key=self.snap_key,
             runtime_url=self.runtime_url,
             started_at=self.started_at,
         )
@@ -353,7 +352,7 @@ class Direction(enum.Enum):
 
 class DataBlockLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    pipe_log_id = Column(Integer, ForeignKey(PipeLog.id), nullable=False)
+    snap_log_id = Column(Integer, ForeignKey(SnapLog.id), nullable=False)
     data_block_id = Column(
         String(128),
         ForeignKey(f"{SNAPFLOW_METADATA_TABLE_PREFIX}data_block_metadata.id"),
@@ -364,12 +363,12 @@ class DataBlockLog(BaseModel):
     invalidated = Column(Boolean, default=False)
     # Hints
     data_block: "DataBlockMetadata"
-    pipe_log: PipeLog
+    snap_log: SnapLog
 
     def __repr__(self):
         return self._repr(
             id=self.id,
-            pipe_log=self.pipe_log,
+            snap_log=self.snap_log,
             data_block=self.data_block,
             direction=self.direction,
             processed_at=self.processed_at,
@@ -379,7 +378,7 @@ class DataBlockLog(BaseModel):
     def summary(cls, sess: Session) -> str:
         s = ""
         for dbl in sess.query(DataBlockLog).all():
-            s += f"{dbl.pipe_log.node_key:50}"
+            s += f"{dbl.snap_log.node_key:50}"
             s += f"{str(dbl.data_block_id):23}"
             s += f"{str(dbl.data_block.record_count):6}"
             s += f"{dbl.direction.value:9}{str(dbl.data_block.updated_at):22}"

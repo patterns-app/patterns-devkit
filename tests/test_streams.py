@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from snapflow.core.data_block import DataBlockMetadata
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, Direction, PipeLog
+from snapflow.core.node import DataBlockLog, Direction, SnapLog
 from snapflow.core.operators import filter, latest, operator
-from snapflow.core.streams import DataBlockStream, StreamBuilder
+from snapflow.core.streams import DataBlockStream, StreamBuilder, stream
 from tests.utils import (
     make_test_run_context,
-    pipe_generic,
-    pipe_t1_sink,
-    pipe_t1_source,
-    pipe_t1_to_t2,
+    snap_generic,
+    snap_t1_sink,
+    snap_t1_source,
+    snap_t1_to_t2,
 )
 
 
@@ -37,15 +37,15 @@ class TestStreams:
             nominal_schema_key="_test.TestSchema2",
             realized_schema_key="_test.TestSchema2",
         )
-        self.node_source = self.g.create_node(key="pipe_source", pipe=pipe_t1_source)
+        self.node_source = self.g.create_node(key="snap_source", snap=snap_t1_source)
         self.node1 = self.g.create_node(
-            key="pipe1", pipe=pipe_t1_sink, upstream="pipe_source"
+            key="snap1", snap=snap_t1_sink, upstream="snap_source"
         )
         self.node2 = self.g.create_node(
-            key="pipe2", pipe=pipe_t1_to_t2, upstream="pipe_source"
+            key="snap2", snap=snap_t1_to_t2, upstream="snap_source"
         )
         self.node3 = self.g.create_node(
-            key="pipe3", pipe=pipe_generic, upstream="pipe_source"
+            key="snap3", snap=snap_generic, upstream="snap_source"
         )
         self.sess = self.env._get_new_metadata_session()
         self.sess.add(self.dr1t1)
@@ -58,54 +58,48 @@ class TestStreams:
         self.sess.close()
 
     def test_stream_unprocessed_pristine(self):
-        s = StreamBuilder(nodes=self.node_source)
+        s = stream(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
         assert s.get_query(self.ctx, self.sess).first() is None
 
     def test_stream_unprocessed_eligible(self):
-        dfl = PipeLog(
+        dfl = SnapLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
-            pipe_key=self.node_source.pipe.key,
+            snap_key=self.node_source.snap.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            pipe_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl])
 
-        s = StreamBuilder(nodes=self.node_source)
+        s = stream(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
         assert s.get_query(self.ctx, self.sess).first() == self.dr1t1
 
     def test_stream_unprocessed_ineligible_already_input(self):
-        dfl = PipeLog(
+        dfl = SnapLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
-            pipe_key=self.node_source.pipe.key,
+            snap_key=self.node_source.snap.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            pipe_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        dfl2 = PipeLog(
+        dfl2 = SnapLog(
             graph_id=self.graph.hash,
             node_key=self.node1.key,
-            pipe_key=self.node1.pipe.key,
+            snap_key=self.node1.snap.key,
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            pipe_log=dfl2,
-            data_block=self.dr1t1,
-            direction=Direction.INPUT,
+            snap_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
-        s = StreamBuilder(nodes=self.node_source)
+        s = stream(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
         assert s.get_query(self.ctx, self.sess).first() is None
 
@@ -114,31 +108,27 @@ class TestStreams:
         By default we don't input a block that has already been output by a DF, _even if that block was never input_,
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
-        dfl = PipeLog(
+        dfl = SnapLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
-            pipe_key=self.node_source.pipe.key,
+            snap_key=self.node_source.snap.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            pipe_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        dfl2 = PipeLog(
+        dfl2 = SnapLog(
             graph_id=self.graph.hash,
             node_key=self.node1.key,
-            pipe_key=self.node1.pipe.key,
+            snap_key=self.node1.snap.key,
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            pipe_log=dfl2,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl2, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl, dfl2, drl2])
 
-        s = StreamBuilder(nodes=self.node_source)
+        s = stream(nodes=self.node_source)
         s1 = s.filter_unprocessed(self.node1)
         assert s1.get_query(self.ctx, self.sess).first() is None
 
@@ -147,43 +137,37 @@ class TestStreams:
         assert s2.get_query(self.ctx, self.sess).first() == self.dr1t1
 
     def test_stream_unprocessed_eligible_schema(self):
-        dfl = PipeLog(
+        dfl = SnapLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
-            pipe_key=self.node_source.pipe.key,
+            snap_key=self.node_source.snap.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            pipe_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl])
 
-        s = StreamBuilder(nodes=self.node_source, schema="TestSchema1")
+        s = stream(nodes=self.node_source, schema="TestSchema1")
         s = s.filter_unprocessed(self.node1)
         assert s.get_query(self.ctx, self.sess).first() == self.dr1t1
 
-        s = StreamBuilder(nodes=self.node_source, schema="TestSchema2")
+        s = stream(nodes=self.node_source, schema="TestSchema2")
         s = s.filter_unprocessed(self.node1)
         assert s.get_query(self.ctx, self.sess).first() is None
 
     def test_operators(self):
-        dfl = PipeLog(
+        dfl = SnapLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
-            pipe_key=self.node_source.pipe.key,
+            snap_key=self.node_source.snap.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            pipe_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         drl2 = DataBlockLog(
-            pipe_log=dfl,
-            data_block=self.dr2t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr2t1, direction=Direction.OUTPUT,
         )
         self.sess.add_all([dfl, drl, drl2])
 
@@ -195,7 +179,7 @@ class TestStreams:
                 self._cnt += 1
                 yield db
 
-        sb = StreamBuilder(nodes=self.node_source)
+        sb = stream(nodes=self.node_source)
         expected_cnt = sb.get_query(self.ctx, self.sess).count()
         assert expected_cnt == 2
         list(count(sb).as_managed_stream(self.ctx, self.sess))

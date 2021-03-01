@@ -3,7 +3,7 @@ from __future__ import annotations
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment
-from snapflow.core.execution import ExecutionManager, PipeContext, RunContext
+from snapflow.core.execution import ExecutionManager, SnapContext, RunContext
 from snapflow.core.graph import Graph
 from snapflow.core.module import SnapflowModule
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
@@ -38,17 +38,14 @@ def make_test_env(**kwargs) -> Environment:
         kwargs["metadata_storage"] = metadata_storage
     env = Environment(**kwargs)
     test_module = SnapflowModule(
-        "_test",
-        schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
+        "_test", schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
     )
     env.add_module(test_module)
     return env
 
 
 def make_test_run_context(**kwargs) -> RunContext:
-    s = Storage.from_url(
-        url=f"python://_test_default_{rand_str(6)}",
-    )
+    s = Storage.from_url(url=f"python://_test_default_{rand_str(6)}",)
     env = make_test_env()
     g = Graph(env)
     args = dict(
@@ -67,36 +64,36 @@ def make_test_execution_manager(**kwargs) -> ExecutionManager:
     return ExecutionManager(make_test_run_context(**kwargs))
 
 
-def pipe_t1_sink(ctx: PipeContext, input: DataBlock[TestSchema1]):
+def snap_t1_sink(ctx: SnapContext, input: DataBlock[TestSchema1]):
     pass
 
 
-def pipe_t1_to_t2(input: DataBlock[TestSchema1]) -> DataFrame[TestSchema2]:
+def snap_t1_to_t2(input: DataBlock[TestSchema1]) -> DataFrame[TestSchema2]:
     pass
 
 
-def pipe_generic(input: DataBlock[T]) -> DataFrame[T]:
+def snap_generic(input: DataBlock[T]) -> DataFrame[T]:
     pass
 
 
-def pipe_t1_source(ctx: PipeContext) -> DataFrame[TestSchema1]:
+def snap_t1_source(ctx: SnapContext) -> DataFrame[TestSchema1]:
     pass
 
 
-def pipe_stream(input: DataBlockStream) -> DataBlock:
+def snap_stream(input: DataBlockStream) -> DataBlock:
     pass
 
 
-pipe_chain_t1_to_t2 = (
-    pipe_t1_to_t2  # pipe_chain("pipe_chain_t1_to_t2", [pipe_t1_to_t2, pipe_generic])
+snap_chain_t1_to_t2 = (
+    snap_t1_to_t2  # snap_chain("snap_chain_t1_to_t2", [snap_t1_to_t2, snap_generic])
 )
 
 
-def pipe_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
+def snap_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
     pass
 
 
-def pipe_multiple_input(
+def snap_multiple_input(
     input: DataBlock[T], other_t2: DataBlock[TestSchema2] = None
 ) -> DataFrame[T]:
     pass
