@@ -1,8 +1,8 @@
-"""Initial migration
+"""Initial
 
-Revision ID: 8e9953e3605f
+Revision ID: 23dd1cc88eb2
 Revises:
-Create Date: 2021-02-23 18:35:40.827985
+Create Date: 2021-03-01 20:36:50.564862
 
 """
 import snapflow
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "8e9953e3605f"
+revision = "23dd1cc88eb2"
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -56,7 +56,7 @@ def upgrade():
         sa.PrimaryKeyConstraint("node_key"),
     )
     op.create_table(
-        "_snapflow_pipe_log",
+        "_snapflow_snap_log",
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("updated_at", sa.DateTime(), nullable=True),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -64,8 +64,8 @@ def upgrade():
         sa.Column("node_key", sa.String(length=128), nullable=False),
         sa.Column("node_start_state", sa.JSON(), nullable=True),
         sa.Column("node_end_state", sa.JSON(), nullable=True),
-        sa.Column("pipe_key", sa.String(length=128), nullable=False),
-        sa.Column("pipe_config", sa.JSON(), nullable=True),
+        sa.Column("snap_key", sa.String(length=128), nullable=False),
+        sa.Column("snap_params", sa.JSON(), nullable=True),
         sa.Column("runtime_url", sa.String(length=128), nullable=False),
         sa.Column("queued_at", sa.DateTime(), nullable=True),
         sa.Column("started_at", sa.DateTime(), nullable=True),
@@ -118,7 +118,7 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("updated_at", sa.DateTime(), nullable=True),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("pipe_log_id", sa.Integer(), nullable=False),
+        sa.Column("snap_log_id", sa.Integer(), nullable=False),
         sa.Column("data_block_id", sa.String(length=128), nullable=False),
         sa.Column(
             "direction",
@@ -126,13 +126,14 @@ def upgrade():
             nullable=False,
         ),
         sa.Column("processed_at", sa.DateTime(), nullable=False),
+        sa.Column("invalidated", sa.Boolean(), nullable=True),
         sa.ForeignKeyConstraint(
             ["data_block_id"],
             ["_snapflow_data_block_metadata.id"],
         ),
         sa.ForeignKeyConstraint(
-            ["pipe_log_id"],
-            ["_snapflow_pipe_log.id"],
+            ["snap_log_id"],
+            ["_snapflow_snap_log.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -144,7 +145,7 @@ def downgrade():
     op.drop_table("_snapflow_data_block_log")
     op.drop_table("_snapflow_alias")
     op.drop_table("_snapflow_stored_data_block_metadata")
-    op.drop_table("_snapflow_pipe_log")
+    op.drop_table("_snapflow_snap_log")
     op.drop_table("_snapflow_node_state")
     op.drop_table("_snapflow_graph_metadata")
     op.drop_table("_snapflow_generated_schema")

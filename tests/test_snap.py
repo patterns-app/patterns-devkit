@@ -5,16 +5,20 @@ from typing import Callable
 import pytest
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
-from snapflow.core.execution import PipeContext
+from snapflow.core.execution import SnapContext
 from snapflow.core.graph import Graph, graph
 from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
 from snapflow.core.node import DeclaredNode, node
-from snapflow.core.pipe import Pipe, PipeInterface, PipeLike, pipe
-from snapflow.core.pipe_interface import (
+from snapflow.core.snap import DeclaredSnapInterface, Snap, SnapLike, _Snap
+from snapflow.core.snap_interface import (
+    DeclaredInput,
+    DeclaredOutput,
     NodeInterfaceManager,
-    PipeAnnotation,
+    ParsedAnnotation,
     get_schema_translation,
-    make_default_output_annotation,
+    make_default_output,
+    parse_annotation,
+    snap_interface_from_callable,
 )
 from snapflow.core.streams import StreamBuilder, block_as_stream
 from snapflow.modules import core
@@ -23,14 +27,25 @@ from tests.utils import (
     TestSchema1,
     make_test_env,
     make_test_run_context,
-    pipe_chain_t1_to_t2,
-    pipe_generic,
-    pipe_multiple_input,
-    pipe_self,
-    pipe_stream,
-    pipe_t1_sink,
-    pipe_t1_source,
-    pipe_t1_to_t2,
+    snap_chain_t1_to_t2,
+    snap_generic,
+    snap_multiple_input,
+    snap_self,
+    snap_stream,
+    snap_t1_sink,
+    snap_t1_source,
+    snap_t1_to_t2,
+)
+
+context_input = DeclaredInput(
+    name="ctx",
+    schema_like="Any",
+    data_format="SnapContext",
+    reference=False,
+    _required=True,
+    from_self=False,
+    stream=False,
+    context=True,
 )
 
 
@@ -39,72 +54,57 @@ from tests.utils import (
     [
         (
             "DataBlock[Type]",
-            PipeAnnotation(
+            ParsedAnnotation(
                 data_format_class="DataBlock",
                 schema_like="Type",
-                is_generic=False,
                 is_optional=False,
-                is_variadic=False,
-                is_stream=False,
                 original_annotation="DataBlock[Type]",
             ),
         ),
         (
             "Optional[DataBlock[Type]]",
-            PipeAnnotation(
+            ParsedAnnotation(
                 data_format_class="DataBlock",
                 schema_like="Type",
-                is_generic=False,
                 is_optional=True,
-                is_variadic=False,
-                is_stream=False,
                 original_annotation="Optional[DataBlock[Type]]",
             ),
         ),
         (
             "DataFrame[Type]",
-            PipeAnnotation(
+            ParsedAnnotation(
                 data_format_class="DataFrame",
                 schema_like="Type",
-                is_generic=False,
                 is_optional=False,
-                is_variadic=False,
-                is_stream=False,
                 original_annotation="DataFrame[Type]",
             ),
         ),
         (
             "DataBlock[T]",
-            PipeAnnotation(
+            ParsedAnnotation(
                 data_format_class="DataBlock",
                 schema_like="T",
-                is_generic=True,
                 is_optional=False,
-                is_variadic=False,
-                is_stream=False,
                 original_annotation="DataBlock[T]",
             ),
         ),
         (
             "DataBlockStream[Type]",
-            PipeAnnotation(
+            ParsedAnnotation(
                 data_format_class="DataBlockStream",
                 schema_like="Type",
-                is_generic=False,
                 is_optional=False,
-                is_variadic=False,
-                is_stream=True,
                 original_annotation="DataBlockStream[Type]",
             ),
         ),
     ],
 )
-def test_typed_annotation(annotation: str, expected: PipeAnnotation):
-    tda = PipeAnnotation.from_type_annotation(annotation)
+def test_typed_annotation(annotation: str, expected: ParsedAnnotation):
+    tda = parse_annotation(annotation)
     assert tda == expected
 
 
-def pipe_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
+def snap_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     # Bad args
     pass
 
@@ -118,170 +118,100 @@ def df4(
 
 
 @pytest.mark.parametrize(
-    "pipe,expected",
+    "snap_like,expected",
     [
         (
-            pipe_t1_sink,
-            PipeInterface(
+            snap_t1_sink,
+            DeclaredSnapInterface(
                 inputs=[
-                    PipeAnnotation(
-                        data_format_class="DataBlock",
+                    DeclaredInput(
+                        data_format="DataBlock",
                         schema_like="TestSchema1",
                         name="input",
-                        is_generic=False,
-                        is_optional=False,
-                        is_variadic=False,
-                        original_annotation="DataBlock[TestSchema1]",
-                    )
-                ],
-                output=make_default_output_annotation(),
-                requires_pipe_context=True,
-            ),
-        ),
-        (
-            pipe_t1_to_t2,
-            PipeInterface(
-                inputs=[
-                    PipeAnnotation(
-                        data_format_class="DataBlock",
-                        schema_like="TestSchema1",
-                        name="input",
-                        is_generic=False,
-                        is_optional=False,
-                        is_variadic=False,
-                        original_annotation="DataBlock[TestSchema1]",
-                    )
-                ],
-                output=PipeAnnotation(
-                    data_format_class="DataFrame",
-                    schema_like="TestSchema2",
-                    is_generic=False,
-                    is_optional=False,
-                    is_variadic=False,
-                    original_annotation="DataFrame[TestSchema2]",
-                ),
-                requires_pipe_context=False,
-            ),
-        ),
-        (
-            pipe_generic,
-            PipeInterface(
-                inputs=[
-                    PipeAnnotation(
-                        data_format_class="DataBlock",
-                        schema_like="T",
-                        name="input",
-                        is_generic=True,
-                        is_optional=False,
-                        is_variadic=False,
-                        original_annotation="DataBlock[T]",
-                    )
-                ],
-                output=PipeAnnotation(
-                    data_format_class="DataFrame",
-                    schema_like="T",
-                    is_generic=True,
-                    is_optional=False,
-                    is_variadic=False,
-                    original_annotation="DataFrame[T]",
-                ),
-                requires_pipe_context=False,
-            ),
-        ),
-        (
-            pipe_self,
-            PipeInterface(
-                inputs=[
-                    PipeAnnotation(
-                        data_format_class="DataBlock",
-                        schema_like="T",
-                        name="input",
-                        is_generic=True,
-                        is_optional=False,
-                        is_variadic=False,
-                        is_self_ref=False,
-                        original_annotation="DataBlock[T]",
+                        _required=True,
                     ),
-                    PipeAnnotation(
-                        data_format_class="DataBlock",
+                ],
+                output=make_default_output(),
+                context=context_input,
+            ),
+        ),
+        (
+            snap_t1_to_t2,
+            DeclaredSnapInterface(
+                inputs=[
+                    DeclaredInput(
+                        data_format="DataBlock",
+                        schema_like="TestSchema1",
+                        name="input",
+                        _required=True,
+                    ),
+                ],
+                output=DeclaredOutput(
+                    data_format="DataFrame",
+                    schema_like="TestSchema2",
+                ),
+            ),
+        ),
+        (
+            snap_generic,
+            DeclaredSnapInterface(
+                inputs=[
+                    DeclaredInput(
+                        data_format="DataBlock",
+                        schema_like="T",
+                        name="input",
+                        _required=True,
+                    ),
+                ],
+                output=DeclaredOutput(
+                    data_format="DataFrame",
+                    schema_like="T",
+                ),
+            ),
+        ),
+        (
+            snap_self,
+            DeclaredSnapInterface(
+                inputs=[
+                    DeclaredInput(
+                        data_format="DataBlock",
+                        schema_like="T",
+                        name="input",
+                        _required=True,
+                    ),
+                    DeclaredInput(
+                        data_format="DataBlock",
                         schema_like="T",
                         name="this",
-                        is_generic=True,
-                        is_optional=True,
-                        is_variadic=False,
-                        is_self_ref=True,
-                        original_annotation="DataBlock[T]",
+                        _required=False,
+                        from_self=True,
+                        reference=True,
                     ),
                 ],
-                output=PipeAnnotation(
-                    data_format_class="DataFrame",
+                output=DeclaredOutput(
+                    data_format="DataFrame",
                     schema_like="T",
-                    is_generic=True,
-                    is_optional=False,
-                    is_variadic=False,
-                    original_annotation="DataFrame[T]",
                 ),
-                requires_pipe_context=False,
-            ),
-        ),
-        (
-            pipe_multiple_input,
-            PipeInterface(
-                inputs=[
-                    PipeAnnotation(
-                        data_format_class="DataBlock",
-                        schema_like="T",
-                        name="input",
-                        is_generic=True,
-                        is_optional=False,
-                        is_variadic=False,
-                        is_self_ref=False,
-                        original_annotation="DataBlock[T]",
-                    ),
-                    PipeAnnotation(
-                        data_format_class="DataBlock",
-                        schema_like="TestSchema2",
-                        name="other_t2",
-                        is_generic=False,
-                        is_optional=True,
-                        is_variadic=False,
-                        is_self_ref=False,
-                        original_annotation="DataBlock[TestSchema2]",
-                    ),
-                ],
-                output=PipeAnnotation(
-                    data_format_class="DataFrame",
-                    schema_like="T",
-                    is_generic=True,
-                    is_optional=False,
-                    is_variadic=False,
-                    original_annotation="DataFrame[T]",
-                ),
-                requires_pipe_context=False,
             ),
         ),
     ],
 )
-def test_pipe_interface(pipe: PipeLike, expected: PipeInterface):
-    env = make_test_env()
-    if isinstance(pipe, Pipe):
-        val = pipe.get_interface()
-    elif isinstance(pipe, Callable):
-        val = PipeInterface.from_pipe_definition(pipe)
-    else:
-        raise
-    assert val == expected
-    node = DeclaredNode(key="_test", pipe=pipe, upstream={"input": "mock"}).instantiate(
-        env
-    )
-    assert node.get_interface() == expected
+def test_snap_interface(snap_like: SnapLike, expected: DeclaredSnapInterface):
+    p = Snap(snap_like)
+    val = p.get_interface()
+    assert set(val.inputs) == set(expected.inputs)
+    assert val.output == expected.output
+    # node = DeclaredNode(key="_test", snap=snap, upstream={"input": "mock"}).instantiate(
+    #     env
+    # )
+    # assert node.get_interface() == expected
 
 
 def test_generic_schema_resolution():
     ec = make_test_run_context()
     env = ec.env
     g = Graph(env)
-    n1 = g.create_node(key="node1", pipe=pipe_generic, upstream="n0")
+    n1 = g.create_node(key="node1", snap=snap_generic, upstream="n0")
     # pi = n1.get_interface()
     with env.session_scope() as sess:
         im = NodeInterfaceManager(ctx=ec, sess=sess, node=n1)
@@ -303,7 +233,7 @@ def test_declared_schema_translation():
     g = Graph(env)
     translation = {"f1": "mapped_f1"}
     n1 = g.create_node(
-        key="node1", pipe=pipe_t1_to_t2, upstream="n0", schema_translation=translation
+        key="node1", snap=snap_t1_to_t2, upstream="n0", schema_translation=translation
     )
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
@@ -320,7 +250,7 @@ def test_declared_schema_translation():
             env,
             sess,
             block.realized_schema(env, sess),
-            target_schema=pi.inputs[0].schema(env, sess),
+            target_schema=env.get_schema(pi.inputs[0].schema_like, sess),
             declared_schema_translation=translation,
         )
         assert schema_translation.as_dict() == translation
@@ -333,7 +263,7 @@ def test_natural_schema_translation():
     g = Graph(env)
     translation = {"f1": "mapped_f1"}
     n1 = g.create_node(
-        key="node1", pipe=pipe_t1_to_t2, upstream="n0", schema_translation=translation
+        key="node1", snap=snap_t1_to_t2, upstream="n0", schema_translation=translation
     )
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
@@ -346,7 +276,7 @@ def test_natural_schema_translation():
             env,
             sess,
             block.realized_schema(env, sess),
-            target_schema=pi.inputs[0].schema(env, sess),
+            target_schema=env.get_schema(pi.inputs[0].schema_like, sess),
             declared_schema_translation=translation,
         )
         assert schema_translation.as_dict() == translation
@@ -361,11 +291,11 @@ def test_inputs():
     ec = make_test_run_context()
     env = ec.env
     g = graph()
-    n1 = g.create_node(pipe=pipe_t1_source)
-    n2 = g.create_node(pipe=pipe_t1_to_t2, upstream={"input": n1})
+    n1 = g.create_node(snap=snap_t1_source)
+    n2 = g.create_node(snap=snap_t1_to_t2, upstream={"input": n1})
     pi = n2.instantiate(env).get_interface()
     assert pi is not None
-    n4 = g.create_node(pipe=pipe_multiple_input)
+    n4 = g.create_node(snap=snap_multiple_input)
     n4.set_upstream({"input": n1})
     pi = n4.instantiate(env).get_interface()
     assert pi is not None
@@ -387,14 +317,14 @@ def test_inputs():
         assert bi is not None
 
 
-def test_python_pipe():
-    p = pipe(pipe_t1_sink)
+def test_python_snap():
+    p = Snap(snap_t1_sink)
     assert (
-        p.name == pipe_t1_sink.__name__
+        p.name == snap_t1_sink.__name__
     )  # TODO: do we really want this implicit name? As long as we error on duplicate should be ok
 
     k = "name1"
-    p = pipe(pipe_t1_sink, name=k)
+    p = Snap(snap_t1_sink, name=k)
     assert p.name == k
     assert p.key == f"{DEFAULT_LOCAL_MODULE_NAME}.{k}"
 
@@ -402,12 +332,12 @@ def test_python_pipe():
     assert pi is not None
 
 
-@pipe("k1", compatible_runtimes="python")
+@Snap("k1", compatible_runtimes="python")
 def df1():
     pass
 
 
-@pipe("k1", compatible_runtimes="mysql")
+@Snap("k1", compatible_runtimes="mysql")
 def df2():
     pass
 
@@ -415,8 +345,8 @@ def df2():
 def test_node_no_inputs():
     env = make_test_env()
     g = Graph(env)
-    df = pipe(pipe_t1_source)
-    node1 = g.create_node(key="node1", pipe=df)
+    df = Snap(snap_t1_source)
+    node1 = g.create_node(key="node1", snap=df)
     assert {node1: node1}[node1] is node1  # Test hash
     pi = node1.get_interface()
     assert pi.inputs == []
@@ -427,45 +357,45 @@ def test_node_no_inputs():
 def test_node_inputs():
     env = make_test_env()
     g = Graph(env)
-    df = pipe(pipe_t1_source)
-    node = g.create_node(key="node", pipe=df)
-    df = pipe(pipe_t1_sink)
-    node1 = g.create_node(key="node1", pipe=df, upstream=node)
+    df = Snap(snap_t1_source)
+    node = g.create_node(key="node", snap=df)
+    df = Snap(snap_t1_sink)
+    node1 = g.create_node(key="node1", snap=df, upstream=node)
     pi = node1.get_interface()
     assert len(pi.inputs) == 1
-    assert pi.output == make_default_output_annotation()
+    assert pi.output == make_default_output()
     assert list(node1.declared_inputs.keys()) == ["input"]
     # assert node1.get_input("input").get_upstream(env)[0] is node
 
 
 def test_node_stream_inputs():
-    pi = pipe(pipe_stream).get_interface()
+    pi = Snap(snap_stream).get_interface()
     assert len(pi.inputs) == 1
-    assert pi.inputs[0].is_stream
+    assert pi.inputs[0].stream
 
 
-def test_node_config():
+def test_node_params():
     env = make_test_env()
     g = Graph(env)
-    config_vals = []
+    param_vals = []
 
-    def pipe_ctx(ctx: PipeContext):
-        config_vals.append(ctx.get_config_value("test"))
+    def snap_ctx(ctx: SnapContext):
+        param_vals.append(ctx.get_param("test"))
 
-    n = g.create_node(key="ctx", pipe=pipe_ctx, config={"test": 1, "extra_arg": 2})
+    n = g.create_node(key="ctx", snap=snap_ctx, params={"test": 1, "extra_arg": 2})
     with env.run(g) as exe:
         exe.execute(n)
-    assert config_vals == [1]
+    assert param_vals == [1]
 
 
 def test_any_schema_interface():
     env = make_test_env()
     env.add_module(core)
 
-    def pipe_any(input: DataBlock) -> DataFrame:
+    def snap_any(input: DataBlock) -> DataFrame:
         pass
 
-    df = pipe(pipe_any)
+    df = Snap(snap_any)
     pi = df.get_interface()
     assert pi.inputs[0].schema_like == "Any"
     assert pi.output.schema_like == "Any"

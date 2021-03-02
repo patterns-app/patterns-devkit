@@ -6,15 +6,15 @@ import pytest
 from pandas import DataFrame
 from snapflow.core.data_block import Alias, DataBlock, DataBlockMetadata
 from snapflow.core.execution import (
-    CompiledPipe,
+    CompiledSnap,
     Executable,
     ExecutionManager,
     ExecutionSession,
     Worker,
 )
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, Direction, PipeLog
-from snapflow.core.pipe_interface import NodeInterfaceManager
+from snapflow.core.node import DataBlockLog, Direction, SnapLog
+from snapflow.core.snap_interface import NodeInterfaceManager
 from snapflow.modules import core
 from snapflow.storage.data_formats import Records
 from tests.utils import (
@@ -22,21 +22,21 @@ from tests.utils import (
     TestSchema4,
     make_test_env,
     make_test_run_context,
-    pipe_generic,
-    pipe_t1_sink,
-    pipe_t1_source,
-    pipe_t1_to_t2,
+    snap_generic,
+    snap_t1_sink,
+    snap_t1_source,
+    snap_t1_to_t2,
 )
 
 mock_dl_output = [{"f1": "2"}, {"f2": 3}]
 
 
-def pipe_dl_source() -> Records[TestSchema4]:
+def snap_dl_source() -> Records[TestSchema4]:
     return mock_dl_output
 
 
-def pipe_error() -> Records[TestSchema4]:
-    raise Exception("pipe FAIL")
+def snap_error() -> Records[TestSchema4]:
+    raise Exception("snap FAIL")
 
 
 def test_worker():
@@ -45,25 +45,25 @@ def test_worker():
     rt = env.runtimes[0]
     ec = env.get_run_context(g, current_runtime=rt)
     with env.session_scope() as sess:
-        node = g.create_node(key="node", pipe=pipe_t1_source)
+        node = g.create_node(key="node", snap=snap_t1_source)
         w = Worker(ec)
         dfi_mgr = NodeInterfaceManager(ec, sess, node)
         bdfi = dfi_mgr.get_bound_interface()
         r = Executable(
             node.key,
-            CompiledPipe(node.pipe.key, node.pipe),
+            CompiledSnap(node.snap.key, node.snap),
             bdfi,
         )
         run_result = w.execute(r)
         assert run_result.output_block_id is None
-        assert sess.query(PipeLog).count() == 1
-        pl = sess.query(PipeLog).first()
+        assert sess.query(SnapLog).count() == 1
+        pl = sess.query(SnapLog).first()
         assert pl.node_key == node.key
         assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {}
         assert pl.node_end_state == {}
-        assert pl.pipe_key == node.pipe.key
-        assert pl.pipe_config == {}
+        assert pl.snap_key == node.snap.key
+        assert pl.snap_params == {}
 
 
 def test_worker_output():
@@ -77,13 +77,13 @@ def test_worker_output():
         # ec = env.get_run_context(g, current_runtime=rt, target_storage=env.storages[0])
         ec = env.get_run_context(g, current_runtime=rt, target_storage=rt.as_storage())
         output_alias = "node_output"
-        node = g.create_node(key="node", pipe=pipe_dl_source, output_alias=output_alias)
+        node = g.create_node(key="node", snap=snap_dl_source, output_alias=output_alias)
         w = Worker(ec)
         dfi_mgr = NodeInterfaceManager(ec, sess, node)
         bdfi = dfi_mgr.get_bound_interface()
         r = Executable(
             node.key,
-            CompiledPipe(node.pipe.key, node.pipe),
+            CompiledSnap(node.snap.key, node.snap),
             bdfi,
         )
         run_result = w.execute(r)
@@ -105,7 +105,7 @@ def test_worker_output():
         assert dbl.direction == Direction.OUTPUT
 
 
-def test_non_terminating_pipe():
+def test_non_terminating_snap():
     def never_stop(input: Optional[DataBlock] = None) -> DataFrame:
         pass
 
@@ -113,7 +113,7 @@ def test_non_terminating_pipe():
     g = Graph(env)
     rt = env.runtimes[0]
     ec = env.get_run_context(g, current_runtime=rt)
-    node = g.create_node(key="node", pipe=never_stop)
+    node = g.create_node(key="node", snap=never_stop)
     em = ExecutionManager(ec)
     output = em.execute(node, to_exhaustion=True)
     assert output is None

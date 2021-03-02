@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 from collections import abc, defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -19,14 +20,14 @@ from snapflow.core.data_block import (
 )
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import BaseModel
-from snapflow.core.node import DataBlockLog, Direction, Node, PipeLog, get_state
-from snapflow.core.pipe import DataInterfaceType, InputExhaustedException, Pipe
-from snapflow.core.pipe_interface import (
+from snapflow.core.node import DataBlockLog, Direction, Node, SnapLog, get_state
+from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
+from snapflow.core.snap import DataInterfaceType, InputExhaustedException, _Snap
+from snapflow.core.snap_interface import (
     BoundInterface,
     NodeInterfaceManager,
     StreamInput,
 )
-from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.storage import copy_lowest_cost
 from snapflow.schema.base import Schema
 from snapflow.storage.data_formats import DataFrameIterator, RecordsIterator
@@ -84,10 +85,10 @@ class LanguageDialectSupport:
 
 
 @dataclass(frozen=True)
-class CompiledPipe:  # TODO: this is unused currently, just a dumb wrapper on the pipe
+class CompiledSnap:  # TODO: this is unused currently, just a dumb wrapper on the snap
     key: str
     # code: str
-    pipe: Pipe  # TODO: compile this to actual string code we can run aaaaa-nnnnnnyyy-wheeeerrrrre
+    snap: _Snap  # TODO: compile this to actual string code we can run aaaaa-nnnnnnyyy-wheeeerrrrre
     # language_support: Iterable[LanguageDialect] = None  # TODO
 
 
@@ -104,20 +105,20 @@ class RuntimeSpecification:
 @dataclass
 class Executable:
     node_key: str
-    compiled_pipe: CompiledPipe
+    compiled_snap: CompiledSnap
     # runtime_specification: RuntimeSpecification # TODO: support this
     bound_interface: BoundInterface = None
-    configuration: Dict = field(default_factory=dict)
+    params: Dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
 class ExecutionSession:
-    pipe_log: PipeLog
+    snap_log: SnapLog
     metadata_session: Session  # Make this a URL or other jsonable and then runtime can connect
 
     def log(self, block: DataBlockMetadata, direction: Direction):
         drl = DataBlockLog(  # type: ignore
-            pipe_log=self.pipe_log,
+            snap_log=self.snap_log,
             data_block=block,
             direction=direction,
             processed_at=utcnow(),
@@ -202,7 +203,7 @@ class RunContext:
         return RunContext(**args)  # type: ignore
 
     @contextmanager
-    def start_pipe_run(self, node: Node) -> Iterator[ExecutionSession]:
+    def start_snap_run(self, node: Node) -> Iterator[ExecutionSession]:
         from snapflow.core.graph import GraphMetadata
 
         assert self.current_runtime is not None, "Runtime not set"
@@ -219,13 +220,13 @@ class RunContext:
                 sess.flush([new_graph_meta])
                 graph_meta = new_graph_meta
 
-            pl = PipeLog(  # type: ignore
+            pl = SnapLog(  # type: ignore
                 graph_id=graph_meta.hash,
                 node_key=node.key,
                 node_start_state={k: v for k, v in node_state.items()},
                 node_end_state=node_state,
-                pipe_key=node.pipe.key,
-                pipe_config=node.config,
+                snap_key=node.snap.key,
+                snap_params=node.params,
                 runtime_url=self.current_runtime.url,
                 started_at=utcnow(),
             )
@@ -235,6 +236,7 @@ class RunContext:
                 # Validate local memory objects: Did we leave any non-storeables hanging?
                 validate_data_blocks(sess)
             except Exception as e:
+                logger.debug(f"Error running node:\n{traceback.format_exc()}")
                 pl.set_error(e)
                 # raise e
             finally:
@@ -271,13 +273,13 @@ class RunContext:
 
 
 @dataclass(frozen=True)
-class PipeContext:  # TODO: (Generic[C, S]):
+class SnapContext:  # TODO: (Generic[C, S]):
     run_context: RunContext
     execution_session: ExecutionSession
     worker: Worker
     executable: Executable
     inputs: List[StreamInput]
-    pipe_log: PipeLog
+    snap_log: SnapLog
     input_blocks_processed: Dict[str, Set[DataBlockMetadata]] = field(
         default_factory=lambda: defaultdict(set)
     )
@@ -304,26 +306,26 @@ class PipeContext:  # TODO: (Generic[C, S]):
     def get_node(self) -> Node:
         return self.run_context.graph.get_node(self.executable.node_key)
 
-    def get_config_value(self, key: str, default: Any = None) -> Any:
-        return self.executable.configuration.get(key, default)
+    def get_param(self, key: str, default: Any = None) -> Any:
+        return self.executable.params.get(key, default)
 
-    def get_config(self) -> Dict[str, Any]:
-        return self.executable.configuration
+    def get_params(self) -> Dict[str, Any]:
+        return self.executable.params
 
     def get_state_value(self, key: str, default: Any = None) -> Any:
-        assert isinstance(self.pipe_log.node_end_state, dict)
-        return self.pipe_log.node_end_state.get(key, default)
+        assert isinstance(self.snap_log.node_end_state, dict)
+        return self.snap_log.node_end_state.get(key, default)
 
     def get_state(self) -> Dict[str, Any]:
-        return self.pipe_log.node_end_state
+        return self.snap_log.node_end_state
 
     def emit_state_value(self, key: str, new_value: Any):
-        new_state = self.pipe_log.node_end_state.copy()
+        new_state = self.snap_log.node_end_state.copy()
         new_state[key] = new_value
-        self.pipe_log.node_end_state = new_state
+        self.snap_log.node_end_state = new_state
 
     def emit_state(self, new_state: Dict):
-        self.pipe_log.node_end_state = new_state
+        self.snap_log.node_end_state = new_state
 
     def emit(
         self,
@@ -360,8 +362,8 @@ class PipeContext:  # TODO: (Generic[C, S]):
         #   Answer: ok to return as is (just mark it as 'output' in DBL)
         if isinstance(records_obj, StoredDataBlockMetadata):
             # TODO is it in local storage tho? we skip conversion below...
-            # This is just special case right now to support SQL pipe
-            # Will need better solution for explicitly creating DB/SDBs inside of pipes
+            # This is just special case right now to support SQL snap
+            # Will need better solution for explicitly creating DB/SDBs inside of snaps
             return records_obj
         elif isinstance(records_obj, DataBlockMetadata):
             raise NotImplementedError
@@ -446,14 +448,14 @@ class PipeContext:  # TODO: (Generic[C, S]):
 
     def should_continue(self) -> bool:
         """
-        Long running pipes should check this function periodically so
+        Long running snaps should check this function periodically so
         as to honor time limits.
         """
         # TODO: execution timelimit too?
         #   Since long running will often be generators, could also enforce this at generator evaluation time?
         if not self.run_context.node_timelimit_seconds:
             return True
-        seconds_elapsed = (utcnow() - self.pipe_log.started_at).total_seconds()
+        seconds_elapsed = (utcnow() - self.snap_log.started_at).total_seconds()
         return seconds_elapsed < self.run_context.node_timelimit_seconds
 
 
@@ -463,7 +465,7 @@ class ExecutionManager:
         self.env = ctx.env
 
     def select_runtime(self, node: Node) -> Runtime:
-        compatible_runtimes = node.pipe.compatible_runtime_classes
+        compatible_runtimes = node.snap.compatible_runtime_classes
         for runtime in self.ctx.runtimes:
             if (
                 runtime.runtime_engine.runtime_class in compatible_runtimes
@@ -484,10 +486,10 @@ class ExecutionManager:
         worker = Worker(run_ctx)
 
         # Setup for run
-        base_msg = f"Running node {cf.bold(node.key)} {cf.dimmed(node.pipe.key)}\n"
+        base_msg = f"Running node {cf.bold(node.key)} {cf.dimmed(node.snap.key)}\n"
         self.ctx.logger(base_msg)
         logger.debug(
-            f"RUNNING NODE {node.key} {node.pipe.key} with config `{node.config}`"
+            f"RUNNING NODE {node.key} {node.snap.key} with params `{node.params}`"
         )
         # self.log(base_msg)
         # start = time.time()
@@ -523,7 +525,7 @@ class ExecutionManager:
         # Or just merge in new session in env.produce
         if last_non_none_output is None:
             return None
-        logger.debug(f"*DONE* RUNNING NODE {node.key} {node.pipe.key}")
+        logger.debug(f"*DONE* RUNNING NODE {node.key} {node.snap.key}")
         if output_session is not None:
             db: DataBlockMetadata = output_session.query(DataBlockMetadata).get(
                 last_non_none_output
@@ -532,15 +534,15 @@ class ExecutionManager:
         return None
 
     def _execute(self, node: Node, worker: Worker) -> ExecutionResult:
-        pipe = node.pipe
+        snap = node.snap
         executable = Executable(
             node_key=node.key,
-            compiled_pipe=CompiledPipe(
+            compiled_snap=CompiledSnap(
                 key=node.key,
-                pipe=pipe,
+                snap=snap,
             ),
             # bound_interface=interface_mgr.get_bound_interface(),
-            configuration=node.config or {},
+            params=node.params or {},
         )
         return worker.execute(executable)
 
@@ -580,30 +582,30 @@ class Worker:
     def execute(self, executable: Executable) -> ExecutionResult:
         node = self.ctx.graph.get_node(executable.node_key)
         result = ExecutionResult.empty()
-        with self.ctx.start_pipe_run(node) as execution_session:
+        with self.ctx.start_snap_run(node) as execution_session:
             interface_mgr = NodeInterfaceManager(
                 self.ctx, execution_session.metadata_session, node
             )
             executable.bound_interface = interface_mgr.get_bound_interface()
-            pipe_ctx = PipeContext(
+            snap_ctx = SnapContext(
                 self.ctx,
                 worker=self,
                 execution_session=execution_session,
                 executable=executable,
                 inputs=executable.bound_interface.inputs,
-                pipe_log=execution_session.pipe_log,
+                snap_log=execution_session.snap_log,
             )
-            pipe_args = []
-            if executable.bound_interface.requires_pipe_context:
-                pipe_args.append(pipe_ctx)
-            pipe_inputs = executable.bound_interface.inputs_as_kwargs()
-            pipe_kwargs = pipe_inputs
-            # Actually run the pipe
-            output_obj = executable.compiled_pipe.pipe.pipe_callable(
-                *pipe_args, **pipe_kwargs
+            snap_args = []
+            if executable.bound_interface.context:
+                snap_args.append(snap_ctx)
+            snap_inputs = executable.bound_interface.inputs_as_kwargs()
+            snap_kwargs = snap_inputs
+            # Actually run the snap
+            output_obj = executable.compiled_snap.snap.snap_callable(
+                *snap_args, **snap_kwargs
             )
             for res in self.process_execution_result(
-                executable, execution_session, output_obj, pipe_ctx
+                executable, execution_session, output_obj, snap_ctx
             ):
                 result = res
         logger.debug(f"EXECUTION RESULT {result}")
@@ -614,7 +616,7 @@ class Worker:
         executable: Executable,
         execution_session: ExecutionSession,
         output_obj: DataInterfaceType,
-        pipe_ctx: PipeContext,
+        snap_ctx: SnapContext,
     ) -> Iterator[ExecutionResult]:
         result = ExecutionResult.empty()
         if output_obj is not None:
@@ -626,9 +628,9 @@ class Worker:
             for output_obj in output_iterator:
                 logger.debug(output_obj)
                 i += 1
-                pipe_ctx.emit(output_obj)
+                snap_ctx.emit(output_obj)
                 result = self.execution_result_info(
-                    executable, execution_session, pipe_ctx
+                    executable, execution_session, snap_ctx
                 )
                 yield result
 
@@ -636,7 +638,7 @@ class Worker:
         self,
         executable: Executable,
         execution_session: ExecutionSession,
-        pipe_ctx: PipeContext,
+        snap_ctx: SnapContext,
     ) -> ExecutionResult:
         last_output_block: Optional[DataBlockMetadata] = None
         last_output_sdb: Optional[StoredDataBlockMetadata] = None
@@ -645,8 +647,8 @@ class Worker:
         # Flush
         # execution_session.metadata_session.flush()
 
-        if pipe_ctx.outputs:
-            last_output_sdb = pipe_ctx.outputs[-1]
+        if snap_ctx.outputs:
+            last_output_sdb = snap_ctx.outputs[-1]
             last_output_block = last_output_sdb.data_block
             last_output_alias = last_output_sdb.get_alias(
                 execution_session.metadata_session
@@ -654,7 +656,7 @@ class Worker:
 
         input_block_counts = {}
         total_input_count = 0
-        for input_name, dbs in pipe_ctx.input_blocks_processed.items():
+        for input_name, dbs in snap_ctx.input_blocks_processed.items():
             input_block_counts[input_name] = len(dbs)
             total_input_count += len(dbs)
 
@@ -664,11 +666,11 @@ class Worker:
             output_block_id=last_output_block.id,
             output_stored_block_id=last_output_sdb.id,
             output_alias=last_output_alias.alias,
-            output_block_count=len(pipe_ctx.outputs),
+            output_block_count=len(snap_ctx.outputs),
             output_blocks_record_count=sum(
                 [
                     db.record_count()
-                    for db in pipe_ctx.outputs
+                    for db in snap_ctx.outputs
                     if db.record_count() is not None
                 ]
             ),

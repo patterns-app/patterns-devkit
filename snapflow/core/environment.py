@@ -15,7 +15,13 @@ from loguru import logger
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
-from snapflow.schema.base import GeneratedSchema, Schema, SchemaLike
+from snapflow.schema.base import (
+    GeneratedSchema,
+    GenericSchemaException,
+    Schema,
+    SchemaLike,
+    is_generic,
+)
 from snapflow.storage.storage import DatabaseStorageClass, PythonStorageClass
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.exc import ProgrammingError
@@ -23,7 +29,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 if TYPE_CHECKING:
     from snapflow.storage.storage import Storage
-    from snapflow.core.pipe import Pipe
+    from snapflow.core.snap import _Snap
     from snapflow.core.node import Node, NodeLike
     from snapflow.core.execution import RunContext, ExecutionManager
     from snapflow.core.data_block import DataBlock
@@ -148,6 +154,8 @@ class Environment:
         return self.library.module_lookup_names
 
     def get_schema(self, schema_like: SchemaLike, sess: Session) -> Schema:
+        if is_generic(schema_like):
+            raise GenericSchemaException("Cannot get generic schema `{schema_like}`")
         if isinstance(schema_like, Schema):
             return schema_like
         try:
@@ -188,14 +196,14 @@ class Environment:
     def all_schemas(self) -> List[Schema]:
         return self.library.all_schemas()
 
-    def get_pipe(self, pipe_like: str) -> Pipe:
-        return self.library.get_pipe(pipe_like)
+    def get_snap(self, snap_like: str) -> _Snap:
+        return self.library.get_snap(snap_like)
 
-    def add_pipe(self, pipe: Pipe):
-        self.library.add_pipe(pipe)
+    def add_snap(self, snap: _Snap):
+        self.library.add_snap(snap)
 
-    def all_pipes(self) -> List[Pipe]:
-        return self.library.all_pipes()
+    def all_snaps(self) -> List[_Snap]:
+        return self.library.all_snaps()
 
     def add_module(self, *modules: SnapflowModule):
         for module in modules:

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from pandas import DataFrame
-from snapflow import DataBlock, pipe
+from snapflow import DataBlock
 from snapflow.core.node import DataBlockLog
-from snapflow.core.sql.pipe import sql_pipe
+from snapflow.core.snap import Snap
+from snapflow.core.sql.sql_snap import Sql, SqlSnap
 from snapflow.storage.db.utils import get_tmp_sqlite_db_url
-from snapflow.testing.utils import DataInput, produce_pipe_output_for_static_input
+from snapflow.testing.utils import DataInput, produce_snap_output_for_static_input
 from snapflow.utils.pandas import assert_dataframes_are_almost_equal
 from snapflow.utils.typing import T
 
@@ -16,12 +17,10 @@ from snapflow.utils.typing import T
 # TODO: is there a generic minimal ANSI sql solution to dedupe keep newest? hmmmm
 #  Does not appear to be, only hacks that require the sort column to be unique
 # TODO: tests!
-sql_dedupe_unique_keep_newest_row = sql_pipe(
-    name="sql_dedupe_unique_keep_newest_row",
-    module="core",
-    compatible_runtimes="postgres",  # TODO: compatible engines...
-    sql="""
-        select -- :DataBlock[T]
+@SqlSnap(module="core", compatible_runtimes="postgres")
+def sql_dedupe_unique_keep_newest_row():
+    sql = """
+        select:T
         {% if inputs.input.nominal_schema and inputs.input.nominal_schema.unique_on %}
             distinct on (
                 {% for col in inputs.input.nominal_schema.unique_on %}
@@ -35,7 +34,7 @@ sql_dedupe_unique_keep_newest_row = sql_pipe(
                 {%- if not loop.last %},{% endif %}
             {% endfor %}
 
-        from input -- :DataBlock[T]
+        from input:T
         {% if inputs.input.nominal_schema.updated_at_field %}
         order by
             {% for col in inputs.input.nominal_schema.unique_on %}
@@ -43,11 +42,11 @@ sql_dedupe_unique_keep_newest_row = sql_pipe(
             {% endfor %}
             "{{ inputs.input.nominal_schema.updated_at_field.name }}" desc
         {% endif %}
-""",
-)
+    """
+    return sql
 
 
-@pipe("dataframe_dedupe_unique_keep_newest_row", module="core")
+@Snap("dataframe_dedupe_unique_keep_newest_row", module="core")
 def dataframe_dedupe_unique_keep_newest_row(input: DataBlock[T]) -> DataFrame[T]:
     if input.nominal_schema is None or not input.nominal_schema.unique_on:
         return input.as_dataframe()  # TODO: make this a no-op
@@ -82,7 +81,7 @@ def test_dedupe():
         # sql_dedupe_unique_keep_newest_row,
         dataframe_dedupe_unique_keep_newest_row,
     ]:
-        with produce_pipe_output_for_static_input(
+        with produce_snap_output_for_static_input(
             p, input=data_input, target_storage=s
         ) as db:
             expected_df = DataInput(

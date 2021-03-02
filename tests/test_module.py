@@ -12,7 +12,7 @@ def test_module_init():
 
     assert isinstance(_test_module, SnapflowModule)
     assert len(_test_module.schemas) >= 1
-    assert len(_test_module.pipes) >= 2
+    assert len(_test_module.snaps) >= 2
 
 
 def test_core_module():

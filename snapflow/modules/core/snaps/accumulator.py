@@ -5,21 +5,24 @@ from typing import Optional
 from loguru import logger
 from pandas import DataFrame, concat
 from snapflow.core.data_block import DataBlock
-from snapflow.core.pipe import pipe
-from snapflow.core.sql.pipe import sql_pipe
+from snapflow.core.snap import Input, Output, Snap
+from snapflow.core.sql.sql_snap import Sql, SqlSnap
 from snapflow.core.streams import Stream
 from snapflow.core.typing.inference import conform_dataframe_to_schema
 from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.testing.utils import (
     DataInput,
-    produce_pipe_output_for_static_input,
+    produce_snap_output_for_static_input,
     str_as_dataframe,
 )
 from snapflow.utils.pandas import assert_dataframes_are_almost_equal
 from snapflow.utils.typing import T
 
 
-@pipe("dataframe_accumulator", module="core")
+# @snap(module="core")
+# @input("input", schema="T")
+# @input("previous", schema="T", recursive_from_self=True)
+@Snap(module="core")
 def dataframe_accumulator(
     input: Stream[T],
     this: Optional[DataBlock[T]] = None,
@@ -32,25 +35,45 @@ def dataframe_accumulator(
 
 
 # TODO: this is no-op if "this" is empty... is there a way to shortcut?
-sql_accumulator = sql_pipe(
-    name="sql_accumulator",
-    module="core",
-    sql="""
-    {% if inputs.this.bound_block %}
-    select * from {{ inputs.this.bound_block.as_table_stmt() }}
+# TODO: does the bound stream thing even work?? Do we have a test somewhere?
+@Input("previous", schema="T", from_self=True)
+@Input("new", schema="T", stream=True)
+@Output(schema="T")
+@SqlSnap(module="core", autodetect_inputs=False)
+def sql_accumulator():
+    sql = """
+    {% if input_objects.previous.bound_block %}
+    select * from {{ inputs.previous }}
     union all
     {% endif %}
-    {% for block in inputs.input.bound_stream %}
+    {% for block in input_objects.new.bound_stream %}
     select
     * from {{ block.as_table_stmt() }}
     {% if not loop.last %}
     union all
     {% endif %}
     {% endfor %}
-    """,
-    inputs={"this": "DataBlock[T]", "input": "Stream[T]"},
-    output="DataBlock[T]",
-)
+    """
+    return sql
+
+
+# sql_accumulator = sql_snap(
+#     "sql_accumulator",
+#     module="core",
+#     sql="""
+#     {% if inputs.this.bound_block %}
+#     select * from {{ inputs.this.bound_block.as_table_stmt() }}
+#     union all
+#     {% endif %}
+#     {% for block in inputs.input.bound_stream %}
+#     select
+#     * from {{ block.as_table_stmt() }}
+#     {% if not loop.last %}
+#     union all
+#     {% endif %}
+#     {% endfor %}
+# """,
+# )
 
 
 def test_accumulator():
@@ -97,7 +120,7 @@ def test_accumulator():
     ]:
         for p in [sql_accumulator, dataframe_accumulator]:
             data_input = DataInput(input_data, schema="CoreTestSchema", module=core)
-            with produce_pipe_output_for_static_input(
+            with produce_snap_output_for_static_input(
                 p, input=data_input, target_storage=s
             ) as db:
                 assert db is not None
@@ -139,4 +162,5 @@ def test_accumulator():
     #         1,5,abc,1.1,
     #         1,6,abc,1.1,2
     #     """,
+    #
     # ),

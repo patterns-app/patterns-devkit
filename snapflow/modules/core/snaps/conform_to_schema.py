@@ -6,10 +6,10 @@ from typing import Dict, Optional
 from loguru import logger
 from pandas import DataFrame, concat
 from snapflow.core.data_block import DataBlock
-from snapflow.core.execution import PipeContext
-from snapflow.core.pipe import pipe
-from snapflow.core.pipe_interface import PipeAnnotation, PipeInterface
-from snapflow.core.sql.pipe import SqlPipeWrapper, sql_pipe
+from snapflow.core.execution import SnapContext
+from snapflow.core.snap import Snap
+from snapflow.core.snap_interface import DeclaredSnapInterface
+from snapflow.core.sql.sql_snap import SqlSnapWrapper, sql_snap
 from snapflow.core.streams import Stream
 from snapflow.core.typing.inference import conform_dataframe_to_schema
 from snapflow.schema.base import Implementation, create_quick_schema
@@ -18,20 +18,20 @@ from snapflow.storage.data_formats.database_table_ref import DatabaseTableRefFor
 from snapflow.storage.db.utils import column_map, get_tmp_sqlite_db_url
 from snapflow.testing.utils import (
     DataInput,
-    produce_pipe_output_for_static_input,
+    produce_snap_output_for_static_input,
     str_as_dataframe,
 )
 from snapflow.utils.pandas import assert_dataframes_are_almost_equal
 from snapflow.utils.typing import T
 
 
-@pipe("dataframe_conform_to_schema", module="core")
+@Snap("dataframe_conform_to_schema", module="core")
 def dataframe_conform_to_schema(
-    ctx: PipeContext,
+    ctx: SnapContext,
     input: DataBlock,
 ) -> DataFrame:
     env = ctx.run_context.env
-    to_schema_key = ctx.get_config_value("schema")
+    to_schema_key = ctx.get_param("schema")
     to_schema = env.get_schema(to_schema_key, ctx.execution_session.metadata_session)
     schema = input.nominal_schema
     translation = schema.get_translation_to(
@@ -45,11 +45,11 @@ def dataframe_conform_to_schema(
     return df[cols]
 
 
-class SqlConformToSchema(SqlPipeWrapper):
-    def get_compiled_sql(self, ctx: PipeContext, inputs: Dict[str, DataBlock]):
+class SqlConformToSchema(SqlSnapWrapper):
+    def get_compiled_sql(self, ctx: SnapContext, inputs: Dict[str, DataBlock]):
         input = inputs["input"]
         env = ctx.run_context.env
-        to_schema_key = ctx.get_config_value("schema")
+        to_schema_key = ctx.get_param("schema")
         to_schema = env.get_schema(
             to_schema_key, ctx.execution_session.metadata_session
         )
@@ -68,11 +68,11 @@ class SqlConformToSchema(SqlPipeWrapper):
         )
         return sql
 
-    def get_interface(self) -> PipeInterface:
+    def get_interface(self) -> DeclaredSnapInterface:
         return dataframe_conform_to_schema.get_interface()
 
 
-sql_conform_to_schema = sql_pipe(
+sql_conform_to_schema = sql_snap(
     name="sql_conform_to_schema",
     sql="select * from input",
     module="core",
@@ -117,8 +117,8 @@ def test_conform():
         dataframe_conform_to_schema,
         sql_conform_to_schema,
     ]:
-        with produce_pipe_output_for_static_input(
-            p, input=data_input, target_storage=s, config={"schema": "TestSchemaA"}
+        with produce_snap_output_for_static_input(
+            p, input=data_input, target_storage=s, params={"schema": "TestSchemaA"}
         ) as db:
             expected_df = DataInput(expected, schema=TestSchemaA).as_dataframe(
                 db.manager.ctx.env, db.manager.sess

@@ -8,12 +8,12 @@
 <p>&nbsp;</p>
 
 **Snapflow** is a framework for building end-to-end **functional data pipelines** from modular
-components. It lets developers write pure data functions, called `pipes`, in **Python or SQL**
-and document their inputs and outputs explicitly via `schemas`. These pipes operate on immutable
+components. It lets developers write pure data functions, called `snaps`, in **Python or SQL**
+and document their inputs and outputs explicitly via `schemas`. These snaps operate on immutable
 sets of data records, called `datablocks`, and can be composed into simple or complex data
 pipelines. This functional framework provides powerful benefits:
 
-- **Reusable components** — Pipes can be easily snapped together, shared and
+- **Reusable components** — Snaps can be easily snapped together, shared and
   reused across projects, open-sourced, and catalogued in the snapflow repository (coming soon).
   Some example snapflow modules:
 
@@ -23,7 +23,7 @@ pipelines. This functional framework provides powerful benefits:
   - [FRED](https://github.com/kvh/snapflow-fred.git) (Federal Reserve Economic Data)
   <!-- - [BI](https://github.com/kvh/snapflow-bi.git) (Business Intelligence) -->
 
-- **Testability** — Pipes provide explicit test
+- **Testability** — Snaps provide explicit test
   inputs and the expected output under various data scenarios — a **data ETL unit test**, bringing
   the rigor and reliability of software to the world of data.
 
@@ -31,12 +31,12 @@ pipelines. This functional framework provides powerful benefits:
   along with the code and runtimes that produced it, so you can audit and reproduce
   complex pipelines down to the byte.
 
-- **Portability** — With modular and testable pipes, developing consistent
+- **Portability** — With modular and testable snaps, developing consistent
   data operations across different database engines and storage systems is safe and efficient.
   Snapflow supports any major database vendor (postgres, mysql, snowflake, bigquery, redshift),
   file system (local, S3, etc), as well as any data format, whether it's csv, json, or apache arrow.
 
-- **Zero cost abstractions and high performance** — Snapflow pipe operations and immutability
+- **Zero cost abstractions and high performance** — Snapflow snap operations and immutability
   guarantees can be compiled down at execution time for high performance. This means developers and
   analysts can work with clean mental models and strong guarantees without incurring performance
   costs at runtime.
@@ -54,14 +54,14 @@ scale from laptop to AWS cluster.
 `pip install snapflow snapflow-stripe`
 
 ```python
-from snapflow import graph, produce, operators, sql_pipe
+from snapflow import graph, produce, operators, SqlSnap
 import snapflow_stripe as stripe
 
 g = graph()
 
 # Fetch Stripe charges from API:
 stripe_source_node = g.node(
-    stripe.pipes.extract_charges,
+    stripe.snaps.extract_charges,
     config={"api_key": "xxxxxxxxxxxx"},
 )
 
@@ -69,16 +69,17 @@ stripe_source_node = g.node(
 stripe_charges_node = g.node("core.dataframe_accumulator")
 stripe_charges_node.set_upstream(stripe_source_node)
 
-# Define custom pipe:
+# Define custom snap in python:
 def customer_lifetime_sales(txs):
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
 
-# Or equivalent in sql (typically a separate file)
-customer_lifetime_sales_sql = sql_pipe(
-    "customer_lifetime_sales_sql",
-    "select customer, sum(amount) as amount from txs group by customer"
-)
+# Or equivalent in sql
+@SqlSnap
+def customer_lifetime_sales_sql():
+  return "select customer, sum(amount) as amount from txs group by customer"
+  # Can use jinja templates too
+  # return template("sql/customer_lifetime_sales.sql")
 
 # Add node and take latest accumulated output as input:
 lifetime_sales = g.node(customer_lifetime_sales)
@@ -91,7 +92,7 @@ print(output.as_dataframe()
 
 ## Architecture overview
 
-All snapflow pipelines are directed graphs of `pipe` nodes, consisting of one or more "source" nodes
+All snapflow pipelines are directed graphs of `snap` nodes, consisting of one or more "source" nodes
 that create and emit datablocks when run. This stream of blocks is
 then be consumed by downstream nodes, each in turn may emit their own blocks. Nodes
 can be run in any order, any number of times. Each time run, they consume any new blocks
@@ -104,7 +105,7 @@ Below are more details on the key components of snapflow.
 ### Datablocks
 
 A `datablock` is an immutable set of data records of uniform `schema` -- think csv file, pandas
-dataframe, or database table. `datablocks` are the basic data unit of snapflow, the unit that `pipes` take
+dataframe, or database table. `datablocks` are the basic data unit of snapflow, the unit that `snaps` take
 as input and produce as output. Once created, a datablock's data will never change: no records will
 be added or deleted, or data points modified. More precisely, `datablocks` are a reference to an
 abstract ideal of a set of records, and will have one or more `StoredDataBlocks` persisting those
@@ -113,11 +114,11 @@ local file, a JSON string in memory, or a table in Postgres. Snapflow abstracts 
 formats and storage engines, and provides conversion and i/o between them while
 maintaining byte-perfect consistency -- to the extent possible for a given format and storage.
 
-### Pipes
+### Snaps
 
-`pipes` are the core computational unit of snapflow. They are functions that operate on
-`datablocks` and are added as nodes to a pipe graph, linking one node's output to another's
-input via `streams`. Pipes are written in python or sql. Below are two equivalent example pipes:
+`snaps` are the core computational unit of snapflow. They are functions that operate on
+`datablocks` and are added as nodes to a snap graph, linking one node's output to another's
+input via `streams`. Snaps are written in python or sql. Below are two equivalent example snaps:
 
 ```python
 def sales(txs: DataBlock) -> DataFrame:
@@ -133,33 +134,28 @@ from txs
 group by customer_id
 ```
 
-Pipes may take any number of inputs, and optionally may output data. A pipe with no datablock inputs
-is a "source" pipe. These pipes are often used to fetch data from an external API or data source.
-Pipes can also take configuration options. Snapflow relies on Python 3 type annotations to understand
-a pipe's interface and what inputs are required or optional:
+Snaps may take any number of inputs, and optionally may output data. A snap with no inputs
+is a "source" snap. These snaps are often used to fetch data from an external API or data source.
+Snaps can also take parameters. Snapflow relies on Python 3 type annotations to understand
+a snap's interface and what inputs are required or optional:
 
 ```python
-@dataclass
-class ExtractJsonApiConfig:
-    api_url: str
-    query_params: Optional[Dict[str, str]] = None
-
-
-@pipe(configuration_class=ExtractJsonApiConfig)
-def extract_json_api(ctx: PipeContext) -> List[Dict]:
-    # PipeContext is automatically injected when type-annotated
-    url = ctx.get_config_value("api_url")
-    params = ctx.get_config_value("query_params")
+@Param("api_url", datatype="str")
+@Param("query_params", datatype="json", required=False)
+def extract_json_api(ctx: SnapContext) -> List[Dict]:
+    # SnapContext is automatically injected when type-annotated
+    url = ctx.get_param("api_url")
+    params = ctx.get_param("query_params")
     resp = requests.get(url, params or {})
     resp.raise_for_status()
     return resp.json()["data"]
 ```
 
-In the case of sql pipes, the inputs are inferred from table identifiers in the query.
+In the case of sql snaps, the inputs are inferred from table identifiers in the query.
 
 ### Schemas
 
-`schemas` are record type definitions (think database table schema) that let `pipes` specify the
+`schemas` are record type definitions (think database table schema) that let `snaps` specify the
 data structure they expect and allow them to inter-operate safely. They also
 provide a natural place for field descriptions, validation logic, deduplication
 behavior, relations to other schemas, and other metadata associated with a specific type of data record.
@@ -196,12 +192,22 @@ fields:
     type: Unicode(256)
 ```
 
-`pipes` can declare the `schemas` they expect with type hints, allowing them to specify the
+`snaps` can declare the `schemas` they expect with type hints, allowing them to specify the
 (minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
 
 ```python
 # In python, use python's type annotations to specify expected schemas:
-@pipe
+@Snap
+def sales(txs: DataBlock[Transaction]) -> DataBlock[CustomerMetric]:
+    df = txs.as_dataframe()
+    return df.groupby("customer_id").sum("amount").reset_index()
+```
+
+You can also more explicitly define inputs and outputs with the `@Input` and `@Output` decorators:
+
+```python
+@Input("txs", schema="Transaction")
+@Output(schema="CustomerMetric")
 def sales(txs: DataBlock[Transaction]) -> DataBlock[CustomerMetric]:
     df = txs.as_dataframe()
     return df.groupby("customer_id").sum("amount").reset_index()
@@ -233,8 +239,8 @@ implementations:
     value: amount
 ```
 
-Here we have _implemented_ the `common.TimeSeries` schema, so any `pipe` that accepts
-timeseries data, say a seasonality modeling pipe, can now be applied to this `Order` data. We could
+Here we have _implemented_ the `common.TimeSeries` schema, so any `snap` that accepts
+timeseries data, say a seasonality modeling snap, can now be applied to this `Order` data. We could
 also apply this schema implementation ad-hoc at node declaration time with the
 `schema_translation` kwarg:
 
@@ -250,7 +256,7 @@ n = node(
    })
 ```
 
-Typing is always optional, our original pipe definitions were valid with
+Typing is always optional, our original snap definitions were valid with
 no annotated `schemas`. Snapflow `schemas` are a powerful mechanism for producing reusable
 components and building maintainable large-scale data projects and ecosystems. They are always
 optional though, and should be used when the utility they provide out-weighs the friction they
@@ -258,7 +264,7 @@ introduce.
 
 ### Streams
 
-Datablock `streams` connect nodes in the pipe graph. By default every node's output is a simple
+Datablock `streams` connect nodes in the snap graph. By default every node's output is a simple
 stream of datablocks, consumed by one or more other downstream nodes. Stream **operators** allow
 you to manipulate these streams:
 
@@ -286,7 +292,7 @@ def sample(stream: Stream, sample_rate: float = .5) -> Stream:
             yield block
 ```
 
-It's important to note that streams, unlike pipes, never _create_ new datablocks or have any
+It's important to note that streams, unlike snaps, never _create_ new datablocks or have any
 effect on what is stored on disk. They only alter _which_ datablocks end up as input to a node.
 
 ## Other concepts
@@ -302,8 +308,8 @@ warning or, if serious enough, fail with an error. (Partially implemented, see #
 
 ### Environment and metadata
 
-A snapflow `environment` tracks the pipe graph, and acts as a registry for the `modules`,
-`runtimes`, and `storages` available to pipes. It is associated one-to-one with a single
+A snapflow `environment` tracks the snap graph, and acts as a registry for the `modules`,
+`runtimes`, and `storages` available to snaps. It is associated one-to-one with a single
 `metadata database`. The primary responsibility of the metadata database is to track which
 nodes have processed which DataBlocks, and the state of nodes. In this sense, the environment and
 its associated metadata database contain all the "state" of a snapflow project. If you delete the
@@ -320,7 +326,7 @@ Developing new snapflow components is straightforward and can be done as part of
 Data blocks have three associated schemas:
 
 - Inferred schema - the structure and datatypes automatically inferred from the actual data
-- Nominal schema - the schema that was declared (or resolved, for a generic) in the pipe graph
+- Nominal schema - the schema that was declared (or resolved, for a generic) in the snap graph
 - Realized schema - the schema that was ultimately used to physically store the data on a specific
   storage (the schema used to create a database table, for instance)
 

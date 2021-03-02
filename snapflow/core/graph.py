@@ -18,7 +18,7 @@ import networkx as nx
 from loguru import logger
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DeclaredNode, Node, NodeLike, node
-from snapflow.core.pipe import PipeLike
+from snapflow.core.snap import SnapLike
 from snapflow.utils.common import md5_hash, remove_dupes
 from sqlalchemy import Column, String
 from sqlalchemy.sql.sqltypes import JSON
@@ -55,18 +55,18 @@ class DeclaredGraph:
 
     def node(
         self,
-        pipe: Union[PipeLike, str],
+        snap: Union[SnapLike, str],
         key: Optional[str] = None,
-        config: Dict[str, Any] = None,
+        params: Dict[str, Any] = None,
         upstream: Union[StreamLike, Dict[str, StreamLike]] = None,
         graph: Optional[DeclaredGraph] = None,
         output_alias: Optional[str] = None,
         schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
     ) -> DeclaredNode:
         dn = node(
-            pipe=pipe,
+            snap=snap,
             key=key,
-            config=config,
+            params=params,
             upstream=upstream,
             graph=graph,
             output_alias=output_alias,
@@ -135,18 +135,18 @@ class Graph:
     # TODO: duplicated code
     def node(
         self,
-        pipe: Union[PipeLike, str],
+        snap: Union[SnapLike, str],
         key: Optional[str] = None,
-        config: Dict[str, Any] = None,
+        params: Dict[str, Any] = None,
         upstream: Union[StreamLike, Dict[str, StreamLike]] = None,
         graph: Optional[DeclaredGraph] = None,
         output_alias: Optional[str] = None,
         schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
     ) -> Node:
         dn = node(
-            pipe=pipe,
+            snap=snap,
             key=key,
-            config=config,
+            params=params,
             upstream=upstream,
             graph=graph,
             output_alias=output_alias,
@@ -183,7 +183,7 @@ class Graph:
     def validate_graph(self) -> bool:
         # TODO
         #  validate node keys are valid
-        #  validate pipes are valid
+        #  validate snaps are valid
         #  validate types are valid
         #  etc
         return True

@@ -10,7 +10,7 @@ from loguru import logger
 from snapflow.core.data_block import DataBlockMetadata
 from snapflow.core.environment import Environment, current_env
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX
-from snapflow.core.node import DataBlockLog, PipeLog
+from snapflow.core.node import DataBlockLog, SnapLog
 from snapflow.core.typing.inference import dict_to_rough_schema
 from snapflow.project.project import SNAPFLOW_PROJECT_FILE_NAME, init_project_in_dir
 from snapflow.schema.base import schema_to_yaml
@@ -66,7 +66,6 @@ class CliAppException(Exception):
 @click.pass_context
 def app(ctx, debug: bool = False, metadata: Optional[str] = None):
     """Modern Data Pipelines"""
-    # logger.enable("snapflow")
     logger.warning("The snapflow CLI is experimental and not officially supported yet")
     if debug:
         logger.add(sys.stderr, level="DEBUG")
@@ -173,13 +172,13 @@ def list_nodes(env: Environment):
     with env.session_scope() as sess:
         query = (
             sess.query(
-                PipeLog.node_key,
-                func.count(PipeLog.id),
-                func.max(PipeLog.started_at),
+                SnapLog.node_key,
+                func.count(SnapLog.id),
+                func.max(SnapLog.started_at),
                 func.count(DataBlockLog.id),
             )
-            .join(PipeLog.data_block_logs)
-            .group_by(PipeLog.node_key)
+            .join(SnapLog.data_block_logs)
+            .group_by(SnapLog.node_key)
             .all()
         )
         headers = [
@@ -195,9 +194,9 @@ def list_nodes(env: Environment):
 @click.command("logs")
 @click.pass_obj
 def logs(env: Environment):
-    """Show log of Pipes on DataBlocks"""
+    """Show log of Snaps on DataBlocks"""
     with env.session_scope() as sess:
-        query = sess.query(PipeLog).order_by(PipeLog.updated_at.desc())
+        query = sess.query(SnapLog).order_by(SnapLog.updated_at.desc())
         drls = []
         for dfl in query:
             if dfl.data_block_logs:
@@ -220,7 +219,7 @@ def logs(env: Environment):
                 )
         headers = [
             "Started",
-            "Pipe",
+            "_Snap",
             "Direction",
             "DataBlock",
         ]
@@ -243,10 +242,10 @@ def reset_metadata(env: Environment):
     raise NotImplementedError
     with env.session_scope() as sess:
         sess.execute(
-            f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}pipe_log        cascade;"
+            f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}snap_log        cascade;"
         )
         sess.execute(
-            f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}pipe_log_id_seq cascade;"
+            f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}snap_log_id_seq cascade;"
         )
         sess.execute(
             f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}data_resource_log        cascade;"
