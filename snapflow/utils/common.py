@@ -56,7 +56,9 @@ def title_to_snake_case(s: str) -> str:
         ):
             # "ATitle"
             s2 += s[i - 1] + "_"
-        elif s[i - 1].isnumeric() != s[i].isnumeric():
+        elif s[i - 1].isnumeric() != s[i].isnumeric() and (
+            s[i - 1].isalpha() or s[i].isupper()
+        ):
             # "This98That"
             s2 += s[i - 1] + "_"
         else:

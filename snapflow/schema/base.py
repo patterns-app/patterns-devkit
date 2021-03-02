@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 
@@ -97,7 +98,8 @@ class Implementation:
 
 def schema_key_to_identifier(key: str) -> str:
     key = key.replace(".", "_")
-    return title_to_snake_case(key)
+    key = title_to_snake_case(key)
+    return re.sub("[_]+", "_", key)
 
 
 @dataclass(frozen=True)

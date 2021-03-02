@@ -61,7 +61,7 @@ def test_schema_identifiers():
     )
     assert t2.name == "TestSchema"
     assert t2.key == "m1.TestSchema"
-    assert t2.get_identifier() == "m1_test_schema"
+    assert t2.get_identifier() == "m_1_test_schema"
     assert t2.get_field("f1").name == "f1"
     with pytest.raises(NameError):
         assert t2.get_field("f3")
