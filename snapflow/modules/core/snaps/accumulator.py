@@ -1,5 +1,4 @@
 from __future__ import annotations
-from snapflow.core.sql.sql_snap import Sql, SqlSnap
 
 from typing import Optional
 
@@ -7,6 +6,7 @@ from loguru import logger
 from pandas import DataFrame, concat
 from snapflow.core.data_block import DataBlock
 from snapflow.core.snap import Input, Output, Snap
+from snapflow.core.sql.sql_snap import Sql, SqlSnap
 from snapflow.core.streams import Stream
 from snapflow.core.typing.inference import conform_dataframe_to_schema
 from snapflow.storage.db.utils import get_tmp_sqlite_db_url
@@ -24,7 +24,8 @@ from snapflow.utils.typing import T
 # @input("previous", schema="T", recursive_from_self=True)
 @Snap(module="core")
 def dataframe_accumulator(
-    input: Stream[T], this: Optional[DataBlock[T]] = None,
+    input: Stream[T],
+    this: Optional[DataBlock[T]] = None,
 ) -> DataFrame[T]:
     # TODO: make this return a dataframe iterator right?
     accumulated_dfs = [block.as_dataframe() for block in input]

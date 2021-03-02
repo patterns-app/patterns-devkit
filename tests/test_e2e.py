@@ -9,7 +9,7 @@ import pandas as pd
 import pytest
 from loguru import logger
 from pandas._testing import assert_almost_equal
-from snapflow import DataBlock, Snap, sql_snap, Input, Output, Param
+from snapflow import DataBlock, Input, Output, Param, Snap, sql_snap
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import SnapContext
 from snapflow.core.graph import Graph
@@ -19,7 +19,6 @@ from snapflow.schema.base import create_quick_schema
 from snapflow.storage.data_formats import Records, RecordsIterator
 from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.storage.storage import new_local_python_storage
-
 
 Customer = create_quick_schema(
     "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "JSON")]

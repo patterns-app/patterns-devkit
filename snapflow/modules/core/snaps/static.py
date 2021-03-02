@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from pandas import DataFrame
 from snapflow.core.execution import SnapContext
-from snapflow.core.snap import Snap, Param
+from snapflow.core.snap import Param, Snap
 from snapflow.schema.base import SchemaLike
 from snapflow.storage.data_formats import DataFrameFormat, RecordsFormat
 from snapflow.storage.data_formats.delimited_file_object import (
@@ -26,7 +26,9 @@ class ExtractDataFrameConfig:
 
 
 @Snap(
-    "extract_dataframe", module="core", state_class=LocalExtractState,
+    "extract_dataframe",
+    module="core",
+    state_class=LocalExtractState,
 )
 @Param("dataframe", datatype="DataFrame")
 @Param("schema", datatype="str")
@@ -48,7 +50,9 @@ class ExtractLocalCSVConfig:
 
 
 @Snap(
-    "extract_csv", module="core", state_class=LocalExtractState,
+    "extract_csv",
+    module="core",
+    state_class=LocalExtractState,
 )
 @Param("path", datatype="str")
 @Param("schema", datatype="str")

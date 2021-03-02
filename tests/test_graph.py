@@ -72,9 +72,21 @@ def test_make_graph():
     assert len(g.get_all_nodes_in_execution_order()) == len(nodes)
     execution_order = [n.key for n in g.get_all_nodes_in_execution_order()]
     expected_orderings = [
-        ["node2", "node4", "node5",],
-        ["node2", "node4", "node6",],
-        ["node1", "node3", "node7",],
+        [
+            "node2",
+            "node4",
+            "node5",
+        ],
+        [
+            "node2",
+            "node4",
+            "node6",
+        ],
+        [
+            "node1",
+            "node3",
+            "node7",
+        ],
     ]
     # TODO: graph sort not stable!
     for ordering in expected_orderings:

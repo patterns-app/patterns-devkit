@@ -1,5 +1,4 @@
 from __future__ import annotations
-from snapflow.core.snap import Snap
 
 from textwrap import wrap
 from typing import Dict, Optional
@@ -8,6 +7,7 @@ from loguru import logger
 from pandas import DataFrame, concat
 from snapflow.core.data_block import DataBlock
 from snapflow.core.execution import SnapContext
+from snapflow.core.snap import Snap
 from snapflow.core.snap_interface import DeclaredSnapInterface
 from snapflow.core.sql.sql_snap import SqlSnapWrapper, sql_snap
 from snapflow.core.streams import Stream
@@ -26,7 +26,10 @@ from snapflow.utils.typing import T
 
 
 @Snap("dataframe_conform_to_schema", module="core")
-def dataframe_conform_to_schema(ctx: SnapContext, input: DataBlock,) -> DataFrame:
+def dataframe_conform_to_schema(
+    ctx: SnapContext,
+    input: DataBlock,
+) -> DataFrame:
     env = ctx.run_context.env
     to_schema_key = ctx.get_param("schema")
     to_schema = env.get_schema(to_schema_key, ctx.execution_session.metadata_session)

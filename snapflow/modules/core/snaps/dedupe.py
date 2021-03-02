@@ -1,10 +1,10 @@
 from __future__ import annotations
-from snapflow.core.snap import Snap
-from snapflow.core.sql.sql_snap import Sql, SqlSnap
 
 from pandas import DataFrame
 from snapflow import DataBlock
 from snapflow.core.node import DataBlockLog
+from snapflow.core.snap import Snap
+from snapflow.core.sql.sql_snap import Sql, SqlSnap
 from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.testing.utils import DataInput, produce_snap_output_for_static_input
 from snapflow.utils.pandas import assert_dataframes_are_almost_equal

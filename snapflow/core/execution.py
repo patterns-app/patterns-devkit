@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import traceback
 from collections import abc, defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
 from io import IOBase
-import traceback
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Set
 
 import sqlalchemy
@@ -21,13 +21,13 @@ from snapflow.core.data_block import (
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DataBlockLog, Direction, Node, SnapLog, get_state
+from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.snap import DataInterfaceType, InputExhaustedException, _Snap
 from snapflow.core.snap_interface import (
     BoundInterface,
     NodeInterfaceManager,
     StreamInput,
 )
-from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.storage import copy_lowest_cost
 from snapflow.schema.base import Schema
 from snapflow.storage.data_formats import DataFrameIterator, RecordsIterator
@@ -372,7 +372,8 @@ class SnapContext:  # TODO: (Generic[C, S]):
         nominal_output_schema = schema
         if nominal_output_schema is None:
             nominal_output_schema = self.executable.bound_interface.resolve_nominal_output_schema(
-                self.run_context.env, self.execution_session.metadata_session,
+                self.run_context.env,
+                self.execution_session.metadata_session,
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
         logger.debug(
             f"Resolved output schema {nominal_output_schema} {self.executable.bound_interface}"
@@ -536,7 +537,10 @@ class ExecutionManager:
         snap = node.snap
         executable = Executable(
             node_key=node.key,
-            compiled_snap=CompiledSnap(key=node.key, snap=snap,),
+            compiled_snap=CompiledSnap(
+                key=node.key,
+                snap=snap,
+            ),
             # bound_interface=interface_mgr.get_bound_interface(),
             params=node.params or {},
         )

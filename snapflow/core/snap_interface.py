@@ -3,10 +3,11 @@ from __future__ import annotations
 import inspect
 import re
 from dataclasses import asdict, dataclass, field
-from snapflow.core.environment import Environment
-from typing import Any, TYPE_CHECKING, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from loguru import logger
+from snapflow.core.data_block import DataBlock
+from snapflow.core.environment import Environment
 from snapflow.schema.base import (
     GenericSchemaException,
     Schema,
@@ -491,7 +492,8 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation, from_schema=source_schema,
+            translation=declared_schema_translation,
+            from_schema=source_schema,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed

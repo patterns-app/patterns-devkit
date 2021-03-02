@@ -37,7 +37,9 @@ class GraphMetadata(BaseModel):
     adjacency = Column(JSON)
 
     def __repr__(self) -> str:
-        return self._repr(hash=self.hash,)
+        return self._repr(
+            hash=self.hash,
+        )
 
 
 class DeclaredGraph:

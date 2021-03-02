@@ -1,17 +1,17 @@
 from __future__ import annotations
+
+from snapflow.api import Input
 from snapflow.core.sql.sql_snap import (
     AnnotatedParam,
     AnnotatedSqlTable,
+    ParsedSqlStatement,
     Sql,
     SqlSnap,
     extract_param_annotations,
-    ParsedSqlStatement,
     extract_table_annotations,
     extract_tables,
     sql_snap,
 )
-
-from snapflow.api import Input
 from tests.utils import make_test_env
 
 

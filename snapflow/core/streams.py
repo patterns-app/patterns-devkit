@@ -1,6 +1,6 @@
 from __future__ import annotations
-from dataclasses import asdict, dataclass, field
 
+from dataclasses import asdict, dataclass, field
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -131,7 +131,8 @@ class StreamBuilder:
     """"""
 
     def __init__(
-        self, filters: StreamBuilderSerializable = None,
+        self,
+        filters: StreamBuilderSerializable = None,
     ):
         self._filters = filters or StreamBuilderSerializable()
 
@@ -167,11 +168,15 @@ class StreamBuilder:
         self, unprocessed_by: Node, allow_cycle=False
     ) -> StreamBuilder:
         return self.clone(
-            unprocessed_by_node_key=unprocessed_by.key, allow_cycle=allow_cycle,
+            unprocessed_by_node_key=unprocessed_by.key,
+            allow_cycle=allow_cycle,
         )
 
     def _filter_unprocessed(
-        self, ctx: RunContext, sess: Session, query: Query,
+        self,
+        ctx: RunContext,
+        sess: Session,
+        query: Query,
     ) -> Query:
         if not self._filters.unprocessed_by_node_key:
             return query
@@ -202,7 +207,12 @@ class StreamBuilder:
     ) -> StreamBuilder:
         return self.clone(node_keys=[ensure_node_key(n) for n in ensure_list(upstream)])
 
-    def _filter_upstream(self, ctx: RunContext, sess: Session, query: Query,) -> Query:
+    def _filter_upstream(
+        self,
+        ctx: RunContext,
+        sess: Session,
+        query: Query,
+    ) -> Query:
         if not self._filters.node_keys:
             return query
         eligible_input_drs = (
@@ -265,7 +275,11 @@ class StreamBuilder:
         return self.clone(operators=(self.get_operators() + [op]))
 
     def is_unprocessed(
-        self, ctx: RunContext, sess: Session, block: DataBlockMetadata, node: Node,
+        self,
+        ctx: RunContext,
+        sess: Session,
+        block: DataBlockMetadata,
+        node: Node,
     ) -> bool:
         blocks = self.filter_unprocessed(node)
         q = blocks.get_query(ctx, sess)

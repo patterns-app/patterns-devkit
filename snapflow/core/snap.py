@@ -3,6 +3,12 @@ from __future__ import annotations
 import inspect
 from dataclasses import asdict, dataclass, field
 from functools import partial
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
+
+from pandas import DataFrame
+from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
+from snapflow.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
 from snapflow.core.snap_interface import (
     DeclaredInput,
     DeclaredOutput,
@@ -11,12 +17,6 @@ from snapflow.core.snap_interface import (
     snap_interface_from_callable,
 )
 from snapflow.schema.base import SchemaLike
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
-
-from pandas import DataFrame
-from snapflow.core.data_block import DataBlock, DataBlockMetadata
-from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
-from snapflow.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
 from snapflow.storage.data_formats import DatabaseTableRef, Records
 
 if TYPE_CHECKING:
@@ -35,7 +35,11 @@ class InputExhaustedException(SnapException):
 SnapCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame, Records, DatabaseTableRef, DataBlockMetadata, DataBlock,
+    DataFrame,
+    Records,
+    DatabaseTableRef,
+    DataBlockMetadata,
+    DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -86,7 +90,9 @@ class _Snap:
     signature_output: Optional[str] = None
     declared_inputs: Optional[List[DeclaredInput]] = None
     declared_output: Optional[DeclaredOutput] = None
-    ignore_signature: bool = False  # Whether to ignore signature if there are any declared i/o
+    ignore_signature: bool = (
+        False  # Whether to ignore signature if there are any declared i/o
+    )
 
     # TODO: runtime engine eg "mysql>=8.0", "python==3.7.4"  ???
     # TODO: runtime dependencies
@@ -267,7 +273,11 @@ def add_param_decorator(
     help: str = "",
 ):
     p = Parameter(
-        name=name, datatype=datatype, required=required, default=default, help=help,
+        name=name,
+        datatype=datatype,
+        required=required,
+        default=default,
+        help=help,
     )
 
     def dec(snap_like: Union[SnapCallable, _Snap]) -> _Snap:
@@ -299,4 +309,3 @@ Input = add_declared_input_decorator
 Output = add_declared_output_decorator
 Param = add_param_decorator
 Snap = snap_decorator
-

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import enum
-from snapflow.core.snap_interface import DeclaredSnapInterface, DeclaredStreamInput
 import traceback
 from dataclasses import dataclass, field
 from operator import and_
@@ -11,7 +10,8 @@ from loguru import logger
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
-from snapflow.core.snap import _Snap, SnapLike, ensure_snap, make_snap, make_snap_name
+from snapflow.core.snap import SnapLike, _Snap, ensure_snap, make_snap, make_snap_name
+from snapflow.core.snap_interface import DeclaredSnapInterface, DeclaredStreamInput
 from snapflow.storage.storage import SqliteStorageEngine
 from snapflow.utils.common import as_identifier
 from sqlalchemy.orm import Session, relationship
@@ -124,7 +124,9 @@ def node(
 
 
 def instantiate_node(
-    env: Environment, graph: Graph, declared_node: DeclaredNode,
+    env: Environment,
+    graph: Graph,
+    declared_node: DeclaredNode,
 ):
     if isinstance(declared_node.snap, str):
         snap = env.get_snap(declared_node.snap)
@@ -265,7 +267,10 @@ class NodeState(BaseModel):
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(node_key=self.node_key, state=self.state,)
+        return self._repr(
+            node_key=self.node_key,
+            state=self.state,
+        )
 
 
 def get_state(sess: Session, node_key: str) -> Optional[Dict]:

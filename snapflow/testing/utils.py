@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterator, Optional
 
 from pandas import DataFrame
-from snapflow import DataBlock, Environment, Graph, _Snap, Storage
+from snapflow import DataBlock, Environment, Graph, Storage, _Snap
 from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DataBlockLog, Node, SnapLog
 from snapflow.core.typing.inference import infer_schema_from_records
