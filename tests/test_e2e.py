@@ -19,6 +19,8 @@ from snapflow.storage.data_formats import Records, RecordsIterator
 from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.storage.storage import new_local_python_storage
 
+logger.enable("snapflow")
+
 Customer = create_quick_schema(
     "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "JSON")]
 )
@@ -312,3 +314,51 @@ def test_node_reset():
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
+
+
+@Input("metrics", schema="Metric")
+@Input("cust", schema="Customer")
+def with_latest_metrics_no_ref(metrics: DataBlock, cust: DataBlock):
+    m = metrics.as_dataframe()
+    c = cust.as_dataframe()
+    return pd.concat([m, c])
+
+
+@Input("metrics", schema="Metric", reference=True)
+@Input("cust", schema="Customer")
+def with_latest_metrics(metrics: DataBlock, cust: DataBlock):
+    m = metrics.as_dataframe()
+    c = cust.as_dataframe()
+    return pd.concat([m, c])
+
+
+def test_ref_input():
+    env = get_env()
+    g = Graph(env)
+    s = env._local_python_storage
+    # Initial graph
+    N = 2 * 4
+    source = g.create_node(customer_source, params={"total_records": N})
+    accum = g.create_node("core.dataframe_accumulator", upstream=source)
+    metrics = g.create_node(shape_metrics, upstream=accum)
+    join_ref = g.create_node(
+        with_latest_metrics, upstream={"metrics": metrics, "cust": source}
+    )
+    join = g.create_node(
+        with_latest_metrics_no_ref, upstream={"metrics": metrics, "cust": source}
+    )
+    # Run once, for one metrics output
+    output = produce(metrics, graph=g, target_storage=s, env=env)
+
+    # Both joins work
+    output = env.run_node(join_ref, g, target_storage=s)
+    assert output is not None
+    output = env.run_node(join, g, target_storage=s)
+    assert output is not None
+    # Run source to create new customers, but NOT new metrics
+    output = env.run_node(source, g, target_storage=s)
+    # This time only ref will still have a metrics input
+    output = env.run_node(join_ref, g, target_storage=s)
+    assert output is not None
+    output = env.run_node(join, g, target_storage=s)
+    assert output is None  # Regular join has exhausted metrics

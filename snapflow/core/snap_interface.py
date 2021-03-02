@@ -6,6 +6,7 @@ from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from loguru import logger
+from snapflow.core import operators
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment
 from snapflow.schema.base import (
@@ -616,11 +617,15 @@ class NodeInterfaceManager:
             logger.debug(
                 f"{stream_builder.get_count(self.ctx, self.sess)} available DataBlocks in storages {storages}"
             )
-        logger.debug(f"Finding unprocessed input for: {stream_builder}")
-        stream_builder = stream_builder.filter_unprocessed(
-            self.node, allow_cycle=input.declared_input.from_self
-        )
-        logger.debug(
-            f"{stream_builder.get_count(self.ctx, self.sess)} unprocessed DataBlocks"
-        )
+        if input.declared_input.reference:
+            logger.debug("Reference input, taking latest")
+            stream_builder = operators.latest(stream_builder)
+        else:
+            logger.debug(f"Finding unprocessed input for: {stream_builder}")
+            stream_builder = stream_builder.filter_unprocessed(
+                self.node, allow_cycle=input.declared_input.from_self
+            )
+            logger.debug(
+                f"{stream_builder.get_count(self.ctx, self.sess)} unprocessed DataBlocks"
+            )
         return stream_builder

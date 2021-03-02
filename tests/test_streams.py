@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import pytest
 from snapflow.core.data_block import DataBlockMetadata
 from snapflow.core.graph import Graph
 from snapflow.core.node import DataBlockLog, Direction, SnapLog
 from snapflow.core.operators import filter, latest, operator
-from snapflow.core.streams import DataBlockStream, StreamBuilder, stream
+from snapflow.core.streams import (
+    DataBlockStream,
+    ManagedDataBlockStream,
+    StreamBuilder,
+    stream,
+)
 from tests.utils import (
     make_test_run_context,
     snap_generic,
@@ -214,3 +220,37 @@ class TestStreams:
             )
         )
         assert self._cnt == 0
+
+    def test_managed_stream(self):
+        dfl = SnapLog(
+            graph_id=self.graph.hash,
+            node_key=self.node_source.key,
+            snap_key=self.node_source.snap.key,
+            runtime_url="test",
+        )
+        drl = DataBlockLog(
+            snap_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
+        )
+        dfl2 = SnapLog(
+            graph_id=self.graph.hash,
+            node_key=self.node1.key,
+            snap_key=self.node1.snap.key,
+            runtime_url="test",
+        )
+        drl2 = DataBlockLog(
+            snap_log=dfl2,
+            data_block=self.dr1t1,
+            direction=Direction.INPUT,
+        )
+        self.sess.add_all([dfl, drl, dfl2, drl2])
+
+        s = stream(nodes=self.node_source)
+        s = s.filter_unprocessed(self.node1)
+
+        ctx = make_test_run_context()
+        with ctx.env.session_scope() as sess:
+            dbs = ManagedDataBlockStream(ctx, sess, stream_builder=s)
+            with pytest.raises(StopIteration):
+                assert next(dbs) is None
