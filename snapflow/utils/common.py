@@ -43,7 +43,26 @@ class StringEnum(Enum):
 
 
 def title_to_snake_case(s: str) -> str:
-    return re.sub(r"([a-z])([A-Z])", r"\1_\2", s).lower()
+    s2 = ""
+    for i in range(1, len(s)):
+        if s[i - 1].islower() and s[i].isupper():
+            # "aCamel"
+            s2 += s[i - 1] + "_"
+        elif (
+            s[i - 1].isupper()
+            and s[i].isupper()
+            and i < len(s) - 1
+            and s[i + 1].islower()
+        ):
+            # "ATitle"
+            s2 += s[i - 1] + "_"
+        elif s[i - 1].isnumeric() != s[i].isnumeric():
+            # "This98That"
+            s2 += s[i - 1] + "_"
+        else:
+            s2 += s[i - 1]
+    s2 += s[-1]
+    return s2.lower()
 
 
 def snake_to_title_case(s: str) -> str:
@@ -353,10 +372,7 @@ def profile_stmt(stmt: str, globals: Dict, locals: Dict):
     from pstats import SortKey
 
     cProfile.runctx(
-        stmt,
-        globals=globals,
-        locals=locals,
-        filename="profile.stats",
+        stmt, globals=globals, locals=locals, filename="profile.stats",
     )
     p = pstats.Stats("profile.stats")
     p.strip_dirs().sort_stats(SortKey.CUMULATIVE).print_stats(100)

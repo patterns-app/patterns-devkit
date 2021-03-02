@@ -35,11 +35,7 @@ class InputExhaustedException(SnapException):
 SnapCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    DatabaseTableRef,
-    DataBlockMetadata,
-    DataBlock,
+    DataFrame, Records, DatabaseTableRef, DataBlockMetadata, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -163,11 +159,13 @@ def snap_factory(
     else:
         module_name = module
     if isinstance(snap_like, _Snap):
+        # TODO: this is dicey, merging an existing snap ... which values take precedence?
         old_attrs = asdict(snap_like)
         if module_name is not None:
             old_attrs["module_name"] = module_name
         if compatible_runtimes is not None:
             old_attrs["compatible_runtime_classes"] = runtime_class
+        old_attrs["name"] = name
         old_attrs.update(**kwargs)
         return _Snap(**old_attrs)
 
@@ -273,11 +271,7 @@ def add_param_decorator(
     help: str = "",
 ):
     p = Parameter(
-        name=name,
-        datatype=datatype,
-        required=required,
-        default=default,
-        help=help,
+        name=name, datatype=datatype, required=required, default=default, help=help,
     )
 
     def dec(snap_like: Union[SnapCallable, _Snap]) -> _Snap:

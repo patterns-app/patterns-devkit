@@ -36,6 +36,8 @@ def test_snake_and_title_cases():
     assert title_to_snake_case("HELLO") == "hello"
     assert title_to_snake_case("helloWorld") == "hello_world"
     assert title_to_snake_case("helloWorldGoodbye") == "hello_world_goodbye"
+    assert title_to_snake_case("HELLOWorldGoodbye") == "hello_world_goodbye"
+    assert title_to_snake_case("HELLOWorld98Goodbye") == "hello_world_98_goodbye"
 
 
 def test_is_datetime_str():
