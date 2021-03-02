@@ -62,7 +62,7 @@ g = graph()
 # Fetch Stripe charges from API:
 stripe_source_node = g.node(
     stripe.snaps.extract_charges,
-    config={"api_key": "xxxxxxxxxxxx"},
+    params={"api_key": "xxxxxxxxxxxx"},
 )
 
 # Accumulate all charges:
