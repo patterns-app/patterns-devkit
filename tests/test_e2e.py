@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 from datetime import datetime
-from pprint import pprint
 from typing import Generator, Optional
 
 import pandas as pd
