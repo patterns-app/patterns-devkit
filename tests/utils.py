@@ -36,7 +36,7 @@ def make_test_env(**kwargs) -> Environment:
         url = get_tmp_sqlite_db_url()
         metadata_storage = Storage.from_url(url)
         kwargs["metadata_storage"] = metadata_storage
-    env = Environment(**kwargs)
+    env = Environment(raise_on_error=True, **kwargs)
     test_module = SnapflowModule(
         "_test",
         schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],

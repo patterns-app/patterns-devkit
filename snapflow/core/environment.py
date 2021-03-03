@@ -58,6 +58,7 @@ class Environment:
         initial_modules: List[SnapflowModule] = None,  # Defaults to `core` module
         initialize_metadata_storage: bool = True,
         config: Optional[EnvironmentConfiguration] = None,
+        raise_on_error: bool = False,
     ):
         from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
         from snapflow.storage.storage import Storage, new_local_python_storage
@@ -82,6 +83,7 @@ class Environment:
         # TODO: load library from config
         self.library = ComponentLibrary()
         self._metadata_sessions: List[Session] = []
+        self.raise_on_error = raise_on_error
         # if add_default_python_runtime:
         #     self.runtimes.append(
         #         Runtime(
@@ -270,6 +272,7 @@ class Environment:
             storages=self.storages,
             target_storage=target_storage,
             local_python_storage=self.get_default_local_python_storage(),
+            raise_on_error=kwargs.get("raise_on_error", self.raise_on_error),
         )
         args.update(**kwargs)
         return RunContext(**args)  # type: ignore

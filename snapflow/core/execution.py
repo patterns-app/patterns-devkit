@@ -137,6 +137,7 @@ class ExecutionSession:
 @dataclass
 class ExecutionResult:
     inputs_bound: List[str]
+    non_reference_inputs_bound: List[StreamInput]
     input_blocks_processed: Dict[str, int]
     output_block_count: int
     output_blocks_record_count: Optional[int] = None
@@ -147,7 +148,10 @@ class ExecutionResult:
     @classmethod
     def empty(cls) -> ExecutionResult:
         return ExecutionResult(
-            inputs_bound=[], input_blocks_processed={}, output_block_count=0
+            inputs_bound=[],
+            non_reference_inputs_bound=[],
+            input_blocks_processed={},
+            output_block_count=0,
         )
 
 
@@ -184,6 +188,7 @@ class RunContext:
     ] = None  # TODO: this is a "soft" limit, could imagine a "hard" one too
     execution_timelimit_seconds: Optional[int] = None
     logger: Callable[[str], None] = lambda s: print(s, end="")
+    raise_on_error: bool = False
 
     def clone(self, **kwargs):
         args = dict(
@@ -198,6 +203,7 @@ class RunContext:
             node_timelimit_seconds=self.node_timelimit_seconds,
             execution_timelimit_seconds=self.execution_timelimit_seconds,
             logger=self.logger,
+            raise_on_error=self.raise_on_error,
         )
         args.update(**kwargs)
         return RunContext(**args)  # type: ignore
@@ -238,7 +244,8 @@ class RunContext:
             except Exception as e:
                 logger.debug(f"Error running node:\n{traceback.format_exc()}")
                 pl.set_error(e)
-                # raise e
+                if self.raise_on_error:
+                    raise e
             finally:
                 # Persist state on success OR error:
                 pl.persist_state(sess)
@@ -503,7 +510,9 @@ class ExecutionManager:
                     last_non_none_output = last_execution_result.output_block_id
                 n_runs += 1
                 if (
-                    not to_exhaustion or not last_execution_result.inputs_bound
+                    not to_exhaustion
+                    or not last_execution_result.non_reference_inputs_bound
+                    # or not last_execution_result.inputs_bound
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     # (they are responsible for creating their own generators)
                     break
@@ -633,6 +642,9 @@ class Worker:
                     executable, execution_session, snap_ctx
                 )
                 yield result
+        else:
+            result = self.execution_result_info(executable, execution_session, snap_ctx)
+            yield result
 
     def execution_result_info(
         self,
@@ -662,10 +674,17 @@ class Worker:
 
         return ExecutionResult(
             inputs_bound=list(executable.bound_interface.inputs_as_kwargs().keys()),
+            non_reference_inputs_bound=executable.bound_interface.non_reference_bound_inputs(),
             input_blocks_processed=input_block_counts,
-            output_block_id=last_output_block.id,
-            output_stored_block_id=last_output_sdb.id,
-            output_alias=last_output_alias.alias,
+            output_block_id=last_output_block.id
+            if last_output_block is not None
+            else None,
+            output_stored_block_id=last_output_sdb.id
+            if last_output_sdb is not None
+            else None,
+            output_alias=last_output_alias.alias
+            if last_output_alias is not None
+            else None,
             output_block_count=len(snap_ctx.outputs),
             output_blocks_record_count=sum(
                 [

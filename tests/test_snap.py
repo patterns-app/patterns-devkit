@@ -9,7 +9,16 @@ from snapflow.core.execution import SnapContext
 from snapflow.core.graph import Graph, graph
 from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
 from snapflow.core.node import DeclaredNode, node
-from snapflow.core.snap import DeclaredSnapInterface, Snap, SnapLike, _Snap
+from snapflow.core.snap import (
+    DeclaredSnapInterface,
+    Input,
+    Output,
+    Param,
+    Parameter,
+    Snap,
+    SnapLike,
+    _Snap,
+)
 from snapflow.core.snap_interface import (
     DeclaredInput,
     DeclaredOutput,
@@ -399,3 +408,33 @@ def test_any_schema_interface():
     pi = df.get_interface()
     assert pi.inputs[0].schema_like == "Any"
     assert pi.output.schema_like == "Any"
+
+
+def test_api():
+    @Snap
+    @Param("p1", "str")
+    @Input("i1")
+    def s1(ctx: SnapContext):
+        pass
+
+    @Snap("s1")
+    @Param("p1", "str")
+    def s2(ctx: SnapContext, i1: DataBlock):
+        pass
+
+    @Snap("s1")
+    @Param("p1", "str")
+    @Input("i1")
+    def s3(ctx: SnapContext, i1: DataBlock):
+        pass
+
+    @Output(schema="Any")
+    @Snap(name="s1", params=[Parameter(name="p1", datatype="str")])
+    def s4(ctx: SnapContext, i1: DataBlock):
+        pass
+
+    for snp in [s1, s2, s3, s4]:
+        assert snp.name == "s1"
+        assert len(snp.params) == 1
+        i = snp.get_interface()
+        assert len(i.inputs) == 1

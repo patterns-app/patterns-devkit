@@ -86,8 +86,6 @@ class _Snap:
     compatible_runtime_classes: List[Type[RuntimeClass]]
     params: List[Parameter] = field(default_factory=list)
     state_class: Optional[Type] = None
-    signature_inputs: Optional[Dict[str, str]] = None
-    signature_output: Optional[str] = None
     declared_inputs: Optional[List[DeclaredInput]] = None
     declared_output: Optional[DeclaredOutput] = None
     ignore_signature: bool = (
@@ -164,14 +162,23 @@ def snap_factory(
         module_name = module
     if isinstance(snap_like, _Snap):
         # TODO: this is dicey, merging an existing snap ... which values take precedence?
-        old_attrs = asdict(snap_like)
-        if module_name is not None:
-            old_attrs["module_name"] = module_name
-        if compatible_runtimes is not None:
-            old_attrs["compatible_runtime_classes"] = runtime_class
-        old_attrs["name"] = name
-        old_attrs.update(**kwargs)
-        return _Snap(**old_attrs)
+        # old_attrs = asdict(snap_like)
+        module_name = module_name or snap_like.module_name
+        compatible_runtime_classes = (
+            [runtime_class] if runtime_class else snap_like.compatible_runtime_classes
+        )
+        return _Snap(
+            name=name,
+            module_name=module_name,
+            snap_callable=snap_like.snap_callable,
+            compatible_runtime_classes=compatible_runtime_classes,
+            params=kwargs.get("params") or snap_like.params,
+            state_class=kwargs.get("state_class") or snap_like.state_class,
+            declared_inputs=kwargs.get("declared_inputs") or snap_like.declared_inputs,
+            declared_output=kwargs.get("declared_output") or snap_like.declared_output,
+            ignore_signature=kwargs.get("ignore_signature")
+            or snap_like.ignore_signature,
+        )
 
     return _Snap(
         name=name,
@@ -195,9 +202,9 @@ def snap_decorator(
         return partial(
             snap_decorator,
             module=module,
-            name=snap_or_name,
+            name=name or snap_or_name,
             compatible_runtimes=compatible_runtimes,
-            params=params or [],
+            params=params,
             state_class=state_class,
             **kwargs,
         )
@@ -206,7 +213,7 @@ def snap_decorator(
         name=name,
         module=module,
         compatible_runtimes=compatible_runtimes,
-        params=params or [],
+        params=params,
         state_class=state_class,
         **kwargs,
     )
@@ -222,7 +229,7 @@ def add_declared_input_decorator(
 ):
     inpt = DeclaredInput(
         name=name,
-        schema_like=schema or Any,
+        schema_like=schema or "Any",
         reference=reference,
         _required=required,
         from_self=from_self,
@@ -251,7 +258,7 @@ def add_declared_output_decorator(
 ):
     output = DeclaredOutput(
         name=name,
-        schema_like=schema or Any,
+        schema_like=schema or "Any",
         optional=optional,
         stream=stream,
         default=default,

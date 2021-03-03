@@ -459,6 +459,13 @@ class BoundInterface:
             if i.bound_stream is not None
         }
 
+    def non_reference_bound_inputs(self) -> List[StreamInput]:
+        return [
+            i
+            for i in self.inputs
+            if i.bound_stream is not None and not i.declared_input.reference
+        ]
+
     def resolve_nominal_output_schema(
         self, env: Environment, sess: Session
     ) -> Optional[Schema]:
@@ -566,9 +573,8 @@ class NodeInterfaceManager:
 
             """
             Inputs are considered "Exhausted" if:
-            - Single block stream (and zero or more DSs): no unprocessed blocks
-            - Multiple correlated block streams: ANY stream has no unprocessed blocks
-            - One or more DSs: if ALL DS streams have no unprocessed
+            - Single block stream (and zero or more reference inputs): no unprocessed blocks
+            - One or more reference inputs: if ALL reference streams have no unprocessed
 
             In other words, if ANY block stream is empty, bail out. If ALL DS streams are empty, bail
             """

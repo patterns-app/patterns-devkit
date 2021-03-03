@@ -115,16 +115,6 @@ class Runtime:
         parsed = urlparse(self.url)
         return get_engine_for_scheme(parsed.scheme)
 
-    # def get_default_local_storage(self):
-    #     try:
-    #         return self.as_storage()
-    #     except KeyError:
-    #         return Runtime(  # type: ignore
-    #             url=f"memory://_runtime_default_{rand_str(6)}",
-    #             storage_class=RuntimeClass.MEMORY,
-    #             storage_engine=RuntimeEngine.DICT,
-    #         )
-
     def get_api(self) -> StorageApi:
         # TODO: separate runtime apis eventually
         return self.as_storage().get_api()

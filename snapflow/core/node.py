@@ -124,7 +124,9 @@ def node(
 
 
 def instantiate_node(
-    env: Environment, graph: Graph, declared_node: DeclaredNode,
+    env: Environment,
+    graph: Graph,
+    declared_node: DeclaredNode,
 ):
     if isinstance(declared_node.snap, str):
         snap = env.get_snap(declared_node.snap)
@@ -265,7 +267,10 @@ class NodeState(BaseModel):
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(node_key=self.node_key, state=self.state,)
+        return self._repr(
+            node_key=self.node_key,
+            state=self.state,
+        )
 
 
 def get_state(sess: Session, node_key: str) -> Optional[Dict]:

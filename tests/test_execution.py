@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Optional
 
+import pandas as pd
 import pytest
+from loguru import logger
 from pandas import DataFrame
 from snapflow.core.data_block import Alias, DataBlock, DataBlockMetadata
 from snapflow.core.execution import (
@@ -14,6 +16,7 @@ from snapflow.core.execution import (
 )
 from snapflow.core.graph import Graph
 from snapflow.core.node import DataBlockLog, Direction, SnapLog
+from snapflow.core.snap import Input
 from snapflow.core.snap_interface import NodeInterfaceManager
 from snapflow.modules import core
 from snapflow.storage.data_formats import Records
@@ -115,5 +118,25 @@ def test_non_terminating_snap():
     ec = env.get_run_context(g, current_runtime=rt)
     node = g.create_node(key="node", snap=never_stop)
     em = ExecutionManager(ec)
+    output = em.execute(node, to_exhaustion=True)
+    assert output is None
+
+
+def test_non_terminating_snap_with_reference_input():
+    @Input("input", reference=True, required=False)
+    def never_stop(input: Optional[DataBlock] = None) -> DataFrame:
+        pass
+
+    env = make_test_env()
+    g = Graph(env)
+    rt = env.runtimes[0]
+    ec = env.get_run_context(g, current_runtime=rt)
+    source = g.create_node(
+        snap="core.extract_dataframe",
+        params={"dataframe": pd.DataFrame({"a": range(10)})},
+    )
+    node = g.create_node(key="node", snap=never_stop, upstream=source)
+    em = ExecutionManager(ec)
+    output = em.execute(source, to_exhaustion=True)
     output = em.execute(node, to_exhaustion=True)
     assert output is None
