@@ -145,7 +145,7 @@ class StreamBuilder:
     def get_query(self, ctx: RunContext, sess: Session) -> Query:
         q = self._base_query()
         if self._filters.node_keys is not None:
-            q = self._filter_upstream(ctx, sess, q)
+            q = self._filter_inputs(ctx, sess, q)
         if self._filters.schema_keys is not None:
             q = self._filter_schemas(ctx, sess, q)
         if self._filters.storage_urls is not None:
@@ -199,15 +199,13 @@ class StreamBuilder:
         )
         return query.filter(not_(DataBlockMetadata.id.in_(already_processed_drs)))
 
-    def get_upstream(self, g: Graph) -> List[Node]:
+    def get_inputs(self, g: Graph) -> List[Node]:
         return [g.get_node(c) for c in self._filters.node_keys]
 
-    def filter_upstream(
-        self, upstream: Union[NodeLike, List[NodeLike]]
-    ) -> StreamBuilder:
-        return self.clone(node_keys=[ensure_node_key(n) for n in ensure_list(upstream)])
+    def filter_inputs(self, inputs: Union[NodeLike, List[NodeLike]]) -> StreamBuilder:
+        return self.clone(node_keys=[ensure_node_key(n) for n in ensure_list(inputs)])
 
-    def _filter_upstream(
+    def _filter_inputs(
         self,
         ctx: RunContext,
         sess: Session,

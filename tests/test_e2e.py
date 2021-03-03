@@ -158,7 +158,7 @@ def test_repeated_runs():
     # Initial graph
     N = 2 * 4
     g.create_node(key="source", snap=customer_source, params={"total_records": N})
-    metrics = g.create_node(key="metrics", snap=shape_metrics, upstream="source")
+    metrics = g.create_node(key="metrics", snap=shape_metrics, input="source")
     # Run first time
     output = env.produce("metrics", g, target_storage=s)
     assert output.nominal_schema_key.endswith("Metric")
@@ -185,7 +185,7 @@ def test_repeated_runs():
 
     # now add new node and process all at once
     g.create_node(
-        key="new_accumulator", snap="core.dataframe_accumulator", upstream="source"
+        key="new_accumulator", snap="core.dataframe_accumulator", input="source"
     )
     output = env.produce("new_accumulator", g, target_storage=s)
     records = output.as_records()
@@ -201,7 +201,7 @@ def test_alternate_apis():
     # Initial graph
     N = 2 * 4
     source = g.create_node(customer_source, params={"total_records": N})
-    metrics = g.create_node(shape_metrics, upstream=source)
+    metrics = g.create_node(shape_metrics, input=source)
     # Run first time
     output = produce(metrics, graph=g, target_storage=s, env=env)
     assert output.nominal_schema_key.endswith("Metric")
@@ -266,8 +266,8 @@ def test_node_reset():
     # Initial graph
     N = 2 * 4
     source = g.create_node(customer_source, params={"total_records": N})
-    accum = g.create_node("core.dataframe_accumulator", upstream=source)
-    metrics = g.create_node(shape_metrics, upstream=accum)
+    accum = g.create_node("core.dataframe_accumulator", input=source)
+    metrics = g.create_node(shape_metrics, input=accum)
     # Run first time
     produce(source, graph=g, target_storage=s, env=env)
 
@@ -311,13 +311,13 @@ def test_ref_input():
     # Initial graph
     N = 2 * 4
     source = g.create_node(customer_source, params={"total_records": N})
-    accum = g.create_node("core.dataframe_accumulator", upstream=source)
-    metrics = g.create_node(shape_metrics, upstream=accum)
+    accum = g.create_node("core.dataframe_accumulator", input=source)
+    metrics = g.create_node(shape_metrics, input=accum)
     join_ref = g.create_node(
-        with_latest_metrics, upstream={"metrics": metrics, "cust": source}
+        with_latest_metrics, inputs={"metrics": metrics, "cust": source}
     )
     join = g.create_node(
-        with_latest_metrics_no_ref, upstream={"metrics": metrics, "cust": source}
+        with_latest_metrics_no_ref, inputs={"metrics": metrics, "cust": source}
     )
     # Run once, for one metrics output
     output = produce(metrics, graph=g, target_storage=s, env=env)

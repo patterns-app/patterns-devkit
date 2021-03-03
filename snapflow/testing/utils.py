@@ -74,12 +74,13 @@ def produce_snap_output_for_static_input(
     snap: _Snap,
     params: Dict[str, Any] = None,
     input: Any = None,
-    upstream: Any = None,
+    inputs: Any = None,
     env: Optional[Environment] = None,
     module: Optional[SnapflowModule] = None,
     target_storage: Optional[Storage] = None,
+    upstream: Any = None,  # TODO: DEPRECATED
 ) -> Iterator[Optional[DataBlock]]:
-    upstream = input or upstream
+    inputs = input or inputs or upstream
     if env is None:
         db = get_tmp_sqlite_db_url()
         env = Environment(metadata_storage=db)
@@ -87,12 +88,12 @@ def produce_snap_output_for_static_input(
         target_storage = env.add_storage(target_storage)
     with env.session_scope() as sess:
         g = Graph(env)
-        input_datas = upstream
+        input_datas = inputs
         input_nodes: Dict[str, Node] = {}
         pi = snap.get_interface()
-        if not isinstance(upstream, dict):
+        if not isinstance(inputs, dict):
             assert len(pi.get_non_recursive_inputs()) == 1
-            input_datas = {pi.get_non_recursive_inputs()[0].name: upstream}
+            input_datas = {pi.get_non_recursive_inputs()[0].name: inputs}
         for inpt in pi.inputs:
             if inpt.from_self:
                 continue
@@ -110,7 +111,7 @@ def produce_snap_output_for_static_input(
             )
             input_nodes[inpt.name] = n
         test_node = g.create_node(
-            key=f"{snap.name}", snap=snap, params=params, upstream=input_nodes
+            key=f"{snap.name}", snap=snap, params=params, inputs=input_nodes
         )
         db = env.produce(test_node, to_exhaustion=False, target_storage=target_storage)
         yield db

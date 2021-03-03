@@ -20,14 +20,14 @@ def make_graph() -> Graph:
     g = Graph(env)
     g.create_node(key="node1", snap=snap_t1_source)
     g.node(key="node2", snap=snap_t1_source)
-    g.node(key="node3", snap=snap_t1_to_t2, upstream="node1")
-    g.node(key="node4", snap=snap_t1_to_t2, upstream="node2")
-    g.node(key="node5", snap=snap_generic, upstream="node4")
-    g.node(key="node6", snap=snap_self, upstream="node4")
+    g.node(key="node3", snap=snap_t1_to_t2, input="node1")
+    g.node(key="node4", snap=snap_t1_to_t2, input="node2")
+    g.node(key="node5", snap=snap_generic, input="node4")
+    g.node(key="node6", snap=snap_self, input="node4")
     g.node(
         key="node7",
         snap=snap_multiple_input,
-        upstream={"input": "node4", "other_t2": "node3"},
+        inputs={"input": "node4", "other_t2": "node3"},
     )
     return g
 

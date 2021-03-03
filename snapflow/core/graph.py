@@ -58,19 +58,23 @@ class DeclaredGraph:
         snap: Union[SnapLike, str],
         key: Optional[str] = None,
         params: Dict[str, Any] = None,
-        upstream: Union[StreamLike, Dict[str, StreamLike]] = None,
+        inputs: Dict[str, StreamLike] = None,
+        input: StreamLike = None,
         graph: Optional[DeclaredGraph] = None,
         output_alias: Optional[str] = None,
         schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
+        upstream: Union[StreamLike, Dict[str, StreamLike]] = None,  # TODO: DEPRECATED
     ) -> DeclaredNode:
         dn = node(
             snap=snap,
             key=key,
             params=params,
-            upstream=upstream,
+            inputs=inputs,
+            input=input,
             graph=graph,
             output_alias=output_alias,
             schema_translation=schema_translation,
+            upstream=upstream,
         )
         self.add_node(dn)
         return dn
@@ -138,19 +142,23 @@ class Graph:
         snap: Union[SnapLike, str],
         key: Optional[str] = None,
         params: Dict[str, Any] = None,
-        upstream: Union[StreamLike, Dict[str, StreamLike]] = None,
+        inputs: Dict[str, StreamLike] = None,
+        input: StreamLike = None,
         graph: Optional[DeclaredGraph] = None,
         output_alias: Optional[str] = None,
         schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
+        upstream: Union[StreamLike, Dict[str, StreamLike]] = None,  # TODO: DEPRECATED
     ) -> Node:
         dn = node(
             snap=snap,
             key=key,
             params=params,
-            upstream=upstream,
+            inputs=inputs,
+            input=input,
             graph=graph,
             output_alias=output_alias,
             schema_translation=schema_translation,
+            upstream=upstream,
         )
         n = dn.instantiate(self.env, self)
         self.add_node(n)

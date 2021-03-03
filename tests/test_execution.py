@@ -135,7 +135,7 @@ def test_non_terminating_snap_with_reference_input():
         snap="core.extract_dataframe",
         params={"dataframe": pd.DataFrame({"a": range(10)})},
     )
-    node = g.create_node(key="node", snap=never_stop, upstream=source)
+    node = g.create_node(key="node", snap=never_stop, input=source)
     em = ExecutionManager(ec)
     output = em.execute(source, to_exhaustion=True)
     output = em.execute(node, to_exhaustion=True)

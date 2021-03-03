@@ -45,13 +45,13 @@ class TestStreams:
         )
         self.node_source = self.g.create_node(key="snap_source", snap=snap_t1_source)
         self.node1 = self.g.create_node(
-            key="snap1", snap=snap_t1_sink, upstream="snap_source"
+            key="snap1", snap=snap_t1_sink, input="snap_source"
         )
         self.node2 = self.g.create_node(
-            key="snap2", snap=snap_t1_to_t2, upstream="snap_source"
+            key="snap2", snap=snap_t1_to_t2, input="snap_source"
         )
         self.node3 = self.g.create_node(
-            key="snap3", snap=snap_generic, upstream="snap_source"
+            key="snap3", snap=snap_generic, input="snap_source"
         )
         self.sess = self.env._get_new_metadata_session()
         self.sess.add(self.dr1t1)

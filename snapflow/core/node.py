@@ -37,7 +37,7 @@ def ensure_stream(stream_like: StreamLike) -> StreamBuilder:
     if isinstance(stream_like, DeclaredNode) or isinstance(stream_like, Node):
         return stream_like.as_stream_builder()
     if isinstance(stream_like, str):
-        return StreamBuilder().filter_upstream([stream_like])
+        return StreamBuilder().filter_inputs([stream_like])
     raise TypeError(stream_like)
 
 
@@ -54,7 +54,7 @@ class DeclaredNode:
     snap: Union[SnapLike, str]
     key: str
     params: Dict[str, Any] = field(default_factory=dict)
-    upstream: Union[StreamLike, Dict[str, StreamLike]] = field(default_factory=dict)
+    inputs: Union[StreamLike, Dict[str, StreamLike]] = field(default_factory=dict)
     graph: Optional[DeclaredGraph] = None
     output_alias: Optional[str] = None
     schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None
@@ -74,24 +74,32 @@ class DeclaredNode:
     def __hash__(self):
         return hash(self.key)
 
-    def set_upstream(self, *args, **kwargs):
-        """If a single positional argument, overwrites upstream.
-        If kwargs then updates any existing upstream.
+    def set_inputs(self, *args, **kwargs):
+        """If a single positional argument, overwrites inputs.
+        If kwargs then updates any existing inputs.
         """
         if args:
             if len(args) > 1 or kwargs:
-                raise Exception("Provide keyword args for multiple inputs to upstream")
-            self.upstream = args[0]
+                raise Exception("Provide keyword args for multiple inputs")
+            self.inputs = args[0]
         else:
-            if isinstance(self.upstream, dict):
-                self.upstream.update(kwargs)
+            if isinstance(self.inputs, dict):
+                self.inputs.update(kwargs)
             else:
-                self.upstream = kwargs
+                self.inputs = kwargs
+
+    def set_input(self, input: StreamLike = None, **kwargs):
+        if input:
+            self.set_inputs(input)
+        elif kwargs:
+            self.set_inputs(**kwargs)
+        else:
+            raise ValueError()
 
     def as_stream_builder(self) -> StreamBuilder:
         from snapflow.core.streams import StreamBuilder
 
-        return StreamBuilder().filter_upstream(self)
+        return StreamBuilder().filter_inputs(self)
 
     def instantiate(self, env: Environment, g: Graph = None) -> Node:
         from snapflow.core.graph import Graph
@@ -105,10 +113,12 @@ def node(
     snap: Union[SnapLike, str],
     key: Optional[str] = None,
     params: Dict[str, Any] = None,
-    upstream: Union[StreamLike, Dict[str, StreamLike]] = None,
+    inputs: Dict[str, StreamLike] = None,
+    input: StreamLike = None,
     graph: Optional[DeclaredGraph] = None,
     output_alias: Optional[str] = None,
     schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
+    upstream: Union[StreamLike, Dict[str, StreamLike]] = None,  # TODO: DEPRECATED
 ) -> DeclaredNode:
     if key is None:
         key = make_snap_name(snap)
@@ -116,7 +126,7 @@ def node(
         snap=snap,
         key=key,
         params=params or {},
-        upstream=upstream or {},
+        inputs=inputs or upstream or input or {},
         graph=graph,
         output_alias=output_alias,
         schema_translation=schema_translation,
@@ -135,10 +145,8 @@ def instantiate_node(
     interface = snap.get_interface()
     schema_translation = interface.assign_translations(declared_node.schema_translation)
     declared_inputs: Dict[str, DeclaredStreamInput] = {}
-    if declared_node.upstream is not None:
-        for name, stream_like in interface.assign_inputs(
-            declared_node.upstream
-        ).items():
+    if declared_node.inputs is not None:
+        for name, stream_like in interface.assign_inputs(declared_node.inputs).items():
             declared_inputs[name] = DeclaredStreamInput(
                 stream=ensure_stream(stream_like),
                 declared_schema_translation=(schema_translation or {}).get(name),
@@ -204,7 +212,7 @@ class Node:
     def as_stream_builder(self) -> StreamBuilder:
         from snapflow.core.streams import StreamBuilder
 
-        return StreamBuilder().filter_upstream(self)
+        return StreamBuilder().filter_inputs(self)
 
     def latest_output(self, ctx: RunContext, sess: Session) -> Optional[DataBlock]:
         block: DataBlockMetadata = (

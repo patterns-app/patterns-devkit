@@ -9,7 +9,7 @@
 
 **Snapflow** is a framework for building end-to-end **functional data pipelines** from modular
 components. It lets developers write pure data functions, called `snaps`, in **Python or SQL**
-and document their inputs and outputs explicitly via `schemas`. These snaps operate on immutable
+and document their inputs and outputs explicitly via flexible `schemas`. These snaps operate on immutable
 sets of data records, called `datablocks`, and can be composed into simple or complex data
 pipelines. This functional framework provides powerful benefits:
 
@@ -67,7 +67,7 @@ stripe_source_node = g.node(
 
 # Accumulate all charges:
 stripe_charges_node = g.node("core.dataframe_accumulator")
-stripe_charges_node.set_upstream(stripe_source_node)
+stripe_charges_node.set_input(stripe_source_node)
 
 # Define custom snap in python:
 def customer_lifetime_sales(txs):
@@ -83,7 +83,7 @@ def customer_lifetime_sales_sql():
 
 # Add node and take latest accumulated output as input:
 lifetime_sales = g.node(customer_lifetime_sales)
-lifetime_sales.set_upstream(operators.latest(stripe_charges_node))
+lifetime_sales.set_input(operators.latest(stripe_charges_node))
 
 # Run:
 output = produce(lifetime_sales, modules=[stripe])
@@ -249,7 +249,7 @@ orders = node(order_source)
 n = node(
    "seasonality",
    seasonality,
-   upstream=orders,
+   input=orders,
    schema_translation={
        "date": "datetime",
        "amount": "value",
@@ -279,7 +279,7 @@ combined = merge(n1, n2)
 # Filter a stream
 big_blocks_only = filter(combined, function=lambda block: block.count() > 1000)
 # Set the stream as an input
-n3 = node(do_something, upstream=big_blocks_only)
+n3 = node(do_something, input=big_blocks_only)
 ```
 
 Common operators include `latest`, `merge`, `filter`. It's simple to create your own:

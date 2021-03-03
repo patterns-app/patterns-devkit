@@ -210,7 +210,7 @@ def test_snap_interface(snap_like: SnapLike, expected: DeclaredSnapInterface):
     val = p.get_interface()
     assert set(val.inputs) == set(expected.inputs)
     assert val.output == expected.output
-    # node = DeclaredNode(key="_test", snap=snap, upstream={"input": "mock"}).instantiate(
+    # node = DeclaredNode(key="_test", snap=snap, inputs={"input": "mock"}).instantiate(
     #     env
     # )
     # assert node.get_interface() == expected
@@ -220,7 +220,7 @@ def test_generic_schema_resolution():
     ec = make_test_run_context()
     env = ec.env
     g = Graph(env)
-    n1 = g.create_node(key="node1", snap=snap_generic, upstream="n0")
+    n1 = g.create_node(key="node1", snap=snap_generic, input="n0")
     # pi = n1.get_interface()
     with env.session_scope() as sess:
         im = NodeInterfaceManager(ctx=ec, sess=sess, node=n1)
@@ -242,7 +242,7 @@ def test_declared_schema_translation():
     g = Graph(env)
     translation = {"f1": "mapped_f1"}
     n1 = g.create_node(
-        key="node1", snap=snap_t1_to_t2, upstream="n0", schema_translation=translation
+        key="node1", snap=snap_t1_to_t2, input="n0", schema_translation=translation
     )
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
@@ -272,7 +272,7 @@ def test_natural_schema_translation():
     g = Graph(env)
     translation = {"f1": "mapped_f1"}
     n1 = g.create_node(
-        key="node1", snap=snap_t1_to_t2, upstream="n0", schema_translation=translation
+        key="node1", snap=snap_t1_to_t2, input="n0", schema_translation=translation
     )
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
@@ -301,11 +301,11 @@ def test_inputs():
     env = ec.env
     g = graph()
     n1 = g.create_node(snap=snap_t1_source)
-    n2 = g.create_node(snap=snap_t1_to_t2, upstream={"input": n1})
+    n2 = g.create_node(snap=snap_t1_to_t2, inputs={"input": n1})
     pi = n2.instantiate(env).get_interface()
     assert pi is not None
     n4 = g.create_node(snap=snap_multiple_input)
-    n4.set_upstream({"input": n1})
+    n4.set_inputs({"input": n1})
     pi = n4.instantiate(env).get_interface()
     assert pi is not None
 
@@ -369,12 +369,11 @@ def test_node_inputs():
     df = Snap(snap_t1_source)
     node = g.create_node(key="node", snap=df)
     df = Snap(snap_t1_sink)
-    node1 = g.create_node(key="node1", snap=df, upstream=node)
+    node1 = g.create_node(key="node1", snap=df, input=node)
     pi = node1.get_interface()
     assert len(pi.inputs) == 1
     assert pi.output == make_default_output()
     assert list(node1.declared_inputs.keys()) == ["input"]
-    # assert node1.get_input("input").get_upstream(env)[0] is node
 
 
 def test_node_stream_inputs():

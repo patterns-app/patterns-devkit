@@ -523,7 +523,7 @@ class ExecutionManager:
             if e.args:
                 logger.debug(e)
             if n_runs == 0:
-                self.ctx.logger(INDENT + "Inputs: No unprocessed upstream\n")
+                self.ctx.logger(INDENT + "Inputs: No unprocessed inputs\n")
             self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))  # type: ignore
         except Exception as e:
             self.ctx.logger(INDENT + cf.error("Error " + error_symbol) + str(e) + "\n")  # type: ignore
