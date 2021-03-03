@@ -165,16 +165,18 @@ def get_engine_for_scheme(scheme: str) -> Type[StorageEngine]:
 @dataclass(frozen=True)
 class Storage:
     url: str
-    storage_engine: Type[StorageEngine]
 
     @classmethod
     def from_url(cls, url: str) -> Storage:
-        parsed = urlparse(url)
-        engine = get_engine_for_scheme(parsed.scheme)
-        return Storage(url=url, storage_engine=engine)
+        return Storage(url=url)
 
     def get_api(self) -> StorageApi:
         return self.storage_engine.get_api_cls()(self)
+
+    @property
+    def storage_engine(self) -> Type[StorageEngine]:
+        parsed = urlparse(self.url)
+        return get_engine_for_scheme(parsed.scheme)
 
 
 class NameDoesNotExistError(Exception):

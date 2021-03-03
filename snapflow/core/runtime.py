@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, Optional, Type
+from urllib.parse import urlparse
 
 from snapflow.core.environment import Environment
 from snapflow.storage.storage import (
@@ -93,21 +94,26 @@ def get_engine_for_scheme(scheme: str) -> Type[RuntimeEngine]:
 @dataclass(frozen=True)
 class Runtime:
     url: str
-    runtime_engine: Type[RuntimeEngine]
     configuration: Optional[Dict] = None
 
     @classmethod
     def from_storage(cls, storage: Storage) -> Runtime:
         for eng in global_registry.all(RuntimeEngine):
             if eng.natural_storage_engine == storage.storage_engine:
-                return Runtime(storage.url, eng)
+                return Runtime(storage.url)
         raise NotImplementedError(f"No matching runtime {storage}")
 
+    @classmethod
+    def from_url(cls, url: str) -> Runtime:
+        return Runtime(url=url)
+
     def as_storage(self) -> Storage:
-        return Storage(
-            url=self.url,
-            storage_engine=self.runtime_engine.natural_storage_engine,
-        )
+        return Storage(url=self.url)
+
+    @property
+    def runtime_engine(self) -> Type[RuntimeEngine]:
+        parsed = urlparse(self.url)
+        return get_engine_for_scheme(parsed.scheme)
 
     # def get_default_local_storage(self):
     #     try:

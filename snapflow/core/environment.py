@@ -4,7 +4,7 @@ import logging
 import os
 import pathlib
 from contextlib import contextmanager
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Tuple, Union
 
@@ -34,14 +34,21 @@ if TYPE_CHECKING:
     from snapflow.core.execution import RunContext, ExecutionManager
     from snapflow.core.data_block import DataBlock
     from snapflow.core.graph import Graph, DeclaredGraph, DEFAULT_GRAPH
+    from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
 
 DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
 
 
+@dataclass(frozen=True)
+class EnvironmentConfiguration:
+    metadata_storage: Storage
+    modules: List[SnapflowModule] = field(default_factory=list)
+    storages: List[Storage] = field(default_factory=list)
+    runtimes: List[Runtime] = field(default_factory=list)
+
+
 class Environment:
     library: ComponentLibrary
-    storages: List[Storage]
-    metadata_storage: Storage
 
     def __init__(
         self,
@@ -50,6 +57,7 @@ class Environment:
         add_default_python_runtime: bool = True,
         initial_modules: List[SnapflowModule] = None,  # Defaults to `core` module
         initialize_metadata_storage: bool = True,
+        config: Optional[EnvironmentConfiguration] = None,
     ):
         from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
         from snapflow.storage.storage import Storage, new_local_python_storage
@@ -65,13 +73,14 @@ class Environment:
             metadata_storage = Storage.from_url(metadata_storage)
         if metadata_storage is None:
             raise Exception("Must specify metadata_storage or allow default")
-        self.metadata_storage = metadata_storage
+        self.config = config
+        if self.config is None:
+            self.config = EnvironmentConfiguration(metadata_storage=metadata_storage)
         if initialize_metadata_storage:
             self.initialize_metadata_database()
         self._local_module = DEFAULT_LOCAL_MODULE
+        # TODO: load library from config
         self.library = ComponentLibrary()
-        self.storages = []
-        self.runtimes = []
         self._metadata_sessions: List[Session] = []
         # if add_default_python_runtime:
         #     self.runtimes.append(
@@ -87,7 +96,10 @@ class Environment:
 
         self._local_python_storage = new_local_python_storage()
         self.add_storage(self._local_python_storage)
-        self.runtimes.append(Runtime.from_storage(self._local_python_storage))
+
+    @property
+    def metadata_storage(self) -> Storage:
+        return self.config.metadata_storage
 
     def initialize_metadata_database(self):
         if not issubclass(
@@ -126,7 +138,7 @@ class Environment:
         alembic_cfg = self.get_alembic_config()
         if conn is not None:
             alembic_cfg.attributes["connection"] = conn
-        command.stamp(alembic_cfg, "8e9953e3605f")
+        command.stamp(alembic_cfg, "23dd1cc88eb2")
 
     def _get_new_metadata_session(self) -> Session:
         sess = self.Session()
@@ -208,6 +220,8 @@ class Environment:
     def add_module(self, *modules: SnapflowModule):
         for module in modules:
             self.library.add_module(module)
+            if module.name not in [m.name for m in self.config.modules]:
+                self.config.modules.append(module)
 
     @contextmanager
     def session_scope(self, **kwargs):
@@ -378,20 +392,55 @@ class Environment:
             sr = storage_like
         else:
             raise TypeError
-        for s in self.storages:
-            if s.url == sr.url:
-                return s
-        self.storages.append(sr)
+        if sr.url not in [s.url for s in self.config.storages]:
+            self.config.storages.append(sr)
         if add_runtime:
             from snapflow.core.runtime import Runtime
 
             try:
                 rt = Runtime.from_storage(sr)
-                self.runtimes.append(rt)
+                self.add_runtime(rt)
             except ValueError:
                 pass
         return sr
 
+    def add_runtime(self, runtime_like: Union[Runtime, str]) -> Runtime:
+        from snapflow.core.runtime import Runtime
+
+        if isinstance(runtime_like, str):
+            sr = Runtime.from_url(runtime_like)
+        elif isinstance(runtime_like, Runtime):
+            sr = runtime_like
+        else:
+            raise TypeError
+        if sr.url not in [s.url for s in self.config.runtimes]:
+            self.config.runtimes.append(sr)
+        return sr
+
+    @property
+    def storages(self) -> List[Storage]:
+        return self.config.storages
+
+    @property
+    def runtimes(self) -> List[Runtime]:
+        return self.config.runtimes
+
+    # def serialize_run_node(
+    #     self,
+    #     node_like: Optional[NodeLike] = None,
+    #     graph: Union[Graph, DeclaredGraph] = None,
+    #     to_exhaustion: bool = True,
+    #     **execution_kwargs: Any,
+    # ) -> Optional[DataBlock]:
+    #     node, graph = self._get_graph_and_node(node_like, graph)
+    #     assert node is not None
+
+    #     logger.debug(f"Running: {node_like}")
+    #     sess = self._get_new_metadata_session()  # hanging session
+    #     with self.run(graph, **execution_kwargs) as em:
+    #         return em.execute(node, to_exhaustion=to_exhaustion, output_session=sess)
+
+    # TODO
     # def validate_and_clean_data_blocks(
     #     self, delete_memory=True, delete_intermediate=False, force: bool = False
     # ):

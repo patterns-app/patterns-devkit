@@ -38,34 +38,6 @@ def shape_metrics(i1: DataBlock) -> Records[Metric]:
     ]
 
 
-# @snap
-# @input(name="symbols", reference=True, schema="Schema", required=True)
-# @input(name="", reference=True, schema="Schema", required=False)
-# def prices(symbols: DataBlock) -> Records[Price]:
-#     """
-#     Is stale: when symbols updates
-#     Needs reference dataset: symbols latest always
-#     """
-#     df = symbols.as_dataframe()
-#     return prices_for_symbols(symbols)
-
-
-# @input(name="symbols", reference=True, schema="Schema", required=True)
-# @input(name="", reference=True, schema="Schema", required=False)
-# def add_fundamentals(
-#     prices: DataBlock[Price], fundamentals: Datablock[Fundamentals]
-# ) -> DataFrame[Extend[Price, Fundamentals]]:
-#     """
-#     Is stale: when new unseen fundamentals OR prices
-#     Needs reference dataset: fundamentals latest always
-#     Needs to process all just once (consume): prices
-#     THESE SEMANTICS ARE DETERMINED BY THE PIPE! so should be specified here
-#     """
-#     prices_df = prices.as_dataframe()
-#     fundamentals_df = fundamentals.as_dataframe()
-#     return prices_df.merge(fundamentals_df, on="symbol")
-
-
 @Snap
 def aggregate_metrics(
     i1: DataBlock, this: Optional[DataBlock] = None
