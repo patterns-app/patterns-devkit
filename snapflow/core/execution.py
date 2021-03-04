@@ -162,6 +162,23 @@ class ExecutionResult:
         # Traceback can be v large (like in max recursion), so we truncate to 5k chars
         self.traceback = tback[:5000]
 
+    def merge(self, newer: ExecutionResult) -> ExecutionResult:
+        return ExecutionResult(
+            inputs_bound=newer.inputs_bound,
+            non_reference_inputs_bound=newer.non_reference_inputs_bound,
+            input_blocks_processed=newer.input_blocks_processed,
+            output_block_count=(self.output_block_count or 0)
+            + (newer.output_block_count or 0),
+            output_blocks_record_count=(self.output_blocks_record_count or 0)
+            + (newer.output_blocks_record_count or 0),
+            output_block_id=newer.output_block_id or self.output_block_id,
+            output_stored_block_id=newer.output_stored_block_id
+            or self.output_stored_block_id,
+            output_alias=newer.output_alias or self.output_alias,
+            error=newer.error or self.error,
+            traceback=newer.traceback or self.traceback,
+        )
+
 
 class ImproperlyStoredDataBlockException(Exception):
     pass
@@ -261,7 +278,7 @@ class RunContext:
                 pl.persist_state(sess)
                 pl.completed_at = utcnow()
                 sess.add(pl)
-                sess.flush()
+                sess.commit()
 
     @property
     def all_storages(self) -> List[Storage]:
@@ -510,14 +527,17 @@ class ExecutionManager:
         # self.log(base_msg)
         # start = time.time()
         n_runs: int = 0
+        prev_execution_result: Optional[ExecutionResult] = None
         last_execution_result: Optional[ExecutionResult] = None
-        last_non_none_output: Optional[str] = None
         error = None
         try:
             while True:
                 last_execution_result = self._execute(node, worker)
-                if last_execution_result.output_block_id is not None:
-                    last_non_none_output = last_execution_result.output_block_id
+                if prev_execution_result is not None:
+                    last_execution_result = prev_execution_result.merge(
+                        last_execution_result
+                    )
+                prev_execution_result = last_execution_result
                 n_runs += 1
                 if (
                     not to_exhaustion
@@ -543,16 +563,13 @@ class ExecutionManager:
             else:
                 error = "Snap failed (unknown error)"
             self.ctx.logger(INDENT + cf.error("Error " + error_symbol + " " + cf.dimmed(error[:30])) + "\n")  # type: ignore
-
-        # TODO: how to pass back with session?
-        #   maybe with env.produce() as output:
-        # Or just merge in new session in env.produce
-        if last_non_none_output is None:
+        logger.debug(f"Final execution result: {last_execution_result}")
+        if last_execution_result.output_block_id is None:
             return None
         logger.debug(f"*DONE* RUNNING NODE {node.key} {node.snap.key}")
         if output_session is not None:
             db: DataBlockMetadata = output_session.query(DataBlockMetadata).get(
-                last_non_none_output
+                last_execution_result.output_block_id
             )
             return db.as_managed_data_block(run_ctx, output_session)
         return None
@@ -623,17 +640,23 @@ class Worker:
                 snap_inputs = executable.bound_interface.inputs_as_kwargs()
                 snap_kwargs = snap_inputs
                 # Actually run the snap
-                output_obj = executable.compiled_snap.snap.snap_callable(
-                    *snap_args, **snap_kwargs
-                )
-                for res in self.process_execution_result(
-                    executable, execution_session, output_obj, snap_ctx
-                ):
-                    result = res
+                # TODO: tighten up the contextmanager to around just this call!
+                try:
+                    output_obj = executable.compiled_snap.snap.snap_callable(
+                        *snap_args, **snap_kwargs
+                    )
+                    for res in self.process_execution_result(
+                        executable, execution_session, output_obj, snap_ctx
+                    ):
+                        result = res
+                finally:
+                    # execution_session.metadata_session.commit()
+                    pass
         except Exception as e:
             result.set_error(e)
             if self.ctx.raise_on_error:
                 raise e
+
         logger.debug(f"EXECUTION RESULT {result}")
         return result
 

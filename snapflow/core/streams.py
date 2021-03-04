@@ -131,8 +131,7 @@ class StreamBuilder:
     """"""
 
     def __init__(
-        self,
-        filters: StreamBuilderSerializable = None,
+        self, filters: StreamBuilderSerializable = None,
     ):
         self._filters = filters or StreamBuilderSerializable()
 
@@ -156,10 +155,28 @@ class StreamBuilder:
             q = self._filter_data_block(ctx, sess, q)
         return q.with_session(sess)
 
-    def clone(self, **kwargs) -> StreamBuilder:
-        args = asdict(self._filters)
-        args.update(**kwargs)
-        return StreamBuilder(filters=StreamBuilderSerializable(**args))  # type: ignore
+    def clone(
+        self,
+        node_keys: List[str] = None,
+        schema_keys: List[str] = None,
+        storage_urls: List[str] = None,
+        operators: List[BoundOperator] = None,
+        unprocessed_by_node_key: Optional[str] = None,
+        data_block_id: Optional[str] = None,
+        allow_cycle: bool = False,
+    ) -> StreamBuilder:
+        f = self._filters
+        sb = StreamBuilderSerializable(
+            node_keys=node_keys or f.node_keys,
+            schema_keys=schema_keys or f.schema_keys,
+            storage_urls=storage_urls or f.storage_urls,
+            operators=operators or f.operators,
+            data_block_id=data_block_id or f.data_block_id,
+            unprocessed_by_node_key=unprocessed_by_node_key
+            or f.unprocessed_by_node_key,
+            allow_cycle=allow_cycle or f.allow_cycle,
+        )
+        return StreamBuilder(filters=sb)  # type: ignore
 
     def source_node_keys(self) -> List[str]:
         return self._filters.node_keys
@@ -168,15 +185,11 @@ class StreamBuilder:
         self, unprocessed_by: Node, allow_cycle=False
     ) -> StreamBuilder:
         return self.clone(
-            unprocessed_by_node_key=unprocessed_by.key,
-            allow_cycle=allow_cycle,
+            unprocessed_by_node_key=unprocessed_by.key, allow_cycle=allow_cycle,
         )
 
     def _filter_unprocessed(
-        self,
-        ctx: RunContext,
-        sess: Session,
-        query: Query,
+        self, ctx: RunContext, sess: Session, query: Query,
     ) -> Query:
         if not self._filters.unprocessed_by_node_key:
             return query
@@ -205,12 +218,7 @@ class StreamBuilder:
     def filter_inputs(self, inputs: Union[NodeLike, List[NodeLike]]) -> StreamBuilder:
         return self.clone(node_keys=[ensure_node_key(n) for n in ensure_list(inputs)])
 
-    def _filter_inputs(
-        self,
-        ctx: RunContext,
-        sess: Session,
-        query: Query,
-    ) -> Query:
+    def _filter_inputs(self, ctx: RunContext, sess: Session, query: Query,) -> Query:
         if not self._filters.node_keys:
             return query
         eligible_input_drs = (
@@ -273,11 +281,7 @@ class StreamBuilder:
         return self.clone(operators=(self.get_operators() + [op]))
 
     def is_unprocessed(
-        self,
-        ctx: RunContext,
-        sess: Session,
-        block: DataBlockMetadata,
-        node: Node,
+        self, ctx: RunContext, sess: Session, block: DataBlockMetadata, node: Node,
     ) -> bool:
         blocks = self.filter_unprocessed(node)
         q = blocks.get_query(ctx, sess)

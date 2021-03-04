@@ -291,10 +291,10 @@ class Environment:
         try:
             yield em
             # self.session.commit()
-            logger.debug("COMMITTED")
+            # logger.debug("COMMITTED")
         except Exception as e:
             # self.session.rollback()
-            logger.debug("ROLLED")
+            # logger.debug("ROLLED")
             raise e
         finally:
             # TODO:
