@@ -35,11 +35,7 @@ class InputExhaustedException(SnapException):
 SnapCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    DatabaseTableRef,
-    DataBlockMetadata,
-    DataBlock,
+    DataFrame, Records, DatabaseTableRef, DataBlockMetadata, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -125,14 +121,14 @@ class _Snap:
         return snap_interface_from_callable(self.snap_callable)
 
     def source_code_language(self) -> str:
-        from snapflow.core.sql.snap import SqlSnapWrapper
+        from snapflow.core.sql.sql_snap import SqlSnapWrapper
 
         if isinstance(self.snap_callable, SqlSnapWrapper):
             return "sql"
         return "python"
 
     def get_source_code(self) -> Optional[str]:
-        from snapflow.core.sql.snap import SqlSnapWrapper
+        from snapflow.core.sql.sql_snap import SqlSnapWrapper
 
         # TODO: more principled approach (can define a "get_source_code" otherwise we inspect?)
         if isinstance(self.snap_callable, SqlSnapWrapper):
@@ -282,11 +278,7 @@ def add_param_decorator(
     help: str = "",
 ):
     p = Parameter(
-        name=name,
-        datatype=datatype,
-        required=required,
-        default=default,
-        help=help,
+        name=name, datatype=datatype, required=required, default=default, help=help,
     )
 
     def dec(snap_like: Union[SnapCallable, _Snap]) -> _Snap:
