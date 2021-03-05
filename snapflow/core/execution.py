@@ -164,7 +164,7 @@ class ExecutionResult:
 
     def merge(self, newer: ExecutionResult) -> ExecutionResult:
         return ExecutionResult(
-            inputs_bound=newer.inputs_bound,
+            inputs_bound=self.inputs_bound + newer.inputs_bound,
             non_reference_inputs_bound=newer.non_reference_inputs_bound,
             input_blocks_processed=newer.input_blocks_processed,
             output_block_count=(self.output_block_count or 0)
@@ -527,17 +527,18 @@ class ExecutionManager:
         # self.log(base_msg)
         # start = time.time()
         n_runs: int = 0
-        prev_execution_result: Optional[ExecutionResult] = None
         last_execution_result: Optional[ExecutionResult] = None
+        cumulative_execution_result: Optional[ExecutionResult] = None
         error = None
         try:
             while True:
                 last_execution_result = self._execute(node, worker)
-                if prev_execution_result is not None:
-                    last_execution_result = prev_execution_result.merge(
+                if cumulative_execution_result is None:
+                    cumulative_execution_result = last_execution_result
+                else:
+                    cumulative_execution_result = cumulative_execution_result.merge(
                         last_execution_result
                     )
-                prev_execution_result = last_execution_result
                 n_runs += 1
                 if (
                     not to_exhaustion
@@ -546,7 +547,7 @@ class ExecutionManager:
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     # (they are responsible for creating their own generators)
                     break
-            self.log_execution_result(last_execution_result)
+            self.log_execution_result(cumulative_execution_result)
         except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
             logger.debug(INDENT + cf.warning("Input Exhausted"))
             if e.args:
@@ -555,21 +556,24 @@ class ExecutionManager:
                 self.ctx.logger(INDENT + "Inputs: No unprocessed inputs\n")
         except Exception as e:
             raise e
-        if last_execution_result is not None and not last_execution_result.error:
+        if (
+            cumulative_execution_result is not None
+            and not cumulative_execution_result.error
+        ):
             self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))  # type: ignore
         else:
-            if last_execution_result.error:
-                error = last_execution_result.error
+            if cumulative_execution_result.error:
+                error = cumulative_execution_result.error
             else:
                 error = "Snap failed (unknown error)"
             self.ctx.logger(INDENT + cf.error("Error " + error_symbol + " " + cf.dimmed(error[:30])) + "\n")  # type: ignore
-        logger.debug(f"Final execution result: {last_execution_result}")
-        if last_execution_result.output_block_id is None:
+        logger.debug(f"Cumulative execution result: {cumulative_execution_result}")
+        if cumulative_execution_result.output_block_id is None:
             return None
         logger.debug(f"*DONE* RUNNING NODE {node.key} {node.snap.key}")
         if output_session is not None:
             db: DataBlockMetadata = output_session.query(DataBlockMetadata).get(
-                last_execution_result.output_block_id
+                cumulative_execution_result.output_block_id
             )
             return db.as_managed_data_block(run_ctx, output_session)
         return None
