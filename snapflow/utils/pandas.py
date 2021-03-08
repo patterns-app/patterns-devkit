@@ -63,5 +63,6 @@ def dataframe_to_records(df: DataFrame, schema: Schema = None) -> Records:
     for c in df:
         dfc = df[c].astype(object)
         dfc.loc[pd.isna(dfc)] = None
+        del df[c]
         df[c] = dfc
     return df.to_dict(orient="records")

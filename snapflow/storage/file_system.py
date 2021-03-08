@@ -12,10 +12,18 @@ from snapflow.storage.storage import Storage, StorageApi, StorageEngine
 def raw_line_count(filename: str) -> int:
     # Fast file cnt in python
     # From: https://stackoverflow.com/questions/845058/how-to-get-line-count-of-a-large-file-cheaply-in-python
-    # TODO: won't count EOF if no new line
+    def _make_gen(reader):
+        b = reader(1024 * 1024)
+        while b:
+            yield b
+            b = reader(1024 * 1024)
+
     f = open(filename, "rb")
-    bufgen = takewhile(lambda x: x, (f.raw.read(1024 * 1024) for _ in repeat(None)))
-    return sum(buf.count(b"\n") for buf in bufgen)
+    f_gen = _make_gen(f.raw.read)
+    return sum(buf.count(b"\n") for buf in f_gen)
+
+
+# TODO: this is just _local_ file api, lets call it that
 
 
 class FileSystemStorageApi(StorageApi):
@@ -26,6 +34,9 @@ class FileSystemStorageApi(StorageApi):
     def open(self, name: str, *args, **kwargs) -> Iterator[TextIO]:
         with open(self.get_path(name), *args, **kwargs) as f:
             yield f
+
+    def open_name(self, name: str, *args, **kwargs) -> TextIO:
+        return open(self.get_path(name), *args, **kwargs)
 
     def get_path(self, name: str) -> str:
         dir = self.storage.url[7:]
@@ -55,9 +66,7 @@ class FileSystemStorageApi(StorageApi):
         shutil.copy(pth, to_pth)
 
     def write_lines_to_file(
-        self,
-        name: str,
-        lines: Iterable[str],  # TODO: support bytes?
+        self, name: str, lines: Iterable[str],  # TODO: support bytes?
     ):
         with self.open(name, "w") as f:
             f.writelines(ln + "\n" for ln in lines)
