@@ -201,6 +201,9 @@ class StorageApi:
     ):  # TODO: rename to overwrite_alias or set_alias?
         raise NotImplementedError
 
+    def remove_alias(self, alias: str):
+        raise NotImplementedError
+
 
 LOCAL_PYTHON_STORAGE: Dict[str, MemoryDataRecords] = {}  # TODO: global state...
 
@@ -248,3 +251,6 @@ class PythonStorageApi(StorageApi):
     def create_alias(self, name: str, alias: str):
         mdr = self.get(name)
         self.put(alias, mdr)
+
+    def remove_alias(self, alias: str):
+        self.remove(alias)

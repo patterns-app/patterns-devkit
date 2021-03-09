@@ -195,6 +195,9 @@ class StoredDataBlockMetadata(BaseModel):
     )
     storage_url = Column(String(128), nullable=False)
     data_format: DataFormat = Column(ClassBasedEnumSqlalchemyType, nullable=False)  # type: ignore
+    aliases: RelationshipProperty = relationship(
+        "Alias", backref="stored_data_block", lazy="dynamic"
+    )
     # is_ephemeral = Column(Boolean, default=False) # TODO
     # Hints
     data_block: "DataBlockMetadata"
@@ -251,6 +254,12 @@ class StoredDataBlockMetadata(BaseModel):
     def get_alias(self, sess: Session) -> Optional[Alias]:
         return sess.query(Alias).filter(Alias.stored_data_block_id == self.id).first()
 
+    def update_alias(self, sess: Session, new_alias: str):
+        a: Alias = sess.query(Alias).filter(Alias.alias == new_alias).first()
+        if a is None:
+            raise Exception("No alias to update")
+        a.update_alias(sess, new_alias)
+
     def create_alias(self, sess: Session, alias: str) -> Alias:
         # Create or update Alias
         a: Alias = sess.query(Alias).filter(Alias.alias == alias).first()
@@ -284,6 +293,15 @@ class Alias(BaseModel):
     )
     # Hints
     data_block: "DataBlockMetadata"
+    stored_data_block: "StoredDataBlockMetadata"
+
+    def update_alias(self, sess: Session, new_alias: str):
+        self.stored_data_block.storage.get_api().create_alias(
+            self.stored_data_block.get_name(), new_alias
+        )
+        self.stored_data_block.storage.get_api().remove_alias(self.alias)
+        self.alias = new_alias
+        sess.add(self)
 
 
 class DataBlockManager:

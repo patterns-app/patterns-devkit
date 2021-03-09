@@ -94,8 +94,11 @@ class DatabaseApi:
 
     ### StorageApi implementations ###
     def create_alias(self, from_stmt: str, alias: str):
-        self.execute_sql(f"drop view if exists {alias}")
+        self.remove_alias(alias)
         self.execute_sql(f"create view {alias} as select * from {from_stmt}")
+
+    def remove_alias(self, alias: str):
+        self.execute_sql(f"drop view if exists {alias}")
 
     def exists(self, table_name: str) -> bool:
         try:

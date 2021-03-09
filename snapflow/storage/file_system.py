@@ -46,14 +46,21 @@ class FileSystemStorageApi(StorageApi):
     def exists(self, name: str) -> bool:
         return os.path.exists(self.get_path(name))
 
+    def remove(self, name: str):
+        pth = self.get_path(name)
+        try:
+            os.remove(pth)
+        except FileNotFoundError:
+            pass
+
     def create_alias(self, name: str, alias: str):
         pth = self.get_path(name)
         alias_pth = self.get_path(alias)
-        try:
-            os.remove(alias_pth)
-        except FileNotFoundError:
-            pass
+        self.remove(alias_pth)
         os.symlink(pth, alias_pth)
+
+    def remove_alias(self, alias: str):
+        self.remove(alias)
 
     def record_count(self, name: str) -> Optional[int]:
         # TODO: this depends on format... hmmm, i guess let upstream handle for now
