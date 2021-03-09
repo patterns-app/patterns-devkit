@@ -59,6 +59,16 @@ def is_nullish(
     return False
 
 
+def is_boolish(o: Any, bool_strings=["True", "true", "False", "false"]) -> bool:
+    if o is None:
+        return False
+    if isinstance(o, bool):
+        return True
+    if isinstance(o, str):
+        return o in bool_strings
+    return False
+
+
 class SnapflowCsvDialect(csv.Dialect):
     delimiter = ","
     quotechar = '"'
