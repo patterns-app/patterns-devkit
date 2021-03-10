@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import decimal
 import json
 import typing
 from datetime import datetime
@@ -43,7 +44,7 @@ def records_as_dict_of_lists(dl: List[Dict]) -> Dict[str, List]:
 
 
 def is_nullish(
-    o: Any, null_strings=["None", "null", "na", "", "NULL", "NA", "N/A"]
+    o: Any, null_strings=set(["None", "null", "na", "", "NULL", "NA", "N/A"])
 ) -> bool:
     # TOOD: is "na" too aggressive?
     if o is None:
@@ -66,6 +67,27 @@ def is_boolish(o: Any, bool_strings=["True", "true", "False", "false"]) -> bool:
         return True
     if isinstance(o, str):
         return o in bool_strings
+    return False
+
+
+def is_numberish(obj: Any) -> bool:
+    if (
+        isinstance(obj, float)
+        or isinstance(obj, int)
+        or isinstance(obj, decimal.Decimal)
+    ):
+        return True
+    if isinstance(obj, str):
+        try:
+            int(obj)
+            return True
+        except:
+            pass
+        try:
+            float(obj)
+            return True
+        except:
+            pass
     return False
 
 

@@ -1,5 +1,6 @@
 import os
 import re
+from snapflow.schema.field_types import ensure_field_type
 from typing import Dict, List, Sequence
 
 import sqlalchemy as sa
@@ -22,36 +23,13 @@ class SchemaFieldMapper:
         return ft.split("(")[0]
 
     def to_sqlalchemy(self, field: Field) -> Column:  # Sequence[Column]:
-        # TODO: this list needs to be complete (since we use it for auto-detected / reflected types
-        local_vars = {
-            "TEXT": sa.UnicodeText,
-            "VARCHAR": sa.Unicode,
-            "Unicode": sa.Unicode,
-            "UnicodeText": sa.UnicodeText,
-            "Integer": sa.Integer,
-            "BigInteger": sa.BigInteger,
-            "Numeric": sa.Numeric,
-            "Float": sa.Float,
-            "REAL": sa.Float,
-            "Boolean": sa.Boolean,
-            "Date": sa.Date,
-            "DATE": sa.Date,
-            "DateTime": sa.DateTime,
-            "Json": sa.JSON,
-            "JSON": sa.JSON,
-        }
-        # TODO: constraints, indexes
-        # TODO: "loose" vs "strict" typed columns (pre and post validation, right?)
-        field_type = field.field_type
-        ft_class = self.get_field_type_class(field_type)
-        if ft_class not in local_vars:
-            raise NotImplementedError(field.field_type)
-        sa_data_type = eval(field_type, {"__builtins__": None}, local_vars)
-        return Column(field.name, sa_data_type)
+        return Column(field.name, field.field_type.as_sqlalchemy_type())
 
     def from_sqlalchemy(self, sa_column: Column, **kwargs) -> Field:
         # TODO: clean up reflected types? Conform / cast to standard set?
-        return Field(name=sa_column.name, field_type=repr(sa_column.type), **kwargs)
+        return Field(
+            name=sa_column.name, field_type=ensure_field_type(sa_column.type), **kwargs
+        )
 
 
 class SchemaMapper:
@@ -59,9 +37,7 @@ class SchemaMapper:
         self.sqlalchemy_metadata = sqlalchemy_metadata or MetaData()
 
     def to_sqlalchemy(
-        self,
-        schema: Schema,
-        schema_field_mapper: SchemaFieldMapper = None,
+        self, schema: Schema, schema_field_mapper: SchemaFieldMapper = None,
     ) -> Sequence[Column]:
         columns: List[Column] = []
         if schema_field_mapper is None:
@@ -74,10 +50,7 @@ class SchemaMapper:
         return columns
 
     def create_table_statement(
-        self,
-        schema: Schema,
-        dialect: Dialect,
-        table_name: str = None,
+        self, schema: Schema, dialect: Dialect, table_name: str = None,
     ):
         sa_columns = self.to_sqlalchemy(schema)
         if not table_name:
@@ -95,14 +68,3 @@ class SchemaMapper:
         kwargs["fields"] = fields
         return Schema(**kwargs)
 
-
-def field_from_sqlalchemy_column(sa_column: Column, **kwargs) -> Field:
-    # TODO: clean up reflected types? Conform / cast to standard set?
-    return Field(name=sa_column.name, field_type=repr(sa_column.type), **kwargs)
-
-
-def fields_from_sqlalchemy_table(sa_table: Table) -> List[Field]:
-    fields = []
-    for column in sa_table.columns:
-        fields.append(field_from_sqlalchemy_column(column))
-    return fields

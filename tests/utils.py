@@ -14,18 +14,12 @@ from snapflow.storage.storage import Storage, StorageClass, StorageEngine
 from snapflow.utils.common import rand_str
 from snapflow.utils.typing import T
 
-TestSchema1 = create_quick_schema(
-    "TestSchema1", [("f1", "Unicode(256)")], module_name="_test"
-)
-TestSchema2 = create_quick_schema(
-    "TestSchema2", [("f1", "Unicode(256)")], module_name="_test"
-)
-TestSchema3 = create_quick_schema(
-    "TestSchema3", [("f1", "Unicode(256)")], module_name="_test"
-)
+TestSchema1 = create_quick_schema("TestSchema1", [("f1", "Text")], module_name="_test")
+TestSchema2 = create_quick_schema("TestSchema2", [("f1", "Text")], module_name="_test")
+TestSchema3 = create_quick_schema("TestSchema3", [("f1", "Text")], module_name="_test")
 TestSchema4 = create_quick_schema(
     "TestSchema4",
-    [("f1", "Unicode(256)"), ("f2", "Integer")],
+    [("f1", "Text"), ("f2", "Integer")],
     unique_on=["f1"],
     module_name="_test",
 )
@@ -38,17 +32,14 @@ def make_test_env(**kwargs) -> Environment:
         kwargs["metadata_storage"] = metadata_storage
     env = Environment(raise_on_error=True, **kwargs)
     test_module = SnapflowModule(
-        "_test",
-        schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
+        "_test", schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
     )
     env.add_module(test_module)
     return env
 
 
 def make_test_run_context(**kwargs) -> RunContext:
-    s = Storage.from_url(
-        url=f"python://_test_default_{rand_str(6)}",
-    )
+    s = Storage.from_url(url=f"python://_test_default_{rand_str(6)}",)
     env = make_test_env()
     g = Graph(env)
     args = dict(

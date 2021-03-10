@@ -176,11 +176,11 @@ unique on: id
 on duplicate: ReplaceWithNewer
 fields:
   id:
-    type: Unicode(256)
+    type: Text
     validators:
       - NotNull
   amount:
-    type: Numeric(12,2)
+    type: Decimal(12, 2)
     description: The amount of the transaction
     validators:
       - NotNull
@@ -189,7 +189,7 @@ fields:
     validators:
       - NotNull
   customer_id:
-    type: Unicode(256)
+    type: Text
 ```
 
 `snaps` can declare the `schemas` they expect with type hints, allowing them to specify the

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import traceback
 from dataclasses import asdict
 from enum import Enum
 from functools import total_ordering
-from typing import TYPE_CHECKING
+from snapflow.schema.field_types import FieldType
+from typing import Any, Iterable, TYPE_CHECKING
 
+import pandas as pd
 from loguru import logger
 from snapflow.schema.base import Field, Schema, create_quick_field, create_quick_schema
 from sqlalchemy.orm.session import Session
@@ -27,19 +30,37 @@ class SchemaTypeError(Exception):
     pass
 
 
-def is_same_fieldtype_class(ft1: str, ft2: str) -> bool:
-    # TODO: a lot to unpack and do here:
-    #   When do we accept fieldtypes as compatible? when do we "downcast"?
-    #   BigInteger vs Integer, Unicode(256) vs Unicode(128), etc
-    #   What are the settings that let a user control this?
-    return ft1.split("(")[0] == ft2.split("(")[0]
+def cast_python_object_to_field_type(
+    obj: Any, field_type: FieldType, strict: bool = False
+) -> Any:
+    if obj is None:
+        return None
+    try:
+        if not isinstance(obj, Iterable) and not isinstance(obj, dict) and pd.isna(obj):
+            return None
+    except ValueError:
+        # isna() throws ValueError
+        pass
+    try:
+        return field_type.cast(obj, strict=strict)
+    except Exception:
+        logger.error(
+            f"Error casting python object ({obj}) to type {field_type}: {traceback.format_exc()}"
+        )
+    raise NotImplementedError
 
 
 def is_strict_field_match(f1: Field, f2: Field) -> bool:
-    return is_same_fieldtype_class(f1.field_type, f2.field_type) and f1.name == f2.name
+    """
+    Fields match strictly if names match and field types are exact match (including all parameters)
+    """
+    return f1.name == f2.name and f1.field_type == f2.field_type
 
 
 def is_strict_schema_match(schema1: Schema, schema2: Schema) -> bool:
+    """
+    Schemas match strictly if all fields match strictly one-to-one
+    """
     if set(schema1.field_names()) != set(schema2.field_names()):
         return False
     for f1 in schema1.fields:
@@ -56,6 +77,9 @@ def has_subset_fields(sub: Schema, supr: Schema) -> bool:
 def has_subset_nonnull_fields(sub: Schema, supr: Schema) -> bool:
     sub_fields = [f.name for f in sub.fields if not f.is_nullable()]
     supr_fields = [f.name for f in supr.fields if not f.is_nullable()]
+    print("nonnull")
+    print(sub_fields)
+    print(supr_fields)
     return set(sub_fields) <= set(supr_fields)
 
 
@@ -88,7 +112,7 @@ def cast_to_realized_schema(
     inferred_schema: Schema,
     nominal_schema: Schema,
     cast_level: CastToSchemaLevel = CastToSchemaLevel.SOFT,
-):
+) -> Schema:
     if is_strict_schema_match(inferred_schema, nominal_schema):
         return nominal_schema
     if has_subset_fields(nominal_schema, inferred_schema):
@@ -103,6 +127,8 @@ def cast_to_realized_schema(
             return update_matching_field_definitions(
                 env, sess, inferred_schema, nominal_schema
             )
+        else:
+            pass
     if cast_level >= CastToSchemaLevel.NONE:
         raise SchemaTypeError(
             f"Inferred schema does not have necessary columns and cast level set to {cast_level}. "

@@ -42,11 +42,9 @@ def assert_dataframes_are_almost_equal(
 
 
 def empty_dataframe_for_schema(schema: Schema) -> DataFrame:
-    from snapflow.core.typing.inference import sqlalchemy_type_to_pandas_type
-
     df = DataFrame()
     for field in schema.fields:
-        pd_type = sqlalchemy_type_to_pandas_type(field.field_type)
+        pd_type = field.field_type.pandas_type
         df[field.name] = Series(dtype=pd_type)
     return df
 

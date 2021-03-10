@@ -3,17 +3,18 @@ from __future__ import annotations
 import decimal
 from dataclasses import asdict
 from datetime import date, datetime
+from snapflow.schema.casting import (
+    CastToSchemaLevel,
+    SchemaTypeError,
+    cast_to_realized_schema,
+)
 from sys import implementation
 
 import pandas as pd
 import pytest
 from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
 from snapflow.core.snap_interface import get_schema_translation
-from snapflow.core.typing.inference import (
-    cast_python_object_to_sqlalchemy_type,
-    infer_schema_fields_from_records,
-    infer_schema_from_records,
-)
+from snapflow.core.typing.inference import infer_schema_from_records
 from snapflow.modules import core
 from snapflow.schema.base import (
     DEFAULT_UNICODE_TEXT_TYPE,
@@ -35,7 +36,7 @@ unique_on: uniq
 immutable: false
 fields:
   uniq:
-    type: Unicode(3)
+    type: Text(3)
     validators:
       - NotNull
   other_field:
@@ -52,12 +53,12 @@ implementations:
 
 
 def test_schema_identifiers():
-    t1 = create_quick_schema("T1", fields=[("f1", "Unicode"), ("f2", "Integer")])
+    t1 = create_quick_schema("T1", fields=[("f1", "Text"), ("f2", "Integer")])
     assert t1.name == "T1"
     assert t1.key == f"{DEFAULT_LOCAL_MODULE_NAME}.T1"
 
     t2 = create_quick_schema(
-        "TestSchema", fields=[("f1", "Unicode"), ("f2", "Integer")], module_name="m1"
+        "TestSchema", fields=[("f1", "Text"), ("f2", "Integer")], module_name="m1"
     )
     assert t2.name == "TestSchema"
     assert t2.key == "m1.TestSchema"
@@ -87,9 +88,7 @@ def test_schema_yaml():
 
 def test_schema_translation():
     env = make_test_env()
-    t_base = create_quick_schema(
-        "t_base", fields=[("f1", "Unicode"), ("f2", "Integer")]
-    )
+    t_base = create_quick_schema("t_base", fields=[("f1", "Text"), ("f2", "Integer")])
     t_impl = create_quick_schema(
         "t_impl",
         fields=[("g1", "Unicode"), ("g2", "Integer")],
@@ -102,22 +101,6 @@ def test_schema_translation():
             env, sess, source_schema=t_impl, target_schema=t_base
         )
         assert trans.translation == {"g1": "f1", "g2": "f2"}
-
-
-def test_schema_inference():
-    fields = infer_schema_fields_from_records(sample_records)
-    assert len(fields) == 9
-    assert set(f.name for f in fields) == set("abcdefghi")
-    field_types = {f.name: f.field_type for f in fields}
-    assert field_types["a"] == "DateTime"
-    assert field_types["b"] == DEFAULT_UNICODE_TYPE  # Invalid date, so is unicode
-    assert field_types["c"] == "BigInteger"
-    assert field_types["d"] == "JSON"
-    assert field_types["e"] == DEFAULT_UNICODE_TYPE
-    assert field_types["f"] == DEFAULT_UNICODE_TYPE
-    assert field_types["g"] == "BigInteger"
-    assert field_types["h"] == DEFAULT_UNICODE_TEXT_TYPE
-    assert field_types["i"] == DEFAULT_UNICODE_TYPE
 
 
 def test_generated_schema():
@@ -145,50 +128,81 @@ def test_any_schema():
     assert anyschema.fields == []
 
 
-ERROR = "_ERROR"
+ERROR = "_error"
 
 
 @pytest.mark.parametrize(
-    "satype,obj,expected",
+    "cast_level,inferred,nominal,expected",
     [
-        ("Integer", 1, 1),
-        ("Integer", "1", 1),
-        ("Integer", "01", 1),
-        ("Integer", None, None),
-        ("Integer", pd.NA, None),
-        ("DateTime", "2020-01-01", datetime(2020, 1, 1)),
-        ("DateTime", "2020-01-01 00:00:00", datetime(2020, 1, 1)),
-        ("DateTime", 1577836800, datetime(2020, 1, 1)),
-        ("JSON", [1, 2], [1, 2]),
-        ("JSON", {"a": 2}, {"a": 2}),
-        ("JSON", '{"1":2}', {"1": 2}),
-        ("JSON", None, None),
-        ("Boolean", "true", True),
-        ("Boolean", "false", False),
-        ("Boolean", "t", True),
-        ("Boolean", "f", False),
-        ("Boolean", 1, True),
-        ("Boolean", 0, False),
-        ("Boolean", "Hi", ERROR),
-        ("Boolean", "Hi", None),  # If we ignore the error, it should be null
-        ("Date", "2020-01-01", date(2020, 1, 1)),
-        ("Date", "2020-01-01 00:00:00", date(2020, 1, 1)),
-        ("Date", "Hi", ERROR),
-        ("Unicode", "Hi", "Hi"),
-        ("Unicode", 0, "0"),
-        ("Unicode", None, None),
+        # Exact match
+        [
+            CastToSchemaLevel.SOFT,
+            [("f1", "Text"), ("f2", "Integer")],
+            [("f1", "Text"), ("f2", "Integer")],
+            [("f1", "Text"), ("f2", "Integer")],
+        ],
+        [
+            CastToSchemaLevel.HARD,
+            [("f1", "Text"), ("f2", "Integer")],
+            [("f1", "Text"), ("f2", "Integer")],
+            [("f1", "Text"), ("f2", "Integer")],
+        ],
+        # Inferred has extra field
+        [
+            CastToSchemaLevel.SOFT,
+            [("f1", "Text"), ("f2", "Integer"), ("f3", "Integer")],
+            [("f1", "Text"), ("f2", "Integer")],
+            [("f1", "Text"), ("f2", "Integer"), ("f3", "Integer")],
+        ],
+        [
+            CastToSchemaLevel.HARD,
+            [("f1", "Text"), ("f2", "Integer"), ("f3", "Integer")],
+            [("f1", "Text"), ("f2", "Integer")],
+            [("f1", "Text"), ("f2", "Integer")],
+        ],
+        # Nominal has extra field
+        [
+            CastToSchemaLevel.SOFT,
+            [("f1", "Text"), ("f2", "Integer")],
+            [("f1", "Text"), ("f2", "Integer"), ("f3", "Integer")],
+            [("f1", "Text"), ("f2", "Integer"), ("f3", "Integer")],
+        ],
+        [
+            CastToSchemaLevel.HARD,
+            [("f1", "Text"), ("f2", "Integer")],
+            [("f1", "Text"), ("f2", "Integer"), ("f3", "Integer")],
+            ERROR,
+        ],
+        # Inferred field mismatch
+        [
+            CastToSchemaLevel.SOFT,
+            [("f1", "Text"), ("f2", "Text")],
+            [("f1", "Text"), ("f2", "Integer")],
+            [
+                ("f1", "Text"),
+                ("f2", "Integer"),
+            ],  # TODO: does this make sense? Or do we want to keep inferred type?
+        ],
+        [
+            CastToSchemaLevel.HARD,
+            [("f1", "Text"), ("f2", "Text")],
+            [("f1", "Text"), ("f2", "Integer")],
+            [("f1", "Text"), ("f2", "Integer")],  # TODO: should this be an error?
+        ],
     ],
 )
-def test_value_casting(satype, obj, expected):
-    if expected == ERROR:
-        with pytest.raises(Exception):
-            cast_python_object_to_sqlalchemy_type(
-                obj, satype, ignore_error_as_null=False
-            )
-    else:
-        assert cast_python_object_to_sqlalchemy_type(obj, satype) == expected
-
-
-def test_schema_casting():
-    # TODO
-    pass
+def test_cast_to_schema(cast_level, inferred, nominal, expected):
+    inferred = create_quick_schema("Inf", fields=inferred)
+    nominal = create_quick_schema("Nom", fields=nominal)
+    if expected != ERROR:
+        expected = create_quick_schema("Exp", fields=expected)
+    env = make_test_env()
+    with env.session_scope() as sess:
+        if expected == ERROR:
+            with pytest.raises(SchemaTypeError):
+                s = cast_to_realized_schema(env, sess, inferred, nominal, cast_level)
+        else:
+            s = cast_to_realized_schema(env, sess, inferred, nominal, cast_level)
+            for f in s.fields:
+                e = expected.get_field(f.name)
+                assert f == e
