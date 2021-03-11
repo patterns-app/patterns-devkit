@@ -1,15 +1,14 @@
-import inspect
 import decimal
-from datetime import date, time, datetime, timedelta
-from snapflow.utils.common import ensure_bool, ensure_date, ensure_datetime, ensure_time
-from snapflow.storage.data_formats.records import Records
-from snapflow.utils.registry import ClassBasedEnum, global_registry
-from snapflow.utils.data import is_boolish, is_nullish, is_numberish, read_json
+import inspect
+from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
 
-from dateutil import parser
 import sqlalchemy.types as satypes
-
+from dateutil import parser
+from snapflow.storage.data_formats.records import Records
+from snapflow.utils.common import ensure_bool, ensure_date, ensure_datetime, ensure_time
+from snapflow.utils.data import is_boolish, is_nullish, is_numberish, read_json
+from snapflow.utils.registry import ClassBasedEnum, global_registry
 
 """
 - Numeric: bool, int(64), float(64), decimal
@@ -162,7 +161,7 @@ class Integer(FieldTypeBase):
 
     def is_maybe(self, obj: Any) -> bool:
         try:
-            i = int(obj)
+            int(obj)
             return True
         except (ValueError, TypeError):
             return False
@@ -185,7 +184,7 @@ class Float(FieldTypeBase):
 
     def is_maybe(self, obj: Any) -> bool:
         try:
-            i = float(obj)
+            float(obj)
             return True
         except (ValueError, TypeError):
             return False
@@ -204,7 +203,7 @@ class Decimal(FieldTypeBase):
 
     def is_maybe(self, obj: Any) -> bool:
         try:
-            i = float(obj)
+            float(obj)
             return True
         except (ValueError, TypeError):
             return False
@@ -292,7 +291,7 @@ class Date(FieldTypeBase):
             try:
                 parser.isoparse(obj)
                 return True
-            except:
+            except (parser.ParserError, TypeError, ValueError):
                 pass
             return False
         else:
@@ -330,7 +329,7 @@ class DateTime(FieldTypeBase):
             if dt.year < 2:
                 # dateutil parser only found a time, not a date
                 return False
-        except Exception:
+        except (parser.ParserError, TypeError, ValueError):
             return False
         return True
 
@@ -342,7 +341,7 @@ class DateTime(FieldTypeBase):
             try:
                 parser.isoparse(obj)
                 return True
-            except:
+            except (parser.ParserError, TypeError, ValueError):
                 pass
             return False
         else:
@@ -491,4 +490,3 @@ def str_to_field_type(s: str) -> FieldType:
         return ft
     except AttributeError:
         raise NotImplementedError(s)
-

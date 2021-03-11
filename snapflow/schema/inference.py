@@ -1,42 +1,37 @@
 from __future__ import annotations
-from datetime import date, time, datetime, timedelta
 
-from attr import field
-from sqlalchemy.sql.schema import Column, Table
-from snapflow.schema.base import Field, Schema
-
-from pandas.core.series import Series
-from snapflow.storage.data_formats.records import Records
-from snapflow.utils.registry import ClassBasedEnum, global_registry
-from snapflow.utils.data import (
-    is_nullish,
-    records_as_dict_of_lists,
-)
 import traceback
+from datetime import date, datetime, time, timedelta
 from typing import Any, Dict, Iterable, List, Optional, Set, Type
 
 import pandas as pd
+from attr import field
 from loguru import logger
+from pandas.core.series import Series
+from snapflow.schema.base import Field, Schema
 from snapflow.schema.field_types import (
-    all_types_instantiated,
     DEFAULT_FIELD_TYPE,
-    FieldTypeBase,
-    FieldType,
-    LongText,
-    all_types,
+    JSON,
+    LONG_TEXT,
     Boolean,
+    Date,
+    DateTime,
     Decimal,
     FieldType,
+    FieldTypeBase,
     Float,
     Integer,
-    LONG_TEXT,
-    DateTime,
-    Time,
+    LongText,
     Text,
-    Date,
-    JSON,
+    Time,
+    all_types,
+    all_types_instantiated,
     ensure_field_type,
 )
+from snapflow.storage.data_formats.records import Records
+from snapflow.utils.data import is_nullish, records_as_dict_of_lists
+from snapflow.utils.registry import ClassBasedEnum, global_registry
+from sqlalchemy.sql.schema import Column, Table
 
 
 def get_sample(
@@ -195,4 +190,3 @@ def fields_from_sqlalchemy_table(sa_table: Table) -> List[Field]:
     for column in sa_table.columns:
         fields.append(field_from_sqlalchemy_column(column))
     return fields
-

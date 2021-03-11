@@ -4,12 +4,12 @@ import traceback
 from dataclasses import asdict
 from enum import Enum
 from functools import total_ordering
-from snapflow.schema.field_types import FieldType
-from typing import Any, Iterable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Iterable
 
 import pandas as pd
 from loguru import logger
 from snapflow.schema.base import Field, Schema, create_quick_field, create_quick_schema
+from snapflow.schema.field_types import FieldType
 from sqlalchemy.orm.session import Session
 
 if TYPE_CHECKING:

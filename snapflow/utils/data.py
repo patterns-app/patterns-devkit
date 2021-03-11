@@ -81,12 +81,12 @@ def is_numberish(obj: Any) -> bool:
         try:
             int(obj)
             return True
-        except:
+        except (TypeError, ValueError):
             pass
         try:
             float(obj)
             return True
-        except:
+        except (TypeError, ValueError):
             pass
     return False
 

@@ -1,6 +1,7 @@
 from copy import copy
 from dataclasses import asdict, fields, is_dataclass
 from typing import Any, Callable, Dict, Optional
+
 from snapflow.core import operators
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import (
@@ -25,7 +26,6 @@ from snapflow.storage.data_formats import (
     RecordsIterator,
 )
 from snapflow.storage.storage import Storage
-
 
 # TODO: use an existing lib for this:
 #       - maybe the best: https://github.com/Fatal1ty/mashumaro
@@ -81,4 +81,3 @@ from snapflow.storage.storage import Storage
 #         if s is None:
 #             return copy.deepcopy(obj)
 #         return s(obj)
-

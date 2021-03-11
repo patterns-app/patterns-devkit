@@ -1,11 +1,4 @@
 from __future__ import annotations
-from snapflow.schema.casting import cast_python_object_to_field_type
-from snapflow.schema.inference import (
-    fields_from_sqlalchemy_table,
-    infer_field_types_from_records,
-    infer_fields_from_records,
-    pandas_series_to_field_type,
-)
 
 import traceback
 from collections.abc import Iterable
@@ -25,6 +18,13 @@ from snapflow.schema.base import (
     Schema,
     create_quick_field,
     create_quick_schema,
+)
+from snapflow.schema.casting import cast_python_object_to_field_type
+from snapflow.schema.inference import (
+    fields_from_sqlalchemy_table,
+    infer_field_types_from_records,
+    infer_fields_from_records,
+    pandas_series_to_field_type,
 )
 from snapflow.storage.data_formats import Records
 from snapflow.utils.common import (

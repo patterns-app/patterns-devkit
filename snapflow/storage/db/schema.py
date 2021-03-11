@@ -1,12 +1,12 @@
 import os
 import re
-from snapflow.schema.field_types import ensure_field_type
 from typing import Dict, List, Sequence
 
 import sqlalchemy as sa
 from jinja2 import nodes
 from jinja2.ext import Extension
 from snapflow.schema import Field, Schema
+from snapflow.schema.field_types import ensure_field_type
 from snapflow.storage.storage import StorageEngine
 from snapflow.utils.common import rand_str
 from sqlalchemy import Column, MetaData, Table
@@ -37,7 +37,9 @@ class SchemaMapper:
         self.sqlalchemy_metadata = sqlalchemy_metadata or MetaData()
 
     def to_sqlalchemy(
-        self, schema: Schema, schema_field_mapper: SchemaFieldMapper = None,
+        self,
+        schema: Schema,
+        schema_field_mapper: SchemaFieldMapper = None,
     ) -> Sequence[Column]:
         columns: List[Column] = []
         if schema_field_mapper is None:
@@ -50,7 +52,10 @@ class SchemaMapper:
         return columns
 
     def create_table_statement(
-        self, schema: Schema, dialect: Dialect, table_name: str = None,
+        self,
+        schema: Schema,
+        dialect: Dialect,
+        table_name: str = None,
     ):
         sa_columns = self.to_sqlalchemy(schema)
         if not table_name:
@@ -67,4 +72,3 @@ class SchemaMapper:
             fields.append(field_mapper.from_sqlalchemy(column))
         kwargs["fields"] = fields
         return Schema(**kwargs)
-

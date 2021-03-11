@@ -2,17 +2,17 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
+
+import strictyaml
+from loguru import logger
+from snapflow.core.metadata.orm import BaseModel
 from snapflow.schema.field_types import (
     FieldType,
     FieldTypeLike,
     ensure_field_type,
     str_to_field_type,
 )
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
-
-import strictyaml
-from loguru import logger
-from snapflow.core.metadata.orm import BaseModel
 from snapflow.utils.common import StringEnum, ensure_bool, title_to_snake_case
 from sqlalchemy import JSON, Column, String
 from sqlalchemy.orm.session import Session

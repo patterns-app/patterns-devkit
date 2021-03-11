@@ -3,11 +3,6 @@ from __future__ import annotations
 import decimal
 from dataclasses import asdict
 from datetime import date, datetime
-from snapflow.schema.casting import (
-    CastToSchemaLevel,
-    SchemaTypeError,
-    cast_to_realized_schema,
-)
 from sys import implementation
 
 import pandas as pd
@@ -25,6 +20,11 @@ from snapflow.schema.base import (
     create_quick_schema,
     is_generic,
     schema_from_yaml,
+)
+from snapflow.schema.casting import (
+    CastToSchemaLevel,
+    SchemaTypeError,
+    cast_to_realized_schema,
 )
 from tests.utils import make_test_env, sample_records
 
