@@ -82,7 +82,8 @@ def create_sa_table(dbapi: DatabaseApi, table_name: str) -> Table:
 def infer_schema_from_db_table(
     dbapi: DatabaseApi, table_name: str, **schema_kwargs
 ) -> Schema:
-    fields = fields_from_sqlalchemy_table(create_sa_table(dbapi, table_name))
+    tble = create_sa_table(dbapi, table_name)
+    fields = fields_from_sqlalchemy_table(tble)
     return generate_auto_schema(fields, **schema_kwargs)
 
 

@@ -6,7 +6,7 @@ import pathlib
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import strictyaml
 from alembic import command
@@ -23,6 +23,7 @@ from snapflow.schema.base import (
     is_generic,
 )
 from snapflow.storage.storage import DatabaseStorageClass, PythonStorageClass
+from snapflow.utils.common import AttrDict
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.orm import Session, sessionmaker
@@ -37,6 +38,10 @@ if TYPE_CHECKING:
     from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
 
 DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
+DEFAULT_SETTINGS = {
+    "FAIL_ON_DOWNCAST": False,
+    "WARN_ON_DOWNCAST": True,
+}
 
 
 @dataclass(frozen=True)
@@ -59,6 +64,7 @@ class Environment:
         initialize_metadata_storage: bool = True,
         config: Optional[EnvironmentConfiguration] = None,
         raise_on_error: bool = False,
+        settings: Dict[str, Any] = None,
     ):
         from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
         from snapflow.storage.storage import Storage, new_local_python_storage
@@ -84,6 +90,9 @@ class Environment:
         self.library = ComponentLibrary()
         self._metadata_sessions: List[Session] = []
         self.raise_on_error = raise_on_error
+        s = AttrDict(DEFAULT_SETTINGS)
+        s.update(settings or {})
+        self.settings = s
         # if add_default_python_runtime:
         #     self.runtimes.append(
         #         Runtime(

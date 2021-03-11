@@ -333,7 +333,7 @@ Data blocks have three associated schemas:
 The realized schema is determined by the following factors:
 
 - The setting of `CAST_TO_SCHEMA_LEVEL` to one of `hard`, `soft`, or `none`
-- The setting of `FAIL_ON_DOWNCAST` and `WARN_ON_DOWNCAST` (Not implemented yet)
+- The setting of `FAIL_ON_DOWNCAST` and `WARN_ON_DOWNCAST`
 - The discrepancies, if any, between the inferred schema and the nominal schema
 
 The following table gives the logic for possible behavior of realized schema:

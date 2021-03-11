@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import decimal
 import inspect
 from datetime import date, datetime, time, timedelta
@@ -26,6 +28,9 @@ class FieldTypeBase(ClassBasedEnum):
     pandas_type: str
     parameter_names: List[str] = []
     defaults: List[Tuple[str, Any]] = []
+    castable_to_types: List[str] = [
+        "LongText"
+    ]  # TODO: Can represent any existing type as a long str?
     # Carindality rank represents how large a type's value set is.
     # IF a type can represent all of another type's values, it MUST have equal or higher cardinality
     # Otherwise, goes in order of actual cardinality (bit length)
@@ -86,7 +91,10 @@ class FieldTypeBase(ClassBasedEnum):
     def is_definitely(self, obj: Any) -> bool:
         return isinstance(obj, self.python_type)
 
-    def cast(self, obj: Any, strict: bool = False, force: bool = False) -> Any:
+    def is_castable_to_type(self, other: FieldType):
+        return other.name in self.castable_to_types
+
+    def cast(self, obj: Any, strict: bool = False) -> Any:
         return obj
 
 
@@ -120,6 +128,7 @@ class Boolean(FieldTypeBase):
     pandas_type = "boolean"
     cardinality_rank = 0
     max_bytes = 1
+    castable_to_types = ["Text", "LongText"]
 
     def is_maybe(self, obj: Any) -> bool:
         return is_boolish(obj)
@@ -158,6 +167,7 @@ class Integer(FieldTypeBase):
     pandas_type = "Int64"
     cardinality_rank = 11
     max_bytes = 8
+    castable_to_types = ["Float", "Decimal", "Text", "LongText"]
 
     def is_maybe(self, obj: Any) -> bool:
         try:
@@ -181,6 +191,11 @@ class Float(FieldTypeBase):
     pandas_type = "float64"
     cardinality_rank = 12
     max_bytes = 8
+    castable_to_types = [
+        "Decimal",
+        "Text",
+        "LongText",
+    ]  # TODO: kind of true? Like not necessarily without potential data loss
 
     def is_maybe(self, obj: Any) -> bool:
         try:
@@ -200,6 +215,11 @@ class Decimal(FieldTypeBase):
     pandas_type = "float64"
     cardinality_rank = 13
     max_bytes = 8
+    castable_to_types = [
+        "Float",
+        "Text",
+        "LongText",
+    ]  # TODO: kind of true? Like not necessarily without potential data loss
 
     def is_maybe(self, obj: Any) -> bool:
         try:
@@ -220,6 +240,7 @@ class Text(FieldTypeBase):
     pandas_type = "string"
     cardinality_rank = 20
     max_bytes = LONG_TEXT
+    castable_to_types = ["LongText"]
 
     def is_maybe(self, obj: Any) -> bool:
         return (isinstance(obj, str) or isinstance(obj, bytes)) and (
@@ -263,6 +284,7 @@ class Date(FieldTypeBase):
     pandas_type = "date"
     cardinality_rank = 10
     max_bytes = 4
+    castable_to_types = ["DateTime", "Text", "LongText"]
 
     def is_maybe(self, obj: Any) -> bool:
         if isinstance(obj, date):
@@ -313,6 +335,7 @@ class DateTime(FieldTypeBase):
     pandas_type = "datetime64[ns]"
     cardinality_rank = 12
     max_bytes = 8
+    castable_to_types = ["Text", "LongText"]
 
     def is_maybe(self, obj: Any) -> bool:
         if isinstance(obj, datetime):
@@ -363,6 +386,7 @@ class Time(FieldTypeBase):
     pandas_type = "time"
     cardinality_rank = 12
     max_bytes = 8
+    castable_to_types = ["Text", "LongText"]
 
     def is_maybe(self, obj: Any) -> bool:
         if isinstance(obj, time):
@@ -410,6 +434,7 @@ class JSON(FieldTypeBase):
     pandas_type = "object"
     cardinality_rank = 0  # TODO: strict json, only dicts and lists?
     max_bytes = LONG_TEXT * LONG_TEXT
+    castable_to_types = ["LongText"]  # TODO: kind of true?
 
     def is_maybe(self, obj: Any) -> bool:
         # TODO: strings too? (Actual json string)
