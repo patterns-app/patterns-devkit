@@ -6,6 +6,8 @@ from loguru import logger
 from snapflow.core.module import SnapflowModule
 from snapflow.modules import core
 
+logger.enable("snapflow")
+
 
 def test_module_init():
     from . import _test_module

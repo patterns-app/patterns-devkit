@@ -7,6 +7,12 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 import strictyaml
 from loguru import logger
 from snapflow.core.metadata.orm import BaseModel
+from snapflow.schema.field_types import (
+    FieldType,
+    FieldTypeLike,
+    ensure_field_type,
+    str_to_field_type,
+)
 from snapflow.utils.common import StringEnum, ensure_bool, title_to_snake_case
 from sqlalchemy import JSON, Column, String
 from sqlalchemy.orm.session import Session
@@ -48,7 +54,7 @@ DEFAULT_UNICODE_TEXT_TYPE = "UnicodeText"
 @dataclass(frozen=True)
 class Field:
     name: str
-    field_type: str
+    field_type: FieldType
     validators: List[Validator] = field(default_factory=list)
     index: bool = False
     is_metadata: bool = False
@@ -284,16 +290,9 @@ def build_schema_from_dict(d: dict, **overrides: Any) -> Schema:
 
 def build_field_from_dict(d: dict) -> Field:
     d["validators"] = [load_validator_from_dict(f) for f in d.pop("validators", [])]
-    conform_field_type(d.get("field_type"))
-    ftype = Field(**d)
-    return ftype
-
-
-def conform_field_type(ft: str) -> str:
-    # TODO: this is hidden and only affects this code path... Where do we want to conform this?
-    if ft is None or ft in ("Unicode", "UnicodeText"):
-        return DEFAULT_UNICODE_TYPE
-    return ft
+    d["field_type"] = ensure_field_type(d.get("field_type"))
+    f = Field(**d)
+    return f
 
 
 def load_validator_from_dict(v: str) -> Validator:
@@ -329,10 +328,10 @@ def field_to_yaml(f: Field) -> str:
     # description
 
 
-def create_quick_field(name: str, field_type: str, **kwargs) -> Field:
+def create_quick_field(name: str, field_type: FieldTypeLike, **kwargs) -> Field:
     args = dict(name=name, field_type=field_type, validators=[])
     args.update(kwargs)
-    return Field(**args)  # type: ignore
+    return build_field_from_dict(args)
 
 
 # Helper

@@ -7,16 +7,16 @@ unique_on:
 updated_at_field_name: f4
 fields:
   k1:
-    type: BigInteger
+    type: Integer
     validators:
       - NotNull
   k2:
-    type: BigInteger
+    type: Integer
   f1:
-    type: Unicode
+    type: Text
   f2:
     type: Float
   f3:
-    type: Unicode
+    type: Text
   f4:
     type: DateTime

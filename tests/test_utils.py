@@ -115,7 +115,7 @@ def test_empty_dataframe_from_schema():
     df = empty_dataframe_for_schema(TestSchema4)
     assert set(df.columns) == {"f1", "f2"}
     df = empty_dataframe_for_schema(TestSchema4)
-    assert set(d.name for d in df.dtypes) == {"string", "Int32"}
+    assert set(d.name for d in df.dtypes) == {"string", "Int64"}
 
 
 def test_dataframe_to_records():
