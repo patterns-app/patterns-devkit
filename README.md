@@ -70,7 +70,7 @@ Install core library and the Stripe module:
 
 `pip install snapflow snapflow-stripe`
 
-Define our own snap:
+Define a snap:
 
 ```python
 from snapflow import Snap
@@ -93,36 +93,41 @@ def customer_lifetime_sales_sql():
   # return template("sql/customer_lifetime_sales.sql", ctx)
 ```
 
-Now we can instantiate our snaps as connected nodes in a graph.
-Note, we leverage the existing `extract_charges` snap of the `snapflow-stripe` module.
+Now we can connect snaps as nodes in a graph. Note, we leverage the existing
+`extract_charges` snap of the `snapflow-stripe` module.
 
 ```python
-from snapflow import run, Graph
+from snapflow import run, graph_from_yaml
 
-g = Graph.from_yaml(
+g = graph_from_yaml(
 """
 nodes:
-  - name: stripe_charges
+  - key: stripe_charges
     snap: stripe.extract_charges
     params:
-      api_key: *****
-    accumulate: true
-  - name: stripe_customer_lifetime_sales
+      api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
+  - key: accumulated_stripe_charges
+    snap: core.dataframe_accumulator
+    input: stripe_charges
+  - key: stripe_customer_lifetime_sales
     snap: customer_lifetime_sales
-    inputs:
-      - stripe_charges
+    input: accumulated_stripe_charge
 """)
 
 print(g)
 ```
 
-Then run the graph once to exhaustion, and print out the final output:
+Then run the graph once (time-limited for demo) and print out the final output:
 
 ```python
-run(g)
+from snapflow import Environment
+import snapflow_stripe as stripe
+
+env = Environment(modules=[stripe])
+run(g, env=env, node_timelimit_seconds=5)
 
 # Get the final output block
-datablock = g.get_node("stripe_customer_lifetime_sales").get_latest_output()
+datablock = env.get_latest_output("stripe_customer_lifetime_sales", g)
 print(datablock.as_dataframe())
 ```
 
@@ -130,7 +135,7 @@ print(datablock.as_dataframe())
 
 All snapflow pipelines are directed graphs of `snap` nodes, consisting of one or more "source" nodes
 that create and emit datablocks when run. This stream of blocks is
-then be consumed by downstream nodes, each in turn may emit their own blocks. Source nodes can be scheduled
+then consumed by downstream nodes, which each in turn may emit their own blocks. Source nodes can be scheduled
 to run as needed, downstream nodes will automatically ingest upstream datablocks reactively.
 
 ![Architecture](assets/architecture.svg)
