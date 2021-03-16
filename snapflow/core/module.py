@@ -143,6 +143,9 @@ class SnapflowModule:
         self.library.add_snap(p)
         return p
 
+    def remove_snap(self, snap_like: Union[SnapLike, str]):
+        self.library.remove_snap(snap_like)
+
     def process_snap(self, snap_like: Union[SnapLike, str]) -> _Snap:
         from snapflow.core.snap import (
             _Snap,

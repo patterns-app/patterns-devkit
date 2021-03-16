@@ -1,28 +1,8 @@
 from __future__ import annotations
 
-import os
-import re
-import sys
-from collections import defaultdict
-from dataclasses import asdict, dataclass, fields, replace
-from enum import Enum
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    DefaultDict,
-    Dict,
-    Generic,
-    Iterable,
-    List,
-    Optional,
-    Sequence,
-    Type,
-    TypeVar,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
-from snapflow.utils.common import AttrDict, StringEnum
+from snapflow.utils.common import AttrDict
 
 if TYPE_CHECKING:
     from snapflow.core.snap import (
@@ -30,7 +10,7 @@ if TYPE_CHECKING:
         _Snap,
     )
     from snapflow.core.module import SnapflowModule
-    from snapflow.schema.base import SchemaLike, Schema
+    from snapflow.schema.base import Schema
 
 
 class ComponentLibrary:
@@ -60,6 +40,15 @@ class ComponentLibrary:
 
     def add_schema(self, schema: Schema):
         self.schemas[schema.key] = schema
+
+    def remove_snap(self, snap_like: Union[_Snap, str]):
+        from snapflow.core.snap import _Snap
+
+        if isinstance(snap_like, _Snap):
+            snap_like = snap_like.key
+        if snap_like not in self.snaps:
+            return
+        del self.snaps[snap_like]
 
     def get_snap(self, snap_like: Union[_Snap, str], try_module_lookups=True) -> _Snap:
         from snapflow.core.snap import _Snap

@@ -7,96 +7,136 @@
 <h3 align="center">Collaborative data</h3>
 <p>&nbsp;</p>
 
-**Snapflow** is a framework for building end-to-end **functional data pipelines** from modular
-components. It lets developers write pure data functions, called `snaps`, in **Python or SQL**
-and document their inputs and outputs explicitly via flexible `schemas`. These snaps operate on immutable
-sets of data records, called `datablocks`, and can be composed into simple or complex data
-pipelines. This functional framework provides powerful benefits:
+**Snapflow** is a framework for building **functional reactive data pipelines** from modular
+components. It lets developers write gradually-typed pure data functions, called `snaps`, in **Python or SQL**
+that operate reactively on `datablocks`, immutable sets of data records whose
+structure and semantics are described by flexible `schemas`.
+These snaps can be composed into simple or complex data
+pipelines that tackle every step of the data processing pipeline, from API ingestion to transformation
+to analysis and modeling.
 
-- **Reusable components** — Snaps can be easily snapped together, shared and
+This functional reactive framework provides powerful benefits:
+
+- **Simple declarative graphs** — The functional reactive nature of snapflow takes the tangled, stateful
+  messes of traditional ETLs and turns them into clean declarative flows of data. Complex mixes of rebuilds and
+  incremental updates become simple stateless operators.
+
+- **Reusable components** — Because they are self-contained with documented inputs and outputs,
+  snaps can be easily plugged together, shared and
   reused across projects, open-sourced, and catalogued in the snapflow repository (coming soon).
-  Some example snapflow modules:
+  Some example snapflow modules and components:
 
   - [Stripe](https://github.com/kvh/snapflow-stripe.git)
+    - Ingest Stripe Charge records (using the `StripeCharge` schema)
+    - Conform `StripeCharge` objects to the standard `Transaction` schema
   - [Shopify](https://github.com/kvh/snapflow-shopify.git)
+    - Ingest Shopify Order records (using the `ShopifyOrder` schema)
+    - Conform `ShopifyOrder` objects to the standard `Transaction` schema
+  - [BI](https://github.com/kvh/snapflow-bi.git) (business intelligence)
+    - Compute Customer Lifetime Values for standard `Transaction` data
   - [Stocks](https://github.com/kvh/snapflow-stocks.git)
+    - Ingest `Ticker`s and pipe them to `EodStockPrice` data
   - [FRED](https://github.com/kvh/snapflow-fred.git) (Federal Reserve Economic Data)
-  <!-- - [BI](https://github.com/kvh/snapflow-bi.git) (Business Intelligence) -->
-
-- **Testability** — Snaps provide explicit test
-  inputs and the expected output under various data scenarios — a **data ETL unit test**, bringing
-  the rigor and reliability of software to the world of data.
 
 - **Total reproducibility** — Every data record at every ETL step is preserved in snapflow,
   along with the code and runtimes that produced it, so you can audit and reproduce
-  complex pipelines down to the byte.
+  complex pipelines down to the byte, and configure how active snapflow is in discarding
+  stale and obsolete data.
 
 - **Portability** — With modular and testable snaps, developing consistent
   data operations across different database engines and storage systems is safe and efficient.
   Snapflow supports any major database vendor (postgres, mysql, snowflake, bigquery, redshift),
   file system (local, S3, etc), as well as any data format, whether it's csv, json, or apache arrow.
 
+- **Testability** — Snaps provide explicit test
+  inputs and the expected output under various data scenarios — a **data ETL unit test**, bringing
+  the rigor and reliability of software to the world of data.
+
 - **Zero cost abstractions and high performance** — Snapflow snap operations and immutability
-  guarantees can be compiled down at execution time for high performance. This means developers and
-  analysts can work with clean mental models and strong guarantees without incurring performance
-  costs at runtime.
+  guarantees can be compiled down at execution time for high performance. Deterministic state
+  and immutable records give snapflow big leverage in optimizing performance. This means developers and
+  analysts can work with clean mental models and strong guarantees while also getting superior
+  performance.
 
-- ☁️&nbsp; **Cloud-Ready** - Snapflow comes with [cloud](CLOUD) included!
-
-Snapflow brings the best practices learned in software over the last 60 years to the world of data,
+Snapflow brings the best practices learned over the last 60 years in software to the world of data,
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
 scale from laptop to AWS cluster.
 
 > 🚨️ &nbsp; snapflow is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️
 
-## Example
+## Quick example
+
+Install core library and the Stripe module:
 
 `pip install snapflow snapflow-stripe`
 
+Define a snap:
+
 ```python
-from snapflow import graph, produce, operators, SqlSnap
-import snapflow_stripe as stripe
+from snapflow import Snap
 
-g = graph()
-
-# Fetch Stripe charges from API:
-stripe_source_node = g.node(
-    stripe.snaps.extract_charges,
-    params={"api_key": "xxxxxxxxxxxx"},
-)
-
-# Accumulate all charges:
-stripe_charges_node = g.node("core.dataframe_accumulator")
-stripe_charges_node.set_input(stripe_source_node)
-
-# Define custom snap in python:
+@Snap
 def customer_lifetime_sales(txs):
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
+```
 
-# Or equivalent in sql
+We could define this snap in equivalent sql too:
+
+```python
+from snapflow import SqlSnap
+
 @SqlSnap
 def customer_lifetime_sales_sql():
   return "select customer, sum(amount) as amount from txs group by customer"
   # Can use jinja templates too
-  # return template("sql/customer_lifetime_sales.sql")
+  # return template("sql/customer_lifetime_sales.sql", ctx)
+```
 
-# Add node and take latest accumulated output as input:
-lifetime_sales = g.node(customer_lifetime_sales)
-lifetime_sales.set_input(operators.latest(stripe_charges_node))
+Now we can connect snaps as nodes in a graph. Note, we leverage the existing
+`extract_charges` snap of the `snapflow-stripe` module.
 
-# Run:
-output = produce(lifetime_sales, modules=[stripe])
-print(output.as_dataframe()
+```python
+from snapflow import run, graph_from_yaml
+
+g = graph_from_yaml(
+"""
+nodes:
+  - key: stripe_charges
+    snap: stripe.extract_charges
+    params:
+      api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
+  - key: accumulated_stripe_charges
+    snap: core.dataframe_accumulator
+    input: stripe_charges
+  - key: stripe_customer_lifetime_sales
+    snap: customer_lifetime_sales
+    input: accumulated_stripe_charge
+""")
+
+print(g)
+```
+
+Then run the graph once (time-limited for demo) and print out the final output:
+
+```python
+from snapflow import Environment
+import snapflow_stripe as stripe
+
+env = Environment(modules=[stripe])
+run(g, env=env, node_timelimit_seconds=5)
+
+# Get the final output block
+datablock = env.get_latest_output("stripe_customer_lifetime_sales", g)
+print(datablock.as_dataframe())
 ```
 
 ## Architecture overview
 
 All snapflow pipelines are directed graphs of `snap` nodes, consisting of one or more "source" nodes
 that create and emit datablocks when run. This stream of blocks is
-then be consumed by downstream nodes, each in turn may emit their own blocks. Nodes
-can be run in any order, any number of times. Each time run, they consume any new blocks
-from upstream until there are none left unprocessed, or they are requested to stop.
+then consumed by downstream nodes, which each in turn may emit their own blocks. Source nodes can be scheduled
+to run as needed, downstream nodes will automatically ingest upstream datablocks reactively.
 
 ![Architecture](assets/architecture.svg)
 
@@ -112,37 +152,48 @@ abstract ideal of a set of records, and will have one or more `StoredDataBlocks`
 records on a specific `storage` medium in a specific `dataformat` -- a CSV on the
 local file, a JSON string in memory, or a table in Postgres. Snapflow abstracts over specific
 formats and storage engines, and provides conversion and i/o between them while
-maintaining byte-perfect consistency -- to the extent possible for a given format and storage.
+maintaining byte-perfect consistency -- to the extent possible for given formats and storages.
 
 ### Snaps
 
 `snaps` are the core computational unit of snapflow. They are functions that operate on
 `datablocks` and are added as nodes to a snap graph, linking one node's output to another's
-input via `streams`. Snaps are written in python or sql. Below are two equivalent example snaps:
-
-```python
-def sales(txs: DataBlock) -> DataFrame:
-    df = txs.as_dataframe()
-    return df.groupby("customer_id").sum("amount").reset_index()
-```
-
-```sql
-select
-    customer_id
-  , sum(amount) as amount
-from txs
-group by customer_id
-```
+input via `streams`. Snaps are written in python or sql.
 
 Snaps may take any number of inputs, and optionally may output data. A snap with no inputs
-is a "source" snap. These snaps are often used to fetch data from an external API or data source.
-Snaps can also take parameters. Snapflow relies on Python 3 type annotations to understand
-a snap's interface and what inputs are required or optional:
+is a "source" snap. These snaps often fetch data from an external API or data source.
+Snaps can also take parameters. Inputs (upstream nodes) can be declared explicitly or,
+alternatively, snapflow will infer automatically a snap's interface from its type annotations --
+what inputs are required or optional, and what schemas are expected.
+
+Here's an example source snap, that takes two parameters and no inputs:
 
 ```python
 @Param("api_url", datatype="str")
 @Param("query_params", datatype="json", required=False)
 def extract_json_api(ctx: SnapContext) -> List[Dict]:
+    url = ctx.get_param("api_url")
+    params = ctx.get_param("query_params")
+    resp = requests.get(url, params or {})
+    resp.raise_for_status()
+    return resp.json()["data"]
+```
+
+Here's a more advanced snap that documents its inputs and outputs explicitly,
+and includes a recursive input for managing the state:
+
+```python
+@Input("clicks", schema="ClickEvent")
+@Input("first_clicks", schema="ClickEvent", from_self=True)
+def first_clicks(clicks: DataBlock) -> List[Dict]:
+    return """
+    select
+      clicks.*
+    from clicks
+    left join first_clicks
+      on clicks.user_id == first_clicks.user_id
+    where first_clicks.user_id is null
+    """
     # SnapContext is automatically injected when type-annotated
     url = ctx.get_param("api_url")
     params = ctx.get_param("query_params")
@@ -157,11 +208,12 @@ In the case of sql snaps, the inputs are inferred from table identifiers in the 
 
 `schemas` are record type definitions (think database table schema) that let `snaps` specify the
 data structure they expect and allow them to inter-operate safely. They also
-provide a natural place for field descriptions, validation logic, deduplication
-behavior, relations to other schemas, and other metadata associated with a specific type of data record.
+provide a natural place for field descriptions, validation logic, uniqueness constraints,
+default deduplication behavior, relations to other schemas, and other metadata associated with
+a specific type of data record.
 
 `schemas` behave like _interfaces_ in other typed languages. The snapflow type system is structurally and
-gradually typed -- types are both optional and inferred, there is no explicit type hierarchy, and
+gradually typed -- schemas are both optional and inferred, there is no explicit type hierarchy, and
 type compatibility can be inspected at runtime. A type is a subtype of, or "compatible" with, another
 type if it defines a superset of compatible fields or if it provides an `implementation`
 of that type.
