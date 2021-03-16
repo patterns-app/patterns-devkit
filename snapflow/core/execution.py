@@ -566,7 +566,7 @@ class ExecutionManager:
                 error = cumulative_execution_result.error
             else:
                 error = "Snap failed (unknown error)"
-            self.ctx.logger(INDENT + cf.error("Error " + error_symbol + " " + cf.dimmed(error[:30])) + "\n")  # type: ignore
+            self.ctx.logger(INDENT + cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n")  # type: ignore
         logger.debug(f"Cumulative execution result: {cumulative_execution_result}")
         if cumulative_execution_result.output_block_id is None:
             return None

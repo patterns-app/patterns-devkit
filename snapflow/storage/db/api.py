@@ -243,4 +243,7 @@ def drop_sqlite_db(url: str, database_name: str):
     if database_name == ":memory:":
         return
     db_path = url[10:]
+    if not db_path:
+        # Empty sqlite url (`sqlite://`)
+        return
     os.remove(db_path)
