@@ -54,7 +54,7 @@ This functional reactive framework provides powerful benefits:
 
 - **Zero cost abstractions and high performance** — Snapflow snap operations and immutability
   guarantees can be compiled down at execution time for high performance. Deterministic state
-  and immutable records give snapflow big leverage in optimizing performance. This means developers and
+  and immutable records give snapflow leverage in optimizing performance. This means developers and
   analysts can work with clean mental models and strong guarantees while also getting superior
   performance.
 
@@ -89,11 +89,11 @@ from snapflow import SqlSnap
 @SqlSnap
 def customer_lifetime_sales_sql():
   return "select customer, sum(amount) as amount from txs group by customer"
-  # Can use jinja templates too
+  # Or use a jinja template:
   # return template("sql/customer_lifetime_sales.sql", ctx)
 ```
 
-Now we can connect snaps as nodes in a graph. Note, we leverage the existing
+We can connect snaps as nodes in a graph. Note, we leverage the existing
 `extract_charges` snap of the `snapflow-stripe` module.
 
 ```python
@@ -117,7 +117,7 @@ nodes:
 print(g)
 ```
 
-Then run the graph once (time-limited for demo) and print out the final output:
+Then we run the graph once (time-limited for demo) and print out the final output:
 
 ```python
 from snapflow import Environment
@@ -166,43 +166,32 @@ Snaps can also take parameters. Inputs (upstream nodes) can be declared explicit
 alternatively, snapflow will infer automatically a snap's interface from its type annotations --
 what inputs are required or optional, and what schemas are expected.
 
-Here's an example source snap, that takes two parameters and no inputs:
+Taking our example from above, we can now more explicitly annotate and parameterize it:
 
 ```python
-@Param("api_url", datatype="str")
-@Param("query_params", datatype="json", required=False)
-def extract_json_api(ctx: SnapContext) -> List[Dict]:
-    url = ctx.get_param("api_url")
-    params = ctx.get_param("query_params")
-    resp = requests.get(url, params or {})
-    resp.raise_for_status()
-    return resp.json()["data"]
+@Param("metric", datatype="str", default="amount")
+@Input("txs", schema="Transaction")
+def customer_lifetime_sales(ctx: SnapContext, txs: DataBlock):
+    # SnapContext object automatically injected if declared
+    metric = ctx.get_param("metric")
+    txs_df = txs.as_dataframe()
+    return txs_df.groupby("customer")[metric].sum().reset_index()
+
+@SqlSnap
+@Param("metric", datatype="str", default="amount")
+@Input("txs", schema="Transaction")
+def customer_lifetime_sales_sql():
+  return """
+  select
+      customer
+    , sum(:metric) as :metric
+  from txs
+  group by customer
+  """
 ```
 
-Here's a more advanced snap that documents its inputs and outputs explicitly,
-and includes a recursive input for managing the state:
-
-```python
-@Input("clicks", schema="ClickEvent")
-@Input("first_clicks", schema="ClickEvent", from_self=True)
-def first_clicks(clicks: DataBlock) -> List[Dict]:
-    return """
-    select
-      clicks.*
-    from clicks
-    left join first_clicks
-      on clicks.user_id == first_clicks.user_id
-    where first_clicks.user_id is null
-    """
-    # SnapContext is automatically injected when type-annotated
-    url = ctx.get_param("api_url")
-    params = ctx.get_param("query_params")
-    resp = requests.get(url, params or {})
-    resp.raise_for_status()
-    return resp.json()["data"]
-```
-
-In the case of sql snaps, the inputs are inferred from table identifiers in the query.
+Note the special syntax introduced into the SQL query for using a
+parameter.
 
 ### Schemas
 
