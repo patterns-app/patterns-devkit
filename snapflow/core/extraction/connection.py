@@ -10,15 +10,13 @@ from loguru import logger
 from ratelimit import limits, sleep_and_retry
 from requests import Response
 
-# TODO: does this belong in snapflow core? Probably not
+
+"""
+DEPRECATED - See helpers/extraction
+"""
 
 
 class JsonHttpApiConnection:
-    # default_params: Dict = {}
-    # date_format: str = "%F %T"
-    # raise_for_status: bool = True
-    # ratelimit_calls_per_min: int = 1000
-
     def __init__(
         self,
         default_params: Dict = None,
