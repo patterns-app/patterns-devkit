@@ -27,7 +27,8 @@ class ExtractDataFrameConfig:
 
 
 @Snap(
-    module="core", state_class=LocalExtractState,
+    module="core",
+    state_class=LocalExtractState,
 )
 @Param("dataframe", datatype="DataFrame")
 @Param("schema", datatype="str")
@@ -50,7 +51,8 @@ class ExtractLocalCSVConfig:
 
 # TODO: ExtractLocalCsv?
 @Snap(
-    module="core", state_class=LocalExtractState,
+    module="core",
+    state_class=LocalExtractState,
 )
 @Param("path", datatype="str")
 @Param("schema", datatype="str", required=False)
@@ -67,7 +69,8 @@ def extract_csv(ctx: SnapContext) -> MemoryDataRecords:
 
 
 @Snap(
-    module="core", state_class=LocalExtractState,
+    module="core",
+    state_class=LocalExtractState,
 )
 @Param("name", datatype="str")
 @Param("storage_url", datatype="str")

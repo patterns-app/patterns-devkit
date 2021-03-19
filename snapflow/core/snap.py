@@ -39,7 +39,11 @@ class InputExhaustedException(SnapException):
 SnapCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame, Records, DatabaseTableRef, DataBlockMetadata, DataBlock,
+    DataFrame,
+    Records,
+    DatabaseTableRef,
+    DataBlockMetadata,
+    DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -303,7 +307,11 @@ def add_param_decorator(
     help: str = "",
 ):
     p = Parameter(
-        name=name, datatype=datatype, required=required, default=default, help=help,
+        name=name,
+        datatype=datatype,
+        required=required,
+        default=default,
+        help=help,
     )
 
     def dec(snap_like: Union[SnapCallable, _Snap]) -> _Snap:
