@@ -7,9 +7,9 @@ from loguru import logger
 from pandas import DataFrame
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import BaseModel, timestamp_increment_key
-from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.core.typing.inference import infer_schema_from_db_table
 from snapflow.schema import Schema, SchemaKey, SchemaLike, SchemaTranslation
+from snapflow.schema.casting import cast_to_realized_schema
 from snapflow.storage.data_formats import (
     DataFormat,
     DataFrameFormat,

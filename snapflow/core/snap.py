@@ -7,7 +7,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Uni
 
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
-from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
+from snapflow.core.module import (
+    DEFAULT_LOCAL_MODULE,
+    DEFAULT_LOCAL_MODULE_NAME,
+    SnapflowModule,
+)
 from snapflow.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
 from snapflow.core.snap_interface import (
     DeclaredInput,
@@ -150,20 +154,31 @@ def snap_factory(
         assert snap_like is not None
         name = make_snap_name(snap_like)
     runtime_class = get_runtime_class(compatible_runtimes)
-    if module is None:
-        module = DEFAULT_LOCAL_MODULE
-    if isinstance(module, SnapflowModule):
-        module_name = module.name
-    else:
-        module_name = module
     if isinstance(snap_like, _Snap):
         # TODO: this is dicey, merging an existing snap ... which values take precedence?
         # old_attrs = asdict(snap_like)
+        if isinstance(module, SnapflowModule):
+            module_name = module.name
+        else:
+            module_name = module
+        # Because we default to local module if not specified, but allow chaining decorators
+        # (like Snap(module="core")(Param(Param.....))) we must undo adding to default local
+        # module if we later run into a specified module.
+        if (
+            snap_like.module_name
+            and module_name
+            and snap_like.module_name != module_name
+        ):
+            # We're moving modules, so make that happen here if default
+            if snap_like.module_name == DEFAULT_LOCAL_MODULE_NAME:
+                DEFAULT_LOCAL_MODULE.remove_snap(snap_like)
         module_name = module_name or snap_like.module_name
+        if module_name is None:
+            module_name = DEFAULT_LOCAL_MODULE_NAME
         compatible_runtime_classes = (
             [runtime_class] if runtime_class else snap_like.compatible_runtime_classes
         )
-        return _Snap(
+        snap = _Snap(
             name=name,
             module_name=module_name,
             snap_callable=snap_like.snap_callable,
@@ -175,14 +190,24 @@ def snap_factory(
             ignore_signature=kwargs.get("ignore_signature")
             or snap_like.ignore_signature,
         )
-
-    return _Snap(
-        name=name,
-        module_name=module_name,
-        snap_callable=snap_like,
-        compatible_runtime_classes=[runtime_class],
-        **kwargs,
-    )
+    else:
+        if module is None:
+            module = DEFAULT_LOCAL_MODULE
+        if isinstance(module, SnapflowModule):
+            module_name = module.name
+        else:
+            module_name = module
+        snap = _Snap(
+            name=name,
+            module_name=module_name,
+            snap_callable=snap_like,
+            compatible_runtime_classes=[runtime_class],
+            **kwargs,
+        )
+    if module_name == DEFAULT_LOCAL_MODULE_NAME:
+        # Add to default module
+        DEFAULT_LOCAL_MODULE.add_snap(snap)
+    return snap
 
 
 def snap_decorator(
@@ -285,7 +310,10 @@ def add_param_decorator(
         if not isinstance(snap_like, _Snap):
             snap_like = snap_factory(snap_like)
         snap: _Snap = snap_like
-        snap.params.append(p)
+        if snap.params is None:
+            snap.params = [p]
+        else:
+            snap.params.append(p)
         return snap
 
     return dec

@@ -6,7 +6,7 @@ import pathlib
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import strictyaml
 from alembic import command
@@ -23,6 +23,7 @@ from snapflow.schema.base import (
     is_generic,
 )
 from snapflow.storage.storage import DatabaseStorageClass, PythonStorageClass
+from snapflow.utils.common import AttrDict
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
@@ -37,6 +38,10 @@ if TYPE_CHECKING:
     from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
 
 DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
+DEFAULT_SETTINGS = {
+    "FAIL_ON_DOWNCAST": False,
+    "WARN_ON_DOWNCAST": True,
+}
 
 
 @dataclass(frozen=True)
@@ -55,10 +60,12 @@ class Environment:
         name: str = None,
         metadata_storage: Union["Storage", str] = None,
         add_default_python_runtime: bool = True,
-        initial_modules: List[SnapflowModule] = None,  # Defaults to `core` module
+        modules: List[SnapflowModule] = None,  # Defaults to `core` module
         initialize_metadata_storage: bool = True,
         config: Optional[EnvironmentConfiguration] = None,
         raise_on_error: bool = False,
+        settings: Dict[str, Any] = None,
+        default_modules: List[SnapflowModule] = None,
     ):
         from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
         from snapflow.storage.storage import Storage, new_local_python_storage
@@ -79,11 +86,17 @@ class Environment:
             self.config = EnvironmentConfiguration(metadata_storage=metadata_storage)
         if initialize_metadata_storage:
             self.initialize_metadata_database()
+        # TODO: local module is yucky global state, also, we load these libraries and their
+        #       components once, but the libraries are mutable and someone could add components
+        #       to them later, which would not be picked up by the env library.
         self._local_module = DEFAULT_LOCAL_MODULE
         # TODO: load library from config
         self.library = ComponentLibrary()
         self._metadata_sessions: List[Session] = []
         self.raise_on_error = raise_on_error
+        s = AttrDict(DEFAULT_SETTINGS)
+        s.update(settings or {})
+        self.settings = s
         # if add_default_python_runtime:
         #     self.runtimes.append(
         #         Runtime(
@@ -91,9 +104,11 @@ class Environment:
         #             runtime_engine=LocalPythonRuntimeEngine,
         #         )
         #     )
-        if initial_modules is None:
-            initial_modules = [core]
-        for m in initial_modules:
+        if default_modules is None:
+            default_modules = [core]
+        modules = default_modules + (modules or [])
+        self.add_module(self._local_module)
+        for m in modules:
             self.add_module(m)
 
         self._local_python_storage = new_local_python_storage()
@@ -379,10 +394,12 @@ class Environment:
             for node in nodes:
                 em.execute(node, to_exhaustion=to_exhaustion)
 
-    def latest_output(self, node: NodeLike) -> Optional[DataBlock]:
-        sess = self._get_new_metadata_session()  # hanging session
-        n, g = self._get_graph_and_node(node)
-        ctx = self.get_run_context(g)
+    def get_latest_output(
+        self, node: NodeLike, graph: Union[Graph, DeclaredGraph] = None
+    ) -> Optional[DataBlock]:
+        sess = self._get_new_metadata_session()  # TODO: hanging session
+        n, graph = self._get_graph_and_node(node, graph)
+        ctx = self.get_run_context(graph)
         return n.latest_output(ctx, sess)
 
     def add_storage(
@@ -516,13 +533,23 @@ def run_graph(
     env: Optional[Environment] = None,
     modules: Optional[List[SnapflowModule]] = None,
     **kwargs: Any,
-):
+) -> Optional[DataBlock]:
     if env is None:
         env = Environment()
     if modules is not None:
         for module in modules:
             env.add_module(module)
     return env.run_graph(*args, **kwargs)
+
+
+def run(
+    node_or_graph: Union[NodeLike, DeclaredGraph, Graph], *args, **kwargs
+) -> Optional[DataBlock]:
+    from snapflow.core.graph import Graph, DeclaredGraph
+
+    if isinstance(node_or_graph, Graph) or isinstance(node_or_graph, DeclaredGraph):
+        return run_graph(node_or_graph, *args, **kwargs)
+    return run_node(node_or_graph, *args, **kwargs)
 
 
 # def load_environment_from_yaml(yml) -> Environment:

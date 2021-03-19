@@ -410,14 +410,14 @@ def test_any_schema_interface():
 
 
 def test_api():
-    @Snap
+    @Snap(module="module1")
     @Param("p1", "str")
     @Input("i1")
     def s1(ctx: SnapContext):
         pass
 
-    @Snap("s1")
     @Param("p1", "str")
+    @Snap("s1", module="module1")
     def s2(ctx: SnapContext, i1: DataBlock):
         pass
 
@@ -433,6 +433,10 @@ def test_api():
         pass
 
     for snp in [s1, s2, s3, s4]:
+        if snp in (s1, s2):
+            assert snp.module_name == "module1"
+        else:
+            assert snp.module_name == DEFAULT_LOCAL_MODULE_NAME
         assert snp.name == "s1"
         assert len(snp.params) == 1
         i = snp.get_interface()

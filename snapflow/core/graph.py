@@ -15,6 +15,7 @@ from typing import (
 )
 
 import networkx as nx
+import strictyaml as yaml
 from loguru import logger
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DeclaredNode, Node, NodeLike, node
@@ -237,3 +238,44 @@ class Graph:
     def get_all_nodes_in_execution_order(self) -> List[Node]:
         g = self.as_nx_graph()
         return [self.get_node(name) for name in nx.topological_sort(g)]
+
+
+def load_graph_from_dict(raw_graph: Dict[str, Any]) -> DeclaredGraph:
+    """
+    nodes:
+      - key: node1
+        snap: core.extract_csv
+        output_dataset_name: csv1
+        inputs:
+          input: othernode
+        params:
+          path: "****"
+    """
+    raw_nodes = raw_graph["nodes"]
+    g = DeclaredGraph()
+    for r in raw_nodes:
+        inputs = r.pop("inputs", None)
+        inpt = r.pop("inpt", None)
+        if inputs and inpt:
+            raise ValueError("Can't specify both `inputs` and `input`")
+        elif inputs:
+            if isinstance(inputs, list):
+                assert len(inputs) == 1
+                r["input"] = inputs[0]
+            elif isinstance(inputs, dict):
+                r["inputs"] = inputs
+            else:
+                raise TypeError(inputs)
+        elif inpt:
+            assert isinstance(inpt, str)
+            r["input"] = inpt
+        g.node(**r)
+    return g
+
+
+def graph_from_yaml(yml: str) -> DeclaredGraph:
+    d = yaml.load(yml).data
+    if isinstance(d, list):
+        d = {"nodes": d}
+    assert isinstance(d, dict)
+    return load_graph_from_dict(d)

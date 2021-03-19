@@ -19,8 +19,6 @@ from snapflow.storage.data_formats import Records, RecordsIterator
 from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.storage.storage import new_local_python_storage
 
-logger.enable("snapflow")
-
 Customer = create_quick_schema(
     "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "JSON")]
 )
@@ -173,7 +171,7 @@ def test_repeated_runs():
     records = output.as_records()
     assert records == expected_records
     # Test latest_output
-    output = env.latest_output(metrics)
+    output = env.get_latest_output(metrics)
     records = output.as_records()
     assert records == expected_records
     # Run again, should be exhausted

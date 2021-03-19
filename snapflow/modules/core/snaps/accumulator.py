@@ -36,6 +36,7 @@ def dataframe_accumulator(
 
 # TODO: this is no-op if "this" is empty... is there a way to shortcut?
 # TODO: does the bound stream thing even work?? Do we have a test somewhere?
+# TODO: what if we have mixed schemas? need explicit columns
 @Input("previous", schema="T", from_self=True)
 @Input("new", schema="T", stream=True)
 @Output(schema="T")
@@ -55,25 +56,6 @@ def sql_accumulator():
     {% endfor %}
     """
     return sql
-
-
-# sql_accumulator = sql_snap(
-#     "sql_accumulator",
-#     module="core",
-#     sql="""
-#     {% if inputs.this.bound_block %}
-#     select * from {{ inputs.this.bound_block.as_table_stmt() }}
-#     union all
-#     {% endif %}
-#     {% for block in inputs.input.bound_stream %}
-#     select
-#     * from {{ block.as_table_stmt() }}
-#     {% if not loop.last %}
-#     union all
-#     {% endif %}
-#     {% endfor %}
-# """,
-# )
 
 
 def test_accumulator():
@@ -124,8 +106,6 @@ def test_accumulator():
                 p, input=data_input, target_storage=s
             ) as db:
                 assert db is not None
-                logger.debug(db)
-                logger.debug("TEST df conversion")
                 expected_df = DataInput(
                     expected, schema="CoreTestSchema", module=core
                 ).as_dataframe(db.manager.ctx.env, db.manager.sess)

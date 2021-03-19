@@ -14,18 +14,12 @@ from snapflow.storage.storage import Storage, StorageClass, StorageEngine
 from snapflow.utils.common import rand_str
 from snapflow.utils.typing import T
 
-TestSchema1 = create_quick_schema(
-    "TestSchema1", [("f1", "Unicode(256)")], module_name="_test"
-)
-TestSchema2 = create_quick_schema(
-    "TestSchema2", [("f1", "Unicode(256)")], module_name="_test"
-)
-TestSchema3 = create_quick_schema(
-    "TestSchema3", [("f1", "Unicode(256)")], module_name="_test"
-)
+TestSchema1 = create_quick_schema("TestSchema1", [("f1", "Text")], module_name="_test")
+TestSchema2 = create_quick_schema("TestSchema2", [("f1", "Text")], module_name="_test")
+TestSchema3 = create_quick_schema("TestSchema3", [("f1", "Text")], module_name="_test")
 TestSchema4 = create_quick_schema(
     "TestSchema4",
-    [("f1", "Unicode(256)"), ("f2", "Integer")],
+    [("f1", "Text"), ("f2", "Integer")],
     unique_on=["f1"],
     module_name="_test",
 )
