@@ -156,10 +156,28 @@ class StreamBuilder:
             q = self._filter_data_block(ctx, sess, q)
         return q.with_session(sess)
 
-    def clone(self, **kwargs) -> StreamBuilder:
-        args = asdict(self._filters)
-        args.update(**kwargs)
-        return StreamBuilder(filters=StreamBuilderSerializable(**args))  # type: ignore
+    def clone(
+        self,
+        node_keys: List[str] = None,
+        schema_keys: List[str] = None,
+        storage_urls: List[str] = None,
+        operators: List[BoundOperator] = None,
+        unprocessed_by_node_key: Optional[str] = None,
+        data_block_id: Optional[str] = None,
+        allow_cycle: bool = False,
+    ) -> StreamBuilder:
+        f = self._filters
+        sb = StreamBuilderSerializable(
+            node_keys=node_keys or f.node_keys,
+            schema_keys=schema_keys or f.schema_keys,
+            storage_urls=storage_urls or f.storage_urls,
+            operators=operators or f.operators,
+            data_block_id=data_block_id or f.data_block_id,
+            unprocessed_by_node_key=unprocessed_by_node_key
+            or f.unprocessed_by_node_key,
+            allow_cycle=allow_cycle or f.allow_cycle,
+        )
+        return StreamBuilder(filters=sb)  # type: ignore
 
     def source_node_keys(self) -> List[str]:
         return self._filters.node_keys

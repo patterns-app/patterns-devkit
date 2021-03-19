@@ -12,10 +12,18 @@ from snapflow.storage.storage import Storage, StorageApi, StorageEngine
 def raw_line_count(filename: str) -> int:
     # Fast file cnt in python
     # From: https://stackoverflow.com/questions/845058/how-to-get-line-count-of-a-large-file-cheaply-in-python
-    # TODO: won't count EOF if no new line
+    def _make_gen(reader):
+        b = reader(1024 * 1024)
+        while b:
+            yield b
+            b = reader(1024 * 1024)
+
     f = open(filename, "rb")
-    bufgen = takewhile(lambda x: x, (f.raw.read(1024 * 1024) for _ in repeat(None)))
-    return sum(buf.count(b"\n") for buf in bufgen)
+    f_gen = _make_gen(f.raw.read)
+    return sum(buf.count(b"\n") for buf in f_gen)
+
+
+# TODO: this is just _local_ file api, lets call it that
 
 
 class FileSystemStorageApi(StorageApi):
@@ -27,6 +35,9 @@ class FileSystemStorageApi(StorageApi):
         with open(self.get_path(name), *args, **kwargs) as f:
             yield f
 
+    def open_name(self, name: str, *args, **kwargs) -> TextIO:
+        return open(self.get_path(name), *args, **kwargs)
+
     def get_path(self, name: str) -> str:
         dir = self.storage.url[7:]
         return os.path.join(dir, name)
@@ -35,14 +46,21 @@ class FileSystemStorageApi(StorageApi):
     def exists(self, name: str) -> bool:
         return os.path.exists(self.get_path(name))
 
+    def remove(self, name: str):
+        pth = self.get_path(name)
+        try:
+            os.remove(pth)
+        except FileNotFoundError:
+            pass
+
     def create_alias(self, name: str, alias: str):
         pth = self.get_path(name)
         alias_pth = self.get_path(alias)
-        try:
-            os.remove(alias_pth)
-        except FileNotFoundError:
-            pass
+        self.remove(alias_pth)
         os.symlink(pth, alias_pth)
+
+    def remove_alias(self, alias: str):
+        self.remove(alias)
 
     def record_count(self, name: str) -> Optional[int]:
         # TODO: this depends on format... hmmm, i guess let upstream handle for now

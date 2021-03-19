@@ -11,6 +11,7 @@ from snapflow.storage.data_formats.delimited_file_object import (
     DelimitedFileObjectFormat,
 )
 from snapflow.storage.data_records import MemoryDataRecords, as_records
+from snapflow.storage.storage import Storage
 from snapflow.utils.data import read_csv
 
 
@@ -26,7 +27,6 @@ class ExtractDataFrameConfig:
 
 
 @Snap(
-    "extract_dataframe",
     module="core",
     state_class=LocalExtractState,
 )
@@ -49,13 +49,13 @@ class ExtractLocalCSVConfig:
     schema: SchemaLike
 
 
+# TODO: ExtractLocalCsv?
 @Snap(
-    "extract_csv",
     module="core",
     state_class=LocalExtractState,
 )
 @Param("path", datatype="str")
-@Param("schema", datatype="str")
+@Param("schema", datatype="str", required=False)
 def extract_csv(ctx: SnapContext) -> MemoryDataRecords:
     extracted = ctx.get_state_value("extracted")
     if extracted:
@@ -63,6 +63,27 @@ def extract_csv(ctx: SnapContext) -> MemoryDataRecords:
         # Static resource, if already emitted, return
     path = ctx.get_param("path")
     f = open(path)
+    ctx.emit_state_value("extracted", True)
+    schema = ctx.get_param("schema")
+    return as_records(f, data_format=DelimitedFileObjectFormat, schema=schema)
+
+
+@Snap(
+    module="core",
+    state_class=LocalExtractState,
+)
+@Param("name", datatype="str")
+@Param("storage_url", datatype="str")
+@Param("schema", datatype="str", required=False)
+def extract_storage_csv(ctx: SnapContext) -> MemoryDataRecords:
+    extracted = ctx.get_state_value("extracted")
+    if extracted:
+        return
+        # Static resource, if already emitted, return
+    name = ctx.get_param("name")
+    storage_url = ctx.get_param("storage_url")
+    fs_api = Storage(storage_url).get_api()
+    f = fs_api.open_name(name)
     ctx.emit_state_value("extracted", True)
     schema = ctx.get_param("schema")
     return as_records(f, data_format=DelimitedFileObjectFormat, schema=schema)

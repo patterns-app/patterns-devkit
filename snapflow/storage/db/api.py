@@ -100,8 +100,11 @@ class DatabaseApi:
 
     ### StorageApi implementations ###
     def create_alias(self, from_stmt: str, alias: str):
-        self.execute_sql(f"drop view if exists {alias}")
+        self.remove_alias(alias)
         self.execute_sql(f"create view {alias} as select * from {from_stmt}")
+
+    def remove_alias(self, alias: str):
+        self.execute_sql(f"drop view if exists {alias}")
 
     def exists(self, table_name: str) -> bool:
         try:
@@ -223,6 +226,7 @@ def create_db(url: str, database_name: str):
         conn.execute(f"create database {database_name}")
     finally:
         conn.close()
+        sa.dispose()
 
 
 def drop_db(url: str, database_name: str, force: bool = False):
@@ -241,10 +245,14 @@ def drop_db(url: str, database_name: str, force: bool = False):
         conn.execute(f"drop database {database_name}")
     finally:
         conn.close()
+        sa.dispose()
 
 
 def drop_sqlite_db(url: str, database_name: str):
     if database_name == ":memory:":
         return
     db_path = url[10:]
+    if not db_path:
+        # Empty sqlite url (`sqlite://`)
+        return
     os.remove(db_path)

@@ -18,6 +18,7 @@ module = SnapflowModule(
         accumulator.dataframe_accumulator,
         static.extract_dataframe,
         static.extract_csv,
+        static.extract_storage_csv,
     ],
     tests=[
         accumulator.test_accumulator,

@@ -25,7 +25,7 @@ from snapflow.schema.base import (
 from snapflow.storage.storage import DatabaseStorageClass, PythonStorageClass
 from snapflow.utils.common import AttrDict
 from sqlalchemy.engine.base import Connection
-from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 if TYPE_CHECKING:
@@ -129,9 +129,10 @@ class Environment:
         # BaseModel.metadata.create_all(conn)
         try:
             self.migrate_metdata_database(conn)
-        except ProgrammingError as e:
+        except SQLAlchemyError as e:
+            # Catch database exception, meaning already created, just stamp
             # For initial migration
-            # TODO: remove once all 0.2 systems migrated
+            # TODO: remove once all 0.2 systems migrated?
             logger.warning(e)
             self.stamp_metadata_database(conn)
             self.migrate_metdata_database(conn)
@@ -305,10 +306,10 @@ class Environment:
         try:
             yield em
             # self.session.commit()
-            logger.debug("COMMITTED")
+            # logger.debug("COMMITTED")
         except Exception as e:
             # self.session.rollback()
-            logger.debug("ROLLED")
+            # logger.debug("ROLLED")
             raise e
         finally:
             # TODO:
