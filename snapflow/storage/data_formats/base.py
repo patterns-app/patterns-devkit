@@ -151,8 +151,12 @@ class IteratorFormatBase(MemoryDataFormatBase):
     @classmethod
     def get_records_sample(cls, obj: Any, n: int = 200) -> Optional[List[Dict]]:
         if isinstance(obj, SampleableIterator):
-            o = obj.get_first()
-            return cls.object_format.get_records_sample(o, n)
+            records = []
+            for o in obj.head(n):
+                smpl = cls.object_format.get_records_sample(o, n)
+                records.extend(smpl)
+                if len(records) >= n:
+                    return records[:n]
         return None
 
     @classmethod
@@ -174,16 +178,20 @@ class IteratorFormatBase(MemoryDataFormatBase):
     @classmethod
     def apply_schema_translation(
         cls, translation: SchemaTranslation, obj: SampleableIterator
-    ) -> Iterator:
-        for records in obj:
-            yield cls.object_format.apply_schema_translation(translation, records)
+    ) -> SampleableIterator:
+        return SampleableIterator(
+            cls.object_format.apply_schema_translation(translation, records)
+            for records in obj
+        )
 
     @classmethod
     def conform_records_to_schema(
         cls, obj: SampleableIterator, schema: Schema
-    ) -> Iterator:
-        for records in obj:
-            yield cls.object_format.conform_records_to_schema(records, schema)
+    ) -> SampleableIterator:
+        return SampleableIterator(
+            cls.object_format.conform_records_to_schema(records, schema)
+            for records in obj
+        )
 
 
 def make_corresponding_iterator_format(fmt: DataFormat) -> DataFormat:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, cast
 
-import pandas as pd
+import pyarrow as pa
 from pandas import DataFrame
 from snapflow.storage.data_formats.base import (
     MemoryDataFormatBase,
@@ -15,38 +15,42 @@ if TYPE_CHECKING:
     from snapflow.schema import SchemaTranslation, Schema
 
 
-class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
+class ArrowTableFormat(MemoryDataFormatBase[DataFrame]):
     @classmethod
     def type(cls):
-        return pd.DataFrame
+        return pa.Table
 
     @classmethod
     def get_record_count(cls, obj: Any) -> Optional[int]:
         if obj is None:
             return None
-        return len(obj)
+        return obj.num_rows
 
     @classmethod
     def get_records_sample(cls, obj: Any, n: int = 200) -> Optional[List[Dict]]:
-        return obj.iloc[:n].to_dict(orient="records")
+        from snapflow.storage.data_formats.data_frame import DataFrameFormat
+
+        # TODO: zero copy?
+        return DataFrameFormat.get_records_sample(obj.to_pandas(), n)
 
     @classmethod
     def definitely_instance(cls, obj: Any) -> bool:
-        # DataFrame is unambiguous
+        # Arrow Table is unambiguous
         return cls.maybe_instance(obj)
 
     @classmethod
     def conform_records_to_schema(cls, records: T, schema: Schema) -> T:
-        from snapflow.core.typing.inference import conform_dataframe_to_schema
-
-        return conform_dataframe_to_schema(records, schema)
+        # TODO
+        raise NotImplementedError
 
     @classmethod
     def apply_schema_translation(
-        cls, translation: SchemaTranslation, df: DataFrame
-    ) -> DataFrame:
-        return df.rename(translation.as_dict(), axis=1)
+        cls, translation: SchemaTranslation, t: pa.Table
+    ) -> pa.Table:
+        td = translation.as_dict()
+        return t.rename_columns([td.get(f.name, f.name) for f in t.schema])
 
 
-DataFrameIteratorFormat = make_corresponding_iterator_format(DataFrameFormat)
-DataFrameIterator = Iterator[DataFrame]
+ArrowTableIteratorFormat = make_corresponding_iterator_format(ArrowTableFormat)
+ArrowTable = pa.Table
+ArrowTableIterator = Iterator[ArrowTable]
