@@ -15,10 +15,13 @@ if TYPE_CHECKING:
     from snapflow.schema import SchemaTranslation, Schema
 
 
+ArrowTable = pa.Table
+
+
 class ArrowTableFormat(MemoryDataFormatBase[DataFrame]):
     @classmethod
     def type(cls):
-        return pa.Table
+        return ArrowTable
 
     @classmethod
     def get_record_count(cls, obj: Any) -> Optional[int]:
@@ -38,19 +41,29 @@ class ArrowTableFormat(MemoryDataFormatBase[DataFrame]):
         # Arrow Table is unambiguous
         return cls.maybe_instance(obj)
 
+    # TODO
+    # @classmethod
+    # def infer_schema_from_records(cls, records: ArrowTable) -> Schema:
+    #     from snapflow.core.typing.inference import infer_schema_from_dataframe
+
+    #     inferred_schema = infer_schema_from_arrow_table(records)
+    #     return inferred_schema
+
     @classmethod
-    def conform_records_to_schema(cls, records: T, schema: Schema) -> T:
-        # TODO
-        raise NotImplementedError
+    def conform_records_to_schema(
+        cls, records: ArrowTable, schema: Schema
+    ) -> ArrowTable:
+        from snapflow.core.typing.inference import conform_arrow_to_schema
+
+        return conform_arrow_to_schema(records, schema)
 
     @classmethod
     def apply_schema_translation(
-        cls, translation: SchemaTranslation, t: pa.Table
+        cls, translation: SchemaTranslation, t: ArrowTable
     ) -> pa.Table:
         td = translation.as_dict()
         return t.rename_columns([td.get(f.name, f.name) for f in t.schema])
 
 
 ArrowTableIteratorFormat = make_corresponding_iterator_format(ArrowTableFormat)
-ArrowTable = pa.Table
 ArrowTableIterator = Iterator[ArrowTable]

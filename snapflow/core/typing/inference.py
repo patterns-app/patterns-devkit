@@ -1,4 +1,6 @@
 from __future__ import annotations
+from snapflow.schema.field_types import ensure_field_type
+from snapflow.storage.data_formats.arrow_table import ArrowTable
 
 import traceback
 from collections.abc import Iterable
@@ -6,6 +8,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import pandas as pd
+import pyarrow as pa
 from dateutil.parser import ParserError
 from loguru import logger
 from pandas import DataFrame, Series
@@ -23,6 +26,7 @@ from snapflow.schema.casting import cast_python_object_to_field_type
 from snapflow.schema.inference import (
     fields_from_sqlalchemy_table,
     infer_field_types_from_records,
+    infer_fields_from_dataframe,
     infer_fields_from_records,
     pandas_series_to_field_type,
 )
@@ -110,6 +114,11 @@ def conform_records_to_schema(d: Records, schema: Schema) -> Records:
     return conformed
 
 
+def infer_schema_from_dataframe(df: DataFrame, **kwargs) -> Schema:
+    fields = infer_fields_from_dataframe(df)
+    return generate_auto_schema(fields, **kwargs)
+
+
 def conform_dataframe_to_schema(df: DataFrame, schema: Schema) -> DataFrame:
     # TODO: support cast levels
     logger.debug(f"conforming {df.head(5)} to schema {schema}")
@@ -142,3 +151,14 @@ def conform_dataframe_to_schema(df: DataFrame, schema: Schema) -> DataFrame:
         except Exception as e:
             raise e
     return df
+
+
+def conform_arrow_to_schema(at: ArrowTable, schema: Schema) -> ArrowTable:
+    # TODO: no conforming, just checking the types match
+    for field in schema.fields:
+        af = at.schema.field(field.name)
+        if af is None:
+            # TODO: add empty column to table
+            continue
+        assert field.field_type == ensure_field_type(str(af.type))
+    return at

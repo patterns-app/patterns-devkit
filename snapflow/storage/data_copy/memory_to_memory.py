@@ -1,6 +1,8 @@
+from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 from typing import Sequence
 
 import pandas as pd
+import pyarrow as pa
 from snapflow.schema.base import Schema
 from snapflow.storage.data_copy.base import (
     BufferToBufferCost,
@@ -8,6 +10,7 @@ from snapflow.storage.data_copy.base import (
     DiskToMemoryCost,
     MemoryToBufferCost,
     MemoryToMemoryCost,
+    NoOpCost,
     datacopy,
 )
 from snapflow.storage.data_formats import (
@@ -64,7 +67,7 @@ def copy_records_to_df(
     assert isinstance(from_storage_api, PythonStorageApi)
     assert isinstance(to_storage_api, PythonStorageApi)
     mdr = from_storage_api.get(from_name)
-    df = records_to_dataframe(mdr.records_object, schema)
+    df = pd.DataFrame(mdr.records_object)
     to_mdr = as_records(df, data_format=DataFrameFormat, schema=schema)
     to_mdr = to_mdr.conform_to_schema()
     to_storage_api.put(to_name, to_mdr)
@@ -267,5 +270,58 @@ def copy_file_object_iterator_to_records_iterator(
     mdr = from_storage_api.get(from_name)
     itr = (read_csv(chunk) for chunk in with_header(mdr.records_object))
     to_mdr = as_records(itr, data_format=RecordsIteratorFormat, schema=schema)
+    to_mdr = to_mdr.conform_to_schema()
+    to_storage_api.put(to_name, to_mdr)
+
+
+#########
+### Arrow
+#########
+
+
+@datacopy(
+    from_storage_classes=[PythonStorageClass],
+    from_data_formats=[ArrowTableFormat],
+    to_storage_classes=[PythonStorageClass],
+    to_data_formats=[DataFrameFormat],
+    cost=MemoryToMemoryCost,  # Sometimes this is a zero-copy no-op (rarely for real world data tho due to lack of null support in numpy)
+)
+def copy_arrow_to_dataframe(
+    from_name: str,
+    to_name: str,
+    conversion: Conversion,
+    from_storage_api: StorageApi,
+    to_storage_api: StorageApi,
+    schema: Schema,
+):
+    assert isinstance(from_storage_api, PythonStorageApi)
+    assert isinstance(to_storage_api, PythonStorageApi)
+    mdr = from_storage_api.get(from_name)
+    df = mdr.records_object.to_pandas()
+    to_mdr = as_records(df, data_format=DataFrameFormat, schema=schema)
+    to_mdr = to_mdr.conform_to_schema()
+    to_storage_api.put(to_name, to_mdr)
+
+
+@datacopy(
+    from_storage_classes=[PythonStorageClass],
+    from_data_formats=[DataFrameFormat],
+    to_storage_classes=[PythonStorageClass],
+    to_data_formats=[ArrowTableFormat],
+    cost=MemoryToMemoryCost,
+)
+def copy_dataframe_to_arrow(
+    from_name: str,
+    to_name: str,
+    conversion: Conversion,
+    from_storage_api: StorageApi,
+    to_storage_api: StorageApi,
+    schema: Schema,
+):
+    assert isinstance(from_storage_api, PythonStorageApi)
+    assert isinstance(to_storage_api, PythonStorageApi)
+    mdr = from_storage_api.get(from_name)
+    at = pa.Table.from_pandas(mdr.records_object)
+    to_mdr = as_records(at, data_format=ArrowTableFormat, schema=schema)
     to_mdr = to_mdr.conform_to_schema()
     to_storage_api.put(to_name, to_mdr)

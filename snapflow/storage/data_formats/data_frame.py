@@ -36,7 +36,14 @@ class DataFrameFormat(MemoryDataFormatBase[DataFrame]):
         return cls.maybe_instance(obj)
 
     @classmethod
-    def conform_records_to_schema(cls, records: T, schema: Schema) -> T:
+    def infer_schema_from_records(cls, records: DataFrame) -> Schema:
+        from snapflow.core.typing.inference import infer_schema_from_dataframe
+
+        inferred_schema = infer_schema_from_dataframe(records)
+        return inferred_schema
+
+    @classmethod
+    def conform_records_to_schema(cls, records: DataFrame, schema: Schema) -> DataFrame:
         from snapflow.core.typing.inference import conform_dataframe_to_schema
 
         return conform_dataframe_to_schema(records, schema)

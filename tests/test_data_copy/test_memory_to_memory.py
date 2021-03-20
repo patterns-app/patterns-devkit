@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 
 import tempfile
 import types
@@ -7,6 +8,7 @@ from itertools import product
 from typing import Any, List, Optional, Tuple, Type
 
 import pandas as pd
+import pyarrow as pa
 import pytest
 from snapflow.core.data_block import DataBlockMetadata, create_data_block_from_records
 from snapflow.storage.data_copy.base import (
@@ -54,16 +56,21 @@ from tests.utils import TestSchema1, TestSchema4
 records = [{"f1": "hi", "f2": 1}, {"f1": "bye", "f2": 2}]
 rf = (RecordsFormat, lambda: records)
 dff = (DataFrameFormat, lambda: pd.DataFrame.from_records(records))
+af = (
+    ArrowTableFormat,
+    lambda: pa.Table.from_pydict(
+        {k: [r[k] for r in records] for k in records[0].keys()}
+    ),
+)
 dlff = (DelimitedFileObjectFormat, lambda: StringIO("f1,f2\nhi,1\nbye,2"))
 rif = (RecordsIteratorFormat, lambda: ([r] for r in records))
 dfif = (DataFrameIteratorFormat, lambda: (pd.DataFrame([r]) for r in records))
-from_formats = [rf, dff, dfif, rif, dlff]
-to_formats = [rf, dff]
+from_formats = [rf, dff, af, dfif, rif, dlff]
+to_formats = [rf, dff, af]
 
 
 @pytest.mark.parametrize(
-    "from_fmt,to_fmt",
-    product(from_formats, to_formats),
+    "from_fmt,to_fmt", product(from_formats, to_formats),
 )
 def test_mem_to_mem(from_fmt, to_fmt):
     from_fmt, obj = from_fmt
@@ -79,6 +86,7 @@ def test_mem_to_mem(from_fmt, to_fmt):
         StorageFormat(LocalPythonStorageEngine, to_fmt),
     )
     pth = get_datacopy_lookup().get_lowest_cost_path(conversion)
+    assert pth is not None
     for i, ce in enumerate(pth.conversions):
         ce.copier.copy(
             from_name, to_name, ce.conversion, mem_api, mem_api, schema=TestSchema4
@@ -86,9 +94,13 @@ def test_mem_to_mem(from_fmt, to_fmt):
         from_name = to_name
         to_name = to_name + str(i)
     to_name = from_name
-    if isinstance(expected, pd.DataFrame):
+    if isinstance(expected(), pd.DataFrame):
         assert_dataframes_are_almost_equal(
-            mem_api.get(to_name).records_object, expected
+            mem_api.get(to_name).records_object, expected()
+        )
+    elif isinstance(expected(), pa.Table):
+        assert_dataframes_are_almost_equal(
+            mem_api.get(to_name).records_object.to_pandas(), expected().to_pandas()
         )
     else:
         assert list(mem_api.get(to_name).records_object) == list(expected())

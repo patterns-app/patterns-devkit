@@ -9,7 +9,7 @@ from dateutil.tz import tzoffset
 from snapflow.schema.casting import cast_python_object_to_field_type
 from snapflow.schema.field_types import (
     DEFAULT_FIELD_TYPE,
-    JSON,
+    Json,
     LONG_TEXT,
     Boolean,
     Date,
@@ -55,68 +55,22 @@ numeric_types: List[FieldType] = [Integer, Float, Decimal]
 string_types: List[FieldType] = [Text, LongText]
 
 cases = [
+    Case(obj=bool_, maybes=[Boolean] + numeric_types, definitelys=[Boolean],),
+    Case(obj=int_, maybes=numeric_types, definitelys=[Integer],),
+    Case(obj=big_int, maybes=[Integer, Float, Decimal], definitelys=[Integer],),
+    Case(obj=float_, maybes=[Float, Decimal, Integer, Integer], definitelys=[Float],),
+    Case(obj=floatstr, maybes=string_types + [Float, Decimal], definitelys=[],),
+    Case(obj=date_, maybes=[DateTime, Date], definitelys=[Date],),
+    Case(obj=datestr, maybes=string_types + [DateTime, Date], definitelys=[],),
+    Case(obj=dateisostr, maybes=string_types + [DateTime, Date], definitelys=[Date],),
+    Case(obj=datetime_, maybes=[DateTime, Date], definitelys=[DateTime],),
     Case(
-        obj=bool_,
-        maybes=[Boolean] + numeric_types,
-        definitelys=[Boolean],
+        obj=datetimestr, maybes=string_types + [DateTime, Date], definitelys=[DateTime],
     ),
-    Case(
-        obj=int_,
-        maybes=numeric_types,
-        definitelys=[Integer],
-    ),
-    Case(
-        obj=big_int,
-        maybes=[Integer, Float, Decimal],
-        definitelys=[Integer],
-    ),
-    Case(
-        obj=float_,
-        maybes=[Float, Decimal, Integer, Integer],
-        definitelys=[Float],
-    ),
-    Case(
-        obj=floatstr,
-        maybes=string_types + [Float, Decimal],
-        definitelys=[],
-    ),
-    Case(
-        obj=date_,
-        maybes=[DateTime, Date],
-        definitelys=[Date],
-    ),
-    Case(
-        obj=datestr,
-        maybes=string_types + [DateTime, Date],
-        definitelys=[],
-    ),
-    Case(
-        obj=dateisostr,
-        maybes=string_types + [DateTime, Date],
-        definitelys=[Date],
-    ),
-    Case(
-        obj=datetime_,
-        maybes=[DateTime, Date],
-        definitelys=[DateTime],
-    ),
-    Case(
-        obj=datetimestr,
-        maybes=string_types + [DateTime, Date],
-        definitelys=[DateTime],
-    ),
-    Case(
-        obj=time_,
-        maybes=[Time],
-        definitelys=[Time],
-    ),
-    Case(
-        obj=timestr,
-        maybes=string_types + [Time],
-        definitelys=[],
-    ),
+    Case(obj=time_, maybes=[Time], definitelys=[Time],),
+    Case(obj=timestr, maybes=string_types + [Time], definitelys=[],),
     Case(obj=long_text, maybes=[LongText], definitelys=[]),
-    Case(obj=json_, maybes=[JSON], definitelys=[JSON]),
+    Case(obj=json_, maybes=[Json], definitelys=[Json]),
 ]
 
 
@@ -184,7 +138,7 @@ expected_field_types = {
     "a": DateTime(),
     "b": Text(),
     "c": Integer(),
-    "d": JSON(),
+    "d": Json(),
     "e": Text(),
     "f": Text(),
     "g": Integer(),
@@ -267,10 +221,10 @@ D = decimal.Decimal
         ),
         (DateTime, 1577836800, datetime(2020, 1, 1)),
         (DateTime, "Hello world", ERROR),
-        (JSON, [1, 2], [1, 2]),
-        (JSON, {"a": 2}, {"a": 2}),
-        (JSON, '{"1":2}', {"1": 2}),
-        # (JSON, None, None),
+        (Json, [1, 2], [1, 2]),
+        (Json, {"a": 2}, {"a": 2}),
+        (Json, '{"1":2}', {"1": 2}),
+        # (Json, None, None),
         # (Boolean, "Hi", None),  # If we ignore the error, it should be null
         (Date, "2020-01-01", date(2020, 1, 1)),
         (Date, "2020-01-01 00:00:00", date(2020, 1, 1)),
