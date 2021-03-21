@@ -144,6 +144,8 @@ class ExecutionResult:
     output_block_id: Optional[str] = None
     output_stored_block_id: Optional[str] = None
     output_alias: Optional[str] = None
+    error: Optional[str] = None
+    traceback: Optional[str] = None
 
     @classmethod
     def empty(cls) -> ExecutionResult:
@@ -152,6 +154,29 @@ class ExecutionResult:
             non_reference_inputs_bound=[],
             input_blocks_processed={},
             output_block_count=0,
+        )
+
+    def set_error(self, e: Exception):
+        tback = traceback.format_exc()
+        self.error = str(e)
+        # Traceback can be v large (like in max recursion), so we truncate to 5k chars
+        self.traceback = tback[:5000]
+
+    def merge(self, newer: ExecutionResult) -> ExecutionResult:
+        return ExecutionResult(
+            inputs_bound=self.inputs_bound + newer.inputs_bound,
+            non_reference_inputs_bound=newer.non_reference_inputs_bound,
+            input_blocks_processed=newer.input_blocks_processed,
+            output_block_count=(self.output_block_count or 0)
+            + (newer.output_block_count or 0),
+            output_blocks_record_count=(self.output_blocks_record_count or 0)
+            + (newer.output_blocks_record_count or 0),
+            output_block_id=newer.output_block_id or self.output_block_id,
+            output_stored_block_id=newer.output_stored_block_id
+            or self.output_stored_block_id,
+            output_alias=newer.output_alias or self.output_alias,
+            error=newer.error or self.error,
+            traceback=newer.traceback or self.traceback,
         )
 
 
@@ -242,16 +267,18 @@ class RunContext:
                 # Validate local memory objects: Did we leave any non-storeables hanging?
                 validate_data_blocks(sess)
             except Exception as e:
-                logger.debug(f"Error running node:\n{traceback.format_exc()}")
-                pl.set_error(e)
-                if self.raise_on_error:
+                # Don't worry about exhaustion exceptions
+                if not isinstance(e, InputExhaustedException):
+                    logger.debug(f"Error running node:\n{traceback.format_exc()}")
+                    pl.set_error(e)
+                    # Re-raise here and handle elsewhere
                     raise e
             finally:
                 # Persist state on success OR error:
                 pl.persist_state(sess)
                 pl.completed_at = utcnow()
                 sess.add(pl)
-                sess.flush()
+                sess.commit()
 
     @property
     def all_storages(self) -> List[Storage]:
@@ -502,12 +529,17 @@ class ExecutionManager:
         # start = time.time()
         n_runs: int = 0
         last_execution_result: Optional[ExecutionResult] = None
-        last_non_none_output: Optional[str] = None
+        cumulative_execution_result: Optional[ExecutionResult] = None
+        error = None
         try:
             while True:
                 last_execution_result = self._execute(node, worker)
-                if last_execution_result.output_block_id is not None:
-                    last_non_none_output = last_execution_result.output_block_id
+                if cumulative_execution_result is None:
+                    cumulative_execution_result = last_execution_result
+                else:
+                    cumulative_execution_result = cumulative_execution_result.merge(
+                        last_execution_result
+                    )
                 n_runs += 1
                 if (
                     not to_exhaustion
@@ -516,28 +548,33 @@ class ExecutionManager:
                 ):  # TODO: We just run no-input DFs (source extractors) once no matter what
                     # (they are responsible for creating their own generators)
                     break
-            self.log_execution_result(last_execution_result)
-            self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))  # type: ignore
+            self.log_execution_result(cumulative_execution_result)
         except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
             logger.debug(INDENT + cf.warning("Input Exhausted"))
             if e.args:
                 logger.debug(e)
             if n_runs == 0:
                 self.ctx.logger(INDENT + "Inputs: No unprocessed inputs\n")
-            self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))  # type: ignore
         except Exception as e:
-            self.ctx.logger(INDENT + cf.error("Error " + error_symbol) + str(e) + "\n")  # type: ignore
             raise e
-
-        # TODO: how to pass back with session?
-        #   maybe with env.produce() as output:
-        # Or just merge in new session in env.produce
-        if last_non_none_output is None:
+        if (
+            cumulative_execution_result is not None
+            and not cumulative_execution_result.error
+        ):
+            self.ctx.logger(INDENT + cf.success("Ok " + success_symbol + "\n"))  # type: ignore
+        else:
+            if cumulative_execution_result.error:
+                error = cumulative_execution_result.error
+            else:
+                error = "Snap failed (unknown error)"
+            self.ctx.logger(INDENT + cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n")  # type: ignore
+        logger.debug(f"Cumulative execution result: {cumulative_execution_result}")
+        if cumulative_execution_result.output_block_id is None:
             return None
         logger.debug(f"*DONE* RUNNING NODE {node.key} {node.snap.key}")
         if output_session is not None:
             db: DataBlockMetadata = output_session.query(DataBlockMetadata).get(
-                last_non_none_output
+                cumulative_execution_result.output_block_id
             )
             return db.as_managed_data_block(run_ctx, output_session)
         return None
@@ -591,32 +628,43 @@ class Worker:
     def execute(self, executable: Executable) -> ExecutionResult:
         node = self.ctx.graph.get_node(executable.node_key)
         result = ExecutionResult.empty()
-        with self.ctx.start_snap_run(node) as execution_session:
-            interface_mgr = NodeInterfaceManager(
-                self.ctx, execution_session.metadata_session, node
-            )
-            executable.bound_interface = interface_mgr.get_bound_interface()
-            snap_ctx = SnapContext(
-                self.ctx,
-                worker=self,
-                execution_session=execution_session,
-                executable=executable,
-                inputs=executable.bound_interface.inputs,
-                snap_log=execution_session.snap_log,
-            )
-            snap_args = []
-            if executable.bound_interface.context:
-                snap_args.append(snap_ctx)
-            snap_inputs = executable.bound_interface.inputs_as_kwargs()
-            snap_kwargs = snap_inputs
-            # Actually run the snap
-            output_obj = executable.compiled_snap.snap.snap_callable(
-                *snap_args, **snap_kwargs
-            )
-            for res in self.process_execution_result(
-                executable, execution_session, output_obj, snap_ctx
-            ):
-                result = res
+        try:
+            with self.ctx.start_snap_run(node) as execution_session:
+                interface_mgr = NodeInterfaceManager(
+                    self.ctx, execution_session.metadata_session, node
+                )
+                executable.bound_interface = interface_mgr.get_bound_interface()
+                snap_ctx = SnapContext(
+                    self.ctx,
+                    worker=self,
+                    execution_session=execution_session,
+                    executable=executable,
+                    inputs=executable.bound_interface.inputs,
+                    snap_log=execution_session.snap_log,
+                )
+                snap_args = []
+                if executable.bound_interface.context:
+                    snap_args.append(snap_ctx)
+                snap_inputs = executable.bound_interface.inputs_as_kwargs()
+                snap_kwargs = snap_inputs
+                # Actually run the snap
+                # TODO: tighten up the contextmanager to around just this call!
+                try:
+                    output_obj = executable.compiled_snap.snap.snap_callable(
+                        *snap_args, **snap_kwargs
+                    )
+                    for res in self.process_execution_result(
+                        executable, execution_session, output_obj, snap_ctx
+                    ):
+                        result = res
+                finally:
+                    # execution_session.metadata_session.commit()
+                    pass
+        except Exception as e:
+            result.set_error(e)
+            if self.ctx.raise_on_error:
+                raise e
+
         logger.debug(f"EXECUTION RESULT {result}")
         return result
 
@@ -693,6 +741,12 @@ class Worker:
                     if db.record_count() is not None
                 ]
             ),
+            error=execution_session.snap_log.error.get("error")
+            if isinstance(execution_session.snap_log.error, dict)
+            else None,
+            traceback=execution_session.snap_log.error.get("traceback")
+            if isinstance(execution_session.snap_log.error, dict)
+            else None,
         )
 
     # TODO: where does this sql stuff really belong? Are we still using this?

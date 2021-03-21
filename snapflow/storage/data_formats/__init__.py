@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
+from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 from snapflow.storage.data_formats.base import (
     DataFormat,
     DataFormatBase,
@@ -43,6 +44,7 @@ core_data_formats_precedence: List[DataFormat] = [
     # Ordering used when inferring DataFormat from raw object and have ambiguous object (eg an empty list)
     RecordsFormat,
     DataFrameFormat,
+    ArrowTableFormat,
     DatabaseCursorFormat,
     DatabaseTableRefFormat,
     RecordsIteratorFormat,

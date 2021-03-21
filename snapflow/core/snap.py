@@ -129,14 +129,14 @@ class _Snap:
         return snap_interface_from_callable(self.snap_callable)
 
     def source_code_language(self) -> str:
-        from snapflow.core.sql.snap import SqlSnapWrapper
+        from snapflow.core.sql.sql_snap import SqlSnapWrapper
 
         if isinstance(self.snap_callable, SqlSnapWrapper):
             return "sql"
         return "python"
 
     def get_source_code(self) -> Optional[str]:
-        from snapflow.core.sql.snap import SqlSnapWrapper
+        from snapflow.core.sql.sql_snap import SqlSnapWrapper
 
         # TODO: more principled approach (can define a "get_source_code" otherwise we inspect?)
         if isinstance(self.snap_callable, SqlSnapWrapper):

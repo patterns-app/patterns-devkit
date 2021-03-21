@@ -21,11 +21,37 @@ from snapflow.utils.registry import ClassBasedEnum, global_registry
 
 LONG_TEXT = 2 ** 16
 
+# Logical arrow type specs, for reference
+# (nb. the pyarrow api does not correspond directly to these)
+#
+#   Null,
+#   Int,
+#   FloatingPoint,
+#   Binary,
+#   Utf8,
+#   Bool,
+#   Decimal,
+#   Date,
+#   Time,
+#   Timestamp,
+#   Interval,
+#   List,
+#   Struct_,
+#   Union,
+#   FixedSizeBinary,
+#   FixedSizeList,
+#   Map,
+#   Duration,
+#   LargeBinary,
+#   LargeUtf8,
+#   LargeList,
+
 
 class FieldTypeBase(ClassBasedEnum):
     sqlalchemy_type: Type[satypes.TypeEngine]
     python_type: type
     pandas_type: str
+    arrow_type: str
     parameter_names: List[str] = []
     defaults: List[Tuple[str, Any]] = []
     castable_to_types: List[str] = [
@@ -126,6 +152,7 @@ class Boolean(FieldTypeBase):
     sqlalchemy_type = satypes.Boolean
     python_type = bool
     pandas_type = "boolean"
+    arrow_type = "Bool"
     cardinality_rank = 0
     max_bytes = 1
     castable_to_types = ["Text", "LongText"]
@@ -165,6 +192,7 @@ class Integer(FieldTypeBase):
     sqlalchemy_type = satypes.BigInteger
     python_type = int
     pandas_type = "Int64"
+    arrow_type = "Int"
     cardinality_rank = 11
     max_bytes = 8
     castable_to_types = ["Float", "Decimal", "Text", "LongText"]
@@ -189,6 +217,7 @@ class Float(FieldTypeBase):
     sqlalchemy_type = satypes.Float
     python_type = float
     pandas_type = "float64"
+    arrow_type = "FloatingPoint"
     cardinality_rank = 12
     max_bytes = 8
     castable_to_types = [
@@ -213,6 +242,7 @@ class Decimal(FieldTypeBase):
     # defaults = {"precision": 16}
     python_type = decimal.Decimal
     pandas_type = "float64"
+    arrow_type = "Decimal"
     cardinality_rank = 13
     max_bytes = 8
     castable_to_types = [
@@ -232,12 +262,16 @@ class Decimal(FieldTypeBase):
         return decimal.Decimal(obj)
 
 
+### TODO: binary types
+
+
 ### String types
 class Text(FieldTypeBase):
     sqlalchemy_type = satypes.Unicode
     defaults = {"length": 255}
     python_type = str
     pandas_type = "string"
+    arrow_type = "Utf8"
     cardinality_rank = 20
     max_bytes = LONG_TEXT
     castable_to_types = ["LongText"]
@@ -263,6 +297,7 @@ class LongText(FieldTypeBase):
     sqlalchemy_type = satypes.UnicodeText
     python_type = str
     pandas_type = "string"
+    arrow_type = "Utf8"  # Note: There is a "LargeUtf8", but MUCH bigger than the database distinction between long/short
     cardinality_rank = 21
     max_bytes = LONG_TEXT * LONG_TEXT
 
@@ -282,6 +317,7 @@ class Date(FieldTypeBase):
     sqlalchemy_type = satypes.Date
     python_type = date
     pandas_type = "date"
+    arrow_type = "Date"
     cardinality_rank = 10
     max_bytes = 4
     castable_to_types = ["DateTime", "Text", "LongText"]
@@ -333,6 +369,7 @@ class DateTime(FieldTypeBase):
     sqlalchemy_type = satypes.DateTime
     python_type = datetime
     pandas_type = "datetime64[ns]"
+    arrow_type = "Timestamp"
     cardinality_rank = 12
     max_bytes = 8
     castable_to_types = ["Text", "LongText"]
@@ -384,6 +421,7 @@ class Time(FieldTypeBase):
     sqlalchemy_type = satypes.Time
     python_type = time
     pandas_type = "time"
+    arrow_type = "Time"
     cardinality_rank = 12
     max_bytes = 8
     castable_to_types = ["Text", "LongText"]
@@ -423,15 +461,17 @@ class Time(FieldTypeBase):
 #     max_bytes = 8
 
 # TODO: Not well supported? Just use int / float?
+#       Physical vs Logical types get somewhat confused with multiple layers of logic: eg binary -> int -> timestamp -> datetime
 # class EpochTime(FieldTypeBase):
 #   pass
 
 
 ### Misc types
-class JSON(FieldTypeBase):
+class Json(FieldTypeBase):
     sqlalchemy_type = satypes.JSON
     python_type = dict
     pandas_type = "object"
+    arrow_type = "Struct"
     cardinality_rank = 0  # TODO: strict json, only dicts and lists?
     max_bytes = LONG_TEXT * LONG_TEXT
     castable_to_types = ["LongText"]  # TODO: kind of true?
@@ -465,7 +505,7 @@ all_types = [
     DateTime,
     Text,
     LongText,
-    JSON,
+    Json,
 ]
 all_types_instantiated = [ft() for ft in all_types]
 for ft in all_types:
@@ -477,7 +517,7 @@ DEFAULT_FIELD_TYPE = Text()
 def ensure_field_type(
     ft: Union[str, FieldType, Type[FieldType], satypes.TypeEngine]
 ) -> FieldType:
-    # TODO: this is hidden and only affects this code path... Where do we want to conform this?
+    # TODO: this default type is hidden and only affects this code path... this should happen higher up
     if ft is None:
         return DEFAULT_FIELD_TYPE
     if isinstance(ft, FieldType):
@@ -493,25 +533,42 @@ def ensure_field_type(
 
 
 def str_to_field_type(s: str) -> FieldType:
-    local_vars = {f().name: f for f in all_types}
+    """
+    Supports additional Sqlalchemy types and arrow types, as well as legacy names
+    """
+    local_vars = {f().name.lower(): f for f in all_types}
     satype_aliases = {
-        "INTEGER": Integer,
-        "BigInteger": Integer,
-        "Numeric": Decimal,
-        "NUMERIC": Decimal,
-        "REAL": Float,
-        "DATE": Date,
-        "TEXT": Text,
-        "VARCHAR": Text,
-        "Unicode": Text,
-        "UnicodeText": Text,
-        "Json": JSON,
+        # Sqlalchemy
+        "integer": Integer,
+        "biginteger": Integer,
+        "numeric": Decimal,
+        "real": Float,
+        "date": Date,
+        "datetime": DateTime,
+        "time": Time,
+        "text": Text,
+        "varchar": Text,
+        "unicode": Text,
+        "unicodetext": Text,
+        "json": Json,
+        # Arrow / pandas
+        "int": Integer,
+        "int64": Integer,
+        "floatingpoint": Float,
+        "float": Float,
+        "float64": Float,
+        "utf8": Text,  # TODO: longtext?
+        "timestamp": DateTime,
+        "struct_": Json,
+        "struct": Json,
+        "string": Text,
     }
     local_vars.update(satype_aliases)
     try:
-        ft = eval(s, {"__builtins__": None}, local_vars)
+        ls = s.lower()
+        ft = eval(ls, {"__builtins__": None}, local_vars)
         if isinstance(ft, type):
             ft = ft()
         return ft
-    except AttributeError:
+    except (AttributeError, TypeError):
         raise NotImplementedError(s)

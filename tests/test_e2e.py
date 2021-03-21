@@ -20,7 +20,7 @@ from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.storage.storage import new_local_python_storage
 
 Customer = create_quick_schema(
-    "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "JSON")]
+    "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "Json")]
 )
 Metric = create_quick_schema(
     "Metric", [("metric", "Unicode"), ("value", "Numeric(12,2)")]

@@ -20,7 +20,7 @@ def test_module_init():
 
 
 def test_core_module():
-    assert len(core.snaps) == 8 * 2
+    assert len(core.snaps) == 9 * 2
     assert len(core.schemas) == 2 * 2
 
     core.run_tests()

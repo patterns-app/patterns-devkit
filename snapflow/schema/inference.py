@@ -11,7 +11,6 @@ from pandas.core.series import Series
 from snapflow.schema.base import Field, Schema
 from snapflow.schema.field_types import (
     DEFAULT_FIELD_TYPE,
-    JSON,
     LONG_TEXT,
     Boolean,
     Date,
@@ -21,6 +20,7 @@ from snapflow.schema.field_types import (
     FieldTypeBase,
     Float,
     Integer,
+    Json,
     LongText,
     Text,
     Time,
@@ -176,6 +176,14 @@ def pandas_series_to_field_type(series: Series) -> FieldType:
         # except ParserError:
         #     pass
     return DEFAULT_FIELD_TYPE
+
+
+def infer_fields_from_dataframe(df: pd.DataFrame, **kwargs) -> List[Field]:
+    fields = []
+    for c in df.columns:
+        ft = pandas_series_to_field_type(df[c])
+        fields.append(Field(name=c, field_type=ft))
+    return fields
 
 
 def field_from_sqlalchemy_column(sa_column: Column, **kwargs) -> Field:
