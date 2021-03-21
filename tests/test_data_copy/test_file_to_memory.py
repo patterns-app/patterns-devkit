@@ -1,9 +1,15 @@
 from __future__ import annotations
+from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
+from snapflow.storage.data_formats.json_lines_file import JsonLinesFileFormat
 
 import tempfile
+import pyarrow as pa
 
 from snapflow.storage.data_copy.base import Conversion, StorageFormat
-from snapflow.storage.data_copy.file_to_memory import copy_delim_file_to_records
+from snapflow.storage.data_copy.file_to_memory import (
+    copy_delim_file_to_records,
+    copy_json_file_to_arrow,
+)
 from snapflow.storage.data_formats import DelimitedFileFormat, RecordsFormat
 from snapflow.storage.file_system import FileSystemStorageApi
 from snapflow.storage.storage import (
@@ -32,3 +38,16 @@ def test_file_to_mem():
         name, name, conversion, fs_api, mem_api, schema=TestSchema4
     )
     assert mem_api.get(name).records_object == records_obj
+
+    # Json lines
+    name = "_json_test"
+    fs_api.write_lines_to_file(name, ['{"f1":"hi","f2":2}'])
+    conversion = Conversion(
+        StorageFormat(s.storage_engine, JsonLinesFileFormat),
+        StorageFormat(LocalPythonStorageEngine, ArrowTableFormat),
+    )
+    copy_json_file_to_arrow.copy(
+        name, name, conversion, fs_api, mem_api, schema=TestSchema4
+    )
+    expected = pa.Table.from_pydict({"f1": ["hi"], "f2": [2]})
+    assert mem_api.get(name).records_object == expected

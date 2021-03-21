@@ -1,5 +1,7 @@
 from __future__ import annotations
+from snapflow.storage.data_formats.records import Records
 
+import json
 import tempfile
 import types
 from io import StringIO
@@ -21,6 +23,7 @@ from snapflow.storage.data_copy.memory_to_database import copy_records_to_db
 from snapflow.storage.data_copy.memory_to_file import (
     copy_file_object_to_delim_file,
     copy_records_to_delim_file,
+    copy_records_to_json_file,
 )
 from snapflow.storage.data_formats import (
     DatabaseCursorFormat,
@@ -96,3 +99,29 @@ def test_obj_to_file():
     )
     with fs_api.open(name) as f:
         assert f.read() == obj().read()
+
+
+def test_records_to_json():
+    dr = tempfile.gettempdir()
+    s: Storage = Storage.from_url(f"file://{dr}")
+    fs_api: FileSystemStorageApi = s.get_api()
+    mem_api: PythonStorageApi = new_local_python_storage().get_api()
+    name = "_test"
+    fmt = RecordsFormat
+    obj = [{"f1": "hi", "f2": 2}]
+    mdr = as_records(obj, data_format=fmt)
+    mem_api.put(name, mdr)
+    conversion = Conversion(
+        StorageFormat(LocalPythonStorageEngine, fmt),
+        StorageFormat(s.storage_engine, JsonLinesFileFormat),
+    )
+    copy_records_to_json_file.copy(
+        name, name, conversion, mem_api, fs_api, schema=TestSchema4
+    )
+    with fs_api.open(name) as f:
+        print(f.read())
+        f.seek(0)
+        recs = [json.loads(ln) for ln in f.readlines()]
+        recs = RecordsFormat.conform_records_to_schema(recs, TestSchema4)
+        assert recs == obj
+
