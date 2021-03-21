@@ -96,12 +96,6 @@ class RecordsExhausted(Exception):
     pass
 
 
-class FetchStrategy(Enum):
-    RefetchAllEveryTime = 'RefreshAllEveryTime'
-    FetchAllIncremental = 'FetchAllIncremental'
-    FetchAllIncrementalWithUpdates = 'FetchAllIncrementalWithUpdates'
-
-
 @dataclass
 class FetchStrategy:
     incremental: bool
@@ -230,20 +224,7 @@ class ApiConnection(HttpApiConnection):
                 v = v.strftime(self.date_format)
             formatted[k] = v
         return formatted
-    
-    # def determine_strategy(self):
-    #     if self.records_are_immutable:
-    #         if self.created_at_field and self.created_at_is_filterable_and_sortable_asc:
-    #             if self.unique_field and self.unique_is_filterable_and_sortable and self.supports_multi_field_sort:
-    #                 return FetchStrategy(incremental=True, sort_fields=[self.created_at_field, self.unique_field])
-    #             return FetchStrategy(incremental=True, sort_fields=[self.created_at_field])
-    #         return FetchStrategy(incremental=False)
-    #     else:
-    #         if self.modified_at_field and self.modified_at_is_filterable_and_sortable_desc:
-    #             if self.unique_field and self.unique_is_filterable_and_sortable and self.supports_multi_field_sort:
-    #                 return FetchStrategy(incremental=True, sort_fields=[self.modified_at_field, self.unique_field])
-    #             return FetchStrategy(incremental=True, sort_fields=[self.modified_at_field])
-    
+
     def run(self, progress: FetchProgress) -> Iterable[V]:
         raise NotImplementedError
 
@@ -317,114 +298,3 @@ class RefetchAll(HttpApiConnection):
     """
     default_query_params: Dict[str, Any] = None
 
-
-class FredObservations(RefetchAllNew):
-    modified_at_field: str
-    modified_at_is_sortable: bool = True
-    modified_at_is_filterable: bool = True
-    strictly_monotonic_field: str = None
-    strictly_monotonic_is_sortable_with: bool = False # Almost never the case
-    pagination_method: str = "page" # or "cursor" or "none"
-    default_query_params: Dict[str, Any] = None
-    default_headers: Dict[str, Any] = None
-    datetime_format: str = "%F %T"
-    query_params_dataclass: Type = None # ???
-    ratelimit_calls_per_min: int = 1000,
-    raise_error_for_status: bool = True
-
-    def get_data_object_from_response(self, resp: Response) -> Any:
-        "Return list of dicts, file buffer, or other supported DataFormat"
-        raise NotImplementedError
-
-    def update_request_for_next_call(self, req: Request, resp: Response):
-        "Increase page number, set next cursor or url, etc"
-        raise NotImplementedError
-
-
-class JsonHttpApiConnection:
-    # default_params: Dict = {}
-    # date_format: str = "%F %T"
-    # raise_for_status: bool = True
-    # ratelimit_calls_per_min: int = 1000
-
-    def __init__(
-        self,
-        default_params: Dict = None,
-        default_headers: Dict = None,
-        date_format: str = "%F %T",
-        raise_for_status: bool = True,
-        ratelimit_calls_per_min: int = 1000,
-        remove_none_params: bool = True,
-    ):
-        self.default_params = default_params or {}
-        self.default_headers = default_headers or {}
-        self.date_format = date_format
-        self.raise_for_status = raise_for_status
-        self.ratelimit_calls_per_min = ratelimit_calls_per_min
-        self.g = self.add_rate_limiting(self.get)
-        self.remove_none_params = remove_none_params
-
-    def add_rate_limiting(self, f: Callable):
-        g = sleep_and_retry(f)
-        g = limits(calls=self.ratelimit_calls_per_min, period=60)(g)
-        return g
-
-    def get_default_params(self) -> Dict:
-        return self.default_params.copy()
-
-    def get_default_headers(self) -> Dict:
-        return self.default_headers.copy()
-
-    def validate_params(self, params: Dict) -> Dict:
-        formatted = {}
-        for k, v in params.items():
-            if self.remove_none_params and v is None:
-                continue
-            if isinstance(v, datetime) or isinstance(v, date):
-                v = v.strftime(self.date_format)
-            formatted[k] = v
-        return formatted
-
-    def get(
-        self, url: str, params: Dict = None, headers: Dict = None, **kwargs
-    ) -> Response:
-        default_params = self.get_default_params()
-        if params:
-            default_params.update(params)
-        default_headers = self.get_default_headers()
-        if headers:
-            default_headers.update(headers)
-        final_params = self.validate_params(default_params)
-        resp = requests.get(url, params=final_params, headers=headers, **kwargs)
-        if self.raise_for_status:
-            resp.raise_for_status()
-        return resp
-
-
-
-class SimpleTestJsonHttpApiConnection:
-    responses: List[str]
-    empty_response: Dict = {}
-    expected_high_water_mark: datetime
-    expected_record_count: int
-
-    def __init__(self):
-        self.response_count = 0
-        self.json_responses: List[Dict] = []
-        for response in self.responses:
-            if isinstance(response, Dict):
-                json_resp = response
-            elif isinstance(response, str):
-                file_path = os.path.join(os.path.dirname(__file__), response)
-                with open(file_path) as f:
-                    json_resp = json.load(f)
-            else:
-                raise Exception(f"Response unsupported {response}")
-            self.json_responses.append(json_resp)
-
-    def get(self, url: str, params: Dict) -> Union[Dict, List]:
-        if self.response_count >= len(self.json_responses):
-            return self.empty_response
-        resp = self.json_responses[self.response_count]
-        self.response_count += 1
-        return resp
