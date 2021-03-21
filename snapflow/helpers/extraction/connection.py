@@ -1,18 +1,30 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from enum import Enum
 
 import json
 import os
+from dataclasses import dataclass
 from datetime import date, datetime
-from snapflow.utils.typing import T, V
-from typing import Any, Callable, Dict, Generic, Iterable, Iterator, List, Optional, Type, Union
+from enum import Enum
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Generic,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Type,
+    Union,
+)
 
 import requests
 from loguru import logger
 from ratelimit import limits, sleep_and_retry
 from requests import Response
 from requests.models import Request
+from snapflow.utils.typing import T, V
+
 
 """
 # API fetching basics
@@ -23,7 +35,7 @@ To fetch an API and keep all records up-to-date we need:
 Second case is usually trivial to implement -- no state is tracked -- but is
 very rarely a viable option, given indeterminate nature of data set size. With
 some APIs we have no choice but to use this second option, they do not meet the criteria below for tracking
-incremental progress, so we have to hope we can redownload efficiently enough, or 
+incremental progress, so we have to hope we can redownload efficiently enough, or
 we are forced to sacrifice with potentially broken / missing data.
 
 Crux for first case is "reliable way to track incremental progress". For this to be
@@ -37,14 +49,14 @@ Let's go through the three constaints on our selected attribute(s):
  - Strictly monotonic: selected attributes should be strictly monotonic in combination, meaning no duplicate values.
     To see why, imagine using created_at alone, and one million records get created in a
     back fill at once with same created_at. Now the fetcher must consume 1 million records without
-    stopping or error, or it will have to perpetually start over and refetch. 
+    stopping or error, or it will have to perpetually start over and refetch.
 
 Unfortunately many (most?) APIs do not fully support these requirements for reliably tracking incremental
 progress. There are several strategies we can take to mitigate the harm from this, mostly by relaxing our
 requirements as little as necessary:
 If mutable records AND:
  - No way to sort and/or filter by updated_at (this is bad API design and the provider should be notified and encouraged to fix!)
-  - Refetching all records occasionally to get updates, defining a certain duration of acceptable staleness 
+  - Refetching all records occasionally to get updates, defining a certain duration of acceptable staleness
   - If sortable by created_at: Refetching all records for a certain amount of time after creation
  - No strict monotonic set of sortable, filterable attributes
   - This constraint can be relaxed probabilistically -- if no more than ~typical size of fetch~ duplicates
@@ -61,7 +73,7 @@ mid api call, we are in a tough spot: only a forced refetching of old data will 
 
 General recommendations:
 
-Given the discussion above, we can conclude that 1) most APIs do not allow for guaranteed 
+Given the discussion above, we can conclude that 1) most APIs do not allow for guaranteed
 incremental fetching, 2) refetching entire datasets everytime is prohibitively expensive for
 real-world dataset sizes. This leaves us in a tough place of making tradeoffs. Our goal
 should be to embrace these tradeoffs and give the end user visibility, understanding, and control over
@@ -75,7 +87,7 @@ Solution 1: For immutable records
 Solution 2: For mutable records
  - Sort by combination of strictly monotonic field and updated timestamp
    if avialable (autoincrment ID and updated_at, for instance). It is rare for an API to support this operation.
-    - If we have strictly monotonic attributes, then we do not want to follow pagination. Simply refetch each time with new 
+    - If we have strictly monotonic attributes, then we do not want to follow pagination. Simply refetch each time with new
       filters
  - Otherwise, sort by monotonic update timestamp if available
  - In either case, track and store latest field values fetched, refetching at those values *inclusive* next time if not strictly monotonic
@@ -157,6 +169,7 @@ class HttpApiConnection:
             resp.raise_for_status()
         return resp
 
+
 @dataclass
 class FetchProgress:
     key: str = None
@@ -177,14 +190,16 @@ class ApiConnection(HttpApiConnection):
     # Probably don't include these in documented API, too confusing and so rarely usable
     unique_field: str = None
     unique_is_filterable_and_sortable: bool = False
-    supports_multi_field_sort: bool = False # Can sort WITH modified_at in same call. Rarely the case
-    pagination_method: str = "page" # or "cursor" or "none"
+    supports_multi_field_sort: bool = (
+        False  # Can sort WITH modified_at in same call. Rarely the case
+    )
+    pagination_method: str = "page"  # or "cursor" or "none"
     default_query_params: Dict[str, Any] = None
     default_headers: Dict[str, Any] = None
     datetime_format: str = "%F %T"
-    query_params_dataclass: Type = None # ???
+    query_params_dataclass: Type = None  # ???
     progress_dataclass: Type = FetchProgress
-    ratelimit_calls_per_min: int = 1000,
+    ratelimit_calls_per_min: int = 1000
     raise_error_for_status: bool = True
 
     def get_data_object_from_response(self, resp: Response) -> V:
@@ -195,19 +210,23 @@ class ApiConnection(HttpApiConnection):
         "Increase page number, set next cursor or url, etc"
         raise NotImplementedError
 
-    def update_progress(self, prev_progress: FetchProgress, req: Request, resp: Response, data_obj: V) -> FetchProgress:
+    def update_progress(
+        self, prev_progress: FetchProgress, req: Request, resp: Response, data_obj: V
+    ) -> FetchProgress:
         "Returns an updated progress state based on request and response"
         raise NotImplementedError
 
-    def prepare_request(self, url: str, query_params: Dict[str, Any], headers: Dict[str, Any]) -> Any:
+    def prepare_request(
+        self, url: str, query_params: Dict[str, Any], headers: Dict[str, Any]
+    ) -> Any:
         headers = self.prepare_headers(headers)
         query_params = self.prepare_query_params(query_params)
         req = Request(url=url, params=query_params, headers=headers)
         return req
-    
+
     def add_filters_and_sorts(self, params: Dict) -> Dict:
         return params
-    
+
     def prepare_query_params(self, params: Dict) -> Dict:
         final_params = self.get_default_headers()
         final_params.update(params)
@@ -229,23 +248,28 @@ class ApiConnection(HttpApiConnection):
         raise NotImplementedError
 
 
-    
-
 class FetchIncrementalImmutableRecords(HttpApiConnection):
     """
     Use this connector for endpoints that return immutable records (eg events)
     and have a created_at field ("created at" or incrementing id) that is
     filterable and sortable ascending.
     """
+
     created_at_field: str = None
-    created_at_is_filterable_and_sortable_asc: bool = False # Must be True, otherwise use RefetchAllNew
+    created_at_is_filterable_and_sortable_asc: bool = (
+        False  # Must be True, otherwise use RefetchAllNew
+    )
     default_query_params: Dict[str, Any] = None
 
     def add_filters_and_sorts(self, params: Dict, progress: FetchProgress) -> Dict:
         if not self.created_at_field:
-            raise NotImplementedError("Cannot fetch incremental immutable without created_at field")
+            raise NotImplementedError(
+                "Cannot fetch incremental immutable without created_at field"
+            )
         if not self.created_at_is_filterable_and_sortable_asc:
-            raise NotImplementedError("Cannot fetch incremental immutable without sortable + filterable created_at field")
+            raise NotImplementedError(
+                "Cannot fetch incremental immutable without sortable + filterable created_at field"
+            )
         params[self.created_at_field]
         return params
 
@@ -259,13 +283,16 @@ class FetchIncrementalMutableRecords(HttpApiConnection):
     and have a "modified at" field that is filterable and sortable descending.
 
     Because "modified at" fields do not always track all updates (eg for denormalized
-    objects), and because calls may miss concurrent updates, it is recommended to 
+    objects), and because calls may miss concurrent updates, it is recommended to
     refetch records to catch missed updates for some period of time after record creation.
     Use the `refetch_records_until_x_hours_old` to configure this.
     """
+
     modified_at_field: str = None
-    modified_at_is_filterable_and_sortable_desc: bool = False # Must be True, otherwise use RefetchAllNew
-    refetch_records_until_x_hours_old: int = 24 * 7 # For missed updates
+    modified_at_is_filterable_and_sortable_desc: bool = (
+        False  # Must be True, otherwise use RefetchAllNew
+    )
+    refetch_records_until_x_hours_old: int = 24 * 7  # For missed updates
     default_query_params: Dict[str, Any] = None
 
 
@@ -275,17 +302,18 @@ class RefetchAllNew(HttpApiConnection):
     filtering and sorting options for the incremental fetchers, but DO
     support a *filterable* creation-ordered field.
 
-    This works like RefetchAll but will not refetch old rows that 
+    This works like RefetchAll but will not refetch old rows that
     are not expected to update again. For immutable records, use
     refetch_records_until_x_hours_old to provide a buffer from
     when a "created at" is set and when the record actually shows
     up in the api (usually only a few seconds hopefully, but can be days).
-    For mutable records, this fetcher will only catch updates made 
+    For mutable records, this fetcher will only catch updates made
     within the `refetch_records_until_x_hours_old` window. If you want
     to catch all updates on all mutable records, you must use RefetchAll.
     """
+
     created_at_field: str = None
-    created_at_is_filterable: bool = False # Must be True
+    created_at_is_filterable: bool = False  # Must be True
     refetch_records_until_x_hours_old: int = None
     default_query_params: Dict[str, Any] = None
 
@@ -294,7 +322,7 @@ class RefetchAll(HttpApiConnection):
     """
     Use this connector for endpoints that do not support any
     required filtering or sorting options. It will attempt to refetch
-    all records everytime run. 
+    all records everytime run.
     """
-    default_query_params: Dict[str, Any] = None
 
+    default_query_params: Dict[str, Any] = None

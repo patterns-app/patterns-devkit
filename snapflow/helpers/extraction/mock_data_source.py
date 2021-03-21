@@ -33,7 +33,11 @@ class GenericJsonObjectDataSource:
             num_objects = periods_passed % self.objects_per_period_modulo
             for i in range(num_objects):
                 objects.append(
-                    GenericJsonObject(id=id_, created_at=curr_dt, updated_at=curr_dt,)
+                    GenericJsonObject(
+                        id=id_,
+                        created_at=curr_dt,
+                        updated_at=curr_dt,
+                    )
                 )
                 id_ += 1
             curr_dt += timedelta(seconds=self.period_seconds)
