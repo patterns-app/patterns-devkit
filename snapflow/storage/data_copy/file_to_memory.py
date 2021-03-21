@@ -7,6 +7,7 @@ from snapflow.storage.data_copy.base import (
     Conversion,
     DiskToBufferCost,
     DiskToMemoryCost,
+    FormatConversionCost,
     NetworkToBufferCost,
     NetworkToMemoryCost,
     NoOpCost,
@@ -45,7 +46,7 @@ from snapflow.utils.data import read_csv
     from_data_formats=[DelimitedFileFormat],
     to_storage_classes=[PythonStorageClass],
     to_data_formats=[RecordsFormat],
-    cost=DiskToMemoryCost,
+    cost=DiskToMemoryCost + FormatConversionCost,
 )
 def copy_delim_file_to_records(
     from_name: str,
@@ -92,7 +93,7 @@ def copy_delim_file_to_file_object(
     from_data_formats=[JsonLinesFileFormat],
     to_storage_classes=[PythonStorageClass],
     to_data_formats=[ArrowTableFormat],
-    cost=DiskToMemoryCost,
+    cost=DiskToMemoryCost,  # TODO: conversion cost might be minimal cuz in C?
 )
 def copy_json_file_to_arrow(
     from_name: str,

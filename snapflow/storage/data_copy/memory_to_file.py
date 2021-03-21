@@ -4,7 +4,12 @@ from io import IOBase
 from typing import Sequence
 
 from snapflow.schema.base import Schema
-from snapflow.storage.data_copy.base import Conversion, DiskToMemoryCost, datacopy
+from snapflow.storage.data_copy.base import (
+    Conversion,
+    DiskToMemoryCost,
+    FormatConversionCost,
+    datacopy,
+)
 from snapflow.storage.data_formats import (
     DatabaseTableFormat,
     DatabaseTableRefFormat,
@@ -36,7 +41,7 @@ from snapflow.utils.data import SampleableIO, write_csv
     from_data_formats=[RecordsFormat, RecordsIteratorFormat],
     to_storage_classes=[FileSystemStorageClass],
     to_data_formats=[DelimitedFileFormat],
-    cost=DiskToMemoryCost,
+    cost=DiskToMemoryCost + FormatConversionCost,
 )
 def copy_records_to_delim_file(
     from_name: str,
@@ -90,7 +95,7 @@ def copy_file_object_to_delim_file(
     from_data_formats=[RecordsFormat, RecordsIteratorFormat],
     to_storage_classes=[FileSystemStorageClass],
     to_data_formats=[JsonLinesFileFormat],
-    cost=DiskToMemoryCost,
+    cost=DiskToMemoryCost,  # TODO: not much conversion cost, but some?
 )
 def copy_records_to_json_file(
     from_name: str,
