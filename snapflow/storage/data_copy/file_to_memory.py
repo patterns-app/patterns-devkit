@@ -1,9 +1,6 @@
 from __future__ import annotations
-from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
-from snapflow.storage.data_formats.json_lines_file import JsonLinesFileFormat
 
 from pyarrow import json as pa_json
-
 from snapflow.core.typing.inference import conform_records_to_schema
 from snapflow.schema.base import Schema
 from snapflow.storage.data_copy.base import (
@@ -22,11 +19,13 @@ from snapflow.storage.data_formats import (
     DatabaseTableRefFormat,
     RecordsFormat,
 )
+from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 from snapflow.storage.data_formats.delimited_file import DelimitedFileFormat
 from snapflow.storage.data_formats.delimited_file_object import (
     DelimitedFileObjectFormat,
     DelimitedFileObjectIteratorFormat,
 )
+from snapflow.storage.data_formats.json_lines_file import JsonLinesFileFormat
 from snapflow.storage.data_records import as_records
 from snapflow.storage.db.api import DatabaseStorageApi
 from snapflow.storage.db.utils import result_proxy_to_records

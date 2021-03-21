@@ -3,13 +3,11 @@ from __future__ import annotations
 from dataclasses import asdict
 from io import StringIO
 from typing import Callable
-from tests.utils import TestSchema4
-from snapflow.schema.base import SchemaTranslation
-from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 
 import pandas as pd
 import pyarrow as pa
 import pytest
+from snapflow.schema.base import SchemaTranslation
 from snapflow.storage.data_formats import (
     DatabaseCursorFormat,
     DataFormatBase,
@@ -20,11 +18,13 @@ from snapflow.storage.data_formats import (
     RecordsIterator,
     RecordsIteratorFormat,
 )
+from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 from snapflow.storage.data_formats.base import DataFormat, SampleableIterator
 from snapflow.storage.data_formats.delimited_file_object import (
     DelimitedFileObjectFormat,
     DelimitedFileObjectIteratorFormat,
 )
+from tests.utils import TestSchema4
 
 # Example formats
 df = pd.DataFrame({"a": range(10)})
@@ -148,7 +148,16 @@ from_formats = [rf, dff, dfif, rif, dlff]
 to_formats = [rf, dff]
 
 
-@pytest.mark.parametrize("fmt, obj_fn", [rf, dff, atf, rif, dfif,])
+@pytest.mark.parametrize(
+    "fmt, obj_fn",
+    [
+        rf,
+        dff,
+        atf,
+        rif,
+        dfif,
+    ],
+)
 def test_schema_transation(fmt: DataFormat, obj_fn: Callable):
     st = SchemaTranslation({"f1": "t1"}, TestSchema4)
     translated = fmt.apply_schema_translation(st, obj_fn())

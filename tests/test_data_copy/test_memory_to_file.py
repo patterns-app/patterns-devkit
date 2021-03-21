@@ -1,5 +1,4 @@
 from __future__ import annotations
-from snapflow.storage.data_formats.records import Records
 
 import json
 import tempfile
@@ -39,6 +38,7 @@ from snapflow.storage.data_formats.data_frame import DataFrameIteratorFormat
 from snapflow.storage.data_formats.delimited_file_object import (
     DelimitedFileObjectFormat,
 )
+from snapflow.storage.data_formats.records import Records
 from snapflow.storage.data_records import MemoryDataRecords, as_records
 from snapflow.storage.db.api import DatabaseApi, DatabaseStorageApi
 from snapflow.storage.file_system import FileSystemStorageApi
@@ -124,4 +124,3 @@ def test_records_to_json():
         recs = [json.loads(ln) for ln in f.readlines()]
         recs = RecordsFormat.conform_records_to_schema(recs, TestSchema4)
         assert recs == obj
-

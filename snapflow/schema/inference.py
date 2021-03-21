@@ -11,7 +11,6 @@ from pandas.core.series import Series
 from snapflow.schema.base import Field, Schema
 from snapflow.schema.field_types import (
     DEFAULT_FIELD_TYPE,
-    Json,
     LONG_TEXT,
     Boolean,
     Date,
@@ -21,6 +20,7 @@ from snapflow.schema.field_types import (
     FieldTypeBase,
     Float,
     Integer,
+    Json,
     LongText,
     Text,
     Time,

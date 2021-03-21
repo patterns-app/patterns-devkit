@@ -1,6 +1,4 @@
 from __future__ import annotations
-from snapflow.schema.field_types import ensure_field_type
-from snapflow.storage.data_formats.arrow_table import ArrowTable
 
 import traceback
 from collections.abc import Iterable
@@ -23,6 +21,7 @@ from snapflow.schema.base import (
     create_quick_schema,
 )
 from snapflow.schema.casting import cast_python_object_to_field_type
+from snapflow.schema.field_types import ensure_field_type
 from snapflow.schema.inference import (
     fields_from_sqlalchemy_table,
     infer_field_types_from_records,
@@ -31,6 +30,7 @@ from snapflow.schema.inference import (
     pandas_series_to_field_type,
 )
 from snapflow.storage.data_formats import Records
+from snapflow.storage.data_formats.arrow_table import ArrowTable
 from snapflow.utils.common import (
     ensure_bool,
     ensure_date,

@@ -9,7 +9,6 @@ from dateutil.tz import tzoffset
 from snapflow.schema.casting import cast_python_object_to_field_type
 from snapflow.schema.field_types import (
     DEFAULT_FIELD_TYPE,
-    Json,
     LONG_TEXT,
     Boolean,
     Date,
@@ -18,6 +17,7 @@ from snapflow.schema.field_types import (
     FieldType,
     Float,
     Integer,
+    Json,
     LongText,
     Text,
     Time,
@@ -55,20 +55,66 @@ numeric_types: List[FieldType] = [Integer, Float, Decimal]
 string_types: List[FieldType] = [Text, LongText]
 
 cases = [
-    Case(obj=bool_, maybes=[Boolean] + numeric_types, definitelys=[Boolean],),
-    Case(obj=int_, maybes=numeric_types, definitelys=[Integer],),
-    Case(obj=big_int, maybes=[Integer, Float, Decimal], definitelys=[Integer],),
-    Case(obj=float_, maybes=[Float, Decimal, Integer, Integer], definitelys=[Float],),
-    Case(obj=floatstr, maybes=string_types + [Float, Decimal], definitelys=[],),
-    Case(obj=date_, maybes=[DateTime, Date], definitelys=[Date],),
-    Case(obj=datestr, maybes=string_types + [DateTime, Date], definitelys=[],),
-    Case(obj=dateisostr, maybes=string_types + [DateTime, Date], definitelys=[Date],),
-    Case(obj=datetime_, maybes=[DateTime, Date], definitelys=[DateTime],),
     Case(
-        obj=datetimestr, maybes=string_types + [DateTime, Date], definitelys=[DateTime],
+        obj=bool_,
+        maybes=[Boolean] + numeric_types,
+        definitelys=[Boolean],
     ),
-    Case(obj=time_, maybes=[Time], definitelys=[Time],),
-    Case(obj=timestr, maybes=string_types + [Time], definitelys=[],),
+    Case(
+        obj=int_,
+        maybes=numeric_types,
+        definitelys=[Integer],
+    ),
+    Case(
+        obj=big_int,
+        maybes=[Integer, Float, Decimal],
+        definitelys=[Integer],
+    ),
+    Case(
+        obj=float_,
+        maybes=[Float, Decimal, Integer, Integer],
+        definitelys=[Float],
+    ),
+    Case(
+        obj=floatstr,
+        maybes=string_types + [Float, Decimal],
+        definitelys=[],
+    ),
+    Case(
+        obj=date_,
+        maybes=[DateTime, Date],
+        definitelys=[Date],
+    ),
+    Case(
+        obj=datestr,
+        maybes=string_types + [DateTime, Date],
+        definitelys=[],
+    ),
+    Case(
+        obj=dateisostr,
+        maybes=string_types + [DateTime, Date],
+        definitelys=[Date],
+    ),
+    Case(
+        obj=datetime_,
+        maybes=[DateTime, Date],
+        definitelys=[DateTime],
+    ),
+    Case(
+        obj=datetimestr,
+        maybes=string_types + [DateTime, Date],
+        definitelys=[DateTime],
+    ),
+    Case(
+        obj=time_,
+        maybes=[Time],
+        definitelys=[Time],
+    ),
+    Case(
+        obj=timestr,
+        maybes=string_types + [Time],
+        definitelys=[],
+    ),
     Case(obj=long_text, maybes=[LongText], definitelys=[]),
     Case(obj=json_, maybes=[Json], definitelys=[Json]),
 ]

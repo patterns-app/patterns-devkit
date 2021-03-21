@@ -1,8 +1,6 @@
 import json
 from collections.abc import Iterator
 from io import IOBase
-from snapflow.utils.common import SnapflowJSONEncoder
-from snapflow.storage.data_formats.json_lines_file import JsonLinesFileFormat
 from typing import Sequence
 
 from snapflow.schema.base import Schema
@@ -19,6 +17,7 @@ from snapflow.storage.data_formats.delimited_file_object import (
     DelimitedFileObjectFormat,
     DelimitedFileObjectIteratorFormat,
 )
+from snapflow.storage.data_formats.json_lines_file import JsonLinesFileFormat
 from snapflow.storage.db.api import DatabaseStorageApi
 from snapflow.storage.file_system import FileSystemStorageApi
 from snapflow.storage.storage import (
@@ -28,6 +27,7 @@ from snapflow.storage.storage import (
     PythonStorageClass,
     StorageApi,
 )
+from snapflow.utils.common import SnapflowJSONEncoder
 from snapflow.utils.data import SampleableIO, write_csv
 
 

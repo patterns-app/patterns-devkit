@@ -1,9 +1,9 @@
 from __future__ import annotations
-from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 import pandas as pd
+from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 from snapflow.storage.data_formats.base import (
     DataFormat,
     DataFormatBase,

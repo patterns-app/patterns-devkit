@@ -1,4 +1,3 @@
-from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 from typing import Sequence
 
 import pandas as pd
@@ -20,6 +19,7 @@ from snapflow.storage.data_formats import (
     RecordsFormat,
     RecordsIteratorFormat,
 )
+from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 from snapflow.storage.data_formats.data_frame import (
     DataFrameFormat,
     DataFrameIterator,

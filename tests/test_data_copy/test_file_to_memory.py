@@ -1,16 +1,16 @@
 from __future__ import annotations
-from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
-from snapflow.storage.data_formats.json_lines_file import JsonLinesFileFormat
 
 import tempfile
-import pyarrow as pa
 
+import pyarrow as pa
 from snapflow.storage.data_copy.base import Conversion, StorageFormat
 from snapflow.storage.data_copy.file_to_memory import (
     copy_delim_file_to_records,
     copy_json_file_to_arrow,
 )
 from snapflow.storage.data_formats import DelimitedFileFormat, RecordsFormat
+from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
+from snapflow.storage.data_formats.json_lines_file import JsonLinesFileFormat
 from snapflow.storage.file_system import FileSystemStorageApi
 from snapflow.storage.storage import (
     LocalPythonStorageEngine,

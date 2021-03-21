@@ -1,5 +1,4 @@
 from __future__ import annotations
-from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 
 import tempfile
 import types
@@ -32,6 +31,7 @@ from snapflow.storage.data_formats import (
     RecordsFormat,
     RecordsIteratorFormat,
 )
+from snapflow.storage.data_formats.arrow_table import ArrowTableFormat
 from snapflow.storage.data_formats.base import DataFormat
 from snapflow.storage.data_formats.data_frame import DataFrameIteratorFormat
 from snapflow.storage.data_formats.delimited_file_object import (
@@ -70,7 +70,8 @@ to_formats = [rf, dff, af]
 
 
 @pytest.mark.parametrize(
-    "from_fmt,to_fmt", product(from_formats, to_formats),
+    "from_fmt,to_fmt",
+    product(from_formats, to_formats),
 )
 def test_mem_to_mem(from_fmt, to_fmt):
     from_fmt, obj = from_fmt
