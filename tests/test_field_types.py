@@ -9,7 +9,6 @@ from dateutil.tz import tzoffset
 from snapflow.schema.casting import cast_python_object_to_field_type
 from snapflow.schema.field_types import (
     DEFAULT_FIELD_TYPE,
-    JSON,
     LONG_TEXT,
     Boolean,
     Date,
@@ -18,6 +17,7 @@ from snapflow.schema.field_types import (
     FieldType,
     Float,
     Integer,
+    Json,
     LongText,
     Text,
     Time,
@@ -116,7 +116,7 @@ cases = [
         definitelys=[],
     ),
     Case(obj=long_text, maybes=[LongText], definitelys=[]),
-    Case(obj=json_, maybes=[JSON], definitelys=[JSON]),
+    Case(obj=json_, maybes=[Json], definitelys=[Json]),
 ]
 
 
@@ -184,7 +184,7 @@ expected_field_types = {
     "a": DateTime(),
     "b": Text(),
     "c": Integer(),
-    "d": JSON(),
+    "d": Json(),
     "e": Text(),
     "f": Text(),
     "g": Integer(),
@@ -267,10 +267,10 @@ D = decimal.Decimal
         ),
         (DateTime, 1577836800, datetime(2020, 1, 1)),
         (DateTime, "Hello world", ERROR),
-        (JSON, [1, 2], [1, 2]),
-        (JSON, {"a": 2}, {"a": 2}),
-        (JSON, '{"1":2}', {"1": 2}),
-        # (JSON, None, None),
+        (Json, [1, 2], [1, 2]),
+        (Json, {"a": 2}, {"a": 2}),
+        (Json, '{"1":2}', {"1": 2}),
+        # (Json, None, None),
         # (Boolean, "Hi", None),  # If we ignore the error, it should be null
         (Date, "2020-01-01", date(2020, 1, 1)),
         (Date, "2020-01-01 00:00:00", date(2020, 1, 1)),
