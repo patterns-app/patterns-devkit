@@ -7,6 +7,7 @@ from snapflow.storage.data_copy.base import (
     BufferToBufferCost,
     Conversion,
     DiskToMemoryCost,
+    FormatConversionCost,
     MemoryToBufferCost,
     MemoryToMemoryCost,
     NoOpCost,
@@ -54,7 +55,7 @@ from snapflow.utils.pandas import dataframe_to_records, records_to_dataframe
     from_data_formats=[RecordsFormat],
     to_storage_classes=[PythonStorageClass],
     to_data_formats=[DataFrameFormat],
-    cost=MemoryToMemoryCost,
+    cost=MemoryToMemoryCost + FormatConversionCost,
 )
 def copy_records_to_df(
     from_name: str,
@@ -78,7 +79,7 @@ def copy_records_to_df(
     from_data_formats=[DataFrameFormat],
     to_storage_classes=[PythonStorageClass],
     to_data_formats=[RecordsFormat],
-    cost=MemoryToMemoryCost,
+    cost=MemoryToMemoryCost + FormatConversionCost,
 )
 def copy_df_to_records(
     from_name: str,
@@ -102,7 +103,7 @@ def copy_df_to_records(
     from_data_formats=[DataFrameIteratorFormat],
     to_storage_classes=[PythonStorageClass],
     to_data_formats=[RecordsIteratorFormat],
-    cost=BufferToBufferCost,
+    cost=BufferToBufferCost + FormatConversionCost,
 )
 def copy_df_iterator_to_records_iterator(
     from_name: str,
@@ -126,7 +127,7 @@ def copy_df_iterator_to_records_iterator(
     from_data_formats=[RecordsIteratorFormat],
     to_storage_classes=[PythonStorageClass],
     to_data_formats=[DataFrameIteratorFormat],
-    cost=BufferToBufferCost,
+    cost=BufferToBufferCost + FormatConversionCost,
 )
 def copy_records_iterator_to_df_iterator(
     from_name: str,
@@ -202,7 +203,7 @@ def copy_dataframe_iterator_to_dataframe(
     from_data_formats=[DelimitedFileObjectFormat],
     to_storage_classes=[PythonStorageClass],
     to_data_formats=[RecordsFormat],
-    cost=MemoryToBufferCost,
+    cost=MemoryToBufferCost + FormatConversionCost,
 )
 def copy_file_object_to_records(
     from_name: str,
@@ -226,7 +227,7 @@ def copy_file_object_to_records(
     from_data_formats=[DelimitedFileObjectFormat],
     to_storage_classes=[PythonStorageClass],
     to_data_formats=[RecordsIteratorFormat],
-    cost=BufferToBufferCost,
+    cost=BufferToBufferCost + FormatConversionCost,
 )
 def copy_file_object_to_records_iterator(
     from_name: str,
@@ -255,7 +256,7 @@ def copy_file_object_to_records_iterator(
     from_data_formats=[DelimitedFileObjectIteratorFormat],
     to_storage_classes=[PythonStorageClass],
     to_data_formats=[RecordsIteratorFormat],
-    cost=BufferToBufferCost,
+    cost=BufferToBufferCost + FormatConversionCost,
 )
 def copy_file_object_iterator_to_records_iterator(
     from_name: str,

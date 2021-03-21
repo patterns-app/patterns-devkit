@@ -48,26 +48,28 @@ BUFFER_SIZE = 100
 class DataCopyCost:
     # TODO: we're not really using the cost parameter n
     # Maybe easier to just assume data n >> buffer n and nothing else matters?
-    wire_cost: CostFunction
-    memory_cost: CostFunction
-    time_cost: CostFunction = (
-        lambda n: n
-    )  # Always the same? this is just dumb data copying
+    wire_cost: CostFunction = lambda n: 0
+    memory_cost: CostFunction = lambda n: 0
+    cpu_cost: CostFunction = lambda n: 0  # Really just for costly format conversions
+    cpu_cost_weight = 0.5
+    memory_cost_weight = 0.5
 
     def total_cost(self, n: int) -> int:
-        return self.wire_cost(n) + self.time_cost(n) + self.memory_cost(n)
+        return round(
+            self.wire_cost(n)
+            + self.cpu_cost(n) * self.cpu_cost_weight
+            + self.memory_cost(n) * self.memory_cost_weight
+        )
 
     def __add__(self, other: DataCopyCost) -> DataCopyCost:
         return DataCopyCost(
             wire_cost=lambda n: self.wire_cost(n) + other.wire_cost(n),
             memory_cost=lambda n: self.memory_cost(n) + other.memory_cost(n),
-            time_cost=lambda n: self.time_cost(n) + other.time_cost(n),
+            cpu_cost=lambda n: self.cpu_cost(n) + other.cpu_cost(n),
         )
 
 
-NoOpCost = DataCopyCost(
-    wire_cost=lambda n: 0, memory_cost=lambda n: 0, time_cost=lambda n: 0
-)
+NoOpCost = DataCopyCost()
 BufferToBufferCost = DataCopyCost(
     wire_cost=lambda n: 0, memory_cost=lambda n: BUFFER_SIZE
 )
@@ -86,6 +88,7 @@ NetworkToMemoryCost = DataCopyCost(
 NetworkToBufferCost = DataCopyCost(
     wire_cost=(lambda n: n * 5), memory_cost=lambda n: BUFFER_SIZE
 )
+FormatConversionCost = DataCopyCost(cpu_cost=lambda n: n)
 
 
 @dataclass(frozen=True)
@@ -129,15 +132,7 @@ class ConversionPath:
 
 
 CopierCallabe = Callable[
-    [
-        str,
-        str,
-        Conversion,
-        StorageApi,
-        StorageApi,
-        Schema,
-    ],
-    None,
+    [str, str, Conversion, StorageApi, StorageApi, Schema,], None,
 ]
 
 
