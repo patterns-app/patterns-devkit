@@ -38,9 +38,7 @@ class GraphMetadata(BaseModel):
     adjacency = Column(JSON)
 
     def __repr__(self) -> str:
-        return self._repr(
-            hash=self.hash,
-        )
+        return self._repr(hash=self.hash,)
 
 
 class DeclaredGraph:
@@ -244,7 +242,7 @@ def load_graph_from_dict(raw_graph: Dict[str, Any]) -> DeclaredGraph:
     """
     nodes:
       - key: node1
-        snap: core.extract_csv
+        snap: core.import_local_csv
         output_dataset_name: csv1
         inputs:
           input: othernode

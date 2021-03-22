@@ -52,11 +52,7 @@ def test_worker():
         w = Worker(ec)
         dfi_mgr = NodeInterfaceManager(ec, sess, node)
         bdfi = dfi_mgr.get_bound_interface()
-        r = Executable(
-            node.key,
-            CompiledSnap(node.snap.key, node.snap),
-            bdfi,
-        )
+        r = Executable(node.key, CompiledSnap(node.snap.key, node.snap), bdfi,)
         run_result = w.execute(r)
         assert run_result.output_block_id is None
         assert sess.query(SnapLog).count() == 1
@@ -84,11 +80,7 @@ def test_worker_output():
         w = Worker(ec)
         dfi_mgr = NodeInterfaceManager(ec, sess, node)
         bdfi = dfi_mgr.get_bound_interface()
-        r = Executable(
-            node.key,
-            CompiledSnap(node.snap.key, node.snap),
-            bdfi,
-        )
+        r = Executable(node.key, CompiledSnap(node.snap.key, node.snap), bdfi,)
         run_result = w.execute(r)
         outputblock = sess.query(DataBlockMetadata).get(run_result.output_block_id)
         assert outputblock is not None
@@ -132,7 +124,7 @@ def test_non_terminating_snap_with_reference_input():
     rt = env.runtimes[0]
     ec = env.get_run_context(g, current_runtime=rt)
     source = g.create_node(
-        snap="core.extract_dataframe",
+        snap="core.import_dataframe",
         params={"dataframe": pd.DataFrame({"a": range(10)})},
     )
     node = g.create_node(key="node", snap=never_stop, input=source)

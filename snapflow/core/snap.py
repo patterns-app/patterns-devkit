@@ -39,11 +39,7 @@ class InputExhaustedException(SnapException):
 SnapCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    DatabaseTableRef,
-    DataBlockMetadata,
-    DataBlock,
+    DataFrame, Records, DatabaseTableRef, DataBlockMetadata, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -95,6 +91,8 @@ class _Snap:
     ignore_signature: bool = (
         False  # Whether to ignore signature if there are any declared i/o
     )
+    display_name: Optional[str] = None
+    description: Optional[str] = None
 
     # TODO: runtime engine eg "mysql>=8.0", "python==3.7.4"  ???
     # TODO: runtime dependencies
@@ -193,6 +191,8 @@ def snap_factory(
             declared_output=kwargs.get("declared_output") or snap_like.declared_output,
             ignore_signature=kwargs.get("ignore_signature")
             or snap_like.ignore_signature,
+            display_name=kwargs.get("display_name") or snap_like.display_name,
+            description=kwargs.get("description") or snap_like.description,
         )
     else:
         if module is None:
@@ -307,11 +307,7 @@ def add_param_decorator(
     help: str = "",
 ):
     p = Parameter(
-        name=name,
-        datatype=datatype,
-        required=required,
-        default=default,
-        help=help,
+        name=name, datatype=datatype, required=required, default=default, help=help,
     )
 
     def dec(snap_like: Union[SnapCallable, _Snap]) -> _Snap:

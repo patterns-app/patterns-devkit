@@ -16,9 +16,9 @@ module = SnapflowModule(
         dedupe.dataframe_dedupe_unique_keep_newest_row,
         accumulator.sql_accumulator,
         accumulator.dataframe_accumulator,
-        static.extract_dataframe,
-        static.extract_csv,
-        static.extract_storage_csv,
+        static.import_dataframe,
+        static.import_local_csv,
+        static.import_storage_csv,
     ],
     tests=[
         accumulator.test_accumulator,

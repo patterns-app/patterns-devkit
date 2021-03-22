@@ -406,8 +406,7 @@ class SnapContext:  # TODO: (Generic[C, S]):
         nominal_output_schema = schema
         if nominal_output_schema is None:
             nominal_output_schema = self.executable.bound_interface.resolve_nominal_output_schema(
-                self.run_context.env,
-                self.execution_session.metadata_session,
+                self.run_context.env, self.execution_session.metadata_session,
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
         logger.debug(
             f"Resolved output schema {nominal_output_schema} {self.executable.bound_interface}"
@@ -545,11 +544,11 @@ class ExecutionManager:
                     not to_exhaustion
                     or not last_execution_result.non_reference_inputs_bound
                     # or not last_execution_result.inputs_bound
-                ):  # TODO: We just run no-input DFs (source extractors) once no matter what
+                ):  # TODO: We just run no-input DFs (sources) once no matter what
                     # (they are responsible for creating their own generators)
                     break
             self.log_execution_result(cumulative_execution_result)
-        except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that extractors don't throw)
+        except InputExhaustedException as e:  # TODO: i don't think we need this out here anymore (now that sources don't throw)
             logger.debug(INDENT + cf.warning("Input Exhausted"))
             if e.args:
                 logger.debug(e)
@@ -583,10 +582,7 @@ class ExecutionManager:
         snap = node.snap
         executable = Executable(
             node_key=node.key,
-            compiled_snap=CompiledSnap(
-                key=node.key,
-                snap=snap,
-            ),
+            compiled_snap=CompiledSnap(key=node.key, snap=snap,),
             # bound_interface=interface_mgr.get_bound_interface(),
             params=node.params or {},
         )

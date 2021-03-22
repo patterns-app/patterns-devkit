@@ -27,6 +27,9 @@ from snapflow.utils.typing import T, V
 
 
 """
+WIP - Helpers for building source connection snaps
+
+
 # API fetching basics
 To fetch an API and keep all records up-to-date we need:
  - reliable way to track incremental progress and restart where last left off

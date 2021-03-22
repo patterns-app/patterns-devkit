@@ -64,7 +64,7 @@ FAIL_MSG = "Failure triggered"
 def customer_source(ctx: SnapContext) -> RecordsIterator[Customer]:
     N = ctx.get_param("total_records")
     fail = ctx.get_param("fail")
-    n = ctx.get_state_value("records_extracted", 0)
+    n = ctx.get_state_value("records_imported", 0)
     if n >= N:
         return
     for i in range(2):
@@ -79,7 +79,7 @@ def customer_source(ctx: SnapContext) -> RecordsIterator[Customer]:
             )
             n += 1
         yield records
-        ctx.emit_state_value("records_extracted", n)
+        ctx.emit_state_value("records_imported", n)
         if fail:
             # Fail AFTER yielding one record set
             raise Exception(FAIL_MSG)
@@ -138,13 +138,13 @@ def get_env():
     return env
 
 
-def test_simple_extract():
+def test_simple_import():
     dburl = get_tmp_sqlite_db_url()
     env = Environment(metadata_storage=dburl)
     g = Graph(env)
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
-    g.create_node(key="n1", snap="extract_dataframe", params={"dataframe": df})
+    g.create_node(key="n1", snap="import_dataframe", params={"dataframe": df})
     output = env.produce("n1", g)
     assert_almost_equal(output.as_dataframe(), df)
 
@@ -230,13 +230,13 @@ def test_snap_failure():
         assert pl.node_key == source.key
         assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {}
-        assert pl.node_end_state == {"records_extracted": 2}
+        assert pl.node_end_state == {"records_imported": 2}
         assert pl.snap_key == source.snap.key
         assert pl.snap_params == cfg
         assert pl.error is not None
         assert FAIL_MSG in pl.error["error"]
         ns = sess.query(NodeState).filter(NodeState.node_key == pl.node_key).first()
-        assert ns.state == {"records_extracted": 2}
+        assert ns.state == {"records_imported": 2}
 
     source.params["fail"] = False
     output = produce(source, graph=g, target_storage=s, env=env)
@@ -248,13 +248,13 @@ def test_snap_failure():
         pl = sess.query(SnapLog).order_by(SnapLog.completed_at.desc()).first()
         assert pl.node_key == source.key
         assert pl.graph_id == g.get_metadata_obj().hash
-        assert pl.node_start_state == {"records_extracted": 2}
-        assert pl.node_end_state == {"records_extracted": 6}
+        assert pl.node_start_state == {"records_imported": 2}
+        assert pl.node_end_state == {"records_imported": 6}
         assert pl.snap_key == source.snap.key
         assert pl.snap_params == cfg
         assert pl.error is None
         ns = sess.query(NodeState).filter(NodeState.node_key == pl.node_key).first()
-        assert ns.state == {"records_extracted": 6}
+        assert ns.state == {"records_imported": 6}
 
 
 def test_node_reset():

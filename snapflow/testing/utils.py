@@ -103,7 +103,7 @@ def produce_snap_output_for_static_input(
                 input_data = DataInput(data=input_data)
             n = g.create_node(
                 key=f"_input_{inpt.name}",
-                snap="core.extract_dataframe",
+                snap="core.import_dataframe",
                 params={
                     "dataframe": input_data.as_dataframe(env, sess),
                     "schema": input_data.get_schema_key(),
