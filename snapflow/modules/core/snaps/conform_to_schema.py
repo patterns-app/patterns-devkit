@@ -25,11 +25,13 @@ from snapflow.utils.pandas import assert_dataframes_are_almost_equal
 from snapflow.utils.typing import T
 
 
-@Snap("dataframe_conform_to_schema", module="core")
-def dataframe_conform_to_schema(
-    ctx: SnapContext,
-    input: DataBlock,
-) -> DataFrame:
+@Snap(
+    "dataframe_conform_to_schema",
+    module="core",
+    display_name="Conform DataFrame to Schema",
+)
+def dataframe_conform_to_schema(ctx: SnapContext, input: DataBlock,) -> DataFrame:
+    # TODO: this vs just-in-time field name transation?
     env = ctx.run_context.env
     to_schema_key = ctx.get_param("schema")
     to_schema = env.get_schema(to_schema_key, ctx.execution_session.metadata_session)
@@ -77,6 +79,7 @@ sql_conform_to_schema = sql_snap(
     sql="select * from input",
     module="core",
     wrapper_cls=SqlConformToSchema,
+    display_name="Conform Table to Schema",
 )
 
 

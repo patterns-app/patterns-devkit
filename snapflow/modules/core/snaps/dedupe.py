@@ -17,7 +17,11 @@ from snapflow.utils.typing import T
 # TODO: is there a generic minimal ANSI sql solution to dedupe keep newest? hmmmm
 #  Does not appear to be, only hacks that require the sort column to be unique
 # TODO: tests!
-@SqlSnap(module="core", compatible_runtimes="postgres")
+@SqlSnap(
+    module="core",
+    compatible_runtimes="postgres",
+    display_name="Dedupe Table (keep newest)",
+)
 def sql_dedupe_unique_keep_newest_row():
     sql = """
         select:T
@@ -46,7 +50,11 @@ def sql_dedupe_unique_keep_newest_row():
     return sql
 
 
-@Snap("dataframe_dedupe_unique_keep_newest_row", module="core")
+@Snap(
+    "dataframe_dedupe_unique_keep_newest_row",
+    module="core",
+    display_name="Dedupe DataFrame (keep newest)",
+)
 def dataframe_dedupe_unique_keep_newest_row(input: DataBlock[T]) -> DataFrame[T]:
     if input.nominal_schema is None or not input.nominal_schema.unique_on:
         return input.as_dataframe()  # TODO: make this a no-op

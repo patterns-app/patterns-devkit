@@ -22,10 +22,9 @@ from snapflow.utils.typing import T
 # @snap(module="core")
 # @input("input", schema="T")
 # @input("previous", schema="T", recursive_from_self=True)
-@Snap(module="core")
+@Snap(module="core", display_name="Accumulate DataFrames")
 def dataframe_accumulator(
-    input: Stream[T],
-    this: Optional[DataBlock[T]] = None,
+    input: Stream[T], this: Optional[DataBlock[T]] = None,
 ) -> DataFrame[T]:
     # TODO: make this return a dataframe iterator right?
     accumulated_dfs = [block.as_dataframe() for block in input]
@@ -40,7 +39,7 @@ def dataframe_accumulator(
 @Input("previous", schema="T", from_self=True)
 @Input("new", schema="T", stream=True)
 @Output(schema="T")
-@SqlSnap(module="core", autodetect_inputs=False)
+@SqlSnap(module="core", autodetect_inputs=False, display_name="Accumulate Tables")
 def sql_accumulator():
     sql = """
     {% if input_objects.previous.bound_block %}
