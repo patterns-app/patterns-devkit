@@ -406,7 +406,8 @@ class SnapContext:  # TODO: (Generic[C, S]):
         nominal_output_schema = schema
         if nominal_output_schema is None:
             nominal_output_schema = self.executable.bound_interface.resolve_nominal_output_schema(
-                self.run_context.env, self.execution_session.metadata_session,
+                self.run_context.env,
+                self.execution_session.metadata_session,
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
         logger.debug(
             f"Resolved output schema {nominal_output_schema} {self.executable.bound_interface}"
@@ -582,7 +583,10 @@ class ExecutionManager:
         snap = node.snap
         executable = Executable(
             node_key=node.key,
-            compiled_snap=CompiledSnap(key=node.key, snap=snap,),
+            compiled_snap=CompiledSnap(
+                key=node.key,
+                snap=snap,
+            ),
             # bound_interface=interface_mgr.get_bound_interface(),
             params=node.params or {},
         )

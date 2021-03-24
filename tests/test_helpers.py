@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from snapflow.helpers.extraction.mock_data_source import GenericJsonObjectDataSource
+from snapflow.helpers.connectors.mock_data_source import GenericJsonObjectDataSource
 
 
 def test_data_source():

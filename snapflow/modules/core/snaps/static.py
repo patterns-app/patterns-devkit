@@ -21,7 +21,9 @@ class LocalImportState:
 
 
 @Snap(
-    module="core", state_class=LocalImportState, display_name="Import Pandas DataFrame",
+    module="core",
+    state_class=LocalImportState,
+    display_name="Import Pandas DataFrame",
 )
 @Param("dataframe", datatype="DataFrame")
 @Param("schema", datatype="str")
@@ -69,4 +71,3 @@ def import_storage_csv(ctx: SnapContext) -> MemoryDataRecords:
     ctx.emit_state_value("imported", True)
     schema = ctx.get_param("schema")
     return as_records(f, data_format=DelimitedFileObjectFormat, schema=schema)
-
