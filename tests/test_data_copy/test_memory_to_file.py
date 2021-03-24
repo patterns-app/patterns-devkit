@@ -119,7 +119,6 @@ def test_records_to_json():
         name, name, conversion, mem_api, fs_api, schema=TestSchema4
     )
     with fs_api.open(name) as f:
-        print(f.read())
         f.seek(0)
         recs = [json.loads(ln) for ln in f.readlines()]
         recs = RecordsFormat.conform_records_to_schema(recs, TestSchema4)

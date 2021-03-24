@@ -52,7 +52,11 @@ def test_worker():
         w = Worker(ec)
         dfi_mgr = NodeInterfaceManager(ec, sess, node)
         bdfi = dfi_mgr.get_bound_interface()
-        r = Executable(node.key, CompiledSnap(node.snap.key, node.snap), bdfi,)
+        r = Executable(
+            node.key,
+            CompiledSnap(node.snap.key, node.snap),
+            bdfi,
+        )
         run_result = w.execute(r)
         assert run_result.output_block_id is None
         assert sess.query(SnapLog).count() == 1
@@ -80,7 +84,11 @@ def test_worker_output():
         w = Worker(ec)
         dfi_mgr = NodeInterfaceManager(ec, sess, node)
         bdfi = dfi_mgr.get_bound_interface()
-        r = Executable(node.key, CompiledSnap(node.snap.key, node.snap), bdfi,)
+        r = Executable(
+            node.key,
+            CompiledSnap(node.snap.key, node.snap),
+            bdfi,
+        )
         run_result = w.execute(r)
         outputblock = sess.query(DataBlockMetadata).get(run_result.output_block_id)
         assert outputblock is not None

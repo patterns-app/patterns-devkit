@@ -30,7 +30,10 @@ from snapflow.utils.typing import T
     module="core",
     display_name="Conform DataFrame to Schema",
 )
-def dataframe_conform_to_schema(ctx: SnapContext, input: DataBlock,) -> DataFrame:
+def dataframe_conform_to_schema(
+    ctx: SnapContext,
+    input: DataBlock,
+) -> DataFrame:
     # TODO: this vs just-in-time field name transation?
     env = ctx.run_context.env
     to_schema_key = ctx.get_param("schema")

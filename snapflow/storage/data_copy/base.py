@@ -132,7 +132,15 @@ class ConversionPath:
 
 
 CopierCallabe = Callable[
-    [str, str, Conversion, StorageApi, StorageApi, Schema,], None,
+    [
+        str,
+        str,
+        Conversion,
+        StorageApi,
+        StorageApi,
+        Schema,
+    ],
+    None,
 ]
 
 
