@@ -136,11 +136,11 @@ def check_casts(
                 #     )
                 if warn_on_downcast:
                     warnings.warn(
-                        f"Down-casting field: {f.field_type} to {new_f.field_type}"
+                        f"Downcasting field '{f.name}': {f.field_type} to {new_f.field_type}"
                     )
                 if fail_on_downcast:
                     raise SchemaTypeError(
-                        f"Cannot cast (FAIL_ON_DOWNCAST=True): {f.field_type} to {new_f.field_type} "
+                        f"Cannot cast (FAIL_ON_DOWNCAST=True) '{f.name}': {f.field_type} to {new_f.field_type} "
                     )
         except NameError:
             pass
