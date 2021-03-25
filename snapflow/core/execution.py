@@ -158,7 +158,9 @@ class ExecutionResult:
 
     def set_error(self, e: Exception):
         tback = traceback.format_exc()
-        self.error = str(e)
+        self.error = (
+            str(e) or type(e).__name__
+        )  # MUST evaluate true if there's an error!
         # Traceback can be v large (like in max recursion), so we truncate to 5k chars
         self.traceback = tback[:5000]
 
@@ -406,8 +408,7 @@ class SnapContext:  # TODO: (Generic[C, S]):
         nominal_output_schema = schema
         if nominal_output_schema is None:
             nominal_output_schema = self.executable.bound_interface.resolve_nominal_output_schema(
-                self.run_context.env,
-                self.execution_session.metadata_session,
+                self.run_context.env, self.execution_session.metadata_session,
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
         logger.debug(
             f"Resolved output schema {nominal_output_schema} {self.executable.bound_interface}"
@@ -583,10 +584,7 @@ class ExecutionManager:
         snap = node.snap
         executable = Executable(
             node_key=node.key,
-            compiled_snap=CompiledSnap(
-                key=node.key,
-                snap=snap,
-            ),
+            compiled_snap=CompiledSnap(key=node.key, snap=snap,),
             # bound_interface=interface_mgr.get_bound_interface(),
             params=node.params or {},
         )
@@ -647,9 +645,10 @@ class Worker:
                     snap_args.append(snap_ctx)
                 snap_inputs = executable.bound_interface.inputs_as_kwargs()
                 snap_kwargs = snap_inputs
-                # Actually run the snap
                 # TODO: tighten up the contextmanager to around just this call!
+                #       Otherwise we are catching framework errors as snap errors
                 try:
+                    # Actually run the snap
                     output_obj = executable.compiled_snap.snap.snap_callable(
                         *snap_args, **snap_kwargs
                     )
@@ -660,6 +659,8 @@ class Worker:
                 finally:
                     # execution_session.metadata_session.commit()
                     pass
+                # One last input block log (in case no outputs)
+                snap_ctx.log_input_blocks()
         except Exception as e:
             result.set_error(e)
             if self.ctx.raise_on_error:
