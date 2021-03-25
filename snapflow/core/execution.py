@@ -406,8 +406,7 @@ class SnapContext:  # TODO: (Generic[C, S]):
         nominal_output_schema = schema
         if nominal_output_schema is None:
             nominal_output_schema = self.executable.bound_interface.resolve_nominal_output_schema(
-                self.run_context.env,
-                self.execution_session.metadata_session,
+                self.run_context.env, self.execution_session.metadata_session,
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
         logger.debug(
             f"Resolved output schema {nominal_output_schema} {self.executable.bound_interface}"
@@ -583,10 +582,7 @@ class ExecutionManager:
         snap = node.snap
         executable = Executable(
             node_key=node.key,
-            compiled_snap=CompiledSnap(
-                key=node.key,
-                snap=snap,
-            ),
+            compiled_snap=CompiledSnap(key=node.key, snap=snap,),
             # bound_interface=interface_mgr.get_bound_interface(),
             params=node.params or {},
         )
@@ -650,9 +646,17 @@ class Worker:
                 # Actually run the snap
                 # TODO: tighten up the contextmanager to around just this call!
                 try:
+                    # snap = executable.compiled_snap.snap
+                    # local_vars = locals()
+                    # if hasattr(snap, "_locals"):
+                    #     local_vars.update(snap._locals)
+                    # exec(snap.get_source_code(), globals(), local_vars)
+                    # output_obj = local_vars[snap.snap_callable.__name__](
+                    print("callable", executable.compiled_snap.snap.snap_callable)
                     output_obj = executable.compiled_snap.snap.snap_callable(
-                        *snap_args, **snap_kwargs
+                        *snap_args, **snap_kwargs,
                     )
+                    print("out", output_obj)
                     for res in self.process_execution_result(
                         executable, execution_session, output_obj, snap_ctx
                     ):

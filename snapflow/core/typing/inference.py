@@ -12,9 +12,6 @@ from loguru import logger
 from pandas import DataFrame, Series
 from snapflow.core.module import DEFAULT_LOCAL_MODULE
 from snapflow.schema.base import (
-    DEFAULT_UNICODE_TEXT_TYPE,
-    DEFAULT_UNICODE_TYPE,
-    MAX_UNICODE_LENGTH,
     Field,
     Schema,
     create_quick_field,

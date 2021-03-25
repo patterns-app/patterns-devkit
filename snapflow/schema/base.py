@@ -46,10 +46,6 @@ if TYPE_CHECKING:
 #         kwargs = {k.arg: k.value.id for k in ast_call.args}
 #         return FieldType(field_type_class=tipe, args=args, kwargs=kwargs,)
 
-MAX_UNICODE_LENGTH = 255
-DEFAULT_UNICODE_TYPE = f"Unicode({MAX_UNICODE_LENGTH})"
-DEFAULT_UNICODE_TEXT_TYPE = "UnicodeText"
-
 
 @dataclass(frozen=True)
 class Field:

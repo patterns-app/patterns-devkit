@@ -39,11 +39,7 @@ class InputExhaustedException(SnapException):
 SnapCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    DatabaseTableRef,
-    DataBlockMetadata,
-    DataBlock,
+    DataFrame, Records, DatabaseTableRef, DataBlockMetadata, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -143,6 +139,8 @@ class _Snap:
         # TODO: more principled approach (can define a "get_source_code" otherwise we inspect?)
         if isinstance(self.snap_callable, SqlSnapWrapper):
             return self.snap_callable.sql
+        if hasattr(self.snap_callable, "_code"):
+            return self.snap_callable._code
         return inspect.getsource(self.snap_callable)
 
 
@@ -168,7 +166,7 @@ def snap_factory(
         else:
             module_name = module
         # Because we default to local module if not specified, but allow chaining decorators
-        # (like Snap(module="core")(Param(Param.....))) we must undo adding to default local
+        # (like Snap(module="core")(Param(...)(Param.....))) we must undo adding to default local
         # module if we later run into a specified module.
         if (
             snap_like.module_name
@@ -311,11 +309,7 @@ def add_param_decorator(
     help: str = "",
 ):
     p = Parameter(
-        name=name,
-        datatype=datatype,
-        required=required,
-        default=default,
-        help=help,
+        name=name, datatype=datatype, required=required, default=default, help=help,
     )
 
     def dec(snap_like: Union[SnapCallable, _Snap]) -> _Snap:
@@ -343,6 +337,38 @@ def ensure_snap(env: Environment, snap_like: Union[SnapLike, str]) -> _Snap:
     if isinstance(snap_like, str):
         return env.get_snap(snap_like)
     return make_snap(snap_like)
+
+
+class PythonCodeSnapWrapper:
+    def __init__(self, code):
+        self.code = code
+
+    def get_snap(self) -> _Snap:
+        local_vars = locals()
+        exec(self.code, globals(), local_vars)
+        snap = None
+        for v in local_vars.values():
+            if isinstance(v, _Snap):
+                snap = v
+                break
+        else:
+            raise Exception("Snap not found in code")
+        return snap
+
+    def get_interface(self) -> DeclaredSnapInterface:
+        return self.get_snap().get_interface()
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.get_snap(), name)
+
+    def __call__(self, *args: SnapContext, **inputs: DataInterfaceType) -> Any:
+        snap = self.get_snap()
+        code = self.code + f"\nret = {snap.snap_callable.__name__}(*args, **inputs)"
+        scope = globals()
+        scope["args"] = args
+        scope["inputs"] = inputs
+        exec(code, scope)
+        return scope["ret"]
 
 
 # Decorator API
