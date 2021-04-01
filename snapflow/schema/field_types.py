@@ -541,6 +541,7 @@ def str_to_field_type(s: str) -> FieldType:
         # Sqlalchemy
         "integer": Integer,
         "biginteger": Integer,
+        "bigint": Integer,
         "numeric": Decimal,
         "real": Float,
         "date": Date,
