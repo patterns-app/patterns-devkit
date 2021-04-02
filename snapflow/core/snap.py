@@ -141,7 +141,11 @@ class _Snap:
             return self.snap_callable.sql
         if hasattr(self.snap_callable, "_code"):
             return self.snap_callable._code
-        return inspect.getsource(self.snap_callable)
+        try:
+            return inspect.getsource(self.snap_callable)
+        except OSError:
+            # TODO: fix once we have proper file-based snaps
+            return ""
 
 
 SnapLike = Union[SnapCallable, _Snap]
@@ -341,11 +345,11 @@ def ensure_snap(env: Environment, snap_like: Union[SnapLike, str]) -> _Snap:
 
 class PythonCodeSnapWrapper:
     def __init__(self, code):
-        self.code = code
+        self._code = code
 
     def get_snap(self) -> _Snap:
         local_vars = locals()
-        exec(self.code, globals(), local_vars)
+        exec(self._code, globals(), local_vars)
         snap = None
         for v in local_vars.values():
             if isinstance(v, _Snap):
@@ -363,7 +367,7 @@ class PythonCodeSnapWrapper:
 
     def __call__(self, *args: SnapContext, **inputs: DataInterfaceType) -> Any:
         snap = self.get_snap()
-        code = self.code + f"\nret = {snap.snap_callable.__name__}(*args, **inputs)"
+        code = self._code + f"\nret = {snap.snap_callable.__name__}(*args, **inputs)"
         scope = globals()
         scope["args"] = args
         scope["inputs"] = inputs
