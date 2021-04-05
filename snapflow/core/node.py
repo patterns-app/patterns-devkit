@@ -134,9 +134,7 @@ def node(
 
 
 def instantiate_node(
-    env: Environment,
-    graph: Graph,
-    declared_node: DeclaredNode,
+    env: Environment, graph: Graph, declared_node: DeclaredNode,
 ):
     if isinstance(declared_node.snap, str):
         snap = env.get_snap(declared_node.snap)
@@ -237,20 +235,17 @@ class Node:
         instead as part of a full reset.
         """
         state = self.get_state(sess)
-        sess.delete(state)
+        if state is not None:
+            sess.delete(state)
 
-    def _invalidate_output_datablocks(self, sess: Session):
+    def _invalidate_datablocks(self, sess: Session):
         """
-        TODO: would be better to invalidate / deactivate here than to actually delete?
-        We're orphaning datablocks this way.
         """
         dbl_ids = [
             r[0]
             for r in sess.query(DataBlockLog.id)
             .join(SnapLog)
-            .filter(
-                SnapLog.node_key == self.key, DataBlockLog.direction == Direction.OUTPUT
-            )
+            .filter(SnapLog.node_key == self.key)
             .all()
         ]
         sess.query(DataBlockLog).filter(DataBlockLog.id.in_(dbl_ids)).update(
@@ -259,7 +254,7 @@ class Node:
 
     def reset(self, sess: Session):
         """
-        Resets the node, meaning all state is cleared, and all OUTPUT datablock
+        Resets the node, meaning all state is cleared, and all OUTPUT and INPUT datablock
         logs are invalidated. Output datablocks are NOT deleted.
         NB: If downstream nodes have already processed an output datablock,
         this will have no effect on them.
@@ -267,7 +262,7 @@ class Node:
         accumulated output from this node)
         """
         self._reset_state(sess)
-        self._invalidate_output_datablocks(sess)
+        self._invalidate_datablocks(sess)
 
 
 class NodeState(BaseModel):
@@ -275,10 +270,7 @@ class NodeState(BaseModel):
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(
-            node_key=self.node_key,
-            state=self.state,
-        )
+        return self._repr(node_key=self.node_key, state=self.state,)
 
 
 def get_state(sess: Session, node_key: str) -> Optional[Dict]:
