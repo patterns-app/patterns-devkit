@@ -343,10 +343,20 @@ class SnapContext:  # TODO: (Generic[C, S]):
         return self.run_context.graph.get_node(self.executable.node_key)
 
     def get_param(self, key: str, default: Any = None) -> Any:
+        if default is None:
+            try:
+                default = self.executable.compiled_snap.snap.get_param(key).default
+            except KeyError:
+                pass
         return self.executable.params.get(key, default)
 
-    def get_params(self) -> Dict[str, Any]:
-        return self.executable.params
+    def get_params(self, defaults: Dict[str, Any] = None) -> Dict[str, Any]:
+        final_params = {
+            p.name: p.default for p in self.executable.compiled_snap.snap.params
+        }
+        final_params.update(defaults or {})
+        final_params.update(self.executable.params)
+        return final_params
 
     def get_state_value(self, key: str, default: Any = None) -> Any:
         assert isinstance(self.snap_log.node_end_state, dict)
@@ -568,7 +578,7 @@ class ExecutionManager:
                 error = cumulative_execution_result.error
             else:
                 error = "Snap failed (unknown error)"
-            self.ctx.logger(INDENT + cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n")  # type: ignore
+            self.ctx.logger(INDENT + cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n" + cf.dimmed(cumulative_execution_result.traceback))  # type: ignore
         logger.debug(f"Cumulative execution result: {cumulative_execution_result}")
         if cumulative_execution_result.output_block_id is None:
             return None

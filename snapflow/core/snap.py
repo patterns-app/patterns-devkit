@@ -121,6 +121,12 @@ class _Snap:
             ignore_signature=self.ignore_signature,
         )
 
+    def get_param(self, name: str) -> Parameter:
+        for p in self.params or []:
+            if p.name == name:
+                return p
+        raise KeyError(name)
+
     def _get_snap_interface(self) -> DeclaredSnapInterface:
         if hasattr(self.snap_callable, "get_interface"):
             return self.snap_callable.get_interface()  # type: ignore
