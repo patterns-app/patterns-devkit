@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from io import IOBase
 from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional, Set
+import datacopy
+from datacopy.utils.common import rand_str, utcnow
+from openmodel.base import Schema
 
 import sqlalchemy
 from loguru import logger
@@ -30,23 +33,13 @@ from snapflow.core.snap_interface import (
     StreamInput,
 )
 from snapflow.core.storage import copy_lowest_cost
-from snapflow.schema.base import Schema
-from snapflow.storage.data_formats import DataFrameIterator, RecordsIterator
-from snapflow.storage.data_formats.base import DataFormat, SampleableIterator
-from snapflow.storage.data_records import (
-    MemoryDataRecords,
-    as_records,
-    is_records_generator,
-    records_object_is_definitely_empty,
-    wrap_records_object,
-)
-from snapflow.storage.storage import LocalPythonStorageEngine, PythonStorageApi, Storage
-from snapflow.utils.common import cf, error_symbol, success_symbol, utcnow
-from snapflow.utils.data import SampleableIO
 from sqlalchemy.engine import Result
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
+from snapflow.utils.output import cf, success_symbol, error_symbol
+
+from datacopy import Storage
 
 if TYPE_CHECKING:
     from snapflow.core.graph import Graph, GraphMetadata
@@ -291,6 +284,9 @@ class RunContext:
     #     )
 
 
+DEFAULT_OUTPUT_NAME = "default"
+
+
 @dataclass(frozen=True)
 class SnapContext:  # TODO: (Generic[C, S]):
     run_context: RunContext
@@ -302,7 +298,9 @@ class SnapContext:  # TODO: (Generic[C, S]):
     input_blocks_processed: Dict[str, Set[DataBlockMetadata]] = field(
         default_factory=lambda: defaultdict(set)
     )
-    outputs: List[StoredDataBlockMetadata] = field(default_factory=list)
+    output_blocks_emitted: Dict[str, Set[DataBlockMetadata]] = field(
+        default_factory=lambda: defaultdict(set)
+    )
     # state: Dict = field(default_factory=dict)
     # emitted_states: List[Dict] = field(default_factory=list)
     # resolved_output_schema: Optional[Schema] = None
@@ -322,22 +320,23 @@ class SnapContext:  # TODO: (Generic[C, S]):
     #     schema = self.execution_context.env.get_schema(schema_like)
     #     self.set_resolved_output_schema(schema)
 
-    def log(self, block: DataBlockMetadata, direction: Direction):
+    def log(self, block: DataBlockMetadata, direction: Direction, name: str):
         drl = DataBlockLog(  # type: ignore
             snap_log=self.snap_log,
+            stream_name=name,
             data_block=block,
             direction=direction,
             processed_at=utcnow(),
         )
         self.metadata_api.add(drl)
 
-    def log_input(self, block: DataBlockMetadata):
+    def log_input(self, block: DataBlockMetadata, input_name: str):
         logger.debug(f"Input logged: {block}")
-        self.log(block, Direction.INPUT)
+        self.log(block, Direction.INPUT, input_name)
 
-    def log_output(self, block: DataBlockMetadata):
+    def log_output(self, block: DataBlockMetadata, output_name: str):
         logger.debug(f"Output logged: {block}")
-        self.log(block, Direction.OUTPUT)
+        self.log(block, Direction.OUTPUT, output_name)
 
     def get_node(self) -> Node:
         return self.run_context.graph.get_node(self.executable.node_key)
@@ -376,6 +375,7 @@ class SnapContext:  # TODO: (Generic[C, S]):
     def emit(
         self,
         records_obj: Any = None,
+        output: str = DEFAULT_OUTPUT_NAME,
         data_format: DataFormat = None,
         schema: Schema = None,
         update_state: Dict[str, Any] = None,
@@ -383,12 +383,12 @@ class SnapContext:  # TODO: (Generic[C, S]):
     ):
         if records_obj is not None:
             sdb = self.handle_records_object(
-                records_obj, data_format=data_format, schema=schema
+                records_obj, output, data_format=data_format, schema=schema
             )
             if sdb is not None:
                 self.create_alias(sdb)
-                self.log_output(sdb.data_block)
-                self.outputs.append(sdb)
+                self.log_output(sdb.data_block, output)
+                self.output_blocks_emitted[output].add(sdb)
         if update_state is not None:
             for k, v in update_state.items():
                 self.emit_state_value(k, v)
@@ -397,9 +397,19 @@ class SnapContext:  # TODO: (Generic[C, S]):
         # Commit input blocks to db as well, to save progress
         self.log_input_blocks()
 
+    def create_alias(self, sdb: StoredDataBlockMetadata) -> Optional[Alias]:
+        self.metadata_api.flush()  # [sdb.data_block, sdb])
+        alias = ensure_alias(self.get_node(), sdb)
+        self.metadata_api.flush()  # [alias])
+        return alias
+
+    def get_stored_datablock_for_output(self, output: str) -> StoredDataBlockMetadata:
+        pass
+
     def handle_records_object(
         self,
-        records_obj: Any = None,
+        records_obj: Any,
+        output: str,
         data_format: DataFormat = None,
         schema: Schema = None,
     ) -> Optional[StoredDataBlockMetadata]:
@@ -423,69 +433,82 @@ class SnapContext:  # TODO: (Generic[C, S]):
         logger.debug(
             f"Resolved output schema {nominal_output_schema} {self.executable.bound_interface}"
         )
-        records_obj = wrap_records_object(records_obj)
-        if records_object_is_definitely_empty(records_obj):
-            # TODO
-            # Are we sure we'd never want to process an empty object?
-            # Like maybe create the db table, but leave it empty? could be useful
-            return None
-        dro = as_records(
-            records_obj, data_format=data_format, schema=nominal_output_schema
+        sdb = self.get_stored_datablock_for_output(output)
+        self.append_records_to_stored_datablock(
+            records_obj, sdb, self.run_context.target_storage
         )
-        sdb = self.store_output_block(dro)
+        # self.run_context.local_python_storage.get_api().count(tmp_name)
+        # if records_object_is_definitely_empty(records_obj):
+        #     # TODO
+        #     # Are we sure we'd never want to process an empty object?
+        #     # Like maybe create the db table, but leave it empty? could be useful
+        #     return None
+        # sdb = self.store_output_block(dro)
         return sdb
 
-    def create_alias(self, sdb: StoredDataBlockMetadata) -> Optional[Alias]:
-        self.metadata_api.flush()  # [sdb.data_block, sdb])
-        alias = ensure_alias(self.get_node(), sdb)
-        self.metadata_api.flush()  # [alias])
-        return alias
-
-    def store_output_block(self, dro: MemoryDataRecords) -> StoredDataBlockMetadata:
-        block, sdb = create_data_block_from_records(
-            self.run_context.env,
+    def append_records_to_stored_datablock(
+        self, records_obj: Any, sdb: StoredDataBlockMetadata, storage: Storage
+    ):
+        tmp_name = "_tmp_obj_" + rand_str(10)
+        self.run_context.local_python_storage.get_api().put(tmp_name, records_obj)
+        # fmt = infer_format_for_name(tmp_name, self.run_context.local_python_storage)
+        datacopy.copy(
+            tmp_name,
             self.run_context.local_python_storage,
-            dro,
-            created_by_node_key=self.executable.node_key,
+            sdb.datablock.get_storage_name(),
+            storage,
+            available_storages=self.run_context.storages,
+            exists="append",
         )
-        # TODO: need target_format option too
-        if (
-            self.run_context.target_storage is None
-            or self.run_context.target_storage == sdb.storage
-        ):
-            # Already good on target storage
-            if sdb.data_format.is_storable():
-                # And its storable
-                return sdb
+        self.run_context.local_python_storage.get_api().remove_alias(
+            tmp_name
+        )  # TODO: actual remove method?
 
-        # check if existing storage_format is compatible with target storage,
-        # and it's storable, then use instead of natural (no need to convert)
-        target_format = (
-            self.run_context.target_storage.storage_engine.get_natural_format()
-        )
-        if self.run_context.target_storage.storage_engine.is_supported_format(
-            sdb.data_format
-        ):
-            if sdb.data_format.is_storable():
-                target_format = sdb.data_format
+    # def store_output_block(self, dro: MemoryDataRecords) -> StoredDataBlockMetadata:
+    #     block, sdb = create_data_block_from_records(
+    #         self.run_context.env,
+    #         self.run_context.local_python_storage,
+    #         dro,
+    #         created_by_node_key=self.executable.node_key,
+    #     )
+    #     # TODO: need target_format option too
+    #     if (
+    #         self.run_context.target_storage is None
+    #         or self.run_context.target_storage == sdb.storage
+    #     ):
+    #         # Already good on target storage
+    #         if sdb.data_format.is_storable():
+    #             # And its storable
+    #             return sdb
 
-        assert target_format.is_storable()
+    #     # check if existing storage_format is compatible with target storage,
+    #     # and it's storable, then use instead of natural (no need to convert)
+    #     target_format = (
+    #         self.run_context.target_storage.storage_engine.get_natural_format()
+    #     )
+    #     if self.run_context.target_storage.storage_engine.is_supported_format(
+    #         sdb.data_format
+    #     ):
+    #         if sdb.data_format.is_storable():
+    #             target_format = sdb.data_format
 
-        # Place output in target storage
-        return copy_lowest_cost(
-            self.run_context.env,
-            sdb=sdb,
-            target_storage=self.run_context.target_storage,
-            target_format=target_format,
-            eligible_storages=self.run_context.storages,
-        )
+    #     assert target_format.is_storable()
+
+    #     # Place output in target storage
+    #     return copy_lowest_cost(
+    #         self.run_context.env,
+    #         sdb=sdb,
+    #         target_storage=self.run_context.target_storage,
+    #         target_format=target_format,
+    #         eligible_storages=self.run_context.storages,
+    #     )
 
     def log_input_blocks(self):
         for input in self.executable.bound_interface.inputs:
             if input.bound_stream is not None:
                 for db in input.bound_stream.get_emitted_blocks():
                     self.input_blocks_processed[input.name].add(db)
-                    self.log_input(db)
+                    self.log_input(db, input.name)
 
     def should_continue(self) -> bool:
         """

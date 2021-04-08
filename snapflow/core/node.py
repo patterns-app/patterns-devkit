@@ -7,18 +7,19 @@ from operator import and_
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from loguru import logger
+from sqlalchemy.sql.schema import Column, ForeignKey
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
 from snapflow.core.snap import SnapLike, _Snap, ensure_snap, make_snap, make_snap_name
 from snapflow.core.snap_interface import DeclaredSnapInterface, DeclaredStreamInput
-from snapflow.storage.storage import SqliteStorageEngine
-from snapflow.utils.common import as_identifier
+
+from datacopy.utils.common import as_identifier
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.expression import select, update
 from sqlalchemy.sql.functions import func
-from sqlalchemy.sql.schema import Column, ForeignKey
+
 from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
 if TYPE_CHECKING:
@@ -135,9 +136,7 @@ def node(
 
 
 def instantiate_node(
-    env: Environment,
-    graph: Graph,
-    declared_node: DeclaredNode,
+    env: Environment, graph: Graph, declared_node: DeclaredNode,
 ):
     if isinstance(declared_node.snap, str):
         snap = env.get_snap(declared_node.snap)
@@ -283,10 +282,7 @@ class NodeState(BaseModel):
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(
-            node_key=self.node_key,
-            state=self.state,
-        )
+        return self._repr(node_key=self.node_key, state=self.state,)
 
 
 def get_state(env: Environment, node_key: str) -> Optional[Dict]:
@@ -381,6 +377,7 @@ class DataBlockLog(BaseModel):
         ForeignKey(f"{SNAPFLOW_METADATA_TABLE_PREFIX}data_block_metadata.id"),
         nullable=False,
     )
+    stream_name = Column(String(128), nullable=True)
     direction = Column(Enum(Direction, native_enum=False), nullable=False)
     processed_at = Column(DateTime, default=func.now(), nullable=False)
     invalidated = Column(Boolean, default=False)
@@ -400,7 +397,7 @@ class DataBlockLog(BaseModel):
     @classmethod
     def summary(cls, env: Environment) -> str:
         s = ""
-        for dbl in env.md_api.execute(select(DataBlockLog).all()):
+        for dbl in env.md_api.execute(select(DataBlockLog)).scalars().all():
             s += f"{dbl.snap_log.node_key:50}"
             s += f"{str(dbl.data_block_id):23}"
             s += f"{str(dbl.data_block.record_count):6}"

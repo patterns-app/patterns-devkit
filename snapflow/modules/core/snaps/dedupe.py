@@ -5,9 +5,9 @@ from snapflow import DataBlock
 from snapflow.core.node import DataBlockLog
 from snapflow.core.snap import Snap
 from snapflow.core.sql.sql_snap import Sql, SqlSnap
-from snapflow.storage.db.utils import get_tmp_sqlite_db_url
+
 from snapflow.testing.utils import DataInput, produce_snap_output_for_static_input
-from snapflow.utils.pandas import assert_dataframes_are_almost_equal
+from datacopy.utils.pandas import assert_dataframes_are_almost_equal
 from snapflow.utils.typing import T
 
 # TODO: currently no-op when no unique columns specified.
@@ -59,8 +59,9 @@ def dataframe_dedupe_unique_keep_newest_row(input: DataBlock[T]) -> DataFrame[T]
     if input.nominal_schema is None or not input.nominal_schema.unique_on:
         return input.as_dataframe()  # TODO: make this a no-op
     records = input.as_dataframe()
-    if input.nominal_schema.updated_at_field_name:
-        records = records.sort_values(input.nominal_schema.updated_at_field_name)
+    # TODO: what to sort by? bring this back?
+    # if input.nominal_schema.updated_at_field_name:
+    #     records = records.sort_values(input.nominal_schema.updated_at_field_name)
     return records.drop_duplicates(input.nominal_schema.unique_on, keep="last")
 
 

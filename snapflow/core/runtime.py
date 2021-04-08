@@ -5,24 +5,23 @@ from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, Optional, Type
 from urllib.parse import urlparse
 
-from snapflow.core.environment import Environment
-from snapflow.storage.storage import (
+from datacopy.storage.base import (
     DatabaseStorageClass,
     LocalPythonStorageEngine,
+    MemoryStorageClass,
     MysqlStorageEngine,
     PostgresStorageEngine,
-    PythonStorageClass,
     SqliteStorageEngine,
     Storage,
     StorageApi,
     StorageClass,
     StorageEngine,
 )
-from snapflow.utils.common import rand_str
-from snapflow.utils.registry import global_registry
 
-if TYPE_CHECKING:
-    from snapflow.storage.db.api import DatabaseApi
+from snapflow.core.environment import Environment
+
+from datacopy.utils.common import rand_str
+from snapflow.utils.registry import global_registry
 
 
 class RuntimeClass:
@@ -34,7 +33,7 @@ class DatabaseRuntimeClass(RuntimeClass):
 
 
 class PythonRuntimeClass(RuntimeClass):
-    natural_storage_class = PythonStorageClass
+    natural_storage_class = MemoryStorageClass
 
 
 class RuntimeEngine:

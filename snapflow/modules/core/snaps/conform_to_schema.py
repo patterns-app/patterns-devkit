@@ -11,17 +11,14 @@ from snapflow.core.snap import Param, Snap
 from snapflow.core.snap_interface import DeclaredSnapInterface
 from snapflow.core.sql.sql_snap import SqlSnapWrapper, sql_snap
 from snapflow.core.streams import Stream
-from snapflow.core.typing.inference import conform_dataframe_to_schema
-from snapflow.schema.base import Implementation, create_quick_schema
-from snapflow.storage.data_formats.data_frame import DataFrameFormat
-from snapflow.storage.data_formats.database_table_ref import DatabaseTableRefFormat
-from snapflow.storage.db.utils import column_map, get_tmp_sqlite_db_url
+
+
 from snapflow.testing.utils import (
     DataInput,
     produce_snap_output_for_static_input,
     str_as_dataframe,
 )
-from snapflow.utils.pandas import assert_dataframes_are_almost_equal
+from datacopy.utils.pandas import assert_dataframes_are_almost_equal
 from snapflow.utils.typing import T
 
 
@@ -31,10 +28,7 @@ from snapflow.utils.typing import T
     display_name="Conform DataFrame to Schema",
 )
 @Param("schema", "str")
-def dataframe_conform_to_schema(
-    ctx: SnapContext,
-    input: DataBlock,
-) -> DataFrame:
+def dataframe_conform_to_schema(ctx: SnapContext, input: DataBlock,) -> DataFrame:
     # TODO: this vs just-in-time field name transation?
     env = ctx.run_context.env
     to_schema_key = ctx.get_param("schema")

@@ -5,14 +5,6 @@ from dataclasses import dataclass
 from pandas import DataFrame
 from snapflow.core.execution import SnapContext
 from snapflow.core.snap import Param, Snap
-from snapflow.schema.base import SchemaLike
-from snapflow.storage.data_formats import DataFrameFormat, RecordsFormat
-from snapflow.storage.data_formats.delimited_file_object import (
-    DelimitedFileObjectFormat,
-)
-from snapflow.storage.data_records import MemoryDataRecords, as_records
-from snapflow.storage.storage import Storage
-from snapflow.utils.data import read_csv
 
 
 @dataclass
@@ -21,9 +13,7 @@ class LocalImportState:
 
 
 @Snap(
-    module="core",
-    state_class=LocalImportState,
-    display_name="Import Pandas DataFrame",
+    module="core", state_class=LocalImportState, display_name="Import Pandas DataFrame",
 )
 @Param("dataframe", datatype="DataFrame")
 @Param("schema", datatype="str", required=False)

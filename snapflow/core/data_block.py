@@ -2,52 +2,27 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Iterator, Optional, Tuple, Type
+from datacopy.data_format.base import DataFormat
+from datacopy.data_format.formats.memory.dataframe import DataFrameFormat
+from datacopy.data_format.formats.memory.records import Records
+from datacopy.storage.base import Storage
+from datacopy.data_copy.graph import StorageFormat
 
 from loguru import logger
+from openmodel.base import Schema, SchemaKey, SchemaTranslation
 from pandas import DataFrame
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import BaseModel, timestamp_increment_key
-from snapflow.core.typing.inference import infer_schema_from_db_table
-from snapflow.schema import Schema, SchemaKey, SchemaLike, SchemaTranslation
-from snapflow.schema.casting import cast_to_realized_schema
-from snapflow.storage.data_formats import (
-    DataFormat,
-    DataFrameFormat,
-    get_data_format_of_object,
-)
-from snapflow.storage.data_formats.base import MemoryDataFormatBase
-from snapflow.storage.data_formats.data_frame import DataFrameIteratorFormat
-from snapflow.storage.data_formats.database_table import DatabaseTableFormat
-from snapflow.storage.data_formats.database_table_ref import (
-    DatabaseTableRef,
-    DatabaseTableRefFormat,
-)
-from snapflow.storage.data_formats.delimited_file_object import (
-    DelimitedFileObjectIteratorFormat,
-)
-from snapflow.storage.data_formats.records import (
-    Records,
-    RecordsFormat,
-    RecordsIteratorFormat,
-)
-from snapflow.storage.data_records import MemoryDataRecords, as_records
-from snapflow.storage.db.api import DatabaseStorageApi
-from snapflow.storage.storage import PythonStorageClass
-from snapflow.utils.common import as_identifier, rand_str
+
+
+from datacopy.utils.common import as_identifier, rand_str
 from snapflow.utils.registry import ClassBasedEnumSqlalchemyType
 from snapflow.utils.typing import T
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, select
 from sqlalchemy.orm import RelationshipProperty, Session, relationship
 
 if TYPE_CHECKING:
-    from snapflow.core.storage import ensure_data_block_on_storage
-    from snapflow.core.storage import convert_sdb, get_copy_path_for_sdb
-    from snapflow.storage.data_copy.base import StorageFormat
     from snapflow.core.execution import RunContext
-    from snapflow.storage.storage import (
-        Storage,
-        LocalPythonStorageEngine,
-    )
 
 
 def get_datablock_id() -> str:
@@ -93,9 +68,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self,
-        ctx: RunContext,
-        schema_translation: Optional[SchemaTranslation] = None,
+        self, ctx: RunContext, schema_translation: Optional[SchemaTranslation] = None,
     ):
         mgr = DataBlockManager(ctx, self, schema_translation=schema_translation)
         return ManagedDataBlock(
@@ -148,23 +121,14 @@ class ManagedDataBlock(Generic[T]):
     def as_dataframe(self) -> DataFrame:
         return self.manager.as_dataframe()
 
-    def as_dataframe_iterator(self) -> DataFrame:
-        return self.manager.as_format(DataFrameIteratorFormat)
-
     def as_records(self) -> Records:
         return self.manager.as_records()
-
-    def as_records_iterator(self) -> Records:
-        return self.manager.as_format(RecordsIteratorFormat)
-
-    def as_table(self) -> DatabaseTableRef:
-        return self.manager.as_table()
 
     def as_format(self, fmt: DataFormat) -> Any:
         return self.manager.as_format(fmt)
 
-    def as_table_stmt(self) -> str:
-        return self.as_table().get_table_stmt()
+    # def as_table_stmt(self) -> str:
+    #     return self.as_table().get_table_stmt()
 
     def has_format(self, fmt: DataFormat) -> bool:
         return self.manager.has_format(fmt)
@@ -226,8 +190,6 @@ class StoredDataBlockMetadata(BaseModel):
 
     @property
     def storage(self) -> Storage:
-        from snapflow.storage.storage import Storage
-
         return Storage.from_url(self.storage_url)
 
     def get_name(self) -> str:
@@ -348,25 +310,14 @@ class DataBlockManager:
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFrameFormat)
 
-    def as_dataframe_iterator(self) -> Iterator[DataFrame]:
-        return self.as_format(DataFrameIteratorFormat)
-
     def as_records(self) -> Records:
         return self.as_format(RecordsFormat)
-
-    def as_records_iterator(self) -> Iterator[Records]:
-        return self.as_format(RecordsIteratorFormat)
-
-    def as_table(self) -> DatabaseTableRef:
-        return self.as_format(DatabaseTableFormat)
 
     def as_format(self, fmt: DataFormat) -> Any:
         sdb = self.ensure_format(fmt)
         return self.as_python_object(sdb)
 
     def ensure_format(self, fmt: DataFormat) -> Any:
-        from snapflow.core.storage import ensure_data_block_on_storage
-
         target_storage = self.get_runtime_storage()
         if fmt.is_python_format():
             # Ensure we are putting memory format in memory
@@ -412,10 +363,10 @@ class DataBlockManager:
     # def get_or_create_local_stored_data_block(
     #     self, target_format: DataFormat
     # ) -> StoredDataBlockMetadata:
-    #     from snapflow.storage.data_copy.base import (
+    #
     #         StorageFormat,
     #     )
-    #     from snapflow.core.storage import convert_sdb, get_copy_path_for_sdb
+    #
 
     #     cnt = (
     #         self.env.md_api.execute(select(StoredDataBlockMetadata)
@@ -482,7 +433,6 @@ def create_data_block_from_records(
     inferred_schema: Schema = None,
     created_by_node_key: str = None,
 ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
-    from snapflow.storage.storage import LocalPythonStorageEngine
 
     logger.debug("CREATING DATA BLOCK")
     if isinstance(records, MemoryDataRecords):

@@ -4,6 +4,7 @@ import inspect
 from dataclasses import asdict, dataclass, field
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
+from datacopy.data_format.formats.memory.records import Records
 
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
@@ -20,8 +21,7 @@ from snapflow.core.snap_interface import (
     merge_declared_interface_with_signature_interface,
     snap_interface_from_callable,
 )
-from snapflow.schema.base import SchemaLike
-from snapflow.storage.data_formats import DatabaseTableRef, Records
+
 
 if TYPE_CHECKING:
     from snapflow.core.execution import SnapContext
@@ -39,11 +39,7 @@ class InputExhaustedException(SnapException):
 SnapCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    DatabaseTableRef,
-    DataBlockMetadata,
-    DataBlock,
+    DataFrame, Records, DataBlockMetadata, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -323,11 +319,7 @@ def add_param_decorator(
     help: str = "",
 ):
     p = Parameter(
-        name=name,
-        datatype=datatype,
-        required=required,
-        default=default,
-        help=help,
+        name=name, datatype=datatype, required=required, default=default, help=help,
     )
 
     def dec(snap_like: Union[SnapCallable, _Snap]) -> _Snap:

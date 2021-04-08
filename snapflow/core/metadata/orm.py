@@ -1,7 +1,9 @@
 from collections import OrderedDict
 from typing import Any
 
-from snapflow.utils.common import cf, rand_str, title_to_snake_case, utcnow
+from snapflow.utils.output import cf
+from openmodel import Schema
+from datacopy.utils.common import rand_str, title_to_snake_case, utcnow
 from sqlalchemy import Column, DateTime, Integer, String, func
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm.exc import DetachedInstanceError
@@ -30,7 +32,6 @@ class _BaseModel:
         at_least_one_attached_attribute = False
         for key, field in fields.items():
             try:
-                from snapflow.schema.base import Schema
 
                 if isinstance(field, Schema):
                     field_strings.append(f"{key}={field.name}")

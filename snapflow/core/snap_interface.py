@@ -3,21 +3,17 @@ from __future__ import annotations
 import inspect
 import re
 from dataclasses import asdict, dataclass, field
+
+from datacopy.storage.base import Storage
+from snapflow.core.schema import GenericSchemaException, is_generic
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from loguru import logger
+from openmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
 from snapflow.core import operators
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment
-from snapflow.schema.base import (
-    GenericSchemaException,
-    Schema,
-    SchemaKey,
-    SchemaLike,
-    SchemaTranslation,
-    is_any,
-    is_generic,
-)
+
 
 if TYPE_CHECKING:
     from snapflow.core.snap import (
@@ -25,7 +21,7 @@ if TYPE_CHECKING:
         SnapCallable,
     )
     from snapflow.core.node import Node, Node, NodeLike
-    from snapflow.storage.storage import Storage
+
     from snapflow.core.execution import RunContext
     from snapflow.core.streams import (
         StreamBuilder,
@@ -492,14 +488,13 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation,
-            from_schema=source_schema,
+            translation=declared_schema_translation, from_schema_key=source_schema.key,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed
         return None
     # Otherwise map found schema to expected schema
-    return source_schema.get_translation_to(env, target_schema)
+    return source_schema.get_translation_to(target_schema)
 
 
 class NodeInterfaceManager:
@@ -514,9 +509,7 @@ class NodeInterfaceManager:
         self.ctx = ctx
         self.node = node
         self.snap_interface: DeclaredSnapInterface = self.node.get_interface()
-        self.strict_storages = (
-            strict_storages  # Only pull datablocks from given storages
-        )
+        self.strict_storages = strict_storages  # Only pull datablocks
 
     def get_bound_interface(
         self, input_db_streams: Optional[InputStreams] = None

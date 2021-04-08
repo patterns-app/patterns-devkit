@@ -5,29 +5,27 @@ import os
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from importlib import import_module
+
+from datacopy.storage.base import MemoryStorageClass
+from datacopy.storage.memory.engines.python import new_local_python_storage
+from snapflow.core.schema import GeneratedSchema, GenericSchemaException, is_generic
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from alembic import command
 from alembic.config import Config
 from loguru import logger
+from openmodel.base import Schema, SchemaLike
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.api import MetadataApi
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
-from snapflow.schema.base import (
-    GeneratedSchema,
-    GenericSchemaException,
-    Schema,
-    SchemaLike,
-    is_generic,
-)
-from snapflow.storage.storage import DatabaseStorageClass, PythonStorageClass
-from snapflow.utils.common import AttrDict
+
+from datacopy import Storage
+from datacopy.utils.common import AttrDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
-    from snapflow.storage.storage import Storage
     from snapflow.core.snap import _Snap
     from snapflow.core.node import Node, NodeLike
     from snapflow.core.execution import RunContext, ExecutionManager
@@ -66,7 +64,7 @@ class Environment:
         default_modules: List[SnapflowModule] = None,
     ):
         from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
-        from snapflow.storage.storage import Storage, new_local_python_storage
+
         from snapflow.modules import core
 
         self.name = name
@@ -192,14 +190,13 @@ class Environment:
                 self.config.modules.append(module)
 
     def get_default_storage(self) -> Storage:
-        from snapflow.storage.storage import StorageClass
 
         if len(self.storages) == 1:
             return self.storages[0]
         for s in self.storages:
             if s.url == self.metadata_storage.url:
                 continue
-            if s.storage_engine.storage_class == PythonStorageClass:
+            if s.storage_engine.storage_class == MemoryStorageClass:
                 continue
             return s
         return self.storages[0]
@@ -212,7 +209,7 @@ class Environment:
         if target_storage is None:
             target_storage = self.get_default_storage()
         target_storage = self.add_storage(target_storage)
-        if issubclass(target_storage.storage_engine.storage_class, PythonStorageClass):
+        if issubclass(target_storage.storage_engine.storage_class, MemoryStorageClass):
             # TODO: handle multiple targets better
             logging.warning(
                 "Using MEMORY storage -- results of execution will NOT "
@@ -332,7 +329,6 @@ class Environment:
     def add_storage(
         self, storage_like: Union[Storage, str], add_runtime: bool = True
     ) -> Storage:
-        from snapflow.storage.storage import Storage
 
         if isinstance(storage_like, str):
             sr = Storage.from_url(storage_like)
@@ -480,7 +476,7 @@ def run(
 
 
 # def load_environment_from_yaml(yml) -> Environment:
-#     from snapflow.storage.storage import Storage
+#
 
 #     env = Environment(
 #         metadata_storage=yml.get("metadata_storage", None),
@@ -495,7 +491,6 @@ def run(
 
 
 def load_environment_from_project(project: Any) -> Environment:
-    from snapflow.storage.storage import Storage
 
     env = Environment(
         metadata_storage=getattr(project, "metadata_storage", None),

@@ -13,7 +13,7 @@ from snapflow.core.node import DataBlockLog, Direction, SnapLog
 from snapflow.core.snap import Input
 from snapflow.core.snap_interface import NodeInterfaceManager
 from snapflow.modules import core
-from snapflow.storage.data_formats import Records
+
 from sqlalchemy.sql.expression import select
 from tests.utils import (
     TestSchema1,
@@ -46,11 +46,7 @@ def test_worker():
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
-    r = Executable(
-        node.key,
-        CompiledSnap(node.snap.key, node.snap),
-        bdfi,
-    )
+    r = Executable(node.key, CompiledSnap(node.snap.key, node.snap), bdfi,)
     run_result = w.execute(r)
     with env.md_api.begin():
         assert run_result.output_block_id is None
@@ -78,11 +74,7 @@ def test_worker_output():
     w = Worker(ec)
     dfi_mgr = NodeInterfaceManager(ec, node)
     bdfi = dfi_mgr.get_bound_interface()
-    r = Executable(
-        node.key,
-        CompiledSnap(node.snap.key, node.snap),
-        bdfi,
-    )
+    r = Executable(node.key, CompiledSnap(node.snap.key, node.snap), bdfi,)
     run_result = w.execute(r)
     with env.md_api.begin():
         outputblock = env.md_api.execute(

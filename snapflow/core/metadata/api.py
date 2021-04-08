@@ -6,7 +6,8 @@ from typing import Any, Iterable, Iterator, Union
 
 from alembic import command
 from alembic.config import Config
-from snapflow.storage.storage import DatabaseStorageClass, Storage
+from datacopy.storage.base import DatabaseStorageClass
+
 from sqlalchemy.engine import Result
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.orm.session import Session, SessionTransaction, sessionmaker
@@ -14,6 +15,7 @@ from sqlalchemy.sql import Delete, Update
 from sqlalchemy.sql.expression import select
 from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.selectable import Select
+from datacopy import Storage
 
 
 class MetadataApi:

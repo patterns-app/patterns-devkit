@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, List, Union
 
-from snapflow.utils.common import AttrDict
+from datacopy.utils.common import AttrDict
+from openmodel import Schema
 
 if TYPE_CHECKING:
     from snapflow.core.snap import (
@@ -10,7 +11,6 @@ if TYPE_CHECKING:
         _Snap,
     )
     from snapflow.core.module import SnapflowModule
-    from snapflow.schema.base import Schema
 
 
 class ComponentLibrary:
@@ -67,7 +67,6 @@ class ComponentLibrary:
     def get_schema(
         self, schema_like: Union[Schema, str], try_module_lookups=True
     ) -> Schema:
-        from snapflow.schema.base import Schema
 
         if isinstance(schema_like, Schema):
             return schema_like
