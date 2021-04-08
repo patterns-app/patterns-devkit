@@ -12,8 +12,6 @@ from snapflow.core.snap_interface import get_schema_translation
 from snapflow.core.typing.inference import infer_schema_from_records
 from snapflow.modules import core
 from snapflow.schema.base import (
-    DEFAULT_UNICODE_TEXT_TYPE,
-    DEFAULT_UNICODE_TYPE,
     GeneratedSchema,
     Implementation,
     Schema,

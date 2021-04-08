@@ -1,9 +1,11 @@
 from __future__ import annotations
+import inspect
 
 import os
 import sys
 from contextlib import contextmanager
 from io import TextIOBase
+from types import ModuleType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -51,7 +53,7 @@ class SnapflowModule:
         py_module_path: Optional[str] = None,
         py_module_name: Optional[str] = None,
         schemas: Optional[Sequence[SchemaLike]] = None,
-        snaps: Optional[Sequence[Union[SnapLike, str]]] = None,
+        snaps: Optional[Sequence[Union[SnapLike, str, ModuleType]]] = None,
         tests: Optional[Sequence[Callable]] = None,
         dependencies: List[
             SnapflowModule
@@ -146,12 +148,8 @@ class SnapflowModule:
     def remove_snap(self, snap_like: Union[SnapLike, str]):
         self.library.remove_snap(snap_like)
 
-    def process_snap(self, snap_like: Union[SnapLike, str]) -> _Snap:
-        from snapflow.core.snap import (
-            _Snap,
-            make_snap,
-            _Snap,
-        )
+    def process_snap(self, snap_like: Union[SnapLike, str, ModuleType]) -> _Snap:
+        from snapflow.core.snap import _Snap, make_snap, PythonCodeSnapWrapper
         from snapflow.core.sql.sql_snap import sql_snap
 
         if isinstance(snap_like, _Snap):
@@ -171,6 +169,13 @@ class SnapflowModule:
                 snap = sql_snap(
                     name=file_name, module=self.name, sql=sql
                 )  # TODO: versions, runtimes, etc for sql (someway to specify in a .sql file)
+            elif isinstance(snap_like, str):
+                # Just a string, not a sql file, assume it is python? TODO
+                snap = make_snap(PythonCodeSnapWrapper(snap_like), module=self.name)
+            elif isinstance(snap_like, ModuleType):
+                # Module snap (the new default)
+                code = inspect.getsource(snap_like)
+                snap = make_snap(PythonCodeSnapWrapper(code), module=self.name)
             else:
                 raise TypeError(snap_like)
         return snap
