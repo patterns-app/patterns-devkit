@@ -7,7 +7,7 @@ from loguru import logger
 from pandas import DataFrame, concat
 from snapflow.core.data_block import DataBlock
 from snapflow.core.execution import SnapContext
-from snapflow.core.snap import Snap
+from snapflow.core.snap import Param, Snap
 from snapflow.core.snap_interface import DeclaredSnapInterface
 from snapflow.core.sql.sql_snap import SqlSnapWrapper, sql_snap
 from snapflow.core.streams import Stream
@@ -30,6 +30,7 @@ from snapflow.utils.typing import T
     module="core",
     display_name="Conform DataFrame to Schema",
 )
+@Param("schema", "str")
 def dataframe_conform_to_schema(
     ctx: SnapContext,
     input: DataBlock,
@@ -77,12 +78,14 @@ class SqlConformToSchema(SqlSnapWrapper):
         return dataframe_conform_to_schema.get_interface()
 
 
-sql_conform_to_schema = sql_snap(
-    name="sql_conform_to_schema",
-    sql="select * from input",
-    module="core",
-    wrapper_cls=SqlConformToSchema,
-    display_name="Conform Table to Schema",
+sql_conform_to_schema = Param("schema", "str")(
+    sql_snap(
+        name="sql_conform_to_schema",
+        sql="select * from input",
+        module="core",
+        wrapper_cls=SqlConformToSchema,
+        display_name="Conform Table to Schema",
+    )
 )
 
 

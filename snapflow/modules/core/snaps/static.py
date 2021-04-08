@@ -26,7 +26,7 @@ class LocalImportState:
     display_name="Import Pandas DataFrame",
 )
 @Param("dataframe", datatype="DataFrame")
-@Param("schema", datatype="str")
+@Param("schema", datatype="str", required=False)
 def import_dataframe(ctx: SnapContext) -> MemoryDataRecords:  # TODO optional
     imported = ctx.get_state_value("imported")
     if imported:

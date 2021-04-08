@@ -387,6 +387,7 @@ def test_node_params():
     g = Graph(env)
     param_vals = []
 
+    @Param("test", "str")
     def snap_ctx(ctx: SnapContext):
         param_vals.append(ctx.get_param("test"))
 

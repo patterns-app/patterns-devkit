@@ -344,7 +344,10 @@ class SnapContext:  # TODO: (Generic[C, S]):
 
     def get_param(self, key: str, default: Any = None) -> Any:
         if default is None:
-            default = self.executable.compiled_snap.snap.get_param(key).default
+            try:
+                default = self.executable.compiled_snap.snap.get_param(key).default
+            except KeyError:
+                pass
         return self.executable.params.get(key, default)
 
     def get_params(self, defaults: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -415,7 +418,8 @@ class SnapContext:  # TODO: (Generic[C, S]):
         nominal_output_schema = schema
         if nominal_output_schema is None:
             nominal_output_schema = self.executable.bound_interface.resolve_nominal_output_schema(
-                self.run_context.env, self.execution_session.metadata_session,
+                self.run_context.env,
+                self.execution_session.metadata_session,
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
         logger.debug(
             f"Resolved output schema {nominal_output_schema} {self.executable.bound_interface}"
@@ -575,7 +579,7 @@ class ExecutionManager:
                 error = cumulative_execution_result.error
             else:
                 error = "Snap failed (unknown error)"
-            self.ctx.logger(INDENT + cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n")  # type: ignore
+            self.ctx.logger(INDENT + cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n" + cf.dimmed(cumulative_execution_result.traceback))  # type: ignore
         logger.debug(f"Cumulative execution result: {cumulative_execution_result}")
         if cumulative_execution_result.output_block_id is None:
             return None
@@ -591,7 +595,10 @@ class ExecutionManager:
         snap = node.snap
         executable = Executable(
             node_key=node.key,
-            compiled_snap=CompiledSnap(key=node.key, snap=snap,),
+            compiled_snap=CompiledSnap(
+                key=node.key,
+                snap=snap,
+            ),
             # bound_interface=interface_mgr.get_bound_interface(),
             params=node.params or {},
         )
