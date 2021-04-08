@@ -343,10 +343,17 @@ class SnapContext:  # TODO: (Generic[C, S]):
         return self.run_context.graph.get_node(self.executable.node_key)
 
     def get_param(self, key: str, default: Any = None) -> Any:
+        if default is None:
+            default = self.executable.compiled_snap.snap.get_param(key).default
         return self.executable.params.get(key, default)
 
-    def get_params(self) -> Dict[str, Any]:
-        return self.executable.params
+    def get_params(self, defaults: Dict[str, Any] = None) -> Dict[str, Any]:
+        final_params = {
+            p.name: p.default for p in self.executable.compiled_snap.snap.params
+        }
+        final_params.update(defaults or {})
+        final_params.update(self.executable.params)
+        return final_params
 
     def get_state_value(self, key: str, default: Any = None) -> Any:
         assert isinstance(self.snap_log.node_end_state, dict)
@@ -408,8 +415,7 @@ class SnapContext:  # TODO: (Generic[C, S]):
         nominal_output_schema = schema
         if nominal_output_schema is None:
             nominal_output_schema = self.executable.bound_interface.resolve_nominal_output_schema(
-                self.run_context.env,
-                self.execution_session.metadata_session,
+                self.run_context.env, self.execution_session.metadata_session,
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
         logger.debug(
             f"Resolved output schema {nominal_output_schema} {self.executable.bound_interface}"
@@ -585,10 +591,7 @@ class ExecutionManager:
         snap = node.snap
         executable = Executable(
             node_key=node.key,
-            compiled_snap=CompiledSnap(
-                key=node.key,
-                snap=snap,
-            ),
+            compiled_snap=CompiledSnap(key=node.key, snap=snap,),
             # bound_interface=interface_mgr.get_bound_interface(),
             params=node.params or {},
         )
