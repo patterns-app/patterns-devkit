@@ -7,6 +7,7 @@ from operator import and_
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from loguru import logger
+from sqlalchemy.sql.expression import select, update
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
@@ -187,8 +188,10 @@ class Node:
     def __hash__(self):
         return hash(self.key)
 
-    def get_state(self, sess: Session) -> Optional[NodeState]:
-        return sess.query(NodeState).filter(NodeState.node_key == self.key).first()
+    def get_state(self) -> Optional[NodeState]:
+        return self.env.md_api.execute(
+            select(NodeState).filter(NodeState.node_key == self.key)
+        ).scalar_one_or_none()
 
     def get_alias(self) -> str:
         if self.output_alias:
@@ -212,47 +215,56 @@ class Node:
 
         return StreamBuilder().filter_inputs(self)
 
-    def latest_output(self, ctx: RunContext, sess: Session) -> Optional[DataBlock]:
+    def latest_output(self, ctx: RunContext) -> Optional[DataBlock]:
         block: DataBlockMetadata = (
-            sess.query(DataBlockMetadata)
-            .join(DataBlockLog)
-            .join(SnapLog)
-            .filter(
-                DataBlockLog.direction == Direction.OUTPUT,
-                SnapLog.node_key == self.key,
+            self.env.md_api.execute(
+                select(DataBlockMetadata)
+                .join(DataBlockLog)
+                .join(SnapLog)
+                .filter(
+                    DataBlockLog.direction == Direction.OUTPUT,
+                    SnapLog.node_key == self.key,
+                )
+                .order_by(DataBlockLog.created_at.desc())
             )
-            .order_by(DataBlockLog.created_at.desc())
+            .scalars()
             .first()
         )
         if block is None:
             return None
-        return block.as_managed_data_block(ctx, sess)
+        return block.as_managed_data_block(ctx)
 
-    def _reset_state(self, sess: Session):
+    def _reset_state(self):
         """
         Resets the node's state only.
         This is usually not something you want to do by itself, but
         instead as part of a full reset.
         """
-        state = self.get_state(sess)
+        state = self.get_state()
         if state is not None:
-            sess.delete(state)
+            self.env.md_api.delete(state)
 
-    def _invalidate_datablocks(self, sess: Session):
+    def _invalidate_datablocks(self):
         """
         """
         dbl_ids = [
-            r[0]
-            for r in sess.query(DataBlockLog.id)
-            .join(SnapLog)
-            .filter(SnapLog.node_key == self.key)
+            r
+            for r in self.env.md_api.execute(
+                select(DataBlockLog.id)
+                .join(SnapLog)
+                .filter(SnapLog.node_key == self.key)
+            )
+            .scalars()
             .all()
         ]
-        sess.query(DataBlockLog).filter(DataBlockLog.id.in_(dbl_ids)).update(
-            {"invalidated": True}, synchronize_session=False
+        self.env.md_api.execute(
+            update(DataBlockLog)
+            .filter(DataBlockLog.id.in_(dbl_ids))
+            .values({"invalidated": True})
+            .execution_options(synchronize_session="fetch")  # TODO: or false?
         )
 
-    def reset(self, sess: Session):
+    def reset(self):
         """
         Resets the node, meaning all state is cleared, and all OUTPUT and INPUT datablock
         logs are invalidated. Output datablocks are NOT deleted.
@@ -261,8 +273,8 @@ class Node:
         TODO: consider "cascading reset" for downstream recursive snaps (which will still have
         accumulated output from this node)
         """
-        self._reset_state(sess)
-        self._invalidate_datablocks(sess)
+        self._reset_state()
+        self._invalidate_datablocks()
 
 
 class NodeState(BaseModel):
@@ -273,8 +285,10 @@ class NodeState(BaseModel):
         return self._repr(node_key=self.node_key, state=self.state,)
 
 
-def get_state(sess: Session, node_key: str) -> Optional[Dict]:
-    state = sess.query(NodeState).filter(NodeState.node_key == node_key).first()
+def get_state(env: Environment, node_key: str) -> Optional[Dict]:
+    state = env.md_api.execute(
+        select(NodeState).filter(NodeState.node_key == node_key)
+    ).scalar_one_or_none()
     if state:
         return state.state
     return None
@@ -325,15 +339,15 @@ class SnapLog(BaseModel):
         # Traceback can be v large (like in max recursion), so we truncate to 5k chars
         self.error = {"error": str(e), "traceback": tback[:5000]}
 
-    def persist_state(self, sess: Session) -> NodeState:
-        state = (
-            sess.query(NodeState).filter(NodeState.node_key == self.node_key).first()
-        )
+    def persist_state(self, env: Environment) -> NodeState:
+        state = env.md_api.execute(
+            select(NodeState).filter(NodeState.node_key == self.node_key)
+        ).scalar_one_or_none()
         if state is None:
             state = NodeState(node_key=self.node_key)
-            sess.add(state)
+            env.md_api.add(state)
         state.state = self.node_end_state
-        sess.flush([state])
+        env.md_api.flush([state])
         return state
 
 
@@ -380,9 +394,9 @@ class DataBlockLog(BaseModel):
         )
 
     @classmethod
-    def summary(cls, sess: Session) -> str:
+    def summary(cls, env: Environment) -> str:
         s = ""
-        for dbl in sess.query(DataBlockLog).all():
+        for dbl in env.md_api.execute(select(DataBlockLog).all()):
             s += f"{dbl.snap_log.node_key:50}"
             s += f"{str(dbl.data_block_id):23}"
             s += f"{str(dbl.data_block.record_count):6}"

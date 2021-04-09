@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import logging
 import os
-import pathlib
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from importlib import import_module
+from snapflow.core.metadata.api import MetadataApi
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 import strictyaml
@@ -24,9 +24,8 @@ from snapflow.schema.base import (
 )
 from snapflow.storage.storage import DatabaseStorageClass, PythonStorageClass
 from snapflow.utils.common import AttrDict
-from sqlalchemy.engine.base import Connection
-from sqlalchemy.exc import ProgrammingError, SQLAlchemyError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 if TYPE_CHECKING:
     from snapflow.storage.storage import Storage
@@ -57,7 +56,7 @@ class Environment:
 
     def __init__(
         self,
-        name: str = None,
+        name: str = "default",
         metadata_storage: Union["Storage", str] = None,
         add_default_python_runtime: bool = True,
         modules: List[SnapflowModule] = None,  # Defaults to `core` module
@@ -84,15 +83,16 @@ class Environment:
         self.config = config
         if self.config is None:
             self.config = EnvironmentConfiguration(metadata_storage=metadata_storage)
+        self.metadata_api = MetadataApi(self.name, metadata_storage)
         if initialize_metadata_storage:
-            self.initialize_metadata_database()
+            self.metadata_api.initialize_metadata_database()
         # TODO: local module is yucky global state, also, we load these libraries and their
         #       components once, but the libraries are mutable and someone could add components
         #       to them later, which would not be picked up by the env library.
         self._local_module = DEFAULT_LOCAL_MODULE
         # TODO: load library from config
         self.library = ComponentLibrary()
-        self._metadata_sessions: List[Session] = []
+        # self._metadata_sessions: List[Session] = []
         self.raise_on_error = raise_on_error
         s = AttrDict(DEFAULT_SETTINGS)
         s.update(settings or {})
@@ -118,61 +118,24 @@ class Environment:
     def metadata_storage(self) -> Storage:
         return self.config.metadata_storage
 
-    def initialize_metadata_database(self):
-        if not issubclass(
-            self.metadata_storage.storage_engine.storage_class, DatabaseStorageClass
-        ):
-            raise ValueError(
-                f"metadata storage expected a database, got {self.metadata_storage}"
-            )
-        conn = self.metadata_storage.get_api().get_engine()
-        # BaseModel.metadata.create_all(conn)
-        try:
-            self.migrate_metdata_database(conn)
-        except SQLAlchemyError as e:
-            # Catch database exception, meaning already created, just stamp
-            # For initial migration
-            # TODO: remove once all 0.2 systems migrated?
-            logger.warning(e)
-            self.stamp_metadata_database(conn)
-            self.migrate_metdata_database(conn)
+    def get_metadata_api(self) -> MetadataApi:
+        return self.metadata_api
 
-        self.Session = sessionmaker(bind=conn)
+    # Shortcut
+    @property
+    def md_api(self) -> MetadataApi:
+        return self.get_metadata_api()
 
-    def get_alembic_config(self) -> Config:
-        dir_path = pathlib.Path(__file__).parent.absolute()
-        cfg_path = dir_path / "../migrations/alembic.ini"
-        alembic_cfg = Config(str(cfg_path))
-        alembic_cfg.set_main_option("sqlalchemy.url", self.metadata_storage.url)
-        return alembic_cfg
+    # def clean_up_db_sessions(self):
+    #     from snapflow.storage.db.api import dispose_all
 
-    def migrate_metdata_database(self, conn: Connection = None):
-        alembic_cfg = self.get_alembic_config()
-        if conn is not None:
-            alembic_cfg.attributes["connection"] = conn
-        command.upgrade(alembic_cfg, "head")
+    #     self.close_all_sessions()
+    #     dispose_all()
 
-    def stamp_metadata_database(self, conn: Connection = None):
-        alembic_cfg = self.get_alembic_config()
-        if conn is not None:
-            alembic_cfg.attributes["connection"] = conn
-        command.stamp(alembic_cfg, "23dd1cc88eb2")
-
-    def _get_new_metadata_session(self) -> Session:
-        sess = self.Session()
-        self._metadata_sessions.append(sess)
-        return sess
-
-    def clean_up_db_sessions(self):
-        from snapflow.storage.db.api import dispose_all
-
-        self.close_all_sessions()
-        dispose_all()
-
-    def close_all_sessions(self):
-        for s in self._metadata_sessions:
-            s.close()
-        self._metadata_sessions = []
+    # def close_all_sessions(self):
+    #     for s in self._metadata_sessions:
+    #         s.close()
+    #     self._metadata_sessions = []
 
     def get_default_local_python_storage(self) -> Storage:
         return self._local_python_storage
@@ -183,7 +146,7 @@ class Environment:
     def get_module_order(self) -> List[str]:
         return self.library.module_lookup_names
 
-    def get_schema(self, schema_like: SchemaLike, sess: Session) -> Schema:
+    def get_schema(self, schema_like: SchemaLike) -> Schema:
         if is_generic(schema_like):
             raise GenericSchemaException("Cannot get generic schema `{schema_like}`")
         if isinstance(schema_like, Schema):
@@ -191,7 +154,7 @@ class Environment:
         try:
             return self.library.get_schema(schema_like)
         except KeyError:
-            schema = self.get_generated_schema(schema_like, sess=sess)
+            schema = self.get_generated_schema(schema_like)
             if schema is None:
                 raise KeyError(schema_like)
             return schema
@@ -199,28 +162,28 @@ class Environment:
     def add_schema(self, schema: Schema):
         self.library.add_schema(schema)
 
-    def get_generated_schema(
-        self, schema_like: SchemaLike, sess: Session
-    ) -> Optional[Schema]:
+    def get_generated_schema(self, schema_like: SchemaLike) -> Optional[Schema]:
         if isinstance(schema_like, str):
             key = schema_like
         elif isinstance(schema_like, Schema):
             key = schema_like.key
         else:
             raise TypeError(schema_like)
-        got = sess.query(GeneratedSchema).get(key)
+        got = self.md_api.execute(
+            select(GeneratedSchema).filter(GeneratedSchema.key == key)
+        ).scalar_one_or_none()
         if got is None:
             return None
         return got.as_schema()
 
-    def add_new_generated_schema(self, schema: Schema, sess: Session):
+    def add_new_generated_schema(self, schema: Schema):
         logger.debug(f"Adding new generated schema {schema}")
         if schema.key in self.library.schemas:
             # Already exists
             return
         got = GeneratedSchema(key=schema.key, definition=asdict(schema))
-        sess.add(got)
-        sess.flush([got])
+        self.md_api.add(got)
+        self.md_api.flush([got])
         self.library.add_schema(schema)
 
     def all_schemas(self) -> List[Schema]:
@@ -241,17 +204,17 @@ class Environment:
             if module.name not in [m.name for m in self.config.modules]:
                 self.config.modules.append(module)
 
-    @contextmanager
-    def session_scope(self, **kwargs):
-        session = self.Session(**kwargs)
-        try:
-            yield session
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            raise e
-        finally:
-            session.close()
+    # @contextmanager
+    # def session_scope(self, **kwargs):
+    #     session = self.Session(**kwargs)
+    #     try:
+    #         yield session
+    #         session.commit()
+    #     except Exception as e:
+    #         session.rollback()
+    #         raise e
+    #     finally:
+    #         session.close()
 
     def get_default_storage(self) -> Storage:
         from snapflow.storage.storage import StorageClass
@@ -283,7 +246,6 @@ class Environment:
         args = dict(
             graph=graph,
             env=self,
-            # metadata_session=sess,
             runtimes=self.runtimes,
             storages=self.storages,
             target_storage=target_storage,
@@ -356,12 +318,9 @@ class Environment:
         else:
             dependencies = graph.get_all_nodes_in_execution_order()
         output = None
-        sess = self._get_new_metadata_session()  # hanging session
         with self.run(graph, **execution_kwargs) as em:
             for dep in dependencies:
-                output = em.execute(
-                    dep, to_exhaustion=to_exhaustion, output_session=sess
-                )
+                output = em.execute(dep, to_exhaustion=to_exhaustion)
         return output
 
     def run_node(
@@ -375,9 +334,8 @@ class Environment:
         assert node is not None
 
         logger.debug(f"Running: {node_like}")
-        sess = self._get_new_metadata_session()  # hanging session
         with self.run(graph, **execution_kwargs) as em:
-            return em.execute(node, to_exhaustion=to_exhaustion, output_session=sess)
+            return em.execute(node, to_exhaustion=to_exhaustion)
 
     def run_graph(
         self,
@@ -397,10 +355,9 @@ class Environment:
     def get_latest_output(
         self, node: NodeLike, graph: Union[Graph, DeclaredGraph] = None
     ) -> Optional[DataBlock]:
-        sess = self._get_new_metadata_session()  # TODO: hanging session
         n, graph = self._get_graph_and_node(node, graph)
         ctx = self.get_run_context(graph)
-        return n.latest_output(ctx, sess)
+        return n.latest_output(ctx)
 
     def add_storage(
         self, storage_like: Union[Storage, str], add_runtime: bool = True

@@ -94,7 +94,7 @@ def test_dedupe():
         ) as db:
             expected_df = DataInput(
                 expected, schema="CoreTestSchema", module=core
-            ).as_dataframe(db.manager.ctx.env, db.manager.sess)
+            ).as_dataframe(db.manager.ctx.env)
             df = db.as_dataframe()
             assert_dataframes_are_almost_equal(
                 df, expected_df, schema=core.schemas.CoreTestSchema

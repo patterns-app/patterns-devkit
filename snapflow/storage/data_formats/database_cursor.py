@@ -7,7 +7,7 @@ from snapflow.storage.data_formats.base import (
     MemoryDataFormatBase,
     make_corresponding_iterator_format,
 )
-from sqlalchemy.engine import ResultProxy
+from sqlalchemy.engine import Result
 
 
 class DatabaseCursorFormat(MemoryDataFormatBase):
@@ -17,7 +17,7 @@ class DatabaseCursorFormat(MemoryDataFormatBase):
 
     @classmethod
     def type(cls) -> Type:
-        return ResultProxy
+        return Result
 
     @classmethod
     def is_storable(cls) -> bool:
@@ -33,7 +33,7 @@ class DatabaseCursorFormat(MemoryDataFormatBase):
         return obj
 
 
-DatabaseCursor = TypeVar("DatabaseCursor", bound=ResultProxy)
+DatabaseCursor = TypeVar("DatabaseCursor", bound=Result)
 DatabaseCursorIterator = Iterator[DatabaseCursor]
 
 DatabaseCursorIteratorFormat = make_corresponding_iterator_format(DatabaseCursorFormat)

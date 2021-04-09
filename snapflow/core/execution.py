@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.metadata.api import MetadataApi
 
 import traceback
 from collections import abc, defaultdict
@@ -10,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional,
 
 import sqlalchemy
 from loguru import logger
+from sqlalchemy.sql.expression import select
 from snapflow.core.data_block import (
     Alias,
     DataBlock,
@@ -42,7 +44,7 @@ from snapflow.storage.data_records import (
 from snapflow.storage.storage import LocalPythonStorageEngine, PythonStorageApi, Storage
 from snapflow.utils.common import cf, error_symbol, success_symbol, utcnow
 from snapflow.utils.data import SampleableIO
-from sqlalchemy.engine import ResultProxy
+from sqlalchemy.engine import Result
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import Session
 
@@ -111,27 +113,28 @@ class Executable:
     params: Dict = field(default_factory=dict)
 
 
-@dataclass(frozen=True)
-class ExecutionSession:
-    snap_log: SnapLog
-    metadata_session: Session  # Make this a URL or other jsonable and then runtime can connect
+# @dataclass(frozen=True)
+# class ExecutionSession:
+#     snap_log: SnapLog
+#     env: Environment
+#     # metadata_session: Session  # Make this a URL or other jsonable and then runtime can connect
 
-    def log(self, block: DataBlockMetadata, direction: Direction):
-        drl = DataBlockLog(  # type: ignore
-            snap_log=self.snap_log,
-            data_block=block,
-            direction=direction,
-            processed_at=utcnow(),
-        )
-        self.metadata_session.add(drl)
+#     def log(self, block: DataBlockMetadata, direction: Direction):
+#         drl = DataBlockLog(  # type: ignore
+#             snap_log=self.snap_log,
+#             data_block=block,
+#             direction=direction,
+#             processed_at=utcnow(),
+#         )
+#         self.env.get_metadata_api().add(drl)
 
-    def log_input(self, block: DataBlockMetadata):
-        logger.debug(f"Input logged: {block}")
-        self.log(block, Direction.INPUT)
+#     def log_input(self, block: DataBlockMetadata):
+#         logger.debug(f"Input logged: {block}")
+#         self.log(block, Direction.INPUT)
 
-    def log_output(self, block: DataBlockMetadata):
-        logger.debug(f"Output logged: {block}")
-        self.log(block, Direction.OUTPUT)
+#     def log_output(self, block: DataBlockMetadata):
+#         logger.debug(f"Output logged: {block}")
+#         self.log(block, Direction.OUTPUT)
 
 
 @dataclass
@@ -186,10 +189,10 @@ class ImproperlyStoredDataBlockException(Exception):
     pass
 
 
-def validate_data_blocks(sess: Session):
+def validate_data_blocks(env: Environment):
     # TODO: More checks?
-    sess.flush()
-    for obj in sess.identity_map.values():
+    env.md_api.flush()
+    for obj in env.md_api.active_session.identity_map.values():
         if isinstance(obj, DataBlockMetadata):
             urls = set([sdb.storage_url for sdb in obj.stored_data_blocks])
             if all(u.startswith("python") for u in urls):
@@ -204,7 +207,6 @@ def validate_data_blocks(sess: Session):
 class RunContext:
     env: Environment
     graph: Graph
-    # metadata_session: Session
     storages: List[Storage]
     runtimes: List[Runtime]
     target_storage: Storage
@@ -221,7 +223,6 @@ class RunContext:
         args = dict(
             graph=self.graph,
             env=self.env,
-            # metadata_session=self.metadata_session,
             storages=self.storages,
             runtimes=self.runtimes,
             target_storage=self.target_storage,
@@ -236,21 +237,24 @@ class RunContext:
         return RunContext(**args)  # type: ignore
 
     @contextmanager
-    def start_snap_run(self, node: Node) -> Iterator[ExecutionSession]:
+    def start_snap_run(self, node: Node) -> Iterator[SnapLog]:
         from snapflow.core.graph import GraphMetadata
 
         assert self.current_runtime is not None, "Runtime not set"
-        with self.env.session_scope() as sess:
-            node_state_obj = node.get_state(sess)
+        md = self.env.get_metadata_api()
+        with md.begin():
+            node_state_obj = node.get_state()
             if node_state_obj is None:
                 node_state = {}
             else:
                 node_state = node_state_obj.state
             new_graph_meta = node.graph.get_metadata_obj()
-            graph_meta = sess.query(GraphMetadata).get(new_graph_meta.hash)
+            graph_meta = md.execute(
+                select(GraphMetadata).filter(GraphMetadata.hash == new_graph_meta.hash)
+            ).scalar_one_or_none()
             if graph_meta is None:
-                sess.add(new_graph_meta)
-                sess.flush([new_graph_meta])
+                md.add(new_graph_meta)
+                md.flush()  # [new_graph_meta])
                 graph_meta = new_graph_meta
 
             pl = SnapLog(  # type: ignore
@@ -265,9 +269,9 @@ class RunContext:
             )
 
             try:
-                yield ExecutionSession(pl, sess)
+                yield pl
                 # Validate local memory objects: Did we leave any non-storeables hanging?
-                validate_data_blocks(sess)
+                validate_data_blocks(self.env)
             except Exception as e:
                 # Don't worry about exhaustion exceptions
                 if not isinstance(e, InputExhaustedException):
@@ -277,10 +281,10 @@ class RunContext:
                     raise e
             finally:
                 # Persist state on success OR error:
-                pl.persist_state(sess)
+                pl.persist_state(self.env)
                 pl.completed_at = utcnow()
-                sess.add(pl)
-                sess.commit()
+                md.add(pl)
+                # md.commit()
 
     @property
     def all_storages(self) -> List[Storage]:
@@ -311,8 +315,8 @@ class RunContext:
 @dataclass(frozen=True)
 class SnapContext:  # TODO: (Generic[C, S]):
     run_context: RunContext
-    execution_session: ExecutionSession
     worker: Worker
+    metadata_api: MetadataApi
     executable: Executable
     inputs: List[StreamInput]
     snap_log: SnapLog
@@ -338,6 +342,23 @@ class SnapContext:  # TODO: (Generic[C, S]):
     #         return
     #     schema = self.execution_context.env.get_schema(schema_like)
     #     self.set_resolved_output_schema(schema)
+
+    def log(self, block: DataBlockMetadata, direction: Direction):
+        drl = DataBlockLog(  # type: ignore
+            snap_log=self.snap_log,
+            data_block=block,
+            direction=direction,
+            processed_at=utcnow(),
+        )
+        self.metadata_api.add(drl)
+
+    def log_input(self, block: DataBlockMetadata):
+        logger.debug(f"Input logged: {block}")
+        self.log(block, Direction.INPUT)
+
+    def log_output(self, block: DataBlockMetadata):
+        logger.debug(f"Output logged: {block}")
+        self.log(block, Direction.OUTPUT)
 
     def get_node(self) -> Node:
         return self.run_context.graph.get_node(self.executable.node_key)
@@ -387,7 +408,7 @@ class SnapContext:  # TODO: (Generic[C, S]):
             )
             if sdb is not None:
                 self.create_alias(sdb)
-                self.execution_session.log_output(sdb.data_block)
+                self.log_output(sdb.data_block)
                 self.outputs.append(sdb)
         if update_state is not None:
             for k, v in update_state.items():
@@ -418,7 +439,7 @@ class SnapContext:  # TODO: (Generic[C, S]):
         nominal_output_schema = schema
         if nominal_output_schema is None:
             nominal_output_schema = self.executable.bound_interface.resolve_nominal_output_schema(
-                self.run_context.env, self.execution_session.metadata_session,
+                self.run_context.env
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
         logger.debug(
             f"Resolved output schema {nominal_output_schema} {self.executable.bound_interface}"
@@ -436,17 +457,14 @@ class SnapContext:  # TODO: (Generic[C, S]):
         return sdb
 
     def create_alias(self, sdb: StoredDataBlockMetadata) -> Optional[Alias]:
-        self.execution_session.metadata_session.flush([sdb.data_block, sdb])
-        alias = ensure_alias(
-            self.execution_session.metadata_session, self.get_node(), sdb
-        )
-        self.execution_session.metadata_session.flush([alias])
+        self.metadata_api.flush()  # [sdb.data_block, sdb])
+        alias = ensure_alias(self.get_node(), sdb)
+        self.metadata_api.flush()  # [alias])
         return alias
 
     def store_output_block(self, dro: MemoryDataRecords) -> StoredDataBlockMetadata:
         block, sdb = create_data_block_from_records(
             self.run_context.env,
-            self.execution_session.metadata_session,
             self.run_context.local_python_storage,
             dro,
             created_by_node_key=self.executable.node_key,
@@ -477,7 +495,6 @@ class SnapContext:  # TODO: (Generic[C, S]):
         # Place output in target storage
         return copy_lowest_cost(
             self.run_context.env,
-            self.execution_session.metadata_session,
             sdb=sdb,
             target_storage=self.run_context.target_storage,
             target_format=target_format,
@@ -489,7 +506,7 @@ class SnapContext:  # TODO: (Generic[C, S]):
             if input.bound_stream is not None:
                 for db in input.bound_stream.get_emitted_blocks():
                     self.input_blocks_processed[input.name].add(db)
-                    self.execution_session.log_input(db)
+                    self.log_input(db)
 
     def should_continue(self) -> bool:
         """
@@ -580,15 +597,17 @@ class ExecutionManager:
                 error = "Snap failed (unknown error)"
             self.ctx.logger(INDENT + cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n" + cf.dimmed(cumulative_execution_result.traceback))  # type: ignore
         logger.debug(f"Cumulative execution result: {cumulative_execution_result}")
+        logger.debug(f"*DONE* RUNNING NODE {node.key} {node.snap.key}")
         if cumulative_execution_result.output_block_id is None:
             return None
-        logger.debug(f"*DONE* RUNNING NODE {node.key} {node.snap.key}")
-        if output_session is not None:
-            db: DataBlockMetadata = output_session.query(DataBlockMetadata).get(
-                cumulative_execution_result.output_block_id
+        # TODO: hanging session
+        self.env.md_api.begin().__enter__()
+        db: DataBlockMetadata = self.env.md_api.execute(
+            select(DataBlockMetadata).filter_by(
+                id=cumulative_execution_result.output_block_id
             )
-            return db.as_managed_data_block(run_ctx, output_session)
-        return None
+        ).scalar_one()
+        return db.as_managed_data_block(run_ctx)
 
     def _execute(self, node: Node, worker: Worker) -> ExecutionResult:
         snap = node.snap
@@ -621,11 +640,11 @@ class ExecutionManager:
         self.ctx.logger("\n")
 
 
-def ensure_alias(sess: Session, node: Node, sdb: StoredDataBlockMetadata) -> Alias:
+def ensure_alias(node: Node, sdb: StoredDataBlockMetadata) -> Alias:
     logger.debug(
         f"Creating alias {node.get_alias()} for node {node.key} on storage {sdb.storage_url}"
     )
-    return sdb.create_alias(sess, node.get_alias())
+    return sdb.create_alias(node.env, node.get_alias())
 
 
 class Worker:
@@ -637,18 +656,16 @@ class Worker:
         node = self.ctx.graph.get_node(executable.node_key)
         result = ExecutionResult.empty()
         try:
-            with self.ctx.start_snap_run(node) as execution_session:
-                interface_mgr = NodeInterfaceManager(
-                    self.ctx, execution_session.metadata_session, node
-                )
+            with self.ctx.start_snap_run(node) as snap_log:
+                interface_mgr = NodeInterfaceManager(self.ctx, node)
                 executable.bound_interface = interface_mgr.get_bound_interface()
                 snap_ctx = SnapContext(
                     self.ctx,
                     worker=self,
-                    execution_session=execution_session,
+                    metadata_api=self.env.md_api,
                     executable=executable,
                     inputs=executable.bound_interface.inputs,
-                    snap_log=execution_session.snap_log,
+                    snap_log=snap_log,
                 )
                 snap_args = []
                 if executable.bound_interface.context:
@@ -664,13 +681,13 @@ class Worker:
                     #     local_vars.update(snap._locals)
                     # exec(snap.get_source_code(), globals(), local_vars)
                     # output_obj = local_vars[snap.snap_callable.__name__](
-                    print("callable", executable.compiled_snap.snap.snap_callable)
                     output_obj = executable.compiled_snap.snap.snap_callable(
                         *snap_args, **snap_kwargs,
                     )
-                    print("out", output_obj)
+                    print("OUT OBJ")
+                    print(output_obj)
                     for res in self.process_execution_result(
-                        executable, execution_session, output_obj, snap_ctx
+                        executable, snap_log, output_obj, snap_ctx
                     ):
                         result = res
                 finally:
@@ -689,7 +706,7 @@ class Worker:
     def process_execution_result(
         self,
         executable: Executable,
-        execution_session: ExecutionSession,
+        snap_log: SnapLog,
         output_obj: DataInterfaceType,
         snap_ctx: SnapContext,
     ) -> Iterator[ExecutionResult]:
@@ -704,19 +721,14 @@ class Worker:
                 logger.debug(output_obj)
                 i += 1
                 snap_ctx.emit(output_obj)
-                result = self.execution_result_info(
-                    executable, execution_session, snap_ctx
-                )
+                result = self.execution_result_info(executable, snap_log, snap_ctx)
                 yield result
         else:
-            result = self.execution_result_info(executable, execution_session, snap_ctx)
+            result = self.execution_result_info(executable, snap_log, snap_ctx)
             yield result
 
     def execution_result_info(
-        self,
-        executable: Executable,
-        execution_session: ExecutionSession,
-        snap_ctx: SnapContext,
+        self, executable: Executable, snap_log: SnapLog, snap_ctx: SnapContext,
     ) -> ExecutionResult:
         last_output_block: Optional[DataBlockMetadata] = None
         last_output_sdb: Optional[StoredDataBlockMetadata] = None
@@ -728,9 +740,7 @@ class Worker:
         if snap_ctx.outputs:
             last_output_sdb = snap_ctx.outputs[-1]
             last_output_block = last_output_sdb.data_block
-            last_output_alias = last_output_sdb.get_alias(
-                execution_session.metadata_session
-            )
+            last_output_alias = last_output_sdb.get_alias(self.env)
 
         input_block_counts = {}
         total_input_count = 0
@@ -759,11 +769,11 @@ class Worker:
                     if db.record_count() is not None
                 ]
             ),
-            error=execution_session.snap_log.error.get("error")
-            if isinstance(execution_session.snap_log.error, dict)
+            error=snap_log.error.get("error")
+            if isinstance(snap_log.error, dict)
             else None,
-            traceback=execution_session.snap_log.error.get("traceback")
-            if isinstance(execution_session.snap_log.error, dict)
+            traceback=snap_log.error.get("traceback")
+            if isinstance(snap_log.error, dict)
             else None,
         )
 
@@ -775,7 +785,7 @@ class Worker:
             raise Exception(f"Runtime not supported {self.ctx.current_runtime}")
         return sqlalchemy.create_engine(self.ctx.current_runtime.url)
 
-    def execute_sql(self, sql: str) -> ResultProxy:
+    def execute_sql(self, sql: str) -> Result:
         logger.debug("Executing SQL:")
         logger.debug(sql)
         return self.get_connection().execute(sql)

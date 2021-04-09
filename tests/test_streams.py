@@ -25,6 +25,8 @@ class TestStreams:
         ctx = make_test_run_context()
         self.ctx = ctx
         self.env = ctx.env
+        self.sess = self.env.md_api.begin()
+        self.sess.__enter__()
         self.g = Graph(self.env)
         self.graph = self.g.get_metadata_obj()
         self.dr1t1 = DataBlockMetadata(
@@ -53,20 +55,19 @@ class TestStreams:
         self.node3 = self.g.create_node(
             key="snap3", snap=snap_generic, input="snap_source"
         )
-        self.sess = self.env._get_new_metadata_session()
-        self.sess.add(self.dr1t1)
-        self.sess.add(self.dr2t1)
-        self.sess.add(self.dr1t2)
-        self.sess.add(self.dr2t2)
-        self.sess.add(self.graph)
+        self.env.md_api.add(self.dr1t1)
+        self.env.md_api.add(self.dr2t1)
+        self.env.md_api.add(self.dr1t2)
+        self.env.md_api.add(self.dr2t2)
+        self.env.md_api.add(self.graph)
 
     def teardown(self):
-        self.sess.close()
+        self.sess.__exit__(None, None, None)
 
     def test_stream_unprocessed_pristine(self):
         s = stream(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query(self.ctx, self.sess).first() is None
+        assert s.get_query_result(self.ctx).scalar_one_or_none() is None
 
     def test_stream_unprocessed_eligible(self):
         dfl = SnapLog(
@@ -76,15 +77,13 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        self.sess.add_all([dfl, drl])
+        self.env.md_api.add_all([dfl, drl])
 
         s = stream(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query(self.ctx, self.sess).first() == self.dr1t1
+        assert s.get_query_result(self.ctx).scalar_one_or_none() == self.dr1t1
 
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = SnapLog(
@@ -94,9 +93,7 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = SnapLog(
             graph_id=self.graph.hash,
@@ -105,15 +102,13 @@ class TestStreams:
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            snap_log=dfl2,
-            data_block=self.dr1t1,
-            direction=Direction.INPUT,
+            snap_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
         )
-        self.sess.add_all([dfl, drl, dfl2, drl2])
+        self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 
         s = stream(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query(self.ctx, self.sess).first() is None
+        assert s.get_query_result(self.ctx).scalar_one_or_none() is None
 
     def test_stream_unprocessed_ineligible_already_output(self):
         """
@@ -127,9 +122,7 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = SnapLog(
             graph_id=self.graph.hash,
@@ -138,19 +131,17 @@ class TestStreams:
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            snap_log=dfl2,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl2, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        self.sess.add_all([dfl, drl, dfl2, drl2])
+        self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 
         s = stream(nodes=self.node_source)
         s1 = s.filter_unprocessed(self.node1)
-        assert s1.get_query(self.ctx, self.sess).first() is None
+        assert s1.get_query_result(self.ctx).scalar_one_or_none() is None
 
         # But ok with self reference
         s2 = s.filter_unprocessed(self.node1, allow_cycle=True)
-        assert s2.get_query(self.ctx, self.sess).first() == self.dr1t1
+        assert s2.get_query_result(self.ctx).scalar_one_or_none() == self.dr1t1
 
     def test_stream_unprocessed_eligible_schema(self):
         dfl = SnapLog(
@@ -160,19 +151,17 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        self.sess.add_all([dfl, drl])
+        self.env.md_api.add_all([dfl, drl])
 
         s = stream(nodes=self.node_source, schema="TestSchema1")
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query(self.ctx, self.sess).first() == self.dr1t1
+        assert s.get_query_result(self.ctx).scalar_one_or_none() == self.dr1t1
 
         s = stream(nodes=self.node_source, schema="TestSchema2")
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query(self.ctx, self.sess).first() is None
+        assert s.get_query_result(self.ctx).scalar_one_or_none() is None
 
     def test_operators(self):
         dfl = SnapLog(
@@ -182,16 +171,12 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         drl2 = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr2t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr2t1, direction=Direction.OUTPUT,
         )
-        self.sess.add_all([dfl, drl, drl2])
+        self.env.md_api.add_all([dfl, drl, drl2])
 
         self._cnt = 0
 
@@ -202,23 +187,19 @@ class TestStreams:
                 yield db
 
         sb = stream(nodes=self.node_source)
-        expected_cnt = sb.get_query(self.ctx, self.sess).count()
+        expected_cnt = sb.get_count(self.ctx)
         assert expected_cnt == 2
-        list(count(sb).as_managed_stream(self.ctx, self.sess))
+        list(count(sb).as_managed_stream(self.ctx))
         assert self._cnt == expected_cnt
 
         # Test composed operators
         self._cnt = 0
-        list(count(latest(sb)).as_managed_stream(self.ctx, self.sess))
+        list(count(latest(sb)).as_managed_stream(self.ctx))
         assert self._cnt == 1
 
         # Test kwargs
         self._cnt = 0
-        list(
-            count(filter(sb, function=lambda db: False)).as_managed_stream(
-                self.ctx, self.sess
-            )
-        )
+        list(count(filter(sb, function=lambda db: False)).as_managed_stream(self.ctx))
         assert self._cnt == 0
 
     def test_managed_stream(self):
@@ -229,9 +210,7 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            snap_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = SnapLog(
             graph_id=self.graph.hash,
@@ -240,17 +219,15 @@ class TestStreams:
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            snap_log=dfl2,
-            data_block=self.dr1t1,
-            direction=Direction.INPUT,
+            snap_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
         )
-        self.sess.add_all([dfl, drl, dfl2, drl2])
+        self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 
         s = stream(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
 
         ctx = make_test_run_context()
-        with ctx.env.session_scope() as sess:
-            dbs = ManagedDataBlockStream(ctx, sess, stream_builder=s)
+        with ctx.env.md_api.begin():
+            dbs = ManagedDataBlockStream(ctx, stream_builder=s)
             with pytest.raises(StopIteration):
                 assert next(dbs) is None

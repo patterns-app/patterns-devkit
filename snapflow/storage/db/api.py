@@ -16,7 +16,7 @@ from snapflow.storage.storage import Storage, StorageApi
 from snapflow.utils.common import SnapflowJSONEncoder, rand_str
 from snapflow.utils.data import conform_records_for_insert
 from sqlalchemy import MetaData
-from sqlalchemy.engine import Connection, Engine, ResultProxy
+from sqlalchemy.engine import Connection, Engine, Result
 from sqlalchemy.exc import OperationalError, ProgrammingError
 from sqlalchemy.orm.session import Session
 
@@ -37,9 +37,7 @@ def dispose_all(keyword: Optional[str] = None):
 
 class DatabaseApi:
     def __init__(
-        self,
-        url: str,
-        json_serializer: Callable = None,
+        self, url: str, json_serializer: Callable = None,
     ):
         self.url = url
         self.json_serializer = (
@@ -59,9 +57,7 @@ class DatabaseApi:
         if key in _sa_engines:
             return _sa_engines[key]
         self.eng = sqlalchemy.create_engine(
-            self.url,
-            json_serializer=self.json_serializer,
-            echo=False,
+            self.url, json_serializer=self.json_serializer, echo=False,
         )
         _sa_engines[key] = self.eng
         return self.eng
@@ -74,14 +70,14 @@ class DatabaseApi:
         with self.get_engine().connect() as conn:
             yield conn
 
-    def execute_sql(self, sql: str) -> ResultProxy:
+    def execute_sql(self, sql: str) -> Result:
         logger.debug("Executing SQL:")
         logger.debug(sql)
         with self.connection() as conn:
             return conn.execute(sql)
 
     @contextmanager
-    def execute_sql_result(self, sql: str) -> Iterator[ResultProxy]:
+    def execute_sql_result(self, sql: str) -> Iterator[Result]:
         logger.debug("Executing SQL:")
         logger.debug(sql)
         with self.connection() as conn:
@@ -91,9 +87,7 @@ class DatabaseApi:
         if self.exists(name):
             return name
         ddl = SchemaMapper().create_table_statement(
-            schema=schema,
-            dialect=self.get_engine().dialect,
-            table_name=name,
+            schema=schema, dialect=self.get_engine().dialect, table_name=name,
         )
         self.execute_sql(ddl)
         return name
@@ -134,7 +128,7 @@ class DatabaseApi:
     def clean_sub_sql(self, sql: str) -> str:
         return sql.strip(" ;")
 
-    def insert_sql(self, sess: Session, name: str, sql: str, schema: Schema):
+    def insert_sql(self, name: str, sql: str, schema: Schema):
         sql = self.clean_sub_sql(sql)
         columns = "\n,".join(f.name for f in schema.fields)
         insert_sql = f"""
@@ -150,9 +144,7 @@ class DatabaseApi:
         self.execute_sql(insert_sql)
 
     def create_table_from_sql(
-        self,
-        name: str,
-        sql: str,
+        self, name: str, sql: str,
     ):
         sql = self.clean_sub_sql(sql)
         create_sql = f"""
@@ -206,8 +198,7 @@ class DatabaseApi:
 
 class DatabaseStorageApi(DatabaseApi, StorageApi):
     def __init__(
-        self,
-        storage: Storage,
+        self, storage: Storage,
     ):
         super().__init__(storage.url)
         self.storage = storage

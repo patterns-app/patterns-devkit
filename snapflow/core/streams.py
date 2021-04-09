@@ -15,6 +15,9 @@ from typing import (
 )
 
 from loguru import logger
+from sqlalchemy.engine import Result
+from sqlalchemy.sql.expression import select
+from sqlalchemy.sql.selectable import Select
 from snapflow.core.data_block import (
     DataBlock,
     DataBlockMetadata,
@@ -131,30 +134,33 @@ class StreamBuilder:
     """"""
 
     def __init__(
-        self,
-        filters: StreamBuilderSerializable = None,
+        self, filters: StreamBuilderSerializable = None,
     ):
         self._filters = filters or StreamBuilderSerializable()
 
     def __str__(self):
         return str(self._filters)
 
-    def _base_query(self) -> Query:
-        return Query(DataBlockMetadata).order_by(DataBlockMetadata.id)
+    def _base_query(self) -> Select:
+        return select(DataBlockMetadata).order_by(DataBlockMetadata.id)
 
-    def get_query(self, ctx: RunContext, sess: Session) -> Query:
+    def get_query(self, ctx: RunContext) -> Query:
         q = self._base_query()
         if self._filters.node_keys is not None:
-            q = self._filter_inputs(ctx, sess, q)
+            q = self._filter_inputs(ctx, q)
         if self._filters.schema_keys is not None:
-            q = self._filter_schemas(ctx, sess, q)
+            q = self._filter_schemas(ctx, q)
         if self._filters.storage_urls is not None:
-            q = self._filter_storages(ctx, sess, q)
+            q = self._filter_storages(ctx, q)
         if self._filters.unprocessed_by_node_key is not None:
-            q = self._filter_unprocessed(ctx, sess, q)
+            q = self._filter_unprocessed(ctx, q)
         if self._filters.data_block_id is not None:
-            q = self._filter_data_block(ctx, sess, q)
-        return q.with_session(sess)
+            q = self._filter_data_block(ctx, q)
+        return q.distinct()
+
+    def get_query_result(self, ctx: RunContext) -> Result:
+        s = self.get_query(ctx)
+        return ctx.env.md_api.execute(s)
 
     def clone(
         self,
@@ -186,16 +192,10 @@ class StreamBuilder:
         self, unprocessed_by: Node, allow_cycle=False
     ) -> StreamBuilder:
         return self.clone(
-            unprocessed_by_node_key=unprocessed_by.key,
-            allow_cycle=allow_cycle,
+            unprocessed_by_node_key=unprocessed_by.key, allow_cycle=allow_cycle,
         )
 
-    def _filter_unprocessed(
-        self,
-        ctx: RunContext,
-        sess: Session,
-        query: Query,
-    ) -> Query:
+    def _filter_unprocessed(self, ctx: RunContext, query: Query,) -> Query:
         if not self._filters.unprocessed_by_node_key:
             return query
         if self._filters.allow_cycle:
@@ -223,12 +223,7 @@ class StreamBuilder:
     def filter_inputs(self, inputs: Union[NodeLike, List[NodeLike]]) -> StreamBuilder:
         return self.clone(node_keys=[ensure_node_key(n) for n in ensure_list(inputs)])
 
-    def _filter_inputs(
-        self,
-        ctx: RunContext,
-        sess: Session,
-        query: Query,
-    ) -> Query:
+    def _filter_inputs(self, ctx: RunContext, query: Query,) -> Query:
         if not self._filters.node_keys:
             return query
         eligible_input_drs = (
@@ -243,19 +238,19 @@ class StreamBuilder:
         )
         return query.filter(DataBlockMetadata.id.in_(eligible_input_drs))
 
-    def get_schemas(self, env: Environment, sess: Session):
-        return [env.get_schema(d, sess) for d in self._filters.schema_keys]
+    def get_schemas(self, env: Environment):
+        return [env.get_schema(d) for d in self._filters.schema_keys]
 
     def filter_schemas(self, schemas: List[SchemaLike]) -> StreamBuilder:
         return self.clone(
             schema_keys=[ensure_schema_key(s) for s in ensure_list(schemas)]
         )
 
-    def _filter_schemas(self, ctx: RunContext, sess: Session, query: Query) -> Query:
+    def _filter_schemas(self, ctx: RunContext, query: Query) -> Query:
         if not self._filters.schema_keys:
             return query
         return query.filter(
-            DataBlockMetadata.nominal_schema_key.in_([d.key for d in self.get_schemas(ctx.env, sess)])  # type: ignore
+            DataBlockMetadata.nominal_schema_key.in_([d.key for d in self.get_schemas(ctx.env)])  # type: ignore
         )
 
     def filter_schema(self, schema: SchemaLike) -> StreamBuilder:
@@ -264,7 +259,7 @@ class StreamBuilder:
     def filter_storages(self, storages: List[Storage]) -> StreamBuilder:
         return self.clone(storage_urls=[s.url for s in storages])
 
-    def _filter_storages(self, ctx: RunContext, sess: Session, query: Query) -> Query:
+    def _filter_storages(self, ctx: RunContext, query: Query) -> Query:
         if not self._filters.storage_urls:
             return query
         return query.join(StoredDataBlockMetadata).filter(
@@ -279,7 +274,7 @@ class StreamBuilder:
     ) -> StreamBuilder:
         return self.clone(data_block_id=ensure_data_block_id(data_block))
 
-    def _filter_data_block(self, ctx: RunContext, sess: Session, query: Query) -> Query:
+    def _filter_data_block(self, ctx: RunContext, query: Query) -> Query:
         if not self._filters.data_block_id:
             return query
         return query.filter(DataBlockMetadata.id == self._filters.data_block_id)
@@ -291,32 +286,27 @@ class StreamBuilder:
         return self.clone(operators=(self.get_operators() + [op]))
 
     def is_unprocessed(
-        self,
-        ctx: RunContext,
-        sess: Session,
-        block: DataBlockMetadata,
-        node: Node,
+        self, ctx: RunContext, block: DataBlockMetadata, node: Node,
     ) -> bool:
         blocks = self.filter_unprocessed(node)
-        q = blocks.get_query(ctx, sess)
+        q = blocks.get_query(ctx)
         return q.filter(DataBlockMetadata.id == block.id).count() > 0
 
-    def get_count(self, ctx: RunContext, sess: Session) -> int:
-        return self.get_query(ctx, sess).count()
+    def get_count(self, ctx: RunContext) -> int:
+        q = self.get_query(ctx)
+        return ctx.env.md_api.count(q)
 
-    def get_all(self, ctx: RunContext, sess: Session) -> List[DataBlockMetadata]:
-        return self.get_query(ctx, sess).all()
+    def get_all(self, ctx: RunContext) -> List[DataBlockMetadata]:
+        return self.get_query_result(ctx).scalars()
 
     def as_managed_stream(
         self,
         ctx: RunContext,
-        sess: Session,
         declared_schema: Optional[Schema] = None,
         declared_schema_translation: Optional[Dict[str, str]] = None,
     ) -> ManagedDataBlockStream:
         return ManagedDataBlockStream(
             ctx,
-            sess,
             self,
             declared_schema=declared_schema,
             declared_schema_translation=declared_schema_translation,
@@ -332,27 +322,23 @@ def block_as_stream_builder(data_block: DataBlockMetadata) -> StreamBuilder:
 def block_as_stream(
     data_block: DataBlockMetadata,
     ctx: RunContext,
-    sess: Session,
     declared_schema: Optional[Schema] = None,
     declared_schema_translation: Optional[Dict[str, str]] = None,
 ) -> DataBlockStream:
     stream = block_as_stream_builder(data_block)
-    return stream.as_managed_stream(
-        ctx, sess, declared_schema, declared_schema_translation
-    )
+    return stream.as_managed_stream(ctx, declared_schema, declared_schema_translation)
 
 
 class ManagedDataBlockStream:
     def __init__(
         self,
         ctx: RunContext,
-        sess: Session,
         stream_builder: StreamBuilder,
         declared_schema: Optional[Schema] = None,
         declared_schema_translation: Optional[Dict[str, str]] = None,
     ):
         self.ctx = ctx
-        self.sess = sess
+
         self.declared_schema = declared_schema
         self.declared_schema_translation = declared_schema_translation
         self._blocks: List[DataBlock] = list(self._build_stream(stream_builder))
@@ -361,8 +347,8 @@ class ManagedDataBlockStream:
         self._emitted_managed_blocks: List[DataBlock] = []
 
     def _build_stream(self, stream_builder: StreamBuilder) -> Iterator[DataBlock]:
-        query = stream_builder.get_query(self.ctx, self.sess)
-        stream = (b for b in query)
+        result = stream_builder.get_query_result(self.ctx).scalars()
+        stream = (b for b in result)
         stream = self.as_managed_block(stream)
         for op in stream_builder.get_operators():
             stream = op.op_callable(stream, **op.kwargs)
@@ -381,15 +367,14 @@ class ManagedDataBlockStream:
             if db.nominal_schema_key:
                 schema_translation = get_schema_translation(
                     self.ctx.env,
-                    self.sess,
-                    source_schema=db.nominal_schema(self.ctx.env, self.sess),
+                    source_schema=db.nominal_schema(self.ctx.env),
                     target_schema=self.declared_schema,
                     declared_schema_translation=self.declared_schema_translation,
                 )
             else:
                 schema_translation = None
             mdb = db.as_managed_data_block(
-                self.ctx, self.sess, schema_translation=schema_translation
+                self.ctx, schema_translation=schema_translation
             )
             yield mdb
 

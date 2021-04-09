@@ -85,16 +85,16 @@ class Implementation:
     schema_key: SchemaKey
     fields: Dict[str, str]
 
-    def schema(self, env: Environment, sess: Session) -> Schema:
-        return env.get_schema(self.schema_key, sess)
+    def schema(self, env: Environment) -> Schema:
+        return env.get_schema(self.schema_key)
 
     def as_schema_translation(
-        self, env: Environment, sess: Session, other: Schema
+        self, env: Environment, other: Schema
     ) -> SchemaTranslation:
         # TODO: this inversion is a bit confusing
         trans = {v: k for k, v in self.fields.items()}
         return SchemaTranslation(
-            translation=trans, from_schema=self.schema(env, sess), to_schema=other
+            translation=trans, from_schema=self.schema(env), to_schema=other
         )
 
 
@@ -177,14 +177,14 @@ class Schema:
         return Schema(**d)
 
     def get_translation_to(
-        self, env: Environment, sess: Session, other: Schema
+        self, env: Environment, other: Schema
     ) -> Optional[SchemaTranslation]:
         if not self.implementations:
             return None
         for impl in self.implementations:
-            schema = env.get_schema(impl.schema_key, sess)
+            schema = env.get_schema(impl.schema_key)
             if schema.key == other.key:
-                return impl.as_schema_translation(env, sess, other)
+                return impl.as_schema_translation(env, other)
         return None
 
 

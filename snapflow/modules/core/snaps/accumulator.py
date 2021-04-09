@@ -24,8 +24,7 @@ from snapflow.utils.typing import T
 # @input("previous", schema="T", recursive_from_self=True)
 @Snap(module="core", display_name="Accumulate DataFrames")
 def dataframe_accumulator(
-    input: Stream[T],
-    this: Optional[DataBlock[T]] = None,
+    input: Stream[T], this: Optional[DataBlock[T]] = None,
 ) -> DataFrame[T]:
     # TODO: make this return a dataframe iterator right?
     accumulated_dfs = [block.as_dataframe() for block in input]
@@ -108,7 +107,7 @@ def test_accumulator():
                 assert db is not None
                 expected_df = DataInput(
                     expected, schema="CoreTestSchema", module=core
-                ).as_dataframe(db.manager.ctx.env, db.manager.sess)
+                ).as_dataframe(db.manager.ctx.env)
                 logger.debug("TEST df conversion 2")
                 df = db.as_dataframe()
                 assert_dataframes_are_almost_equal(

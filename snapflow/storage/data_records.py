@@ -13,7 +13,7 @@ from snapflow.utils.data import (
     SampleableIO,
     SampleableIterator,
 )
-from sqlalchemy.engine.result import ResultProxy
+from sqlalchemy.engine import Result
 
 if TYPE_CHECKING:
     from snapflow.storage.data_formats import DataFormat
@@ -110,7 +110,7 @@ def wrap_records_object(obj: Any) -> Any:
     if isinstance(obj, SampleableIterator):
         # Already wrapped
         return obj
-    if isinstance(obj, ResultProxy):
+    if isinstance(obj, Result):
         return SampleableCursor(obj)
     if isinstance(obj, IOBase):
         return SampleableIO(obj)

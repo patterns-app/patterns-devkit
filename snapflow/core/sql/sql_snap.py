@@ -95,9 +95,7 @@ class ParsedSqlStatement:
         else:
             output = make_default_output()
         return DeclaredSnapInterface(
-            inputs=inputs,
-            output=output,
-            context=DEFAULT_CONTEXT,
+            inputs=inputs, output=output, context=DEFAULT_CONTEXT,
         )
 
 
@@ -124,9 +122,7 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=sql_with_jinja_vars,
-        found_params=params,
+        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
     )
 
 
@@ -275,15 +271,14 @@ class SqlSnapWrapper:
 
         db_api = ctx.run_context.current_runtime.get_api()
         logger.debug(
-            f"Resolved in sql snap {ctx.executable.bound_interface.resolve_nominal_output_schema( ctx.worker.env, ctx.execution_session.metadata_session)}"
+            f"Resolved in sql snap {ctx.executable.bound_interface.resolve_nominal_output_schema( ctx.worker.env)}"
         )
         block, sdb = create_data_block_from_sql(
             ctx.run_context.env,
             sql,
-            sess=ctx.execution_session.metadata_session,
             db_api=db_api,
             nominal_schema=ctx.executable.bound_interface.resolve_nominal_output_schema(
-                ctx.worker.env, ctx.execution_session.metadata_session
+                ctx.worker.env
             ),
             created_by_node_key=ctx.executable.node_key,
         )
@@ -291,8 +286,7 @@ class SqlSnapWrapper:
         return sdb
 
     def get_input_table_stmts(
-        self,
-        inputs: Dict[str, DataBlock] = None,
+        self, inputs: Dict[str, DataBlock] = None,
     ) -> Dict[str, str]:
         if inputs is None:
             return {}
@@ -303,9 +297,7 @@ class SqlSnapWrapper:
         return table_stmts
 
     def get_compiled_sql(
-        self,
-        ctx: SnapContext,
-        inputs: Dict[str, DataBlock] = None,
+        self, ctx: SnapContext, inputs: Dict[str, DataBlock] = None,
     ):
         from snapflow.storage.db.utils import compile_jinja_sql
 
@@ -389,10 +381,7 @@ def sql_snap_decorator(
     else:
         name = sql_fn_or_snap.__name__
     return sql_snap_factory(
-        name=name,
-        sql=sql,
-        autodetect_inputs=autodetect_inputs,
-        **kwargs,
+        name=name, sql=sql, autodetect_inputs=autodetect_inputs, **kwargs,
     )
 
 

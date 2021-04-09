@@ -46,16 +46,16 @@ def test_data_block_methods():
         storage_url=strg.url,
         data_format=RecordsFormat,
     )
-    with env.session_scope() as sess:
-        sess.add(db)
-        sess.add(sdb)
+    with env.md_api.begin() as sess:
+        env.md_api.add(db)
+        env.md_api.add(sdb)
         assert sdb.name is None
         name = sdb.get_name()
         assert len(name) > 10
         assert sdb.name == name
         strg.get_api().put(sdb.name, mdr)
-        assert db.inferred_schema(env, sess) == TestSchema1
-        assert db.nominal_schema(env, sess) == TestSchema2
-        assert db.realized_schema(env, sess) == TestSchema3
+        assert db.inferred_schema(env) == TestSchema1
+        assert db.nominal_schema(env) == TestSchema2
+        assert db.realized_schema(env) == TestSchema3
         db.compute_record_count()
         assert db.record_count == 1

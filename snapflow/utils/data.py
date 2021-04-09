@@ -26,7 +26,6 @@ from loguru import logger
 from pandas import Timestamp, isnull
 from snapflow.utils.common import SnapflowJSONEncoder, title_to_snake_case
 from snapflow.utils.typing import T
-from sqlalchemy.engine.result import ResultProxy
 
 if TYPE_CHECKING:
     from snapflow.storage.data_formats import Records
@@ -306,7 +305,7 @@ class SampleableIO(SampleableIterator):
 
 
 class SampleableCursor(SampleableIterator):
-    def __init__(self, cursor: ResultProxy):
+    def __init__(self, cursor: Result):
         super().__init__(cursor)
 
     def copy(self) -> SampleableIterator[T]:
