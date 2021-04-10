@@ -113,30 +113,6 @@ class Executable:
     params: Dict = field(default_factory=dict)
 
 
-# @dataclass(frozen=True)
-# class ExecutionSession:
-#     snap_log: SnapLog
-#     env: Environment
-#     # metadata_session: Session  # Make this a URL or other jsonable and then runtime can connect
-
-#     def log(self, block: DataBlockMetadata, direction: Direction):
-#         drl = DataBlockLog(  # type: ignore
-#             snap_log=self.snap_log,
-#             data_block=block,
-#             direction=direction,
-#             processed_at=utcnow(),
-#         )
-#         self.env.get_metadata_api().add(drl)
-
-#     def log_input(self, block: DataBlockMetadata):
-#         logger.debug(f"Input logged: {block}")
-#         self.log(block, Direction.INPUT)
-
-#     def log_output(self, block: DataBlockMetadata):
-#         logger.debug(f"Output logged: {block}")
-#         self.log(block, Direction.OUTPUT)
-
-
 @dataclass
 class ExecutionResult:
     inputs_bound: List[str]
@@ -540,11 +516,7 @@ class ExecutionManager:
             f"No compatible runtime available for {node} (runtime class {compatible_runtimes} required)"
         )
 
-    def execute(
-        self,
-        node: Node,
-        to_exhaustion: bool = False,
-    ) -> Optional[DataBlock]:
+    def execute(self, node: Node, to_exhaustion: bool = False,) -> Optional[DataBlock]:
         runtime = self.select_runtime(node)
         run_ctx = self.ctx.clone(current_runtime=runtime)
         worker = Worker(run_ctx)
@@ -615,10 +587,7 @@ class ExecutionManager:
         snap = node.snap
         executable = Executable(
             node_key=node.key,
-            compiled_snap=CompiledSnap(
-                key=node.key,
-                snap=snap,
-            ),
+            compiled_snap=CompiledSnap(key=node.key, snap=snap,),
             # bound_interface=interface_mgr.get_bound_interface(),
             params=node.params or {},
         )
@@ -687,8 +656,7 @@ class Worker:
                     # exec(snap.get_source_code(), globals(), local_vars)
                     # output_obj = local_vars[snap.snap_callable.__name__](
                     output_obj = executable.compiled_snap.snap.snap_callable(
-                        *snap_args,
-                        **snap_kwargs,
+                        *snap_args, **snap_kwargs,
                     )
                     for res in self.process_execution_result(
                         executable, snap_log, output_obj, snap_ctx
@@ -731,10 +699,7 @@ class Worker:
             yield result
 
     def execution_result_info(
-        self,
-        executable: Executable,
-        snap_log: SnapLog,
-        snap_ctx: SnapContext,
+        self, executable: Executable, snap_log: SnapLog, snap_ctx: SnapContext,
     ) -> ExecutionResult:
         last_output_block: Optional[DataBlockMetadata] = None
         last_output_sdb: Optional[StoredDataBlockMetadata] = None
