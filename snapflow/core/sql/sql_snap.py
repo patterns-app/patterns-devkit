@@ -275,15 +275,14 @@ class SqlSnapWrapper:
 
         db_api = ctx.run_context.current_runtime.get_api()
         logger.debug(
-            f"Resolved in sql snap {ctx.executable.bound_interface.resolve_nominal_output_schema( ctx.worker.env, ctx.execution_session.metadata_session)}"
+            f"Resolved in sql snap {ctx.executable.bound_interface.resolve_nominal_output_schema( ctx.worker.env)}"
         )
         block, sdb = create_data_block_from_sql(
             ctx.run_context.env,
             sql,
-            sess=ctx.execution_session.metadata_session,
             db_api=db_api,
             nominal_schema=ctx.executable.bound_interface.resolve_nominal_output_schema(
-                ctx.worker.env, ctx.execution_session.metadata_session
+                ctx.worker.env
             ),
             created_by_node_key=ctx.executable.node_key,
         )

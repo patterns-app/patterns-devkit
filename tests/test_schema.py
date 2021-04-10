@@ -24,6 +24,7 @@ from snapflow.schema.casting import (
     SchemaTypeError,
     cast_to_realized_schema,
 )
+from sqlalchemy.sql.expression import select
 from tests.utils import make_test_env, sample_records
 
 test_schema_yml = """
@@ -94,10 +95,8 @@ def test_schema_translation():
     )
     env.add_schema(t_base)
     env.add_schema(t_impl)
-    with env.session_scope() as sess:
-        trans = get_schema_translation(
-            env, sess, source_schema=t_impl, target_schema=t_base
-        )
+    with env.md_api.begin():
+        trans = get_schema_translation(env, source_schema=t_impl, target_schema=t_base)
         assert trans.translation == {"g1": "f1", "g2": "f2"}
 
 
@@ -105,24 +104,22 @@ def test_generated_schema():
     new_schema = infer_schema_from_records(sample_records)
     got = GeneratedSchema(key=new_schema.key, definition=asdict(new_schema))
     env = make_test_env()
-    with env.session_scope() as sess:
-        sess.add(got)
-        got = (
-            sess.query(GeneratedSchema)
-            .filter(GeneratedSchema.key == new_schema.key)
-            .first()
-        )
+    with env.md_api.begin():
+        env.md_api.add(got)
+        got = env.md_api.execute(
+            select(GeneratedSchema).filter(GeneratedSchema.key == new_schema.key)
+        ).scalar_one()
         got_schema = got.as_schema()
         assert asdict(got_schema) == asdict(new_schema)
-        assert env.get_generated_schema(new_schema.key, sess).key == new_schema.key
-        assert env.get_generated_schema("pizza", sess) is None
+        assert env.get_generated_schema(new_schema.key).key == new_schema.key
+        assert env.get_generated_schema("pizza") is None
 
 
 def test_any_schema():
     env = make_test_env()
     env.add_module(core)
-    with env.session_scope() as sess:
-        anyschema = env.get_schema("Any", sess)
+    with env.md_api.begin():
+        anyschema = env.get_schema("Any")
     assert anyschema.fields == []
 
 
@@ -207,15 +204,15 @@ def test_cast_to_schema(cast_level, inferred, nominal, expected):
     if expected not in (ERROR, WARN):
         expected = create_quick_schema("Exp", fields=expected)
     env = make_test_env()
-    with env.session_scope() as sess:
+    with env.md_api.begin():
         if expected == ERROR:
             with pytest.raises(SchemaTypeError):
-                s = cast_to_realized_schema(env, sess, inferred, nominal, cast_level)
+                s = cast_to_realized_schema(env, inferred, nominal, cast_level)
         elif expected == WARN:
             with pytest.warns(UserWarning):
-                s = cast_to_realized_schema(env, sess, inferred, nominal, cast_level)
+                s = cast_to_realized_schema(env, inferred, nominal, cast_level)
         else:
-            s = cast_to_realized_schema(env, sess, inferred, nominal, cast_level)
+            s = cast_to_realized_schema(env, inferred, nominal, cast_level)
             for f in s.fields:
                 e = expected.get_field(f.name)
                 assert f == e

@@ -11,12 +11,7 @@ from dateutil.parser import ParserError
 from loguru import logger
 from pandas import DataFrame, Series
 from snapflow.core.module import DEFAULT_LOCAL_MODULE
-from snapflow.schema.base import (
-    Field,
-    Schema,
-    create_quick_field,
-    create_quick_schema,
-)
+from snapflow.schema.base import Field, Schema, create_quick_field, create_quick_schema
 from snapflow.schema.casting import cast_python_object_to_field_type
 from snapflow.schema.field_types import ensure_field_type
 from snapflow.schema.inference import (

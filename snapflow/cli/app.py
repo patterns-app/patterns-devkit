@@ -16,7 +16,7 @@ from snapflow.project.project import SNAPFLOW_PROJECT_FILE_NAME, init_project_in
 from snapflow.schema.base import schema_to_yaml
 from snapflow.utils import common
 from snapflow.utils.common import cf
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 REPO_SERVER_API = "http://localhost:8000/components/"  # TODO: configurable
 
@@ -142,9 +142,9 @@ def nodes(env: Environment):
 
 
 def list_data_blocks(env: Environment):
-    with env.session_scope() as sess:
-        query = (
-            sess.query(DataBlockMetadata)
+    with env.get_metadata_api().begin():
+        query = env.md_api.execute(
+            select(DataBlockMetadata)
             .filter(~DataBlockMetadata.deleted)
             .order_by(DataBlockMetadata.created_at)
         )
@@ -169,9 +169,9 @@ def list_data_blocks(env: Environment):
 
 
 def list_nodes(env: Environment):
-    with env.session_scope() as sess:
-        query = (
-            sess.query(
+    with env.get_metadata_api().begin():
+        query = env.md_api.execute(
+            select(
                 SnapLog.node_key,
                 func.count(SnapLog.id),
                 func.max(SnapLog.started_at),
@@ -179,8 +179,7 @@ def list_nodes(env: Environment):
             )
             .join(SnapLog.data_block_logs)
             .group_by(SnapLog.node_key)
-            .all()
-        )
+        ).all()
         headers = [
             "Node key",
             "Run count",
@@ -195,8 +194,8 @@ def list_nodes(env: Environment):
 @click.pass_obj
 def logs(env: Environment):
     """Show log of Snaps on DataBlocks"""
-    with env.session_scope() as sess:
-        query = sess.query(SnapLog).order_by(SnapLog.updated_at.desc())
+    with env.get_metadata_api().begin():
+        query = env.md_api.execute(select(SnapLog).order_by(SnapLog.updated_at.desc()))
         drls = []
         for dfl in query:
             if dfl.data_block_logs:
@@ -240,26 +239,26 @@ def reset_metadata(env: Environment):
     """Reset metadata, all or selectively"""
     # TODO
     raise NotImplementedError
-    with env.session_scope() as sess:
-        sess.execute(
+    with env.get_metadata_api().begin():
+        env.md_api.execute(
             f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}snap_log        cascade;"
         )
-        sess.execute(
+        env.md_api.execute(
             f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}snap_log_id_seq cascade;"
         )
-        sess.execute(
+        env.md_api.execute(
             f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}data_resource_log        cascade;"
         )
-        sess.execute(
+        env.md_api.execute(
             f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}data_resource_log_id_seq cascade;"
         )
-        sess.execute(
+        env.md_api.execute(
             f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}data_resource_metadata   cascade;"
         )
-        sess.execute(
+        env.md_api.execute(
             f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}data_set_metadata        cascade;"
         )
-        sess.execute(
+        env.md_api.execute(
             f"drop table {SNAPFLOW_METADATA_TABLE_PREFIX}stored_data_resource_metadata cascade;"
         )
 

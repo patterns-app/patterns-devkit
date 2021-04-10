@@ -11,8 +11,6 @@ import pandas as pd
 from loguru import logger
 from snapflow.schema.base import Field, Schema, create_quick_field, create_quick_schema
 from snapflow.schema.field_types import FieldType
-from sqlalchemy.orm.session import Session
-from sqlalchemy.sql.elements import Cast
 
 if TYPE_CHECKING:
     from snapflow import Environment
@@ -83,7 +81,7 @@ def has_subset_nonnull_fields(sub: Schema, supr: Schema) -> bool:
 
 
 def update_matching_field_definitions(
-    env: Environment, sess: Session, schema: Schema, update_with_schema: Schema
+    env: Environment, schema: Schema, update_with_schema: Schema
 ) -> Schema:
     fields = []
     modified = False
@@ -101,7 +99,7 @@ def update_matching_field_definitions(
     schema_dict["name"] = f"{schema.name}_with_{update_with_schema.name}"
     schema_dict["fields"] = fields
     updated = Schema.from_dict(schema_dict)
-    env.add_new_generated_schema(updated, sess)
+    env.add_new_generated_schema(updated)
     return updated
 
 
@@ -148,7 +146,6 @@ def check_casts(
 
 def cast_to_realized_schema(
     env: Environment,
-    sess: Session,
     inferred_schema: Schema,
     nominal_schema: Schema,
     cast_level: CastToSchemaLevel = CastToSchemaLevel.SOFT,
@@ -162,14 +159,14 @@ def cast_to_realized_schema(
         elif has_subset_fields(nominal_schema, inferred_schema):
             if cast_level < CastToSchemaLevel.HARD:
                 realized = update_matching_field_definitions(
-                    env, sess, inferred_schema, nominal_schema
+                    env, inferred_schema, nominal_schema
                 )
             else:
                 realized = nominal_schema
         elif has_subset_nonnull_fields(nominal_schema, inferred_schema):
             if cast_level < CastToSchemaLevel.HARD:
                 realized = update_matching_field_definitions(
-                    env, sess, inferred_schema, nominal_schema
+                    env, inferred_schema, nominal_schema
                 )
             else:
                 pass

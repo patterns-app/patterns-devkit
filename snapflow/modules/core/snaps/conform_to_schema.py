@@ -38,11 +38,9 @@ def dataframe_conform_to_schema(
     # TODO: this vs just-in-time field name transation?
     env = ctx.run_context.env
     to_schema_key = ctx.get_param("schema")
-    to_schema = env.get_schema(to_schema_key, ctx.execution_session.metadata_session)
+    to_schema = env.get_schema(to_schema_key)
     schema = input.nominal_schema
-    translation = schema.get_translation_to(
-        env, ctx.execution_session.metadata_session, other=to_schema
-    )
+    translation = schema.get_translation_to(env, other=to_schema)
     assert translation is not None
     df = input.as_dataframe()
     df = DataFrameFormat.apply_schema_translation(translation, df)
@@ -56,13 +54,9 @@ class SqlConformToSchema(SqlSnapWrapper):
         input = inputs["input"]
         env = ctx.run_context.env
         to_schema_key = ctx.get_param("schema")
-        to_schema = env.get_schema(
-            to_schema_key, ctx.execution_session.metadata_session
-        )
+        to_schema = env.get_schema(to_schema_key)
         schema = input.nominal_schema
-        translation = schema.get_translation_to(
-            env, ctx.execution_session.metadata_session, other=to_schema
-        )
+        translation = schema.get_translation_to(env, other=to_schema)
         assert translation is not None
         fields = to_schema.field_names()
         mapping = translation.as_dict()
@@ -130,7 +124,7 @@ def test_conform():
             p, input=data_input, target_storage=s, params={"schema": "TestSchemaA"}
         ) as db:
             expected_df = DataInput(expected, schema=TestSchemaA).as_dataframe(
-                db.manager.ctx.env, db.manager.sess
+                db.manager.ctx.env
             )
             df = db.as_dataframe()
             assert_dataframes_are_almost_equal(df, expected_df, schema=TestSchemaA)

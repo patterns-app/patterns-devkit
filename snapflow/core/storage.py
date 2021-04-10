@@ -17,8 +17,8 @@ from snapflow.storage.data_copy.base import (
 )
 from snapflow.storage.data_formats import DataFormat
 from snapflow.storage.storage import LocalPythonStorageEngine, Storage
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, event, or_
-from sqlalchemy.orm.session import Session
+from sqlalchemy import or_
+from sqlalchemy.sql.expression import select
 
 if TYPE_CHECKING:
     from snapflow.core.execution import RunContext
@@ -30,7 +30,6 @@ class CopyPathDoesNotExist(Exception):
 
 def copy_lowest_cost(
     env: Environment,
-    sess: Session,
     sdb: StoredDataBlockMetadata,
     target_storage: Storage,
     target_format: DataFormat,
@@ -46,7 +45,6 @@ def copy_lowest_cost(
         )
     return convert_sdb(
         env,
-        sess=sess,
         sdb=sdb,
         conversion_path=cp,
         target_storage=target_storage,
@@ -72,7 +70,6 @@ def get_copy_path_for_sdb(
 
 def convert_sdb(
     env: Environment,
-    sess: Session,
     sdb: StoredDataBlockMetadata,
     conversion_path: ConversionPath,
     target_storage: Storage,
@@ -86,7 +83,7 @@ def convert_sdb(
     next_sdb: Optional[StoredDataBlockMetadata] = None
     prev_storage = sdb.storage
     next_storage: Optional[Storage] = None
-    realized_schema = sdb.realized_schema(env, sess)
+    realized_schema = sdb.realized_schema(env)
     for conversion_edge in conversion_path.conversions:
         conversion = conversion_edge.conversion
         target_storage_format = conversion.to_storage_format
@@ -101,7 +98,7 @@ def convert_sdb(
             data_format=target_storage_format.data_format,
             storage_url=next_storage.url,
         )
-        sess.add(next_sdb)
+        env.md_api.add(next_sdb)
         conversion_edge.copier.copy(
             from_name=prev_sdb.get_name(),
             to_name=next_sdb.get_name(),
@@ -119,10 +116,8 @@ def convert_sdb(
             #       also is reusable a better name than storable?
             prev_storage.get_api().remove(prev_sdb.get_name())
             prev_sdb.data_block.stored_data_blocks.remove(prev_sdb)
-            if prev_sdb in sess.new:
-                sess.expunge(prev_sdb)
-            else:
-                sess.delete(prev_sdb)
+            if prev_sdb in env.md_api.active_session.new:
+                env.md_api.delete(prev_sdb)
         prev_sdb = next_sdb
         prev_storage = next_storage
     return next_sdb
@@ -130,7 +125,6 @@ def convert_sdb(
 
 def ensure_data_block_on_storage(
     env: Environment,
-    sess: Session,
     block: DataBlockMetadata,
     storage: Storage,
     fmt: Optional[DataFormat] = None,
@@ -138,13 +132,13 @@ def ensure_data_block_on_storage(
 ) -> StoredDataBlockMetadata:
     if eligible_storages is None:
         eligible_storages = env.storages
-    sdbs = sess.query(StoredDataBlockMetadata).filter(
+    sdbs = select(StoredDataBlockMetadata).filter(
         StoredDataBlockMetadata.data_block == block
     )
     match = sdbs.filter(StoredDataBlockMetadata.storage_url == storage.url)
     if fmt:
         match = match.filter(StoredDataBlockMetadata.data_format == fmt)
-    matched_sdb = match.first()
+    matched_sdb = env.md_api.execute(match).scalar_one_or_none()
     if matched_sdb is not None:
         return matched_sdb
 
@@ -173,7 +167,7 @@ def ensure_data_block_on_storage(
     eligible_conversion_paths = (
         []
     )  #: List[List[Tuple[ConversionCostLevel, Type[Converter]]]] = []
-    existing_sdbs = list(existing_sdbs)
+    existing_sdbs = list(env.md_api.execute(existing_sdbs).scalars())
     for sdb in existing_sdbs:
         conversion_path = get_copy_path_for_sdb(
             sdb, target_storage_format, eligible_storages
@@ -189,7 +183,6 @@ def ensure_data_block_on_storage(
     cost, conversion_path, in_sdb = min(eligible_conversion_paths, key=lambda x: x[0])
     return convert_sdb(
         env,
-        sess=sess,
         sdb=in_sdb,
         conversion_path=conversion_path,
         target_storage=storage,

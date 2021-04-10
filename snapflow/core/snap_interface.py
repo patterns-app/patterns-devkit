@@ -18,7 +18,6 @@ from snapflow.schema.base import (
     is_any,
     is_generic,
 )
-from sqlalchemy.orm.session import Session
 
 if TYPE_CHECKING:
     from snapflow.core.snap import (
@@ -466,13 +465,11 @@ class BoundInterface:
             if i.bound_stream is not None and not i.declared_input.reference
         ]
 
-    def resolve_nominal_output_schema(
-        self, env: Environment, sess: Session
-    ) -> Optional[Schema]:
+    def resolve_nominal_output_schema(self, env: Environment) -> Optional[Schema]:
         if not self.output:
             return None
         if not self.output.is_generic:
-            return env.get_schema(self.output.schema_like, sess)
+            return env.get_schema(self.output.schema_like)
         output_generic = self.output.schema_like
         for input in self.inputs:
             if not input.declared_input.is_generic:
@@ -487,7 +484,6 @@ class BoundInterface:
 
 def get_schema_translation(
     env: Environment,
-    sess: Session,
     source_schema: Schema,
     target_schema: Optional[Schema] = None,
     declared_schema_translation: Optional[Dict[str, str]] = None,
@@ -503,7 +499,7 @@ def get_schema_translation(
         # Nothing expected, so no translation needed
         return None
     # Otherwise map found schema to expected schema
-    return source_schema.get_translation_to(env, sess, target_schema)
+    return source_schema.get_translation_to(env, target_schema)
 
 
 class NodeInterfaceManager:
@@ -512,11 +508,9 @@ class NodeInterfaceManager:
     Node.
     """
 
-    def __init__(
-        self, ctx: RunContext, sess: Session, node: Node, strict_storages: bool = True
-    ):
+    def __init__(self, ctx: RunContext, node: Node, strict_storages: bool = True):
         self.env = ctx.env
-        self.sess = sess
+
         self.ctx = ctx
         self.node = node
         self.snap_interface: DeclaredSnapInterface = self.node.get_interface()
@@ -578,7 +572,7 @@ class NodeInterfaceManager:
 
             In other words, if ANY block stream is empty, bail out. If ALL DS streams are empty, bail
             """
-            if stream_builder.get_count(self.ctx, self.sess) == 0:
+            if stream_builder.get_count(self.ctx) == 0:
                 logger.debug(
                     f"Couldnt find eligible DataBlocks for input `{input.name}` from {stream_builder}"
                 )
@@ -590,13 +584,12 @@ class NodeInterfaceManager:
                 declared_schema: Optional[Schema]
                 try:
                     declared_schema = self.env.get_schema(
-                        input.declared_input.schema_like, self.sess
+                        input.declared_input.schema_like
                     )
                 except GenericSchemaException:
                     declared_schema = None
                 input_streams[input.name] = stream_builder.as_managed_stream(
                     self.ctx,
-                    self.sess,
                     declared_schema=declared_schema,
                     declared_schema_translation=input.declared_schema_translation,
                 )
@@ -615,13 +608,11 @@ class NodeInterfaceManager:
         input: NodeInput,
         storages: List[Storage] = None,
     ) -> StreamBuilder:
-        logger.debug(
-            f"{stream_builder.get_count(self.ctx, self.sess)} available DataBlocks"
-        )
+        logger.debug(f"{stream_builder.get_count(self.ctx)} available DataBlocks")
         if storages:
             stream_builder = stream_builder.filter_storages(storages)
             logger.debug(
-                f"{stream_builder.get_count(self.ctx, self.sess)} available DataBlocks in storages {storages}"
+                f"{stream_builder.get_count(self.ctx)} available DataBlocks in storages {storages}"
             )
         if input.declared_input.reference:
             logger.debug("Reference input, taking latest")
@@ -631,7 +622,5 @@ class NodeInterfaceManager:
             stream_builder = stream_builder.filter_unprocessed(
                 self.node, allow_cycle=input.declared_input.from_self
             )
-            logger.debug(
-                f"{stream_builder.get_count(self.ctx, self.sess)} unprocessed DataBlocks"
-            )
+            logger.debug(f"{stream_builder.get_count(self.ctx)} unprocessed DataBlocks")
         return stream_builder

@@ -18,6 +18,7 @@ from snapflow.schema.base import create_quick_schema
 from snapflow.storage.data_formats import Records, RecordsIterator
 from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.storage.storage import new_local_python_storage
+from sqlalchemy import select
 
 Customer = create_quick_schema(
     "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "Json")]
@@ -223,10 +224,10 @@ def test_snap_failure():
     assert output is not None
     records = output.as_records()
     assert len(records) == 2
-    with env.session_scope() as sess:
-        assert sess.query(SnapLog).count() == 1
-        assert sess.query(DataBlockLog).count() == 1
-        pl = sess.query(SnapLog).first()
+    with env.md_api.begin():
+        assert env.md_api.count(select(SnapLog)) == 1
+        assert env.md_api.count(select(DataBlockLog)) == 1
+        pl = env.md_api.execute(select(SnapLog)).scalar_one_or_none()
         assert pl.node_key == source.key
         assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {}
@@ -235,17 +236,23 @@ def test_snap_failure():
         assert pl.snap_params == cfg
         assert pl.error is not None
         assert FAIL_MSG in pl.error["error"]
-        ns = sess.query(NodeState).filter(NodeState.node_key == pl.node_key).first()
+        ns = env.md_api.execute(
+            select(NodeState).filter(NodeState.node_key == pl.node_key)
+        ).scalar_one_or_none()
         assert ns.state == {"records_imported": 2}
 
     source.params["fail"] = False
     output = produce(source, graph=g, target_storage=s, env=env)
     records = output.as_records()
     assert len(records) == 2
-    with env.session_scope() as sess:
-        assert sess.query(SnapLog).count() == 2
-        assert sess.query(DataBlockLog).count() == 3
-        pl = sess.query(SnapLog).order_by(SnapLog.completed_at.desc()).first()
+    with env.md_api.begin():
+        assert env.md_api.count(select(SnapLog)) == 2
+        assert env.md_api.count(select(DataBlockLog)) == 3
+        pl = (
+            env.md_api.execute(select(SnapLog).order_by(SnapLog.completed_at.desc()))
+            .scalars()
+            .first()
+        )
         assert pl.node_key == source.key
         assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {"records_imported": 2}
@@ -253,7 +260,9 @@ def test_snap_failure():
         assert pl.snap_key == source.snap.key
         assert pl.snap_params == cfg
         assert pl.error is None
-        ns = sess.query(NodeState).filter(NodeState.node_key == pl.node_key).first()
+        ns = env.md_api.execute(
+            select(NodeState).filter(NodeState.node_key == pl.node_key)
+        ).scalar_one_or_none()
         assert ns.state == {"records_imported": 6}
 
 
@@ -270,11 +279,11 @@ def test_node_reset():
     produce(source, graph=g, target_storage=s, env=env)
 
     # Now reset node
-    with env.session_scope() as sess:
-        state = source.get_state(sess)
+    with env.md_api.begin():
+        state = source.get_state()
         assert state.state is not None
-        source.reset(sess)
-        state = source.get_state(sess)
+        source.reset()
+        state = source.get_state()
         assert state is None
 
     output = produce(metrics, graph=g, target_storage=s, env=env)

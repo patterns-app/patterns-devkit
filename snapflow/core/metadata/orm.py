@@ -2,7 +2,7 @@ from collections import OrderedDict
 from typing import Any
 
 from snapflow.utils.common import cf, rand_str, title_to_snake_case, utcnow
-from sqlalchemy import Column, DateTime, func
+from sqlalchemy import Column, DateTime, Integer, String, func
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm.exc import DetachedInstanceError
 
@@ -14,6 +14,7 @@ class _BaseModel:
     def __tablename__(cls):
         return SNAPFLOW_METADATA_TABLE_PREFIX + title_to_snake_case(cls.__name__)  # type: ignore
 
+    env_id = Column(String(length=64), default="default")
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 

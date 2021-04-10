@@ -14,7 +14,7 @@ from snapflow.storage.data_formats.base import (
 )
 from snapflow.utils.data import SampleableIO, head, read_csv, read_json
 from snapflow.utils.typing import T
-from sqlalchemy.engine import ResultProxy
+from sqlalchemy.engine import Result
 
 
 class FileObject(IOBase):

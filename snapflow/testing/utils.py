@@ -16,10 +16,13 @@ from snapflow.utils.common import rand_str
 from snapflow.utils.data import read_csv, read_json, read_raw_string_csv
 from snapflow.utils.pandas import records_to_dataframe
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.expression import select
 
 
-def display_snap_log(sess: Session):
-    for dbl in sess.query(DataBlockLog).order_by(DataBlockLog.created_at):
+def display_snap_log(env: Environment):
+    for dbl in env.md_api.execute(
+        select(DataBlockLog).order_by(DataBlockLog.created_at)
+    ):
         print(f"{dbl.snap_log.snap_key:30} {dbl.data_block_id:4} {dbl.direction}")
 
 
@@ -55,10 +58,10 @@ class DataInput:
     schema: Optional[SchemaLike] = None
     module: Optional[SnapflowModule] = None
 
-    def as_dataframe(self, env: Environment, sess: Session):
+    def as_dataframe(self, env: Environment):
         schema = None
         if self.schema:
-            schema = env.get_schema(self.schema, sess)
+            schema = env.get_schema(self.schema)
         return str_as_dataframe(self.data, module=self.module, nominal_schema=schema)
 
     def get_schema_key(self) -> Optional[str]:
@@ -86,7 +89,7 @@ def produce_snap_output_for_static_input(
         env = Environment(metadata_storage=db)
     if target_storage:
         target_storage = env.add_storage(target_storage)
-    with env.session_scope() as sess:
+    with env.md_api.begin():
         g = Graph(env)
         input_datas = inputs
         input_nodes: Dict[str, Node] = {}
@@ -105,7 +108,7 @@ def produce_snap_output_for_static_input(
                 key=f"_input_{inpt.name}",
                 snap="core.import_dataframe",
                 params={
-                    "dataframe": input_data.as_dataframe(env, sess),
+                    "dataframe": input_data.as_dataframe(env),
                     "schema": input_data.get_schema_key(),
                 },
             )

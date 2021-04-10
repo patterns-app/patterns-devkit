@@ -108,7 +108,7 @@ def test_accumulator():
                 assert db is not None
                 expected_df = DataInput(
                     expected, schema="CoreTestSchema", module=core
-                ).as_dataframe(db.manager.ctx.env, db.manager.sess)
+                ).as_dataframe(db.manager.ctx.env)
                 logger.debug("TEST df conversion 2")
                 df = db.as_dataframe()
                 assert_dataframes_are_almost_equal(

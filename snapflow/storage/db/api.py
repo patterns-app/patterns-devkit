@@ -16,9 +16,8 @@ from snapflow.storage.storage import Storage, StorageApi
 from snapflow.utils.common import SnapflowJSONEncoder, rand_str
 from snapflow.utils.data import conform_records_for_insert
 from sqlalchemy import MetaData
-from sqlalchemy.engine import Connection, Engine, ResultProxy
+from sqlalchemy.engine import Connection, Engine, Result
 from sqlalchemy.exc import OperationalError, ProgrammingError
-from sqlalchemy.orm.session import Session
 
 if TYPE_CHECKING:
     pass
@@ -74,14 +73,14 @@ class DatabaseApi:
         with self.get_engine().connect() as conn:
             yield conn
 
-    def execute_sql(self, sql: str) -> ResultProxy:
+    def execute_sql(self, sql: str) -> Result:
         logger.debug("Executing SQL:")
         logger.debug(sql)
         with self.connection() as conn:
             return conn.execute(sql)
 
     @contextmanager
-    def execute_sql_result(self, sql: str) -> Iterator[ResultProxy]:
+    def execute_sql_result(self, sql: str) -> Iterator[Result]:
         logger.debug("Executing SQL:")
         logger.debug(sql)
         with self.connection() as conn:
@@ -134,7 +133,7 @@ class DatabaseApi:
     def clean_sub_sql(self, sql: str) -> str:
         return sql.strip(" ;")
 
-    def insert_sql(self, sess: Session, name: str, sql: str, schema: Schema):
+    def insert_sql(self, name: str, sql: str, schema: Schema):
         sql = self.clean_sub_sql(sql)
         columns = "\n,".join(f.name for f in schema.fields)
         insert_sql = f"""
