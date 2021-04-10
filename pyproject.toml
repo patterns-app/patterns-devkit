@@ -34,7 +34,6 @@ pydeps = "^1.9.0"
 pytest = "^4.6"
 pytest-cov = "^2.8.1"
 sqlalchemy-stubs = "^0.3"
-psycopg2-binary = "^2.8.6"
 
 [tool.poetry.scripts]
 snapflow = "snapflow.cli:app"
