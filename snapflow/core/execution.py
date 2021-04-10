@@ -1,5 +1,4 @@
 from __future__ import annotations
-from snapflow.core.metadata.api import MetadataApi
 
 import traceback
 from collections import abc, defaultdict
@@ -11,7 +10,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, Iterator, List, Optional,
 
 import sqlalchemy
 from loguru import logger
-from sqlalchemy.sql.expression import select
 from snapflow.core.data_block import (
     Alias,
     DataBlock,
@@ -21,6 +19,7 @@ from snapflow.core.data_block import (
     create_data_block_from_records,
 )
 from snapflow.core.environment import Environment
+from snapflow.core.metadata.api import MetadataApi
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DataBlockLog, Direction, Node, SnapLog, get_state
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
@@ -47,6 +46,7 @@ from snapflow.utils.data import SampleableIO
 from sqlalchemy.engine import Result
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.expression import select
 
 if TYPE_CHECKING:
     from snapflow.core.graph import Graph, GraphMetadata
@@ -544,7 +544,6 @@ class ExecutionManager:
         self,
         node: Node,
         to_exhaustion: bool = False,
-        output_session: Optional[Session] = None,
     ) -> Optional[DataBlock]:
         runtime = self.select_runtime(node)
         run_ctx = self.ctx.clone(current_runtime=runtime)
@@ -616,7 +615,10 @@ class ExecutionManager:
         snap = node.snap
         executable = Executable(
             node_key=node.key,
-            compiled_snap=CompiledSnap(key=node.key, snap=snap,),
+            compiled_snap=CompiledSnap(
+                key=node.key,
+                snap=snap,
+            ),
             # bound_interface=interface_mgr.get_bound_interface(),
             params=node.params or {},
         )
@@ -685,14 +687,14 @@ class Worker:
                     # exec(snap.get_source_code(), globals(), local_vars)
                     # output_obj = local_vars[snap.snap_callable.__name__](
                     output_obj = executable.compiled_snap.snap.snap_callable(
-                        *snap_args, **snap_kwargs,
+                        *snap_args,
+                        **snap_kwargs,
                     )
                     for res in self.process_execution_result(
                         executable, snap_log, output_obj, snap_ctx
                     ):
                         result = res
                 finally:
-                    # execution_session.metadata_session.commit()
                     pass
                 # One last input block log (in case no outputs)
                 snap_ctx.log_input_blocks()
@@ -729,14 +731,14 @@ class Worker:
             yield result
 
     def execution_result_info(
-        self, executable: Executable, snap_log: SnapLog, snap_ctx: SnapContext,
+        self,
+        executable: Executable,
+        snap_log: SnapLog,
+        snap_ctx: SnapContext,
     ) -> ExecutionResult:
         last_output_block: Optional[DataBlockMetadata] = None
         last_output_sdb: Optional[StoredDataBlockMetadata] = None
         last_output_alias: Optional[Alias] = None
-
-        # Flush
-        # execution_session.metadata_session.flush()
 
         if snap_ctx.outputs:
             last_output_sdb = snap_ctx.outputs[-1]

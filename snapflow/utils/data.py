@@ -26,6 +26,7 @@ from loguru import logger
 from pandas import Timestamp, isnull
 from snapflow.utils.common import SnapflowJSONEncoder, title_to_snake_case
 from snapflow.utils.typing import T
+from sqlalchemy.engine import Result
 
 if TYPE_CHECKING:
     from snapflow.storage.data_formats import Records

@@ -15,7 +15,6 @@ from snapflow.schema.field_types import (
 )
 from snapflow.utils.common import StringEnum, ensure_bool, title_to_snake_case
 from sqlalchemy import JSON, Column, String
-from sqlalchemy.orm.session import Session
 
 if TYPE_CHECKING:
     from snapflow import Environment

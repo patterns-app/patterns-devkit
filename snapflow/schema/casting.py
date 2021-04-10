@@ -11,8 +11,6 @@ import pandas as pd
 from loguru import logger
 from snapflow.schema.base import Field, Schema, create_quick_field, create_quick_schema
 from snapflow.schema.field_types import FieldType
-from sqlalchemy.orm.session import Session
-from sqlalchemy.sql.elements import Cast
 
 if TYPE_CHECKING:
     from snapflow import Environment

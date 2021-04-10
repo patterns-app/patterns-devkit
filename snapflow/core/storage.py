@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, List, Optional, Type
 
 from loguru import logger
-from sqlalchemy.sql.expression import select
 from snapflow.core.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
@@ -18,8 +17,8 @@ from snapflow.storage.data_copy.base import (
 )
 from snapflow.storage.data_formats import DataFormat
 from snapflow.storage.storage import LocalPythonStorageEngine, Storage
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, event, or_
-from sqlalchemy.orm.session import Session
+from sqlalchemy import or_
+from sqlalchemy.sql.expression import select
 
 if TYPE_CHECKING:
     from snapflow.core.execution import RunContext
@@ -63,7 +62,9 @@ def get_copy_path_for_sdb(
     conversion = Conversion(source_format, target_format)
     conversion_path = get_datacopy_lookup(
         available_storage_engines=set(s.storage_engine for s in storages),
-    ).get_lowest_cost_path(conversion,)
+    ).get_lowest_cost_path(
+        conversion,
+    )
     return conversion_path
 
 
@@ -190,7 +191,9 @@ def ensure_data_block_on_storage(
 
 
 def select_storage(
-    target_storage: Storage, storages: List[Storage], storage_format: StorageFormat,
+    target_storage: Storage,
+    storages: List[Storage],
+    storage_format: StorageFormat,
 ) -> Storage:
     eng = storage_format.storage_engine
     if eng == target_storage.storage_engine:

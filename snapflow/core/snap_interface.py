@@ -18,7 +18,6 @@ from snapflow.schema.base import (
     is_any,
     is_generic,
 )
-from sqlalchemy.orm.session import Session
 
 if TYPE_CHECKING:
     from snapflow.core.snap import (
@@ -493,7 +492,8 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation, from_schema=source_schema,
+            translation=declared_schema_translation,
+            from_schema=source_schema,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed

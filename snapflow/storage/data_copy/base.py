@@ -38,7 +38,6 @@ from snapflow.storage.storage import (
     StorageEngine,
 )
 from snapflow.utils.registry import global_registry
-from sqlalchemy.orm.session import Session
 
 CostFunction = Callable[[int], int]
 BUFFER_SIZE = 100

@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterator, Optional
 
 from pandas import DataFrame
-from sqlalchemy.sql.expression import select
 from snapflow import DataBlock, Environment, Graph, Storage, _Snap
 from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DataBlockLog, Node, SnapLog
@@ -17,6 +16,7 @@ from snapflow.utils.common import rand_str
 from snapflow.utils.data import read_csv, read_json, read_raw_string_csv
 from snapflow.utils.pandas import records_to_dataframe
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.expression import select
 
 
 def display_snap_log(env: Environment):
@@ -89,7 +89,7 @@ def produce_snap_output_for_static_input(
         env = Environment(metadata_storage=db)
     if target_storage:
         target_storage = env.add_storage(target_storage)
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         g = Graph(env)
         input_datas = inputs
         input_nodes: Dict[str, Node] = {}

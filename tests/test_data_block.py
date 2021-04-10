@@ -46,7 +46,7 @@ def test_data_block_methods():
         storage_url=strg.url,
         data_format=RecordsFormat,
     )
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         env.md_api.add(db)
         env.md_api.add(sdb)
         assert sdb.name is None

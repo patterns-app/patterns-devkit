@@ -118,7 +118,11 @@ def snap_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     pass
 
 
-def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
+def df4(
+    input: DataBlock[T],
+    dr2: DataBlock[U],
+    dr3: DataBlock[U],
+) -> DataFrame[T]:
     pass
 
 
@@ -152,7 +156,8 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                     ),
                 ],
                 output=DeclaredOutput(
-                    data_format="DataFrame", schema_like="TestSchema2",
+                    data_format="DataFrame",
+                    schema_like="TestSchema2",
                 ),
             ),
         ),
@@ -167,7 +172,10 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                         _required=True,
                     ),
                 ],
-                output=DeclaredOutput(data_format="DataFrame", schema_like="T",),
+                output=DeclaredOutput(
+                    data_format="DataFrame",
+                    schema_like="T",
+                ),
             ),
         ),
         (
@@ -189,7 +197,10 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                         reference=True,
                     ),
                 ],
-                output=DeclaredOutput(data_format="DataFrame", schema_like="T",),
+                output=DeclaredOutput(
+                    data_format="DataFrame",
+                    schema_like="T",
+                ),
             ),
         ),
     ],
@@ -211,7 +222,7 @@ def test_generic_schema_resolution():
     g = Graph(env)
     n1 = g.create_node(key="node1", snap=snap_generic, input="n0")
     # pi = n1.get_interface()
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         im = NodeInterfaceManager(ctx=ec, node=n1)
         block = DataBlockMetadata(
             nominal_schema_key="_test.TestSchema1",
@@ -236,13 +247,14 @@ def test_declared_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
     # assert len(bi.inputs) == 1
     # input: StreamInput = bi.inputs[0]
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         schema_translation = get_schema_translation(
             env,
             block.realized_schema(env),
@@ -264,9 +276,10 @@ def test_natural_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
     )
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         schema_translation = get_schema_translation(
             env,
             block.realized_schema(env),
@@ -295,7 +308,7 @@ def test_inputs():
     assert pi is not None
 
     ec.graph = g.instantiate(env)
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         im = NodeInterfaceManager(ctx=ec, node=n1.instantiate(env))
         bi = im.get_bound_interface()
         assert bi is not None

@@ -5,13 +5,13 @@ import os
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from importlib import import_module
-from snapflow.core.metadata.api import MetadataApi
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from alembic import command
 from alembic.config import Config
 from loguru import logger
 from snapflow.core.component import ComponentLibrary
+from snapflow.core.metadata.api import MetadataApi
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.schema.base import (
@@ -23,8 +23,8 @@ from snapflow.schema.base import (
 )
 from snapflow.storage.storage import DatabaseStorageClass, PythonStorageClass
 from snapflow.utils.common import AttrDict
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
     from snapflow.storage.storage import Storage
@@ -91,7 +91,6 @@ class Environment:
         self._local_module = DEFAULT_LOCAL_MODULE
         # TODO: load library from config
         self.library = ComponentLibrary()
-        # self._metadata_sessions: List[Session] = []
         self.raise_on_error = raise_on_error
         s = AttrDict(DEFAULT_SETTINGS)
         s.update(settings or {})
@@ -124,17 +123,6 @@ class Environment:
     @property
     def md_api(self) -> MetadataApi:
         return self.get_metadata_api()
-
-    # def clean_up_db_sessions(self):
-    #     from snapflow.storage.db.api import dispose_all
-
-    #     self.close_all_sessions()
-    #     dispose_all()
-
-    # def close_all_sessions(self):
-    #     for s in self._metadata_sessions:
-    #         s.close()
-    #     self._metadata_sessions = []
 
     def get_default_local_python_storage(self) -> Storage:
         return self._local_python_storage
@@ -203,18 +191,6 @@ class Environment:
             if module.name not in [m.name for m in self.config.modules]:
                 self.config.modules.append(module)
 
-    # @contextmanager
-    # def session_scope(self, **kwargs):
-    #     session = self.Session(**kwargs)
-    #     try:
-    #         yield session
-    #         session.commit()
-    #     except Exception as e:
-    #         session.rollback()
-    #         raise e
-    #     finally:
-    #         session.close()
-
     def get_default_storage(self) -> Storage:
         from snapflow.storage.storage import StorageClass
 
@@ -266,17 +242,12 @@ class Environment:
         logger.debug(f"executing on graph {graph.adjacency_list()}")
         try:
             yield em
-            # self.session.commit()
-            # logger.debug("COMMITTED")
         except Exception as e:
-            # self.session.rollback()
-            # logger.debug("ROLLED")
             raise e
         finally:
             # TODO:
             # self.validate_and_clean_data_blocks(delete_intermediate=True)
             pass
-            # self.session.close()
 
     def _get_graph_and_node(
         self,

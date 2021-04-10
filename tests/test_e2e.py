@@ -224,7 +224,7 @@ def test_snap_failure():
     assert output is not None
     records = output.as_records()
     assert len(records) == 2
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         assert env.md_api.count(select(SnapLog)) == 1
         assert env.md_api.count(select(DataBlockLog)) == 1
         pl = env.md_api.execute(select(SnapLog)).scalar_one_or_none()
@@ -245,7 +245,7 @@ def test_snap_failure():
     output = produce(source, graph=g, target_storage=s, env=env)
     records = output.as_records()
     assert len(records) == 2
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         assert env.md_api.count(select(SnapLog)) == 2
         assert env.md_api.count(select(DataBlockLog)) == 3
         pl = (
@@ -279,7 +279,7 @@ def test_node_reset():
     produce(source, graph=g, target_storage=s, env=env)
 
     # Now reset node
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         state = source.get_state()
         assert state.state is not None
         source.reset()

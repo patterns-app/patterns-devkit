@@ -24,7 +24,8 @@ from snapflow.utils.typing import T
 # @input("previous", schema="T", recursive_from_self=True)
 @Snap(module="core", display_name="Accumulate DataFrames")
 def dataframe_accumulator(
-    input: Stream[T], this: Optional[DataBlock[T]] = None,
+    input: Stream[T],
+    this: Optional[DataBlock[T]] = None,
 ) -> DataFrame[T]:
     # TODO: make this return a dataframe iterator right?
     accumulated_dfs = [block.as_dataframe() for block in input]

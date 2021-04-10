@@ -16,8 +16,7 @@ from snapflow.project.project import SNAPFLOW_PROJECT_FILE_NAME, init_project_in
 from snapflow.schema.base import schema_to_yaml
 from snapflow.utils import common
 from snapflow.utils.common import cf
-from sqlalchemy import func
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 REPO_SERVER_API = "http://localhost:8000/components/"  # TODO: configurable
 

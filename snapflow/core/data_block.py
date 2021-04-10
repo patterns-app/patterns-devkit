@@ -93,7 +93,9 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self, ctx: RunContext, schema_translation: Optional[SchemaTranslation] = None,
+        self,
+        ctx: RunContext,
+        schema_translation: Optional[SchemaTranslation] = None,
     ):
         mgr = DataBlockManager(ctx, self, schema_translation=schema_translation)
         return ManagedDataBlock(
@@ -259,7 +261,7 @@ class StoredDataBlockMetadata(BaseModel):
         ).scalar_one_or_none()
         if a is None:
             raise Exception("No alias to update")
-        a.update_alias(new_alias)
+        a.update_alias(env, new_alias)
 
     def create_alias(self, env: Environment, alias: str) -> Alias:
         # Create or update Alias
@@ -298,7 +300,7 @@ class Alias(BaseModel):
     data_block: "DataBlockMetadata"
     stored_data_block: "StoredDataBlockMetadata"
 
-    def update_alias(self, new_alias: str):
+    def update_alias(self, env: Environment, new_alias: str):
         self.stored_data_block.storage.get_api().create_alias(
             self.stored_data_block.get_name(), new_alias
         )

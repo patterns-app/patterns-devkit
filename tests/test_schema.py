@@ -7,7 +7,6 @@ from sys import implementation
 
 import pandas as pd
 import pytest
-from sqlalchemy.sql.expression import select
 from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
 from snapflow.core.snap_interface import get_schema_translation
 from snapflow.core.typing.inference import infer_schema_from_records
@@ -25,6 +24,7 @@ from snapflow.schema.casting import (
     SchemaTypeError,
     cast_to_realized_schema,
 )
+from sqlalchemy.sql.expression import select
 from tests.utils import make_test_env, sample_records
 
 test_schema_yml = """
@@ -95,7 +95,7 @@ def test_schema_translation():
     )
     env.add_schema(t_base)
     env.add_schema(t_impl)
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         trans = get_schema_translation(env, source_schema=t_impl, target_schema=t_base)
         assert trans.translation == {"g1": "f1", "g2": "f2"}
 
@@ -104,7 +104,7 @@ def test_generated_schema():
     new_schema = infer_schema_from_records(sample_records)
     got = GeneratedSchema(key=new_schema.key, definition=asdict(new_schema))
     env = make_test_env()
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         env.md_api.add(got)
         got = env.md_api.execute(
             select(GeneratedSchema).filter(GeneratedSchema.key == new_schema.key)
@@ -118,7 +118,7 @@ def test_generated_schema():
 def test_any_schema():
     env = make_test_env()
     env.add_module(core)
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         anyschema = env.get_schema("Any")
     assert anyschema.fields == []
 
@@ -204,7 +204,7 @@ def test_cast_to_schema(cast_level, inferred, nominal, expected):
     if expected not in (ERROR, WARN):
         expected = create_quick_schema("Exp", fields=expected)
     env = make_test_env()
-    with env.md_api.begin() as sess:
+    with env.md_api.begin():
         if expected == ERROR:
             with pytest.raises(SchemaTypeError):
                 s = cast_to_realized_schema(env, inferred, nominal, cast_level)

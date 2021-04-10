@@ -7,7 +7,6 @@ from operator import and_
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from loguru import logger
-from sqlalchemy.sql.expression import select, update
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
@@ -17,6 +16,7 @@ from snapflow.storage.storage import SqliteStorageEngine
 from snapflow.utils.common import as_identifier
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
+from sqlalchemy.sql.expression import select, update
 from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.schema import Column, ForeignKey
 from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
@@ -135,7 +135,9 @@ def node(
 
 
 def instantiate_node(
-    env: Environment, graph: Graph, declared_node: DeclaredNode,
+    env: Environment,
+    graph: Graph,
+    declared_node: DeclaredNode,
 ):
     if isinstance(declared_node.snap, str):
         snap = env.get_snap(declared_node.snap)
@@ -245,8 +247,7 @@ class Node:
             self.env.md_api.delete(state)
 
     def _invalidate_datablocks(self):
-        """
-        """
+        """"""
         dbl_ids = [
             r
             for r in self.env.md_api.execute(
@@ -282,7 +283,10 @@ class NodeState(BaseModel):
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(node_key=self.node_key, state=self.state,)
+        return self._repr(
+            node_key=self.node_key,
+            state=self.state,
+        )
 
 
 def get_state(env: Environment, node_key: str) -> Optional[Dict]:

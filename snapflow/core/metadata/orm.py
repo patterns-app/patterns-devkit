@@ -2,7 +2,7 @@ from collections import OrderedDict
 from typing import Any
 
 from snapflow.utils.common import cf, rand_str, title_to_snake_case, utcnow
-from sqlalchemy import Column, DateTime, func, Integer, String
+from sqlalchemy import Column, DateTime, Integer, String, func
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm.exc import DetachedInstanceError
 
