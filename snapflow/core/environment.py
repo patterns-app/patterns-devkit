@@ -8,7 +8,6 @@ from importlib import import_module
 from snapflow.core.metadata.api import MetadataApi
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
-import strictyaml
 from alembic import command
 from alembic.config import Config
 from loguru import logger

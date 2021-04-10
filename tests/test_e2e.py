@@ -248,9 +248,11 @@ def test_snap_failure():
     with env.md_api.begin() as sess:
         assert env.md_api.count(select(SnapLog)) == 2
         assert env.md_api.count(select(DataBlockLog)) == 3
-        pl = env.md_api.execute(
-            select(SnapLog).order_by(SnapLog.completed_at.desc())
-        ).scalar_one_or_none()
+        pl = (
+            env.md_api.execute(select(SnapLog).order_by(SnapLog.completed_at.desc()))
+            .scalars()
+            .first()
+        )
         assert pl.node_key == source.key
         assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {"records_imported": 2}

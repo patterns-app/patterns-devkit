@@ -10,7 +10,7 @@ from sqlalchemy.sql.functions import func
 from snapflow.storage.storage import DatabaseStorageClass, Storage
 
 from typing import Any, Iterable, Iterator, Union
-from sqlalchemy.orm.session import Session, sessionmaker
+from sqlalchemy.orm.session import Session, SessionTransaction, sessionmaker
 from sqlalchemy.sql.selectable import Select
 
 
@@ -25,18 +25,26 @@ class MetadataApi:
 
     @contextmanager
     def begin(self) -> Iterator[Session]:
-        if self.active_session is None:
-            with self.Session.begin() as sess:
-                self.active_session = sess
-                yield sess
-            self.active_session = None
-        else:
-            # TODO: handle nested tx
-            yield self.active_session
+        # if self.active_session is None:
+        with self.Session.begin() as sess:
+            self.active_session = sess
+            yield sess
+        self.active_session = None
+        # else:
+        #     # TODO: handle nested tx
+        #     yield self.active_session
+
+    @contextmanager
+    def begin_nested(self) -> Iterator[SessionTransaction]:
+        assert self.active_session is not None
+        with self.active_session.begin_nested() as sess_tx:
+            yield sess_tx
 
     def get_session(self) -> Session:
         if self.active_session is None:
-            raise ValueError("No transaction / session active")
+            raise ValueError(
+                "No metadata session active. Call MetadataApi.begin() beforehand"
+            )
         return self.active_session
 
     def augment_statement(

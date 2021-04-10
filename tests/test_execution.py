@@ -47,13 +47,13 @@ def test_worker():
     g = Graph(env)
     rt = env.runtimes[0]
     ec = env.get_run_context(g, current_runtime=rt)
+    node = g.create_node(key="node", snap=snap_t1_source)
+    w = Worker(ec)
+    dfi_mgr = NodeInterfaceManager(ec, node)
+    bdfi = dfi_mgr.get_bound_interface()
+    r = Executable(node.key, CompiledSnap(node.snap.key, node.snap), bdfi,)
+    run_result = w.execute(r)
     with env.md_api.begin() as sess:
-        node = g.create_node(key="node", snap=snap_t1_source)
-        w = Worker(ec)
-        dfi_mgr = NodeInterfaceManager(ec, node)
-        bdfi = dfi_mgr.get_bound_interface()
-        r = Executable(node.key, CompiledSnap(node.snap.key, node.snap), bdfi,)
-        run_result = w.execute(r)
         assert run_result.output_block_id is None
         assert env.md_api.count(select(SnapLog)) == 1
         pl = env.md_api.execute(select(SnapLog)).scalar_one_or_none()
@@ -70,18 +70,18 @@ def test_worker_output():
     env.add_module(core)
     g = Graph(env)
     # env.add_storage("python://test")
+    rt = env.runtimes[0]
+    # TODO: this is error because no data copy between SAME storage engines (but DIFFERENT storage urls) currently
+    # ec = env.get_run_context(g, current_runtime=rt, target_storage=env.storages[0])
+    ec = env.get_run_context(g, current_runtime=rt, target_storage=rt.as_storage())
+    output_alias = "node_output"
+    node = g.create_node(key="node", snap=snap_dl_source, output_alias=output_alias)
+    w = Worker(ec)
+    dfi_mgr = NodeInterfaceManager(ec, node)
+    bdfi = dfi_mgr.get_bound_interface()
+    r = Executable(node.key, CompiledSnap(node.snap.key, node.snap), bdfi,)
+    run_result = w.execute(r)
     with env.md_api.begin():
-        rt = env.runtimes[0]
-        # TODO: this is error because no data copy between SAME storage engines (but DIFFERENT storage urls) currently
-        # ec = env.get_run_context(g, current_runtime=rt, target_storage=env.storages[0])
-        ec = env.get_run_context(g, current_runtime=rt, target_storage=rt.as_storage())
-        output_alias = "node_output"
-        node = g.create_node(key="node", snap=snap_dl_source, output_alias=output_alias)
-        w = Worker(ec)
-        dfi_mgr = NodeInterfaceManager(ec, node)
-        bdfi = dfi_mgr.get_bound_interface()
-        r = Executable(node.key, CompiledSnap(node.snap.key, node.snap), bdfi,)
-        run_result = w.execute(r)
         outputblock = env.md_api.execute(
             select(DataBlockMetadata).filter(
                 DataBlockMetadata.id == run_result.output_block_id

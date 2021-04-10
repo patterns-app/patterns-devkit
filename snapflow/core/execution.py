@@ -278,13 +278,16 @@ class RunContext:
                     logger.debug(f"Error running node:\n{traceback.format_exc()}")
                     pl.set_error(e)
                     # Re-raise here and handle elsewhere
+                    pl.persist_state(self.env)
+                    pl.completed_at = utcnow()
+                    md.add(pl)
+                    md.commit()
                     raise e
             finally:
                 # Persist state on success OR error:
                 pl.persist_state(self.env)
                 pl.completed_at = utcnow()
                 md.add(pl)
-                # md.commit()
 
     @property
     def all_storages(self) -> List[Storage]:
@@ -684,8 +687,6 @@ class Worker:
                     output_obj = executable.compiled_snap.snap.snap_callable(
                         *snap_args, **snap_kwargs,
                     )
-                    print("OUT OBJ")
-                    print(output_obj)
                     for res in self.process_execution_result(
                         executable, snap_log, output_obj, snap_ctx
                     ):
