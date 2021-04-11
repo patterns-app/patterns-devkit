@@ -59,23 +59,17 @@ class _BaseModel:
 BaseModel = declarative_base(cls=_BaseModel)  # type: Any
 
 
-id_counter: int = 0
 last_second: str = ""
 
 
-def timestamp_increment_key() -> str:
+def timestamp_increment_key(prefix: str = "", max_length: int = 28) -> str:
     """
     Generates keys that are unique and monotonic in time for a given run.
     Appends random chars to ensure multiple processes can run at once and not collide.
     """
-    global id_counter, last_second
-    curr_second = utcnow().strftime("%y%m%d%H%M%S")
-    if last_second != curr_second:
-        id_counter = 0
-    cntr = f"{id_counter:05}"
-    key = f"{curr_second}_{cntr}_{rand_str(3).lower()}"
-    last_second = curr_second
-    id_counter += 1
+    curr_ms = utcnow().strftime("%y%m%d_%H%M%S%f")
+    rand_len = max_length - (21 + len(prefix))
+    key = f"{prefix}_{curr_ms}_{rand_str(rand_len).lower()}"
     return key
 
 

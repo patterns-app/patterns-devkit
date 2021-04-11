@@ -11,20 +11,12 @@ from snapflow.core.environment import (
     run_graph,
     run_node,
 )
-from snapflow.core.execution import SnapContext
 from snapflow.core.graph import DeclaredGraph, Graph, graph
 from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DeclaredNode, Node, node
 from snapflow.core.snap import Input, Output, Param, Snap, _Snap
 from snapflow.core.sql.sql_snap import Sql, SqlSnap, sql_snap
 from snapflow.core.streams import DataBlockStream, StreamBuilder
-
-
-    DataFormat,
-    DataFrameIterator,
-    Records,
-    RecordsIterator,
-)
 
 
 # TODO: use an existing lib for this:

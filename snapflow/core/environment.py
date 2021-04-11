@@ -5,6 +5,7 @@ import os
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from importlib import import_module
+from snapflow.core.runtime import ensure_runtime
 
 from datacopy.storage.base import MemoryStorageClass
 from datacopy.storage.memory.engines.python import new_local_python_storage
@@ -21,6 +22,7 @@ from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 
 from datacopy import Storage
+from datacopy.storage.base import ensure_storage
 from datacopy.utils.common import AttrDict
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -28,91 +30,91 @@ from sqlalchemy.orm import Session
 if TYPE_CHECKING:
     from snapflow.core.snap import _Snap
     from snapflow.core.node import Node, NodeLike
-    from snapflow.core.execution import RunContext, ExecutionManager
     from snapflow.core.data_block import DataBlock
     from snapflow.core.graph import Graph, DeclaredGraph, DEFAULT_GRAPH
     from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
 
 DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
-DEFAULT_SETTINGS = {
-    "FAIL_ON_DOWNCAST": False,
-    "WARN_ON_DOWNCAST": True,
-}
+
+
+Serializable = Union[str, int, float, bool]
+
+
+@dataclass(frozen=True)
+class SnapSettings:
+    initialize_metadata_storage: bool = True
+    raise_on_snap_error: bool = False
+    execution_timelimit_seconds: Optional[int] = None
+    fail_on_downcast: bool = False
+    warn_on_downcast: bool = True
 
 
 @dataclass(frozen=True)
 class EnvironmentConfiguration:
-    metadata_storage: Storage
-    modules: List[SnapflowModule] = field(default_factory=list)
-    storages: List[Storage] = field(default_factory=list)
-    runtimes: List[Runtime] = field(default_factory=list)
+    name: str = "default"
+    metadata_storage_url: Optional[str] = None
+    # modules: List[SnapflowModule] = field(default_factory=list)
+    module_names: List[str] = field(default_factory=list)
+    default_storage_url: Optional[str] = None
+    storage_urls: List[str] = field(default_factory=list)
+    runtime_urls: List[str] = field(default_factory=list)
+    settings: Optional[SnapSettings] = None
 
 
 class Environment:
     library: ComponentLibrary
 
+    @staticmethod
+    def from_config(cfg: EnvironmentConfiguration):
+        return Environment(
+            name=cfg.name,
+            metadata_storage=cfg.metadata_storage_url,
+            modules=cfg.module_names,
+            storages=cfg.storage_urls,
+            runtimes=cfg.runtime_urls,
+            settings=cfg.settings,
+            config=cfg,
+        )
+
     def __init__(
         self,
         name: str = "default",
         metadata_storage: Union["Storage", str] = None,
-        add_default_python_runtime: bool = True,
-        modules: List[SnapflowModule] = None,  # Defaults to `core` module
-        initialize_metadata_storage: bool = True,
+        modules: List[Union[SnapflowModule, str]] = None,  # Defaults to `core` module
+        storages: List[Union[Storage, str]] = None,
+        runtimes: List[Union[Runtime, str]] = None,
+        settings: SnapSettings = None,
         config: Optional[EnvironmentConfiguration] = None,
-        raise_on_error: bool = False,
-        settings: Dict[str, Any] = None,
-        default_modules: List[SnapflowModule] = None,
     ):
-        from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
-
         from snapflow.modules import core
 
         self.name = name
+        self.storages = [ensure_storage(s) for s in storages or []]
+        self.runtimes = [ensure_runtime(s) for s in runtimes or []]
+        self.settings = settings
+        self.config = config
         if metadata_storage is None:
             metadata_storage = DEFAULT_METADATA_STORAGE_URL
             logger.warning(
                 f"No metadata storage specified, using default sqlite db `{DEFAULT_METADATA_STORAGE_URL}`"
             )
-        if isinstance(metadata_storage, str):
-            metadata_storage = Storage.from_url(metadata_storage)
-        if metadata_storage is None:
-            raise Exception("Must specify metadata_storage or allow default")
-        self.config = config
-        if self.config is None:
-            self.config = EnvironmentConfiguration(metadata_storage=metadata_storage)
-        self.metadata_api = MetadataApi(self.name, metadata_storage)
-        if initialize_metadata_storage:
+        self.metadata_storage = ensure_storage(metadata_storage)
+        self.metadata_api = MetadataApi(self.name, self.metadata_storage)
+        if self.settings.initialize_metadata_storage:
             self.metadata_api.initialize_metadata_database()
         # TODO: local module is yucky global state, also, we load these libraries and their
         #       components once, but the libraries are mutable and someone could add components
-        #       to them later, which would not be picked up by the env library.
+        #       to them later, which would not be picked up by the env library. (prob fine)
         self._local_module = DEFAULT_LOCAL_MODULE
         # TODO: load library from config
         self.library = ComponentLibrary()
-        self.raise_on_error = raise_on_error
-        s = AttrDict(DEFAULT_SETTINGS)
-        s.update(settings or {})
-        self.settings = s
-        # if add_default_python_runtime:
-        #     self.runtimes.append(
-        #         Runtime(
-        #             url="python://local",
-        #             runtime_engine=LocalPythonRuntimeEngine,
-        #         )
-        #     )
-        if default_modules is None:
-            default_modules = [core]
-        modules = default_modules + (modules or [])
         self.add_module(self._local_module)
+        self.add_module(core)
         for m in modules:
             self.add_module(m)
 
         self._local_python_storage = new_local_python_storage()
         self.add_storage(self._local_python_storage)
-
-    @property
-    def metadata_storage(self) -> Storage:
-        return self.config.metadata_storage
 
     def get_metadata_api(self) -> MetadataApi:
         return self.metadata_api
@@ -183,11 +185,11 @@ class Environment:
     def all_snaps(self) -> List[_Snap]:
         return self.library.all_snaps()
 
-    def add_module(self, *modules: SnapflowModule):
+    def add_module(self, *modules: Union[SnapflowModule, str]):
         for module in modules:
+            if isinstance(module, str):
+                module = import_module(module)
             self.library.add_module(module)
-            if module.name not in [m.name for m in self.config.modules]:
-                self.config.modules.append(module)
 
     def get_default_storage(self) -> Storage:
 
@@ -336,8 +338,8 @@ class Environment:
             sr = storage_like
         else:
             raise TypeError
-        if sr.url not in [s.url for s in self.config.storages]:
-            self.config.storages.append(sr)
+        if sr.url not in [s.url for s in self.storages]:
+            self.storages.append(sr)
         if add_runtime:
             from snapflow.core.runtime import Runtime
 
@@ -357,17 +359,9 @@ class Environment:
             sr = runtime_like
         else:
             raise TypeError
-        if sr.url not in [s.url for s in self.config.runtimes]:
-            self.config.runtimes.append(sr)
+        if sr.url not in [s.url for s in self.runtimes]:
+            self.runtimes.append(sr)
         return sr
-
-    @property
-    def storages(self) -> List[Storage]:
-        return self.config.storages
-
-    @property
-    def runtimes(self) -> List[Runtime]:
-        return self.config.runtimes
 
     # def serialize_run_node(
     #     self,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Dict, List, Optional, Type, Union
 from urllib.parse import urlparse
 
 from datacopy.storage.base import (
@@ -117,3 +117,9 @@ class Runtime:
     def get_api(self) -> StorageApi:
         # TODO: separate runtime apis eventually
         return self.as_storage().get_api()
+
+
+def ensure_runtime(s: Union[Runtime, str]) -> Runtime:
+    if isinstance(s, str):
+        s = Runtime.from_url(s)
+    return s

@@ -22,11 +22,11 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, select
 from sqlalchemy.orm import RelationshipProperty, Session, relationship
 
 if TYPE_CHECKING:
-    from snapflow.core.execution import RunContext
+    from snapflow.core.execution.executable import ExecutionContext
 
 
 def get_datablock_id() -> str:
-    return timestamp_increment_key()
+    return timestamp_increment_key(prefix="db")
 
 
 class DataBlockMetadata(BaseModel):  # , Generic[DT]):
@@ -34,6 +34,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     # BUT we MUST ensure they are monotonically ordered -- the logic of selecting the correct (most recent)
     # block relies on strict monotonic IDs in some scenarios
     id = Column(String(128), primary_key=True, default=get_datablock_id)
+    name = Column(String(128), nullable=True)
     # id = Column(Integer, primary_key=True, autoincrement=True)
     inferred_schema_key: SchemaKey = Column(String(128), nullable=True)  # type: ignore
     nominal_schema_key: SchemaKey = Column(String(128), nullable=True)  # type: ignore
@@ -86,6 +87,15 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
                 self.record_count = cnt
                 return True
         return False
+
+    def get_name_for_storage(self) -> str:
+        if self.name:
+            return self.name
+        if self.id is None:
+            raise Exception("ID not set yet")
+        node_key = self.data_block.created_by_node_key or ""
+        self.name = as_identifier(f"_{node_key[:30]}_{self.id}")
+        return self.name
 
     # def created_by(self: Session) -> Optional[str]:
     #     from snapflow.core.node import DataBlockLog
@@ -152,7 +162,6 @@ DataBlock = ManagedDataBlock
 class StoredDataBlockMetadata(BaseModel):
     id = Column(String(128), primary_key=True, default=get_datablock_id)
     # id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(128), nullable=True)
     data_block_id = Column(
         String(128), ForeignKey(DataBlockMetadata.id), nullable=False
     )
@@ -191,15 +200,6 @@ class StoredDataBlockMetadata(BaseModel):
     @property
     def storage(self) -> Storage:
         return Storage.from_url(self.storage_url)
-
-    def get_name(self) -> str:
-        if self.name:
-            return self.name
-        if self.data_block_id is None or self.id is None:
-            raise Exception("Id not set yet")
-        node_key = self.data_block.created_by_node_key or ""
-        self.name = as_identifier(f"_{node_key[:40]}_{self.id}")
-        return self.name
 
     def get_storage_format(self) -> StorageFormat:
         return StorageFormat(self.storage.storage_engine, self.data_format)
@@ -274,7 +274,7 @@ class Alias(BaseModel):
 class DataBlockManager:
     def __init__(
         self,
-        ctx: RunContext,
+        ctx: ExecutionContext,
         data_block: DataBlockMetadata,
         schema_translation: Optional[SchemaTranslation] = None,
     ):
@@ -285,12 +285,12 @@ class DataBlockManager:
         self.schema_translation = schema_translation
 
     def __str__(self):
-        return f"DRM: {self.data_block}, Local: {self.ctx.local_python_storage}, rest: {self.ctx.storages}"
+        return f"DRM: {self.data_block}, Local: {self.ctx.local_storage}, rest: {self.ctx.storages}"
 
-    def get_runtime_storage(self) -> Optional[Storage]:
-        if self.ctx.current_runtime is None:
-            return None
-        return self.ctx.current_runtime.as_storage()
+    # def get_runtime_storage(self) -> Optional[Storage]:
+    #     if self.ctx.current_runtime is None:
+    #         return None
+    #     return self.ctx.current_runtime.as_storage()
 
     def inferred_schema(self) -> Optional[Schema]:
         if self.data_block.inferred_schema_key is None:
@@ -318,11 +318,11 @@ class DataBlockManager:
         return self.as_python_object(sdb)
 
     def ensure_format(self, fmt: DataFormat) -> Any:
-        target_storage = self.get_runtime_storage()
+        target_storage = self.ctx.local_storage
         if fmt.is_python_format():
             # Ensure we are putting memory format in memory
             # if not target_storage.storage_engine.storage_class == PythonStorageClass:
-            target_storage = self.ctx.local_python_storage
+            target_storage = self.ctx.local_storage
         assert target_storage is not None
         sdb = ensure_data_block_on_storage(
             self.ctx.env,

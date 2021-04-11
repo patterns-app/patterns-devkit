@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import enum
 import traceback
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from operator import and_
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from loguru import logger
-from sqlalchemy.sql.schema import Column, ForeignKey
+from sqlalchemy.sql.schema import Column, ForeignKey, UniqueConstraint
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
@@ -43,6 +43,16 @@ def ensure_stream(stream_like: StreamLike) -> StreamBuilder:
     raise TypeError(stream_like)
 
 
+@dataclass(frozen=True)
+class NodeConfiguration:
+    key: str
+    snap_key: str
+    inputs: Dict[str, str]
+    params: Dict[str, Any]  # TODO: acceptable param types?
+    output_alias: Optional[str] = None
+    schema_translations: Optional[Dict[str, Dict[str, str]]] = None
+
+
 @dataclass
 class DeclaredNode:
     """
@@ -59,7 +69,18 @@ class DeclaredNode:
     inputs: Union[StreamLike, Dict[str, StreamLike]] = field(default_factory=dict)
     graph: Optional[DeclaredGraph] = None
     output_alias: Optional[str] = None
-    schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None
+    schema_translations: Optional[Dict[str, Union[Dict[str, str], str]]] = None
+
+    @staticmethod
+    def from_config(cfg: NodeConfiguration) -> DeclaredNode:
+        return node(
+            key=cfg.key,
+            snap=cfg.snap_key,
+            inputs=cfg.inputs,
+            params=cfg.params,
+            output_alias=cfg.output_alias,
+            schema_translations=cfg.schema_translations,
+        )
 
     def __post_init__(self):
         from snapflow.core.graph import DEFAULT_GRAPH
@@ -119,6 +140,7 @@ def node(
     input: StreamLike = None,
     graph: Optional[DeclaredGraph] = None,
     output_alias: Optional[str] = None,
+    schema_translations: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
     schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]] = None,
     upstream: Union[StreamLike, Dict[str, StreamLike]] = None,  # TODO: DEPRECATED
 ) -> DeclaredNode:
@@ -131,7 +153,7 @@ def node(
         inputs=inputs or upstream or input or {},
         graph=graph,
         output_alias=output_alias,
-        schema_translation=schema_translation,
+        schema_translations=schema_translations,
     )
 
 
@@ -143,13 +165,15 @@ def instantiate_node(
     else:
         snap = make_snap(declared_node.snap)
     interface = snap.get_interface()
-    schema_translation = interface.assign_translations(declared_node.schema_translation)
+    schema_translations = interface.assign_translations(
+        declared_node.schema_translations
+    )
     declared_inputs: Dict[str, DeclaredStreamInput] = {}
     if declared_node.inputs is not None:
         for name, stream_like in interface.assign_inputs(declared_node.inputs).items():
             declared_inputs[name] = DeclaredStreamInput(
                 stream=ensure_stream(stream_like),
-                declared_schema_translation=(schema_translation or {}).get(name),
+                declared_schema_translation=(schema_translations or {}).get(name),
             )
     n = Node(
         env=env,
@@ -159,7 +183,7 @@ def instantiate_node(
         params=declared_node.params,
         interface=interface,
         declared_inputs=declared_inputs,
-        declared_schema_translation=schema_translation,
+        declared_schema_translation=schema_translations,
         output_alias=declared_node.output_alias,
     )
     return n
