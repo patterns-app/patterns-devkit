@@ -5,7 +5,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Dict, List, Optional, Type, Union
 from urllib.parse import urlparse
 
-from datacopy.storage.base import (
+from dcp.storage.base import (
     DatabaseStorageClass,
     LocalPythonStorageEngine,
     MemoryStorageClass,
@@ -17,10 +17,8 @@ from datacopy.storage.base import (
     StorageClass,
     StorageEngine,
 )
-
+from dcp.utils.common import rand_str
 from snapflow.core.environment import Environment
-
-from datacopy.utils.common import rand_str
 from snapflow.utils.registry import global_registry
 
 

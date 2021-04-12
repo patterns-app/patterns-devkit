@@ -1,7 +1,6 @@
-from openmodel.base import AnySchema
+from commonmodel.base import AnySchema
 from snapflow.core.module import SnapflowModule
 from snapflow.modules.core.snaps import conform_to_schema
-
 
 from .snaps import accumulator, dedupe, static
 

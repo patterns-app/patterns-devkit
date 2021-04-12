@@ -16,11 +16,11 @@ from typing import (
 
 import networkx as nx
 import strictyaml as yaml
+from dcp.utils.common import md5_hash, remove_dupes
 from loguru import logger
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DeclaredNode, Node, NodeConfiguration, NodeLike, node
 from snapflow.core.snap import SnapLike
-from datacopy.utils.common import md5_hash, remove_dupes
 from sqlalchemy import Column, String
 from sqlalchemy.sql.sqltypes import JSON
 
@@ -38,7 +38,9 @@ class GraphMetadata(BaseModel):
     adjacency = Column(JSON)
 
     def __repr__(self) -> str:
-        return self._repr(hash=self.hash,)
+        return self._repr(
+            hash=self.hash,
+        )
 
 
 class DeclaredGraph:

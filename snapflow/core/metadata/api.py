@@ -6,8 +6,8 @@ from typing import Any, Iterable, Iterator, Union
 
 from alembic import command
 from alembic.config import Config
-from datacopy.storage.base import DatabaseStorageClass
-
+from dcp import Storage
+from dcp.storage.base import DatabaseStorageClass
 from sqlalchemy.engine import Result
 from sqlalchemy.engine.base import Connection
 from sqlalchemy.orm.session import Session, SessionTransaction, sessionmaker
@@ -15,7 +15,6 @@ from sqlalchemy.sql import Delete, Update
 from sqlalchemy.sql.expression import select
 from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.selectable import Select
-from datacopy import Storage
 
 
 class MetadataApi:
@@ -44,6 +43,16 @@ class MetadataApi:
         with self.active_session.begin_nested() as sess_tx:
             yield sess_tx
 
+    @contextmanager
+    def ensure_session(self) -> Iterator[Session]:
+        if self.active_session is None:
+            with self.Session.begin() as sess:
+                self.active_session = sess
+                yield sess
+            self.active_session = None
+        else:
+            yield self.active_session
+
     def get_session(self) -> Session:
         if self.active_session is None:
             raise ValueError(
@@ -65,7 +74,7 @@ class MetadataApi:
         return self.get_session().execute(stmt)
 
     def count(self, stmt: Select, filter_env: bool = True) -> int:
-        stmt = select(func.count()).select_from(stmt)
+        stmt = select(func.count()).select_from(stmt.subquery())
         return self.execute(stmt).scalar_one()
 
     def add(self, obj: Any, set_env: bool = True):

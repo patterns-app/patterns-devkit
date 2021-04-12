@@ -1,10 +1,4 @@
 from __future__ import annotations
-from snapflow.core.environment import Environment
-from snapflow.core.execution.executable import (
-    Executable,
-    ExecutionContext,
-    ExecutionResult,
-)
 
 import traceback
 from collections import abc, defaultdict
@@ -23,12 +17,14 @@ from typing import (
     Set,
     Tuple,
 )
-import datacopy
-from datacopy.data_format.base import DataFormat
-from datacopy.utils.common import rand_str, utcnow
-from openmodel.base import Schema
 
+import dcp
 import sqlalchemy
+from commonmodel.base import Schema, SchemaLike
+from dcp.data_format.base import DataFormat, get_format_for_nickname
+from dcp.data_format.handler import get_handler_for_name, infer_format_for_name
+from dcp.storage.base import Storage
+from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from snapflow.core.data_block import (
     Alias,
@@ -36,17 +32,31 @@ from snapflow.core.data_block import (
     ManagedDataBlock,
     StoredDataBlockMetadata,
     get_datablock_id,
+    get_stored_datablock_id,
+)
+from snapflow.core.environment import Environment
+from snapflow.core.execution.executable import (
+    CumulativeExecutionResult,
+    Executable,
+    ExecutionContext,
+    ExecutionResult,
 )
 from snapflow.core.metadata.api import MetadataApi
 from snapflow.core.node import DataBlockLog, Direction, Node, SnapLog, get_state
-from snapflow.core.snap import DataInterfaceType, InputExhaustedException, _Snap
+from snapflow.core.snap import (
+    DEFAULT_OUTPUT_NAME,
+    DataInterfaceType,
+    InputExhaustedException,
+    _Snap,
+)
 from snapflow.core.snap_interface import (
     BoundInterface,
     NodeInterfaceManager,
     StreamInput,
 )
+from snapflow.core.typing.casting import cast_to_realized_schema
+from snapflow.utils.output import cf, error_symbol, success_symbol
 from sqlalchemy.sql.expression import select
-from snapflow.utils.output import cf, success_symbol, error_symbol
 
 
 class ImproperlyStoredDataBlockException(Exception):
@@ -67,9 +77,6 @@ def validate_data_blocks(env: Environment):
                     )
 
 
-DEFAULT_OUTPUT_NAME = "default"
-
-
 @dataclass(frozen=True)
 class SnapContext:  # TODO: (Generic[C, S]):
     env: Environment
@@ -88,33 +95,66 @@ class SnapContext:  # TODO: (Generic[C, S]):
         default_factory=dict
     )
 
+    @contextmanager
+    def as_tmp_local_object(self, obj: Any) -> str:
+        tmp_name = "_tmp_obj_" + rand_str()
+        self.execution_context.local_storage.get_api().put(tmp_name, obj)
+        yield tmp_name
+        self.execution_context.local_storage.get_api().remove(tmp_name)
+
     def ensure_log(self, block: DataBlockMetadata, direction: Direction, name: str):
         if self.metadata_api.execute(
-            select(DataBlockLog).filter(
-                snap_log=self.snap_log,
+            select(DataBlockLog).filter_by(
+                snap_log_id=self.snap_log.id,
                 stream_name=name,
-                data_block=block,
+                data_block_id=block.id,
                 direction=direction,
             )
-        ).exists():
+        ).scalar_one_or_none():
             return
         drl = DataBlockLog(  # type: ignore
-            snap_log=self.snap_log,
+            snap_log_id=self.snap_log.id,
             stream_name=name,
-            data_block=block,
+            data_block_id=block.id,
             direction=direction,
             processed_at=utcnow(),
         )
         self.metadata_api.add(drl)
 
+    def finish_execution(self):
+        logger.debug("Finishing execution")
+        self.log_all()
+        # TODO: multiple aliases support?
+        sdb = self.output_blocks_emitted.get(DEFAULT_OUTPUT_NAME)
+        if sdb is not None:
+            self.create_alias(sdb)
+        self.metadata_api.flush()
+
+    # def create_aliases(self):
+    #     for output_name, sdb in self.output_blocks_emitted.items():
+    #         if output_name
+    #         self.create_alias(sdb)
+
     def log_all(self):
+        # Do this one last time (in case no output emitted, like an exporter):
+        self.log_processed_input_blocks()
         for input_name, blocks in self.input_blocks_processed.items():
             for block in blocks:
                 self.ensure_log(block, Direction.INPUT, input_name)
                 logger.debug(f"Input logged: {block}")
-        for output_name, block in self.output_blocks_emitted.items():
-            logger.debug(f"Output logged: {block}")
-            self.ensure_log(block, Direction.OUTPUT, output_name)
+        for output_name, sdb in self.output_blocks_emitted.items():
+            self.metadata_api.add(sdb.data_block)
+            self.metadata_api.add(sdb)
+            logger.debug(f"Output logged: {sdb.data_block}")
+            self.ensure_log(sdb.data_block, Direction.OUTPUT, output_name)
+
+    def get_snap_args(self) -> Tuple[List, Dict]:
+        snap_args = []
+        if self.bound_interface.context:
+            snap_args.append(self)
+        snap_inputs = self.bound_interface.inputs_as_kwargs()
+        snap_kwargs = snap_inputs
+        return (snap_args, snap_kwargs)
 
     def get_param(self, key: str, default: Any = None) -> Any:
         if default is None:
@@ -148,18 +188,25 @@ class SnapContext:  # TODO: (Generic[C, S]):
     def emit(
         self,
         records_obj: Any = None,
+        name: str = None,
+        storage: Storage = None,
         output: str = DEFAULT_OUTPUT_NAME,
         data_format: DataFormat = None,
-        schema: Schema = None,
+        schema: SchemaLike = None,
         update_state: Dict[str, Any] = None,
         replace_state: Dict[str, Any] = None,
     ):
-        if records_obj is not None:
-            sdb = self.handle_records_object(
-                records_obj, output, data_format=data_format, schema=schema
-            )
-            if sdb is not None:
-                self.create_alias(sdb)
+        assert records_obj is not None or (
+            name is not None and storage is not None
+        ), "Emit takes either records_obj, or name and storage"
+        if schema is not None:
+            schema = self.env.get_schema(schema)
+        if data_format is not None:
+            if isinstance(data_format, str):
+                data_format = get_format_for_nickname(data_format)
+        self.handle_emit(
+            records_obj, name, storage, output, data_format=data_format, schema=schema
+        )
         if update_state is not None:
             for k, v in update_state.items():
                 self.emit_state_value(k, v)
@@ -169,9 +216,9 @@ class SnapContext:  # TODO: (Generic[C, S]):
         self.log_processed_input_blocks()
 
     def create_alias(self, sdb: StoredDataBlockMetadata) -> Optional[Alias]:
-        self.metadata_api.flush()  # [sdb.data_block, sdb])
+        self.metadata_api.flush([sdb.data_block, sdb])
         alias = sdb.create_alias(self.env, self.node.get_alias())
-        self.metadata_api.flush()  # [alias])
+        self.metadata_api.flush([alias])
         return alias
 
     def create_stored_datablock(self) -> StoredDataBlockMetadata:
@@ -184,6 +231,7 @@ class SnapContext:  # TODO: (Generic[C, S]):
             created_by_node_key=self.node.key,
         )
         sdb = StoredDataBlockMetadata(  # type: ignore
+            id=get_stored_datablock_id(),
             data_block_id=block.id,
             data_block=block,
             storage_url=self.execution_context.local_storage.url,
@@ -198,14 +246,18 @@ class SnapContext:  # TODO: (Generic[C, S]):
             return self.get_stored_datablock_for_output(output)
         return sdb
 
-    def handle_records_object(
+    def handle_emit(
         self,
-        records_obj: Any,
-        output: str,
+        records_obj: Any = None,
+        name: str = None,
+        storage: Storage = None,
+        output: str = DEFAULT_OUTPUT_NAME,
         data_format: DataFormat = None,
-        schema: Schema = None,
-    ) -> Optional[StoredDataBlockMetadata]:
-        logger.debug(f"HANDLING EMITTED OBJECT (of type {type(records_obj)})")
+        schema: SchemaLike = None,
+    ):
+        logger.debug(
+            f"HANDLING EMITTED OBJECT (of type '{type(records_obj).__name__}')"
+        )
         # TODO: can i return an existing DataBlock? Or do I need to create a "clone"?
         #   Answer: ok to return as is (just mark it as 'output' in DBL)
         if isinstance(records_obj, StoredDataBlockMetadata):
@@ -222,79 +274,83 @@ class SnapContext:  # TODO: (Generic[C, S]):
             nominal_output_schema = self.bound_interface.resolve_nominal_output_schema(
                 self.env
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
-        logger.debug(
-            f"Resolved output schema {nominal_output_schema} {self.bound_interface}"
-        )
         sdb = self.get_stored_datablock_for_output(output)
-        self.append_records_to_stored_datablock(records_obj, sdb)
-        # self.executable.execution_context.local_storage.get_api().count(tmp_name)
-        # if records_object_is_definitely_empty(records_obj):
-        #     # TODO
-        #     # Are we sure we'd never want to process an empty object?
-        #     # Like maybe create the db table, but leave it empty? could be useful
-        #     return None
-        # sdb = self.store_output_block(dro)
+        sdb.data_format = data_format
+        db = sdb.data_block
+        if db.nominal_schema_key and db.nominal_schema_key != nominal_output_schema.key:
+            raise Exception(
+                "Mismatch nominal schemas {db.nominal_schema_key} - {nominal_output_schema.key}"
+            )
+        db.nominal_schema_key = nominal_output_schema.key
+        if records_obj is not None:
+            name = "_tmp_obj_" + rand_str(10)
+            storage = self.execution_context.local_storage
+            storage.get_api().put(name, records_obj)
+        sdb.storage_url = storage.url
+        assert name is not None
+        assert storage is not None
+        self.append_records_to_stored_datablock(name, storage, sdb)
         return sdb
 
-    def append_records_to_stored_datablock(
-        self, records_obj: Any, sdb: StoredDataBlockMetadata
+    def resolve_new_object_with_data_block(
+        self, sdb: StoredDataBlockMetadata, name: str, storage: Storage
     ):
-        # TODO: infer incoming schema, check against existing schema on sdb
-        tmp_name = "_tmp_obj_" + rand_str(10)
-        self.execution_context.local_storage.get_api().put(tmp_name, records_obj)
-        # fmt = infer_format_for_name(tmp_name, self.executable.execution_context.local_storage)
+        handler = get_handler_for_name(name, storage)
+        inferred_schema = handler().infer_schema(name, storage)
+        self.env.add_new_generated_schema(inferred_schema)
+        if sdb.data_block.realized_schema_key in (None, "Any"):
+            # Cast to nominal if no existing realized schema
+            realized_schema = cast_to_realized_schema(
+                self.env,
+                inferred_schema=inferred_schema,
+                nominal_schema=sdb.nominal_schema(self.env),
+            )
+        else:
+            # If already a realized schema, conform new inferred schema to existing realized
+            realized_schema = cast_to_realized_schema(
+                self.env,
+                inferred_schema=inferred_schema,
+                nominal_schema=sdb.data_block.realized_schema(self.env),
+            )
+        self.env.add_new_generated_schema(realized_schema)
+        sdb.data_block.realized_schema_key = realized_schema.key
+        logger.debug(
+            f"Inferred schema: {inferred_schema.key} {inferred_schema.fields_summary()}"
+        )
+        logger.debug(
+            f"Realized schema: {realized_schema.key} {realized_schema.fields_summary()}"
+        )
+        if sdb.data_block.nominal_schema_key:
+            logger.debug(
+                f"Nominal schema: {sdb.data_block.nominal_schema_key} {sdb.data_block.nominal_schema(self.env).fields_summary()}"
+            )
+
+    def append_records_to_stored_datablock(
+        self, name: str, storage: Storage, sdb: StoredDataBlockMetadata
+    ):
+        self.resolve_new_object_with_data_block(sdb, name, storage)
+        if sdb.data_format is None:
+            fmt = infer_format_for_name(name, storage)
+            # if sdb.data_format and sdb.data_format != fmt:
+            #     raise Exception(f"Format mismatch {fmt} - {sdb.data_format}")
+            if fmt is None:
+                raise Exception(f"Could not infer format {name} on {storage}")
+            sdb.data_format = fmt
         # TODO: to_format
         # TODO: make sure this handles no-ops (empty object, same storage)
-        datacopy.copy(
-            from_name=tmp_name,
-            from_storage=self.execution_context.local_storage,
-            to_name=sdb.datablock.get_name_for_storage(),
+        # TODO: copy or alias? sometimes we are just moving temp obj to new name, dont need copy
+        result = dcp.copy(
+            from_name=name,
+            from_storage=storage,
+            to_name=sdb.get_name_for_storage(),
             to_storage=sdb.storage,
+            to_format=sdb.data_format,
             available_storages=self.execution_context.storages,
-            exists="append",
+            if_exists="append",
         )
-        self.execution_context.local_storage.get_api().remove_alias(
-            tmp_name
-        )  # TODO: actual remove method? equivalent for python local storage
-
-    # def store_output_block(self, dro: MemoryDataRecords) -> StoredDataBlockMetadata:
-    #     block, sdb = create_data_block_from_records(
-    #         self.run_context.env,
-    #         self.executable.execution_context.local_storage,
-    #         dro,
-    #         created_by_node_key=self.executable.node_key,
-    #     )
-    #     # TODO: need target_format option too
-    #     if (
-    #         self.run_context.target_storage is None
-    #         or self.run_context.target_storage == sdb.storage
-    #     ):
-    #         # Already good on target storage
-    #         if sdb.data_format.is_storable():
-    #             # And its storable
-    #             return sdb
-
-    #     # check if existing storage_format is compatible with target storage,
-    #     # and it's storable, then use instead of natural (no need to convert)
-    #     target_format = (
-    #         self.run_context.target_storage.storage_engine.get_natural_format()
-    #     )
-    #     if self.run_context.target_storage.storage_engine.is_supported_format(
-    #         sdb.data_format
-    #     ):
-    #         if sdb.data_format.is_storable():
-    #             target_format = sdb.data_format
-
-    #     assert target_format.is_storable()
-
-    #     # Place output in target storage
-    #     return copy_lowest_cost(
-    #         self.run_context.env,
-    #         sdb=sdb,
-    #         target_storage=self.run_context.target_storage,
-    #         target_format=target_format,
-    #         eligible_storages=self.run_context.storages,
-    #     )
+        logger.debug(f"Copied {result}")
+        logger.debug(f"REMOVING NAME {name}")
+        storage.get_api().remove(name)
 
     def log_processed_input_blocks(self):
         for input in self.bound_interface.inputs:
@@ -318,10 +374,11 @@ class SnapContext:  # TODO: (Generic[C, S]):
             input_block_counts[input_name] = len(dbs)
         output_blocks = {}
         for output_name, sdb in self.output_blocks_emitted.items():
+            alias = sdb.get_alias(self.env)
             output_blocks[output_name] = {
                 "id": sdb.data_block_id,
-                "record_count": sdb.record_count,
-                "alias": sdb.get_alias(self.env),
+                "record_count": sdb.record_count(),
+                "alias": alias.alias if alias else None,
             }
         return ExecutionResult(
             inputs_bound=list(self.bound_interface.inputs_as_kwargs().keys()),
@@ -354,69 +411,40 @@ class ExecutionManager:
         )
         self.logger.log(base_msg)
         with self.logger.indent():
-            try:
-                result = self._execute()
-                self.log_execution_result(result)
-            # except InputExhaustedException as e:
-            #     logger.debug(cf.warning("Input Exhausted"))
-            #     if e.args:
-            #         logger.debug(e)
-            #     self.logger.log("Inputs: No unprocessed inputs\n")
-            except Exception as e:
-                raise e
+            result = self._execute()
+            self.log_execution_result(result)
             if not result.error:
                 self.logger.log(cf.success("Ok " + success_symbol + "\n"))  # type: ignore
             else:
                 error = result.error or "Snap failed (unknown error)"
                 self.logger.log(cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n")  # type: ignore
                 if result.traceback:
-                    self.logger.log(cf.dimmed(result.traceback), indent=8)  # type: ignore
+                    self.logger.log(cf.dimmed(result.traceback), indent=2)  # type: ignore
             logger.debug(f"Execution result: {result}")
             logger.debug(f"*DONE* RUNNING NODE {self.node.key} {self.node.snap.key}")
         return result
 
     def _execute(self) -> ExecutionResult:
-        result = ExecutionResult.empty()
-        try:
-            with self.start_snap_run(self.node) as snap_log:
-                interface_mgr = NodeInterfaceManager(self.exe)
+        with self.env.md_api.begin():
+            interface_mgr = NodeInterfaceManager(self.exe)
+            try:
                 bound_interface = interface_mgr.get_bound_interface()
-                snap_ctx = SnapContext(
-                    env=self.env,
-                    snap=self.exe.snap,
-                    node=self.exe.node,
-                    executable=self.exe,
-                    metadata_api=self.env.md_api,
-                    inputs=bound_interface.inputs,
-                    snap_log=snap_log,
-                    bound_interface=bound_interface,
-                    execution_context=self.exe.execution_context,
-                )
-                snap_args = []
-                if snap_ctx.bound_interface.context:
-                    snap_args.append(snap_ctx)
-                snap_inputs = snap_ctx.bound_interface.inputs_as_kwargs()
-                snap_kwargs = snap_inputs
-                # TODO: tighten up the contextmanager to around just this call?
-                #       Otherwise we are catching framework errors as snap errors
-                try:
-                    # snap = executable.compiled_snap.snap
-                    # local_vars = locals()
-                    # if hasattr(snap, "_locals"):
-                    #     local_vars.update(snap._locals)
-                    # exec(snap.get_source_code(), globals(), local_vars)
-                    # output_obj = local_vars[snap.snap_callable.__name__](
-                    output_obj = snap_ctx.snap.snap_callable(*snap_args, **snap_kwargs,)
-                    if output_obj is not None:
-                        self.emit_output_object(output_obj, snap_ctx)
-                finally:
-                    pass
-                result = snap_ctx.as_execution_result()
-        except Exception as e:
-            result.set_error(e)
-            if self.exe.execution_context.raise_on_snap_error:
+            except InputExhaustedException as e:
+                logger.debug(f"Inputs exhausted {e}")
                 raise e
-
+                # return ExecutionResult.empty()
+            with self.start_snap_run(self.node, bound_interface) as snap_ctx:
+                # snap = executable.compiled_snap.snap
+                # local_vars = locals()
+                # if hasattr(snap, "_locals"):
+                #     local_vars.update(snap._locals)
+                # exec(snap.get_source_code(), globals(), local_vars)
+                # output_obj = local_vars[snap.snap_callable.__name__](
+                snap_args, snap_kwargs = snap_ctx.get_snap_args()
+                output_obj = snap_ctx.snap.snap_callable(*snap_args, **snap_kwargs,)
+                if output_obj is not None:
+                    self.emit_output_object(output_obj, snap_ctx)
+            result = snap_ctx.as_execution_result()
         logger.debug(f"EXECUTION RESULT {result}")
         return result
 
@@ -435,59 +463,71 @@ class ExecutionManager:
             snap_ctx.emit(output_obj)
 
     @contextmanager
-    def start_snap_run(self, node: Node) -> Iterator[SnapLog]:
+    def start_snap_run(
+        self, node: Node, bound_interface: BoundInterface
+    ) -> Iterator[SnapContext]:
         from snapflow.core.graph import GraphMetadata
 
         # assert self.current_runtime is not None, "Runtime not set"
         md = self.env.get_metadata_api()
-        with md.begin():
-            node_state_obj = node.get_state()
-            if node_state_obj is None:
-                node_state = {}
-            else:
-                node_state = node_state_obj.state
-            new_graph_meta = node.graph.get_metadata_obj()
-            graph_meta = md.execute(
-                select(GraphMetadata).filter(GraphMetadata.hash == new_graph_meta.hash)
-            ).scalar_one_or_none()
-            if graph_meta is None:
-                md.add(new_graph_meta)
-                md.flush()  # [new_graph_meta])
-                graph_meta = new_graph_meta
+        node_state_obj = node.get_state(self.env)
+        if node_state_obj is None:
+            node_state = {}
+        else:
+            node_state = node_state_obj.state
+        new_graph_meta = node.graph.get_metadata_obj()
+        graph_meta = md.execute(
+            select(GraphMetadata).filter(GraphMetadata.hash == new_graph_meta.hash)
+        ).scalar_one_or_none()
+        if graph_meta is None:
+            md.add(new_graph_meta)
+            md.flush()  # [new_graph_meta])
+            graph_meta = new_graph_meta
 
-            pl = SnapLog(  # type: ignore
-                graph_id=graph_meta.hash,
-                node_key=node.key,
-                node_start_state=node_state.copy(),  # {k: v for k, v in node_state.items()},
-                node_end_state=node_state,
-                snap_key=node.snap.key,
-                snap_params=node.params,
-                # runtime_url=self.current_runtime.url,
-                started_at=utcnow(),
-            )
-
-            try:
-                yield pl
-                # Validate local memory objects: Did we leave any non-storeables hanging?
-                validate_data_blocks(self.env)
-            except Exception as e:
-                # Don't worry about exhaustion exceptions
-                if not isinstance(e, InputExhaustedException):
-                    logger.debug(f"Error running node:\n{traceback.format_exc()}")
-                    pl.set_error(e)
-                    pl.persist_state(self.env)
-                    pl.completed_at = utcnow()
-                    md.add(pl)
-                    # TODO: should clean this up so transaction surrounds things that you DO
-                    #       want to rollback, obviously
-                    md.commit()  # MUST commit here since the re-raised exception will issue a rollback
-                    # Re-raise here and handle elsewhere
+        snap_log = SnapLog(  # type: ignore
+            graph_id=graph_meta.hash,
+            node_key=node.key,
+            node_start_state=node_state.copy(),  # {k: v for k, v in node_state.items()},
+            node_end_state=node_state,
+            snap_key=node.snap.key,
+            snap_params=node.params,
+            # runtime_url=self.current_runtime.url,
+            started_at=utcnow(),
+        )
+        md.add(snap_log)
+        md.flush([snap_log])
+        snap_ctx = SnapContext(
+            env=self.env,
+            snap=self.exe.snap,
+            node=self.exe.node,
+            executable=self.exe,
+            metadata_api=self.env.md_api,
+            inputs=bound_interface.inputs,
+            snap_log=snap_log,
+            bound_interface=bound_interface,
+            execution_context=self.exe.execution_context,
+        )
+        try:
+            yield snap_ctx
+            # Validate local memory objects: Did we leave any non-storeables hanging?
+            validate_data_blocks(self.env)
+        except Exception as e:
+            # Don't worry about exhaustion exceptions
+            if not isinstance(e, InputExhaustedException):
+                logger.debug(f"Error running node:\n{traceback.format_exc()}")
+                snap_log.set_error(e)
+                snap_log.persist_state(self.env)
+                snap_log.completed_at = utcnow()
+                # TODO: should clean this up so transaction surrounds things that you DO
+                #       want to rollback, obviously
+                # md.commit()  # MUST commit here since the re-raised exception will issue a rollback
+                if self.exe.execution_context.abort_on_snap_error:
                     raise e
-            finally:
-                # Persist state on success OR error:
-                pl.persist_state(self.env)
-                pl.completed_at = utcnow()
-                md.add(pl)
+        finally:
+            snap_ctx.finish_execution()
+            # Persist state on success OR error:
+            snap_log.persist_state(self.env)
+            snap_log.completed_at = utcnow()
 
     def log_execution_result(self, result: ExecutionResult):
         self.logger.log("Inputs: ")
@@ -497,7 +537,10 @@ class ExecutionManager:
                 for input_name, cnt in result.input_block_counts.items():
                     self.logger.log(f"{input_name}: {cnt} block(s) processed\n")
         else:
-            self.logger.log("None\n")
+            if not result.non_reference_inputs_bound:
+                self.logger.log_token("n/a\n")
+            else:
+                self.logger.log_token("None\n")
         self.logger.log("Outputs: ")
         if result.output_blocks:
             self.logger.log("\n")
@@ -507,10 +550,28 @@ class ExecutionManager:
                     cnt = block_summary["record_count"]
                     alias = block_summary["alias"]
                     if cnt is not None:
-                        self.logger.log(f"{cnt} records")
-                    self.logger.log(
-                        f"{alias}" + cf.dimmed(f"({block_id})\n")  # type: ignore
+                        self.logger.log_token(f" {cnt} records")
+                    self.logger.log_token(
+                        f" {alias} " + cf.dimmed(f"({block_summary['id']})\n")  # type: ignore
                     )
         else:
-            self.logger.log("None\n")
-        self.logger.log("\n")
+            self.logger.log_token("None\n")
+
+
+def execute_to_exhaustion(
+    exe: Executable, to_exhaustion: bool = True
+) -> Optional[CumulativeExecutionResult]:
+    cum_result = CumulativeExecutionResult()
+    while True:
+        em = ExecutionManager(exe)
+        try:
+            result = em.execute()
+        except InputExhaustedException:
+            return cum_result
+        cum_result.add_result(result)
+        if (
+            not to_exhaustion or not result.non_reference_inputs_bound
+        ):  # TODO: We just run no-input DFs (sources) once no matter what
+            # (they are responsible for creating their own generators)
+            break
+    return cum_result

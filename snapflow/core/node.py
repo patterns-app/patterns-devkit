@@ -6,20 +6,18 @@ from dataclasses import asdict, dataclass, field
 from operator import and_
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
+from dcp.utils.common import as_identifier
 from loguru import logger
-from sqlalchemy.sql.schema import Column, ForeignKey, UniqueConstraint
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
 from snapflow.core.snap import SnapLike, _Snap, ensure_snap, make_snap, make_snap_name
 from snapflow.core.snap_interface import DeclaredSnapInterface, DeclaredStreamInput
-
-from datacopy.utils.common import as_identifier
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.expression import select, update
 from sqlalchemy.sql.functions import func
-
+from sqlalchemy.sql.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
 if TYPE_CHECKING:
@@ -158,7 +156,9 @@ def node(
 
 
 def instantiate_node(
-    env: Environment, graph: Graph, declared_node: DeclaredNode,
+    env: Environment,
+    graph: Graph,
+    declared_node: DeclaredNode,
 ):
     if isinstance(declared_node.snap, str):
         snap = env.get_snap(declared_node.snap)
@@ -176,7 +176,6 @@ def instantiate_node(
                 declared_schema_translation=(schema_translations or {}).get(name),
             )
     n = Node(
-        env=env,
         graph=graph,
         key=declared_node.key,
         snap=snap,
@@ -197,7 +196,6 @@ def make_default_output_alias(node: Node) -> str:
 
 @dataclass(frozen=True)
 class Node:
-    env: Environment
     graph: Graph
     key: str
     snap: _Snap
@@ -213,8 +211,8 @@ class Node:
     def __hash__(self):
         return hash(self.key)
 
-    def get_state(self) -> Optional[NodeState]:
-        return self.env.md_api.execute(
+    def get_state(self, env: Environment) -> Optional[NodeState]:
+        return env.md_api.execute(
             select(NodeState).filter(NodeState.node_key == self.key)
         ).scalar_one_or_none()
 
@@ -240,9 +238,9 @@ class Node:
 
         return StreamBuilder().filter_inputs(self)
 
-    def latest_output(self, ctx: RunContext) -> Optional[DataBlock]:
+    def latest_output(self, env: Environment) -> Optional[DataBlock]:
         block: DataBlockMetadata = (
-            self.env.md_api.execute(
+            env.md_api.execute(
                 select(DataBlockMetadata)
                 .join(DataBlockLog)
                 .join(SnapLog)
@@ -257,23 +255,23 @@ class Node:
         )
         if block is None:
             return None
-        return block.as_managed_data_block(ctx)
+        return block.as_managed_data_block(env)
 
-    def _reset_state(self):
+    def _reset_state(self, env: Environment):
         """
         Resets the node's state only.
         This is usually not something you want to do by itself, but
         instead as part of a full reset.
         """
-        state = self.get_state()
+        state = self.get_state(env)
         if state is not None:
-            self.env.md_api.delete(state)
+            env.md_api.delete(state)
 
-    def _invalidate_datablocks(self):
+    def _invalidate_datablocks(self, env: Environment):
         """"""
         dbl_ids = [
             r
-            for r in self.env.md_api.execute(
+            for r in env.md_api.execute(
                 select(DataBlockLog.id)
                 .join(SnapLog)
                 .filter(SnapLog.node_key == self.key)
@@ -281,14 +279,14 @@ class Node:
             .scalars()
             .all()
         ]
-        self.env.md_api.execute(
+        env.md_api.execute(
             update(DataBlockLog)
             .filter(DataBlockLog.id.in_(dbl_ids))
             .values({"invalidated": True})
             .execution_options(synchronize_session="fetch")  # TODO: or false?
         )
 
-    def reset(self):
+    def reset(self, env: Environment):
         """
         Resets the node, meaning all state is cleared, and all OUTPUT and INPUT datablock
         logs are invalidated. Output datablocks are NOT deleted.
@@ -297,8 +295,8 @@ class Node:
         TODO: consider "cascading reset" for downstream recursive snaps (which will still have
         accumulated output from this node)
         """
-        self._reset_state()
-        self._invalidate_datablocks()
+        self._reset_state(env)
+        self._invalidate_datablocks(env)
 
 
 class NodeState(BaseModel):
@@ -306,7 +304,10 @@ class NodeState(BaseModel):
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(node_key=self.node_key, state=self.state,)
+        return self._repr(
+            node_key=self.node_key,
+            state=self.state,
+        )
 
 
 def get_state(env: Environment, node_key: str) -> Optional[Dict]:
@@ -330,7 +331,7 @@ class SnapLog(BaseModel):
     node_end_state = Column(JSON, nullable=True)
     snap_key = Column(String(128), nullable=False)
     snap_params = Column(JSON, nullable=True)
-    runtime_url = Column(String(128), nullable=False)
+    runtime_url = Column(String(128), nullable=True)  # TODO
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
@@ -361,7 +362,7 @@ class SnapLog(BaseModel):
     def set_error(self, e: Exception):
         tback = traceback.format_exc()
         # Traceback can be v large (like in max recursion), so we truncate to 5k chars
-        self.error = {"error": str(e), "traceback": tback[:5000]}
+        self.error = {"error": str(e) or type(e).__name__, "traceback": tback[:5000]}
 
     def persist_state(self, env: Environment) -> NodeState:
         state = env.md_api.execute(

@@ -1,7 +1,7 @@
 import os
 
 from click.testing import CliRunner
-from datacopy.storage.database.utils import get_tmp_sqlite_db_url
+from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from snapflow.cli import app
 from snapflow.project.project import SNAPFLOW_PROJECT_FILE_NAME
 

@@ -2,117 +2,43 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, List, Optional, Type
 
+from dcp import StorageFormat
+from dcp.data_copy.base import CopyRequest
+from dcp.data_copy.graph import execute_copy_request, get_copy_path
+from dcp.data_format.base import DataFormat
+from dcp.storage.base import Storage
 from loguru import logger
 from snapflow.core.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
-    get_datablock_id,
+    get_stored_datablock_id,
 )
 from snapflow.core.environment import Environment
-
-
 from sqlalchemy import or_
 from sqlalchemy.sql.expression import select
 
-if TYPE_CHECKING:
-    from snapflow.core.execution import RunContext
 
-
-class CopyPathDoesNotExist(Exception):
-    pass
-
-
-def copy_lowest_cost(
+def copy_sdb(
     env: Environment,
-    sdb: StoredDataBlockMetadata,
-    target_storage: Storage,
-    target_format: DataFormat,
-    eligible_storages: Optional[List[Storage]] = None,
-) -> StoredDataBlockMetadata:
-    if eligible_storages is None:
-        eligible_storages = env.storages
-    target_storage_format = StorageFormat(target_storage.storage_engine, target_format)
-    cp = get_copy_path_for_sdb(sdb, target_storage_format, eligible_storages)
-    if cp is None:
-        raise CopyPathDoesNotExist(
-            f"Copying {sdb} to format {target_format} on storage {target_storage}"
-        )
-    return convert_sdb(
-        env,
-        sdb=sdb,
-        conversion_path=cp,
-        target_storage=target_storage,
-        storages=eligible_storages,
-    )
-
-
-def get_copy_path_for_sdb(
-    sdb: StoredDataBlockMetadata, target_format: StorageFormat, storages: List[Storage]
-) -> Optional[ConversionPath]:
-    source_format = StorageFormat(sdb.storage.storage_engine, sdb.data_format)
-    if source_format == target_format:
-        # Already exists, do nothing
-        return ConversionPath()
-    conversion = Conversion(source_format, target_format)
-    conversion_path = get_datacopy_lookup(
-        available_storage_engines=set(s.storage_engine for s in storages),
-    ).get_lowest_cost_path(conversion,)
-    return conversion_path
-
-
-def convert_sdb(
-    env: Environment,
-    sdb: StoredDataBlockMetadata,
-    conversion_path: ConversionPath,
-    target_storage: Storage,
-    storages: Optional[List[Storage]] = None,
-) -> StoredDataBlockMetadata:
-    if not conversion_path.conversions:
-        return sdb
-    if storages is None:
-        storages = env.storages
-    prev_sdb = sdb
-    next_sdb: Optional[StoredDataBlockMetadata] = None
-    prev_storage = sdb.storage
-    next_storage: Optional[Storage] = None
-    realized_schema = sdb.realized_schema(env)
-    for conversion_edge in conversion_path.conversions:
-        conversion = conversion_edge.conversion
-        target_storage_format = conversion.to_storage_format
-        next_storage = select_storage(target_storage, storages, target_storage_format)
-        logger.debug(
-            f"CONVERSION: {conversion.from_storage_format} -> {conversion.to_storage_format}"
-        )
-        next_sdb = StoredDataBlockMetadata(  # type: ignore
-            id=get_datablock_id(),
-            data_block_id=prev_sdb.data_block_id,
-            data_block=prev_sdb.data_block,
-            data_format=target_storage_format.data_format,
-            storage_url=next_storage.url,
-        )
-        env.md_api.add(next_sdb)
-        conversion_edge.copier.copy(
-            from_name=prev_sdb.get_name(),
-            to_name=next_sdb.get_name(),
-            conversion=conversion,
-            from_storage_api=prev_storage.get_api(),
-            to_storage_api=next_storage.get_api(),
-            schema=realized_schema,
-        )
-        if (
-            prev_sdb.data_format.is_python_format()
-            and not prev_sdb.data_format.is_storable()
-        ):
-            # If the records obj is in python and not storable, and we just used it, then it can be reused
-            # TODO: Bit of a hack. Is there a central place we can do this?
-            #       also is reusable a better name than storable?
-            prev_storage.get_api().remove(prev_sdb.get_name())
-            prev_sdb.data_block.stored_data_blocks.remove(prev_sdb)
-            if prev_sdb in env.md_api.active_session.new:
-                env.md_api.delete(prev_sdb)
-        prev_sdb = next_sdb
-        prev_storage = next_storage
-    return next_sdb
+    request: CopyRequest,
+    in_sdb: StoredDataBlockMetadata,
+    out_sdb: StoredDataBlockMetadata,
+    # target_storage: Storage,
+    # storages: Optional[List[Storage]] = None,
+    create_intermediate_sdbs: bool = True,
+):
+    result = execute_copy_request(request)
+    if create_intermediate_sdbs:
+        for name, storage, fmt in result.intermediate_created:
+            i_sdb = StoredDataBlockMetadata(  # type: ignore
+                id=get_stored_datablock_id(),
+                data_block_id=in_sdb.data_block_id,
+                data_block=in_sdb.data_block,
+                data_format=fmt,
+                storage_url=storage.url,
+            )
+            storage.get_api().create_alias(name, i_sdb.get_name_for_storage())
+            env.md_api.add(i_sdb)
 
 
 def ensure_data_block_on_storage(
@@ -141,7 +67,7 @@ def ensure_data_block_on_storage(
         # Should be a separate in-memory lookup for memory SDBs, so they naturally expire?
         or_(
             ~StoredDataBlockMetadata.storage_url.startswith("python:"),
-            StoredDataBlockMetadata.storage_url == storage.url,
+            StoredDataBlockMetadata.storage_url == env._local_python_storage.url,
         ),
     )
     # logger.debug(
@@ -161,34 +87,36 @@ def ensure_data_block_on_storage(
     )  #: List[List[Tuple[ConversionCostLevel, Type[Converter]]]] = []
     existing_sdbs = list(env.md_api.execute(existing_sdbs).scalars())
     for sdb in existing_sdbs:
-        conversion_path = get_copy_path_for_sdb(
-            sdb, target_storage_format, eligible_storages
+        req = CopyRequest(
+            from_name=sdb.get_name_for_storage(),
+            from_storage=sdb.storage,
+            to_name="placeholder",
+            to_storage=storage,
+            to_format=fmt,
+            schema=sdb.realized_schema(env),
+            available_storages=eligible_storages,
         )
-        if conversion_path is not None:
-            eligible_conversion_paths.append(
-                (conversion_path.total_cost, conversion_path, sdb)
-            )
+        pth = get_copy_path(req)
+        if pth is not None:
+            eligible_conversion_paths.append((pth.total_cost, pth, sdb, req))
     if not eligible_conversion_paths:
         raise NotImplementedError(
-            f"No converter to {target_storage_format} for existing StoredDataBlocks {existing_sdbs}"
+            f"No copy path to {target_storage_format} for existing StoredDataBlocks {existing_sdbs}"
         )
-    cost, conversion_path, in_sdb = min(eligible_conversion_paths, key=lambda x: x[0])
-    return convert_sdb(
-        env,
-        sdb=in_sdb,
-        conversion_path=conversion_path,
-        target_storage=storage,
-        storages=eligible_storages,
+    cost, pth, in_sdb, req = min(eligible_conversion_paths, key=lambda x: x[0])
+    out_sdb = StoredDataBlockMetadata(  # type: ignore
+        id=get_stored_datablock_id(),
+        data_block_id=block.id,
+        data_block=block,
+        data_format=fmt,
+        storage_url=storage.url,
     )
-
-
-def select_storage(
-    target_storage: Storage, storages: List[Storage], storage_format: StorageFormat,
-) -> Storage:
-    eng = storage_format.storage_engine
-    if eng == target_storage.storage_engine:
-        return target_storage
-    for storage in storages:
-        if eng == storage.storage_engine:
-            return storage
-    raise Exception(f"No matching storage {storage_format}")
+    env.md_api.add(out_sdb)
+    req.to_name = out_sdb.get_name_for_storage()
+    copy_sdb(
+        env,
+        request=req,
+        in_sdb=in_sdb,
+        out_sdb=out_sdb,
+    )
+    return out_sdb

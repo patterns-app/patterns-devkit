@@ -13,10 +13,11 @@ from typing import (
     Set,
     Union,
 )
-from datacopy.storage.base import Storage
 
+from commonmodel.base import Schema, SchemaLike
+from dcp.storage.base import Storage
+from dcp.utils.common import ensure_list
 from loguru import logger
-from openmodel.base import Schema, SchemaLike
 from snapflow.core.data_block import (
     DataBlock,
     DataBlockMetadata,
@@ -33,9 +34,6 @@ from snapflow.core.node import (
     SnapLog,
 )
 from snapflow.core.snap_interface import get_schema_translation
-
-
-from datacopy.utils.common import ensure_list
 from sqlalchemy import and_, not_
 from sqlalchemy.engine import Result
 from sqlalchemy.orm import Query
@@ -135,7 +133,8 @@ class StreamBuilder:
     """"""
 
     def __init__(
-        self, filters: StreamBuilderConfiguration = None,
+        self,
+        filters: StreamBuilderConfiguration = None,
     ):
         self._filters = filters or StreamBuilderConfiguration()
 
@@ -193,10 +192,15 @@ class StreamBuilder:
         self, unprocessed_by: Node, allow_cycle=False
     ) -> StreamBuilder:
         return self.clone(
-            unprocessed_by_node_key=unprocessed_by.key, allow_cycle=allow_cycle,
+            unprocessed_by_node_key=unprocessed_by.key,
+            allow_cycle=allow_cycle,
         )
 
-    def _filter_unprocessed(self, env: Environment, query: Select,) -> Select:
+    def _filter_unprocessed(
+        self,
+        env: Environment,
+        query: Select,
+    ) -> Select:
         if not self._filters.unprocessed_by_node_key:
             return query
         if self._filters.allow_cycle:
@@ -224,7 +228,11 @@ class StreamBuilder:
     def filter_inputs(self, inputs: Union[NodeLike, List[NodeLike]]) -> StreamBuilder:
         return self.clone(node_keys=[ensure_node_key(n) for n in ensure_list(inputs)])
 
-    def _filter_inputs(self, env: Environment, query: Select,) -> Select:
+    def _filter_inputs(
+        self,
+        env: Environment,
+        query: Select,
+    ) -> Select:
         if not self._filters.node_keys:
             return query
         eligible_input_drs = (
@@ -287,7 +295,10 @@ class StreamBuilder:
         return self.clone(operators=(self.get_operators() + [op]))
 
     def is_unprocessed(
-        self, env: Environment, block: DataBlockMetadata, node: Node,
+        self,
+        env: Environment,
+        block: DataBlockMetadata,
+        node: Node,
     ) -> bool:
         blocks = self.filter_unprocessed(node)
         q = blocks.get_query(env)
@@ -375,7 +386,7 @@ class ManagedDataBlockStream:
             else:
                 schema_translation = None
             mdb = db.as_managed_data_block(
-                self.ctx, schema_translation=schema_translation
+                self.ctx.env, schema_translation=schema_translation
             )
             yield mdb
 

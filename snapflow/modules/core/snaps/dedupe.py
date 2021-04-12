@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+from dcp.storage.database.utils import get_tmp_sqlite_db_url
+from dcp.utils.pandas import assert_dataframes_are_almost_equal
 from pandas import DataFrame
 from snapflow import DataBlock
 from snapflow.core.node import DataBlockLog
 from snapflow.core.snap import Snap
 from snapflow.core.sql.sql_snap import Sql, SqlSnap
-
 from snapflow.testing.utils import DataInput, produce_snap_output_for_static_input
-from datacopy.utils.pandas import assert_dataframes_are_almost_equal
 from snapflow.utils.typing import T
 
 # TODO: currently no-op when no unique columns specified.
@@ -92,10 +92,12 @@ def test_dedupe():
     ]:
         with produce_snap_output_for_static_input(
             p, input=data_input, target_storage=s
-        ) as db:
+        ) as dbs:
+            assert len(dbs) == 1
+            db = dbs[0]
             expected_df = DataInput(
                 expected, schema="CoreTestSchema", module=core
-            ).as_dataframe(db.manager.ctx.env)
+            ).as_dataframe(db.manager.env)
             df = db.as_dataframe()
             assert_dataframes_are_almost_equal(
                 df, expected_df, schema=core.schemas.CoreTestSchema

@@ -21,11 +21,9 @@ from typing import (
     Union,
 )
 
-from openmodel.base import Schema, SchemaLike, schema_from_yaml
-
+from commonmodel.base import Schema, SchemaLike, schema_from_yaml
+from dcp.utils.common import AttrDict
 from snapflow.core.component import ComponentLibrary
-
-from datacopy.utils.common import AttrDict
 
 if TYPE_CHECKING:
     from snapflow.core.snap import (

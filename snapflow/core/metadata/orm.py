@@ -1,10 +1,11 @@
 from collections import OrderedDict
 from typing import Any
 
+from commonmodel import Schema
+from dcp.data_format.base import DataFormat, DataFormatBase, get_format_for_nickname
+from dcp.utils.common import rand_str, title_to_snake_case, utcnow
 from snapflow.utils.output import cf
-from openmodel import Schema
-from datacopy.utils.common import rand_str, title_to_snake_case, utcnow
-from sqlalchemy import Column, DateTime, Integer, String, func
+from sqlalchemy import Column, DateTime, Integer, String, func, types
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm.exc import DetachedInstanceError
 
@@ -71,6 +72,25 @@ def timestamp_increment_key(prefix: str = "", max_length: int = 28) -> str:
     rand_len = max_length - (21 + len(prefix))
     key = f"{prefix}_{curr_ms}_{rand_str(rand_len).lower()}"
     return key
+
+
+class DataFormatType(types.TypeDecorator):
+    impl = types.Unicode
+
+    def __init__(self, length: int = 128):
+        super().__init__(length)
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if not issubclass(value, DataFormatBase):
+            raise TypeError(value)
+        return value.nickname
+
+    def process_result_value(self, value, dialect) -> DataFormat:
+        if value is None:
+            return None
+        return get_format_for_nickname(value)
 
 
 ### Custom type ideas. Not needed atm

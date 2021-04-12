@@ -1,6 +1,6 @@
 from typing import TypeVar
 
-from openmodel.base import Schema, SchemaLike
+from commonmodel.base import Schema, SchemaLike
 
 C = TypeVar("C")
 S = TypeVar("S")

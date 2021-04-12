@@ -8,7 +8,7 @@ from .core.environment import (
     run_graph,
     run_node,
 )
-from .core.execution import SnapContext
+from .core.execution.execution import SnapContext
 from .core.graph import DeclaredGraph, Graph, graph, graph_from_yaml
 from .core.module import SnapflowModule
 from .core.node import DeclaredNode, Node, node

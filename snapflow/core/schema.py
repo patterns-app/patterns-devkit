@@ -1,11 +1,13 @@
-from typing import Dict
-from datacopy.data_format.formats.memory.dataframe import pandas_series_to_field_type
-from datacopy.utils.common import title_to_snake_case
-from sqlalchemy.sql.schema import Column
-from snapflow.core.metadata.orm import BaseModel
-from openmodel.base import Schema, SchemaLike, create_quick_schema
-from sqlalchemy.sql.sqltypes import JSON, String
+from typing import Dict, Union
+
 import pandas as pd
+from commonmodel.base import Schema, SchemaLike, SchemaTranslation, create_quick_schema
+from dcp.data_format.formats.memory.dataframe import pandas_series_to_field_type
+from dcp.data_format.formats.memory.records import Records
+from dcp.utils.common import title_to_snake_case
+from snapflow.core.metadata.orm import BaseModel
+from sqlalchemy.sql.schema import Column
+from sqlalchemy.sql.sqltypes import JSON, String
 
 
 class GeneratedSchema(BaseModel):
@@ -42,7 +44,7 @@ class GenericSchemaException(Exception):
     pass
 
 
-# TODO: move to openmodel?
+# TODO: move to commonmodel?
 def dict_to_rough_schema(name: str, d: Dict, convert_to_snake_case=True, **kwargs):
     fields = []
     for k, v in d.items():
@@ -51,3 +53,20 @@ def dict_to_rough_schema(name: str, d: Dict, convert_to_snake_case=True, **kwarg
         fields.append((k, pandas_series_to_field_type(pd.Series([v]))))
     fields = sorted(fields)
     return create_quick_schema(name, fields, **kwargs)
+
+
+def map_recordslist(mapping: Dict[str, str], records: Records) -> Records:
+    mapped = []
+    for r in records:
+        mapped.append({mapping.get(k, k): v for k, v in r.items()})
+    return mapped
+
+
+def apply_schema_translation(
+    obj: Union[pd.DataFrame, Records], translation: SchemaTranslation
+) -> Union[pd.DataFrame, Records]:
+    if isinstance(obj, pd.DataFrame):
+        return obj.rename(translation.as_dict(), axis=1)
+    elif isinstance(obj, list):
+        return map_recordslist(translation.as_dict(), obj)
+    raise TypeError(obj)

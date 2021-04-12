@@ -9,6 +9,8 @@ version = "0.3.6"
 alembic = "^1.5.5"
 click = "^7.1.1"
 colorful = "^0.5.4"
+common-model = "~0.1.1"
+datacopy = "~0.1.1"
 jinja2 = "^2.11.1"
 loguru = "^0.5.1"
 networkx = "^2.4"
@@ -20,18 +22,18 @@ requests = "^2.23.0"
 sqlalchemy = "^1.4.1"
 sqlparse = "^0.3.1"
 strictyaml = "^1.0.6"
-# datacopy = "^0.1.0"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
-datacopy = {path = "../dcp", develop = true}
+# common-model = {path = "../common-model/python", develop = true}
+# datacopy = {path = "../dcp", develop = true}
+# snapflow-stripe = {path = "../snapflow-modules/snapflow-stripe", develop = true}
 flake8 = "^3.8.1"
 ipython = "^7.13.0"
 isort = "^4.3.21"
 mkdocs = "^1.1.2"
 mkdocs-material = "^6.1.7"
 mypy = "^0.770"
-openmodel = {path = "../openmodel/python", develop = true}
 pre-commit = "^2.1.1"
 pydeps = "^1.9.0"
 pytest = "^4.6"

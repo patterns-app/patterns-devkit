@@ -1,4 +1,3 @@
-from copy import copy
 from dataclasses import asdict, fields, is_dataclass
 from typing import Any, Callable, Dict, Optional
 
@@ -17,7 +16,6 @@ from snapflow.core.node import DeclaredNode, Node, node
 from snapflow.core.snap import Input, Output, Param, Snap, _Snap
 from snapflow.core.sql.sql_snap import Sql, SqlSnap, sql_snap
 from snapflow.core.streams import DataBlockStream, StreamBuilder
-
 
 # TODO: use an existing lib for this:
 #       - maybe the best: https://github.com/Fatal1ty/mashumaro

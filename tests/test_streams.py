@@ -67,7 +67,7 @@ class TestStreams:
     def test_stream_unprocessed_pristine(self):
         s = stream(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query_result(self.ctx).scalar_one_or_none() is None
+        assert s.get_query_result(self.env).scalar_one_or_none() is None
 
     def test_stream_unprocessed_eligible(self):
         dfl = SnapLog(
@@ -85,7 +85,7 @@ class TestStreams:
 
         s = stream(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query_result(self.ctx).scalar_one_or_none() == self.dr1t1
+        assert s.get_query_result(self.env).scalar_one_or_none() == self.dr1t1
 
     def test_stream_unprocessed_ineligible_already_input(self):
         dfl = SnapLog(
@@ -114,7 +114,7 @@ class TestStreams:
 
         s = stream(nodes=self.node_source)
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query_result(self.ctx).scalar_one_or_none() is None
+        assert s.get_query_result(self.env).scalar_one_or_none() is None
 
     def test_stream_unprocessed_ineligible_already_output(self):
         """
@@ -147,11 +147,11 @@ class TestStreams:
 
         s = stream(nodes=self.node_source)
         s1 = s.filter_unprocessed(self.node1)
-        assert s1.get_query_result(self.ctx).scalar_one_or_none() is None
+        assert s1.get_query_result(self.env).scalar_one_or_none() is None
 
         # But ok with self reference
         s2 = s.filter_unprocessed(self.node1, allow_cycle=True)
-        assert s2.get_query_result(self.ctx).scalar_one_or_none() == self.dr1t1
+        assert s2.get_query_result(self.env).scalar_one_or_none() == self.dr1t1
 
     def test_stream_unprocessed_eligible_schema(self):
         dfl = SnapLog(
@@ -169,11 +169,11 @@ class TestStreams:
 
         s = stream(nodes=self.node_source, schema="TestSchema1")
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query_result(self.ctx).scalar_one_or_none() == self.dr1t1
+        assert s.get_query_result(self.env).scalar_one_or_none() == self.dr1t1
 
         s = stream(nodes=self.node_source, schema="TestSchema2")
         s = s.filter_unprocessed(self.node1)
-        assert s.get_query_result(self.ctx).scalar_one_or_none() is None
+        assert s.get_query_result(self.env).scalar_one_or_none() is None
 
     def test_operators(self):
         dfl = SnapLog(
@@ -203,7 +203,7 @@ class TestStreams:
                 yield db
 
         sb = stream(nodes=self.node_source)
-        expected_cnt = sb.get_count(self.ctx)
+        expected_cnt = sb.get_count(self.env)
         assert expected_cnt == 2
         list(count(sb).as_managed_stream(self.ctx))
         assert self._cnt == expected_cnt

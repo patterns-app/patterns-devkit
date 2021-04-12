@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, List, Union
 
-from datacopy.utils.common import AttrDict
-from openmodel import Schema
+from commonmodel import Schema
+from dcp.utils.common import AttrDict
 
 if TYPE_CHECKING:
     from snapflow.core.snap import (
