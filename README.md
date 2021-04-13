@@ -4,7 +4,7 @@
 <p align="center">
   <img width="500" src="assets/snapflow.svg">
 </p>
-<h3 align="center">Collaborative data</h3>
+<h3 align="center">Composable data functions</h3>
 <p>&nbsp;</p>
 
 **Snapflow** is a framework for building **functional reactive data pipelines** from modular
