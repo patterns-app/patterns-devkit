@@ -1,27 +1,32 @@
 from __future__ import annotations
 
+from commonmodel.base import create_quick_schema
+from dcp.storage.base import Storage
+from dcp.storage.database.utils import get_tmp_sqlite_db_url
+from dcp.utils.common import rand_str
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock
-from snapflow.core.environment import Environment
-from snapflow.core.execution import ExecutionManager, RunContext, SnapContext
+from snapflow.core.environment import Environment, SnapflowSettings
+from snapflow.core.execution import ExecutionManager, SnapContext
+from snapflow.core.execution.executable import (
+    ExecutableConfiguration,
+    ExecutionConfiguration,
+    ExecutionContext,
+)
 from snapflow.core.graph import Graph
 from snapflow.core.module import SnapflowModule
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.streams import DataBlockStream
-from snapflow.schema.base import create_quick_schema
-from snapflow.storage.db.utils import get_tmp_sqlite_db_url
-from snapflow.storage.storage import Storage, StorageClass, StorageEngine
-from snapflow.utils.common import rand_str
 from snapflow.utils.typing import T
 
-TestSchema1 = create_quick_schema("TestSchema1", [("f1", "Text")], module_name="_test")
-TestSchema2 = create_quick_schema("TestSchema2", [("f1", "Text")], module_name="_test")
-TestSchema3 = create_quick_schema("TestSchema3", [("f1", "Text")], module_name="_test")
+TestSchema1 = create_quick_schema("TestSchema1", [("f1", "Text")], namespace="_test")
+TestSchema2 = create_quick_schema("TestSchema2", [("f1", "Text")], namespace="_test")
+TestSchema3 = create_quick_schema("TestSchema3", [("f1", "Text")], namespace="_test")
 TestSchema4 = create_quick_schema(
     "TestSchema4",
     [("f1", "Text"), ("f2", "Integer")],
     unique_on=["f1"],
-    module_name="_test",
+    namespace="_test",
 )
 
 
@@ -30,7 +35,7 @@ def make_test_env(**kwargs) -> Environment:
         url = get_tmp_sqlite_db_url()
         metadata_storage = Storage.from_url(url)
         kwargs["metadata_storage"] = metadata_storage
-    env = Environment(raise_on_error=True, **kwargs)
+    env = Environment(settings=SnapflowSettings(abort_on_snap_error=True), **kwargs)
     test_module = SnapflowModule(
         "_test",
         schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
@@ -39,22 +44,19 @@ def make_test_env(**kwargs) -> Environment:
     return env
 
 
-def make_test_run_context(**kwargs) -> RunContext:
+def make_test_run_context(**kwargs) -> ExecutionContext:
     s = Storage.from_url(
         url=f"python://_test_default_{rand_str(6)}",
     )
     env = make_test_env()
-    g = Graph(env)
     args = dict(
-        graph=g,
         env=env,
-        runtimes=[Runtime.from_storage(s)],
-        storages=[s],
-        local_python_storage=s,
+        local_storage=s,
         target_storage=s,
+        storages=[s],
     )
     args.update(**kwargs)
-    return RunContext(**args)
+    return ExecutionContext(**args)
 
 
 def make_test_execution_manager(**kwargs) -> ExecutionManager:

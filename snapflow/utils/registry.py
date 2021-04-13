@@ -51,8 +51,8 @@ class ClassBasedEnumSqlalchemyType(types.TypeDecorator):
         super().__init__(length)
 
     def process_bind_param(self, value, dialect):
-        if not issubclass(value, ClassBasedEnum):
-            raise TypeError(value)
+        # if not issubclass(value, ClassBasedEnum):
+        #     raise TypeError(value)
         return global_registry.get_key(value)
 
     def process_result_value(self, value, dialect) -> ClassBasedEnumType:

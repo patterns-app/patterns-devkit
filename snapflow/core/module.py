@@ -21,9 +21,9 @@ from typing import (
     Union,
 )
 
+from commonmodel.base import Schema, SchemaLike, schema_from_yaml
+from dcp.utils.common import AttrDict
 from snapflow.core.component import ComponentLibrary
-from snapflow.schema.base import Schema, SchemaLike, schema_from_yaml
-from snapflow.utils.common import AttrDict
 
 if TYPE_CHECKING:
     from snapflow.core.snap import (
@@ -117,10 +117,11 @@ class SnapflowModule:
         return self.library.get_snaps_view()
 
     def validate_key(self, obj: Any):
-        if obj.module_name != self.name:
-            raise ModuleException(
-                f"Component {obj} module name `{obj.module_name}` does not match module `{self.name}` to which it was added"
-            )
+        if hasattr(obj, "module_name"):
+            if obj.module_name != self.name:
+                raise ModuleException(
+                    f"Component {obj} module name `{obj.module_name}` does not match module `{self.name}` to which it was added"
+                )
 
     def add_schema(self, schema_like: SchemaLike) -> Schema:
         schema = self.process_schema(schema_like)
@@ -134,7 +135,7 @@ class SnapflowModule:
         elif isinstance(schema_like, str):
             with self.open_module_file(schema_like) as f:
                 yml = f.read()
-                schema = schema_from_yaml(yml, module_name=self.name)
+                schema = schema_from_yaml(yml, namespace=self.name)
         else:
             raise TypeError(schema_like)
         return schema

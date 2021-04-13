@@ -3,18 +3,18 @@ from __future__ import annotations
 import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
+from commonmodel.base import Schema, SchemaLike
+from dcp.data_format.handler import infer_schema_for_name
+from dcp.storage.base import Storage
+from dcp.storage.database.utils import get_tmp_sqlite_db_url
+from dcp.utils.common import rand_str
+from dcp.utils.data import read_csv, read_json, read_raw_string_csv
 from pandas import DataFrame
-from snapflow import DataBlock, Environment, Graph, Storage, _Snap
+from snapflow import DataBlock, Environment, Graph, _Snap
 from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DataBlockLog, Node, SnapLog
-from snapflow.core.typing.inference import infer_schema_from_records
-from snapflow.schema.base import Schema, SchemaLike
-from snapflow.storage.db.utils import get_tmp_sqlite_db_url
-from snapflow.utils.common import rand_str
-from snapflow.utils.data import read_csv, read_json, read_raw_string_csv
-from snapflow.utils.pandas import records_to_dataframe
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
 
@@ -27,6 +27,7 @@ def display_snap_log(env: Environment):
 
 
 def str_as_dataframe(
+    env: Environment,
     test_data: str,
     module: Optional[SnapflowModule] = None,
     nominal_schema: Optional[Schema] = None,
@@ -45,10 +46,13 @@ def str_as_dataframe(
     else:
         # Raw str csv
         raw_records = read_raw_string_csv(test_data)
+    tmp = "_test_obj_" + rand_str()
+    env._local_python_storage.get_api().put(tmp, raw_records)
     if nominal_schema is None:
-        auto_schema = infer_schema_from_records(raw_records)
+        auto_schema = infer_schema_for_name(tmp, env._local_python_storage)
         nominal_schema = auto_schema
-    df = records_to_dataframe(raw_records, nominal_schema)
+    # TODO: conform
+    df = DataFrame.from_records(raw_records)
     return df
 
 
@@ -62,7 +66,9 @@ class DataInput:
         schema = None
         if self.schema:
             schema = env.get_schema(self.schema)
-        return str_as_dataframe(self.data, module=self.module, nominal_schema=schema)
+        return str_as_dataframe(
+            env, self.data, module=self.module, nominal_schema=schema
+        )
 
     def get_schema_key(self) -> Optional[str]:
         if not self.schema:
@@ -82,7 +88,7 @@ def produce_snap_output_for_static_input(
     module: Optional[SnapflowModule] = None,
     target_storage: Optional[Storage] = None,
     upstream: Any = None,  # TODO: DEPRECATED
-) -> Iterator[Optional[DataBlock]]:
+) -> Iterator[List[DataBlock]]:
     inputs = input or inputs or upstream
     if env is None:
         db = get_tmp_sqlite_db_url()
@@ -116,5 +122,7 @@ def produce_snap_output_for_static_input(
         test_node = g.create_node(
             key=f"{snap.name}", snap=snap, params=params, inputs=input_nodes
         )
-        db = env.produce(test_node, to_exhaustion=False, target_storage=target_storage)
-        yield db
+        blocks = env.produce(
+            test_node, to_exhaustion=False, target_storage=target_storage
+        )
+        yield blocks

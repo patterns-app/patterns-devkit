@@ -1,8 +1,11 @@
 from collections import OrderedDict
 from typing import Any
 
-from snapflow.utils.common import cf, rand_str, title_to_snake_case, utcnow
-from sqlalchemy import Column, DateTime, Integer, String, func
+from commonmodel import Schema
+from dcp.data_format.base import DataFormat, DataFormatBase, get_format_for_nickname
+from dcp.utils.common import rand_str, title_to_snake_case, utcnow
+from snapflow.utils.output import cf
+from sqlalchemy import Column, DateTime, Integer, String, func, types
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm.exc import DetachedInstanceError
 
@@ -30,7 +33,6 @@ class _BaseModel:
         at_least_one_attached_attribute = False
         for key, field in fields.items():
             try:
-                from snapflow.schema.base import Schema
 
                 if isinstance(field, Schema):
                     field_strings.append(f"{key}={field.name}")
@@ -58,24 +60,37 @@ class _BaseModel:
 BaseModel = declarative_base(cls=_BaseModel)  # type: Any
 
 
-id_counter: int = 0
 last_second: str = ""
 
 
-def timestamp_increment_key() -> str:
+def timestamp_increment_key(prefix: str = "", max_length: int = 28) -> str:
     """
     Generates keys that are unique and monotonic in time for a given run.
     Appends random chars to ensure multiple processes can run at once and not collide.
     """
-    global id_counter, last_second
-    curr_second = utcnow().strftime("%y%m%d%H%M%S")
-    if last_second != curr_second:
-        id_counter = 0
-    cntr = f"{id_counter:05}"
-    key = f"{curr_second}_{cntr}_{rand_str(3).lower()}"
-    last_second = curr_second
-    id_counter += 1
+    curr_ms = utcnow().strftime("%y%m%d_%H%M%S%f")
+    rand_len = max_length - (21 + len(prefix))
+    key = f"{prefix}_{curr_ms}_{rand_str(rand_len).lower()}"
     return key
+
+
+class DataFormatType(types.TypeDecorator):
+    impl = types.Unicode
+
+    def __init__(self, length: int = 128):
+        super().__init__(length)
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if not issubclass(value, DataFormatBase):
+            raise TypeError(value)
+        return value.nickname
+
+    def process_result_value(self, value, dialect) -> DataFormat:
+        if value is None:
+            return None
+        return get_format_for_nickname(value)
 
 
 ### Custom type ideas. Not needed atm

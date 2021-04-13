@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-import traceback
 import warnings
 from dataclasses import asdict
 from enum import Enum
 from functools import total_ordering
 from typing import TYPE_CHECKING, Any, Iterable
 
-import pandas as pd
-from loguru import logger
-from snapflow.schema.base import Field, Schema, create_quick_field, create_quick_schema
-from snapflow.schema.field_types import FieldType
+from commonmodel import Field, FieldType, Schema
 
 if TYPE_CHECKING:
     from snapflow import Environment
@@ -28,26 +24,6 @@ class CastToSchemaLevel(Enum):
 
 class SchemaTypeError(Exception):
     pass
-
-
-def cast_python_object_to_field_type(
-    obj: Any, field_type: FieldType, strict: bool = False
-) -> Any:
-    if obj is None:
-        return None
-    try:
-        if not isinstance(obj, Iterable) and not isinstance(obj, dict) and pd.isna(obj):
-            return None
-    except ValueError:
-        # isna() throws ValueError
-        pass
-    try:
-        return field_type.cast(obj, strict=strict)
-    except Exception:
-        logger.error(
-            f"Error casting python object ({obj}) to type {field_type}: {traceback.format_exc()}"
-        )
-    raise NotImplementedError
 
 
 def is_strict_field_match(f1: Field, f2: Field) -> bool:
@@ -181,7 +157,7 @@ def cast_to_realized_schema(
             inferred_schema,
             realized,
             cast_level=cast_level,
-            warn_on_downcast=env.settings.WARN_ON_DOWNCAST,
-            fail_on_downcast=env.settings.FAIL_ON_DOWNCAST,
+            warn_on_downcast=env.settings.warn_on_downcast,
+            fail_on_downcast=env.settings.fail_on_downcast,
         )
     return realized

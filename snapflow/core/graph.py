@@ -16,11 +16,11 @@ from typing import (
 
 import networkx as nx
 import strictyaml as yaml
+from dcp.utils.common import md5_hash, remove_dupes
 from loguru import logger
 from snapflow.core.metadata.orm import BaseModel
-from snapflow.core.node import DeclaredNode, Node, NodeLike, node
+from snapflow.core.node import DeclaredNode, Node, NodeConfiguration, NodeLike, node
 from snapflow.core.snap import SnapLike
-from snapflow.utils.common import md5_hash, remove_dupes
 from sqlalchemy import Column, String
 from sqlalchemy.sql.sqltypes import JSON
 
@@ -121,6 +121,15 @@ def hash_adjacency(adjacency: List[Tuple[str, Dict]]) -> str:
     return md5_hash(str(adjacency))
 
 
+[
+    ("_input_input", {"dataframe_conform_to_schema": {}}),
+    ("dataframe_conform_to_schema", {}),
+]
+
+NxNode = Tuple[str, Dict[str, Dict]]
+NxAdjacencyList = List[NxNode]
+
+
 class Graph:
     def __init__(self, env: Environment, nodes: Iterable[Node] = None):
         self.env = env
@@ -209,7 +218,7 @@ class Graph:
             # TODO: self ref edge?
         return g
 
-    def adjacency_list(self):
+    def adjacency_list(self) -> NxAdjacencyList:
         return list(self.as_nx_graph().adjacency())
 
     def get_all_upstream_dependencies_in_execution_order(
@@ -245,7 +254,7 @@ def load_graph_from_dict(raw_graph: Dict[str, Any]) -> DeclaredGraph:
     nodes:
       - key: node1
         snap: core.import_local_csv
-        output_dataset_name: csv1
+        output_alias: csv1
         inputs:
           input: othernode
         params:
@@ -279,3 +288,11 @@ def graph_from_yaml(yml: str) -> DeclaredGraph:
         d = {"nodes": d}
     assert isinstance(d, dict)
     return load_graph_from_dict(d)
+
+
+def graph_from_node_configs(
+    env: Environment, nodes: Iterable[NodeConfiguration]
+) -> Graph:
+    declared_graph = DeclaredGraph([DeclaredNode.from_config(n) for n in nodes])
+    graph = declared_graph.instantiate(env)
+    return graph

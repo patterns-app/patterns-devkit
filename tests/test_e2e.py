@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import sys
 from datetime import datetime
-from typing import Generator, Optional
+from typing import Generator, Iterator, Optional
 
 import pandas as pd
 import pytest
+from commonmodel.base import create_quick_schema
+from dcp.data_format.formats.memory.dataframe import DataFrameFormat
+from dcp.data_format.formats.memory.records import Records, RecordsFormat
+from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from loguru import logger
 from pandas._testing import assert_almost_equal
 from snapflow import DataBlock, Input, Output, Param, Snap, sql_snap
@@ -14,18 +18,14 @@ from snapflow.core.execution import SnapContext
 from snapflow.core.graph import Graph
 from snapflow.core.node import DataBlockLog, NodeState, SnapLog
 from snapflow.modules import core
-from snapflow.schema.base import create_quick_schema
-from snapflow.storage.data_formats import Records, RecordsIterator
-from snapflow.storage.db.utils import get_tmp_sqlite_db_url
-from snapflow.storage.storage import new_local_python_storage
 from sqlalchemy import select
 
+logger.enable("snapflow")
+
 Customer = create_quick_schema(
-    "Customer", [("name", "Unicode"), ("joined", "DateTime"), ("metadata", "Json")]
+    "Customer", [("name", "Text"), ("joined", "DateTime"), ("metadata", "Json")]
 )
-Metric = create_quick_schema(
-    "Metric", [("metric", "Unicode"), ("value", "Numeric(12,2)")]
-)
+Metric = create_quick_schema("Metric", [("metric", "Text"), ("value", "Decimal(12,2)")])
 
 
 @Snap
@@ -59,18 +59,21 @@ def aggregate_metrics(
 
 
 FAIL_MSG = "Failure triggered"
+batch_size = 4
+chunk_size = 2
 
 
 @Snap
-def customer_source(ctx: SnapContext) -> RecordsIterator[Customer]:
-    N = ctx.get_param("total_records")
+def customer_source(ctx: SnapContext) -> Iterator[Records[Customer]]:
+    n_batches = ctx.get_param("batches")
     fail = ctx.get_param("fail")
     n = ctx.get_state_value("records_imported", 0)
+    N = n_batches * batch_size
     if n >= N:
         return
-    for i in range(2):
+    for i in range(batch_size // chunk_size):
         records = []
-        for j in range(2):
+        for j in range(chunk_size):
             records.append(
                 {
                     "name": f"name{n}",
@@ -146,8 +149,8 @@ def test_simple_import():
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
     g.create_node(key="n1", snap="import_dataframe", params={"dataframe": df})
-    output = env.produce("n1", g)
-    assert_almost_equal(output.as_dataframe(), df)
+    blocks = env.produce("n1", g)
+    assert_almost_equal(blocks[0].as_dataframe(), df, check_dtype=False)
 
 
 def test_repeated_runs():
@@ -155,42 +158,44 @@ def test_repeated_runs():
     g = Graph(env)
     s = env._local_python_storage
     # Initial graph
-    N = 2 * 4
-    g.create_node(key="source", snap=customer_source, params={"total_records": N})
+    batches = 2
+    N = batches * batch_size
+    g.create_node(key="source", snap=customer_source, params={"batches": batches})
     metrics = g.create_node(key="metrics", snap=shape_metrics, input="source")
     # Run first time
-    output = env.produce("metrics", g, target_storage=s)
-    assert output.nominal_schema_key.endswith("Metric")
-    records = output.as_records()
+    blocks = env.produce("metrics", g, target_storage=s)
+    assert blocks[0].nominal_schema_key.endswith("Metric")
+    records = blocks[0].as_records()
     expected_records = [
-        {"metric": "row_count", "value": 2},  # Just the latest block
+        {"metric": "row_count", "value": batch_size},
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
     # Run again, should get next batch
-    output = env.produce("metrics", g, target_storage=s)
-    records = output.as_records()
+    blocks = env.produce("metrics", g, target_storage=s)
+    records = blocks[0].as_records()
     assert records == expected_records
     # Test latest_output
-    output = env.get_latest_output(metrics)
-    records = output.as_records()
+    block = env.get_latest_output(metrics)
+    records = block.as_records()
     assert records == expected_records
     # Run again, should be exhausted
-    output = env.produce("metrics", g, target_storage=s)
-    assert output is None
+    blocks = env.produce("metrics", g, target_storage=s)
+    assert len(blocks) == 0
     # Run again, should still be exhausted
-    output = env.produce("metrics", g, target_storage=s)
-    assert output is None
+    blocks = env.produce("metrics", g, target_storage=s)
+    assert len(blocks) == 0
 
     # now add new node and process all at once
     g.create_node(
         key="new_accumulator", snap="core.dataframe_accumulator", input="source"
     )
-    output = env.produce("new_accumulator", g, target_storage=s)
-    records = output.as_records()
+    blocks = env.produce("new_accumulator", g, target_storage=s)
+    assert len(blocks) == 1
+    records = blocks[0].as_records()
     assert len(records) == N
-    output = env.produce("new_accumulator", g, target_storage=s)
-    assert output is None
+    blocks = env.produce("new_accumulator", g, target_storage=s)
+    assert len(blocks) == 0
 
 
 def test_alternate_apis():
@@ -198,15 +203,17 @@ def test_alternate_apis():
     g = Graph(env)
     s = env._local_python_storage
     # Initial graph
-    N = 2 * 4
-    source = g.create_node(customer_source, params={"total_records": N})
+    batches = 2
+    source = g.create_node(customer_source, params={"batches": batches})
     metrics = g.create_node(shape_metrics, input=source)
     # Run first time
-    output = produce(metrics, graph=g, target_storage=s, env=env)
+    blocks = produce(metrics, graph=g, target_storage=s, env=env)
+    assert len(blocks) == 1
+    output = blocks[0]
     assert output.nominal_schema_key.endswith("Metric")
-    records = output.as_records()
+    records = blocks[0].as_records()
     expected_records = [
-        {"metric": "row_count", "value": 2},  # Just the last block
+        {"metric": "row_count", "value": batch_size},
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
@@ -217,12 +224,12 @@ def test_snap_failure():
     g = Graph(env)
     s = env._local_python_storage
     # Initial graph
-    N = 2 * 4
-    cfg = {"total_records": N, "fail": True}
+    batches = 2
+    cfg = {"batches": batches, "fail": True}
     source = g.create_node(customer_source, params=cfg)
-    output = produce(source, graph=g, target_storage=s, env=env)
-    assert output is not None
-    records = output.as_records()
+    blocks = produce(source, graph=g, target_storage=s, env=env)
+    assert len(blocks) == 1
+    records = blocks[0].as_records()
     assert len(records) == 2
     with env.md_api.begin():
         assert env.md_api.count(select(SnapLog)) == 1
@@ -231,7 +238,7 @@ def test_snap_failure():
         assert pl.node_key == source.key
         assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {}
-        assert pl.node_end_state == {"records_imported": 2}
+        assert pl.node_end_state == {"records_imported": chunk_size}
         assert pl.snap_key == source.snap.key
         assert pl.snap_params == cfg
         assert pl.error is not None
@@ -239,15 +246,17 @@ def test_snap_failure():
         ns = env.md_api.execute(
             select(NodeState).filter(NodeState.node_key == pl.node_key)
         ).scalar_one_or_none()
-        assert ns.state == {"records_imported": 2}
+        assert ns.state == {"records_imported": chunk_size}
 
+    # Run again without failing, should see different result
     source.params["fail"] = False
-    output = produce(source, graph=g, target_storage=s, env=env)
-    records = output.as_records()
-    assert len(records) == 2
+    blocks = produce(source, graph=g, target_storage=s, env=env)
+    assert len(blocks) == 1
+    records = blocks[0].as_records()
+    assert len(records) == batch_size
     with env.md_api.begin():
         assert env.md_api.count(select(SnapLog)) == 2
-        assert env.md_api.count(select(DataBlockLog)) == 3
+        assert env.md_api.count(select(DataBlockLog)) == 2
         pl = (
             env.md_api.execute(select(SnapLog).order_by(SnapLog.completed_at.desc()))
             .scalars()
@@ -255,15 +264,15 @@ def test_snap_failure():
         )
         assert pl.node_key == source.key
         assert pl.graph_id == g.get_metadata_obj().hash
-        assert pl.node_start_state == {"records_imported": 2}
-        assert pl.node_end_state == {"records_imported": 6}
+        assert pl.node_start_state == {"records_imported": chunk_size}
+        assert pl.node_end_state == {"records_imported": chunk_size + batch_size}
         assert pl.snap_key == source.snap.key
         assert pl.snap_params == cfg
         assert pl.error is None
         ns = env.md_api.execute(
             select(NodeState).filter(NodeState.node_key == pl.node_key)
         ).scalar_one_or_none()
-        assert ns.state == {"records_imported": 6}
+        assert ns.state == {"records_imported": chunk_size + batch_size}
 
 
 def test_node_reset():
@@ -271,8 +280,9 @@ def test_node_reset():
     g = Graph(env)
     s = env._local_python_storage
     # Initial graph
-    N = 2 * 4
-    source = g.create_node(customer_source, params={"total_records": N})
+    batches = 2
+    cfg = {"batches": batches}
+    source = g.create_node(customer_source, params=cfg)
     accum = g.create_node("core.dataframe_accumulator", input=source)
     metrics = g.create_node(shape_metrics, input=accum)
     # Run first time
@@ -280,16 +290,17 @@ def test_node_reset():
 
     # Now reset node
     with env.md_api.begin():
-        state = source.get_state()
+        state = source.get_state(env)
         assert state.state is not None
-        source.reset()
-        state = source.get_state()
+        source.reset(env)
+        state = source.get_state(env)
         assert state is None
 
-    output = produce(metrics, graph=g, target_storage=s, env=env)
-    records = output.as_records()
+    blocks = produce(metrics, graph=g, target_storage=s, env=env)
+    assert len(blocks) == 1
+    records = blocks[0].as_records()
     expected_records = [
-        {"metric": "row_count", "value": 4},  # Just one run of source, not two
+        {"metric": "row_count", "value": batch_size},  # Just one run of source, not two
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
@@ -316,8 +327,9 @@ def test_ref_input():
     g = Graph(env)
     s = env._local_python_storage
     # Initial graph
-    N = 2 * 4
-    source = g.create_node(customer_source, params={"total_records": N})
+    batches = 2
+    cfg = {"batches": batches}
+    source = g.create_node(customer_source, params=cfg)
     accum = g.create_node("core.dataframe_accumulator", input=source)
     metrics = g.create_node(shape_metrics, input=accum)
     join_ref = g.create_node(
@@ -331,13 +343,13 @@ def test_ref_input():
 
     # Both joins work
     output = env.run_node(join_ref, g, target_storage=s)
-    assert output is not None
+    assert output.output_blocks
     output = env.run_node(join, g, target_storage=s)
-    assert output is not None
+    assert output.output_blocks
     # Run source to create new customers, but NOT new metrics
     output = env.run_node(source, g, target_storage=s)
     # This time only ref will still have a metrics input
     output = env.run_node(join_ref, g, target_storage=s)
-    assert output is not None
+    assert output.output_blocks
     output = env.run_node(join, g, target_storage=s)
-    assert output is None  # Regular join has exhausted metrics
+    assert not output.output_blocks  # Regular join has exhausted metrics

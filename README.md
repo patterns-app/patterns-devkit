@@ -94,7 +94,7 @@ def customer_lifetime_sales_sql():
 ```
 
 We can connect snaps as nodes in a graph. Note, we leverage the existing
-`extract_charges` snap of the `snapflow-stripe` module.
+`import_charges` snap of the `snapflow-stripe` module.
 
 ```python
 from snapflow import run, graph_from_yaml
@@ -103,7 +103,7 @@ g = graph_from_yaml(
 """
 nodes:
   - key: stripe_charges
-    snap: stripe.extract_charges
+    snap: stripe.import_charges
     params:
       api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
   - key: accumulated_stripe_charges
@@ -124,7 +124,7 @@ from snapflow import Environment
 import snapflow_stripe as stripe
 
 env = Environment(modules=[stripe])
-run(g, env=env, node_timelimit_seconds=5)
+run(g, env=env, execution_timelimit_seconds=5)
 
 # Get the final output block
 datablock = env.get_latest_output("stripe_customer_lifetime_sales", g)

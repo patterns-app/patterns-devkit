@@ -1,31 +1,14 @@
 from __future__ import annotations
 
+from dcp.data_format.formats.memory.records import RecordsFormat
 from snapflow.core import data_block
 from snapflow.core.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
     get_datablock_id,
+    get_stored_datablock_id,
 )
-from snapflow.core.execution import RunContext
-from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, Direction, SnapLog
-from snapflow.core.operators import filter, latest, operator
-from snapflow.core.streams import DataBlockStream, StreamBuilder
-from snapflow.storage.data_formats.database_table import DatabaseTableFormat
-from snapflow.storage.data_formats.records import RecordsFormat
-from snapflow.storage.data_records import as_records
-from snapflow.storage.db.utils import get_tmp_sqlite_db_url
-from tests.utils import (
-    TestSchema1,
-    TestSchema2,
-    TestSchema3,
-    make_test_env,
-    make_test_run_context,
-    snap_generic,
-    snap_t1_sink,
-    snap_t1_source,
-    snap_t1_to_t2,
-)
+from tests.utils import TestSchema1, TestSchema2, TestSchema3, make_test_env
 
 
 def test_data_block_methods():
@@ -38,9 +21,8 @@ def test_data_block_methods():
     )
     strg = env.get_default_local_python_storage()
     records = [{"a": 1}]
-    mdr = as_records(records)
     sdb = StoredDataBlockMetadata(
-        id=get_datablock_id(),
+        id=get_stored_datablock_id(),
         data_block_id=db.id,
         data_block=db,
         storage_url=strg.url,
@@ -50,10 +32,10 @@ def test_data_block_methods():
         env.md_api.add(db)
         env.md_api.add(sdb)
         assert sdb.name is None
-        name = sdb.get_name()
+        name = sdb.get_name_for_storage()
         assert len(name) > 10
         assert sdb.name == name
-        strg.get_api().put(sdb.name, mdr)
+        strg.get_api().put(sdb.get_name_for_storage(), records)
         assert db.inferred_schema(env) == TestSchema1
         assert db.nominal_schema(env) == TestSchema2
         assert db.realized_schema(env) == TestSchema3

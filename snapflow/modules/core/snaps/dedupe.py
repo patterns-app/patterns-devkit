@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+from dcp.storage.database.utils import get_tmp_sqlite_db_url
+from dcp.utils.pandas import assert_dataframes_are_almost_equal
 from pandas import DataFrame
 from snapflow import DataBlock
 from snapflow.core.node import DataBlockLog
 from snapflow.core.snap import Snap
 from snapflow.core.sql.sql_snap import Sql, SqlSnap
-from snapflow.storage.db.utils import get_tmp_sqlite_db_url
 from snapflow.testing.utils import DataInput, produce_snap_output_for_static_input
-from snapflow.utils.pandas import assert_dataframes_are_almost_equal
 from snapflow.utils.typing import T
 
 # TODO: currently no-op when no unique columns specified.
@@ -59,8 +59,9 @@ def dataframe_dedupe_unique_keep_newest_row(input: DataBlock[T]) -> DataFrame[T]
     if input.nominal_schema is None or not input.nominal_schema.unique_on:
         return input.as_dataframe()  # TODO: make this a no-op
     records = input.as_dataframe()
-    if input.nominal_schema.updated_at_field_name:
-        records = records.sort_values(input.nominal_schema.updated_at_field_name)
+    # TODO: what to sort by? bring this back?
+    # if input.nominal_schema.updated_at_field_name:
+    #     records = records.sort_values(input.nominal_schema.updated_at_field_name)
     return records.drop_duplicates(input.nominal_schema.unique_on, keep="last")
 
 
@@ -91,10 +92,12 @@ def test_dedupe():
     ]:
         with produce_snap_output_for_static_input(
             p, input=data_input, target_storage=s
-        ) as db:
+        ) as dbs:
+            assert len(dbs) == 1
+            db = dbs[0]
             expected_df = DataInput(
                 expected, schema="CoreTestSchema", module=core
-            ).as_dataframe(db.manager.ctx.env)
+            ).as_dataframe(db.manager.env)
             df = db.as_dataframe()
             assert_dataframes_are_almost_equal(
                 df, expected_df, schema=core.schemas.CoreTestSchema

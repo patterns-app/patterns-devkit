@@ -6,16 +6,15 @@ from typing import Any, List, Optional
 
 import click
 import requests
+from commonmodel.base import schema_to_yaml
 from loguru import logger
 from snapflow.core.data_block import DataBlockMetadata
 from snapflow.core.environment import Environment, current_env
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX
 from snapflow.core.node import DataBlockLog, SnapLog
-from snapflow.core.typing.inference import dict_to_rough_schema
+from snapflow.core.schema import dict_to_rough_schema
 from snapflow.project.project import SNAPFLOW_PROJECT_FILE_NAME, init_project_in_dir
-from snapflow.schema.base import schema_to_yaml
-from snapflow.utils import common
-from snapflow.utils.common import cf
+from snapflow.utils.output import cf
 from sqlalchemy import func, select
 
 REPO_SERVER_API = "http://localhost:8000/components/"  # TODO: configurable

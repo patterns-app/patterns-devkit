@@ -5,6 +5,8 @@ from dataclasses import asdict, dataclass, field
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
+from commonmodel.base import SchemaLike
+from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.module import (
@@ -20,8 +22,6 @@ from snapflow.core.snap_interface import (
     merge_declared_interface_with_signature_interface,
     snap_interface_from_callable,
 )
-from snapflow.schema.base import SchemaLike
-from snapflow.storage.data_formats import DatabaseTableRef, Records
 
 if TYPE_CHECKING:
     from snapflow.core.execution import SnapContext
@@ -41,10 +41,11 @@ SnapCallable = Callable[..., Any]
 DataInterfaceType = Union[
     DataFrame,
     Records,
-    DatabaseTableRef,
     DataBlockMetadata,
     DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
+
+DEFAULT_OUTPUT_NAME = "default"
 
 
 def get_runtime_class(runtime: Optional[str]) -> Type[RuntimeClass]:

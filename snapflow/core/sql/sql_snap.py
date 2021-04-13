@@ -7,14 +7,19 @@ from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import sqlparse
+from commonmodel.base import SchemaTranslation
+from dcp.data_format.formats.database.base import DatabaseTableFormat
+from dcp.storage.base import DatabaseStorageClass, Storage
+from dcp.storage.database.utils import column_map, compile_jinja_sql
+from dcp.utils.common import rand_str
 from loguru import logger
 from snapflow.core.data_block import (
     DataBlock,
     DataBlockMetadata,
     StoredDataBlockMetadata,
-    create_data_block_from_sql,
 )
-from snapflow.core.execution import SnapContext
+from snapflow.core.environment import Environment
+from snapflow.core.execution.execution import SnapContext
 from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DataBlockLog
 from snapflow.core.runtime import DatabaseRuntimeClass, RuntimeClass
@@ -32,7 +37,6 @@ from snapflow.core.snap_interface import (
     snap_output_from_annotation,
 )
 from snapflow.core.streams import DataBlockStream, ManagedDataBlockStream
-from snapflow.storage.data_formats.database_table import DatabaseTableFormat
 from sqlparse import tokens
 
 
@@ -249,17 +253,35 @@ def params_as_sql(params: Dict[str, Any]) -> Dict[str, Any]:
     return sql_params
 
 
+def apply_schema_translation_as_sql(
+    env: Environment, name: str, translation: SchemaTranslation
+) -> str:
+    if not translation.from_schema_key:
+        raise NotImplementedError(
+            f"Schema translation must provide `from_schema` when translating a database table {translation}"
+        )
+    sql = column_map(
+        name,
+        env.get_schema(translation.from_schema_key).field_names(),
+        translation.as_dict(),
+    )
+    table_stmt = f"""
+        (
+            {sql}
+        ) as __translated
+        """
+    return table_stmt
+
+
 class SqlSnapWrapper:
     def __init__(self, sql: str, autodetect_inputs: bool = True):
         self.sql = sql
         self.autodetect_inputs = autodetect_inputs
 
-    def __call__(
-        self, *args: SnapContext, **inputs: DataInterfaceType
-    ) -> StoredDataBlockMetadata:
+    def __call__(self, *args: SnapContext, **inputs: DataInterfaceType):
         ctx: SnapContext = args[0]
-        if ctx.run_context.current_runtime is None:
-            raise Exception("Current runtime not set")
+        # if ctx.run_context.current_runtime is None:
+        #     raise Exception("Current runtime not set")
 
         # for input in inputs.values():
         #     if isinstance(input, ManagedDataBlockStream):
@@ -271,26 +293,46 @@ class SqlSnapWrapper:
         #     for db in dbs:
         #         assert db.has_format(DatabaseTableFormat)
 
-        sql = self.get_compiled_sql(ctx, inputs)
+        # TODO: way to specify more granular storage requirements (engine, engine version, etc)
+        storage = ctx.execution_context.target_storage
+        for storage in [
+            ctx.execution_context.target_storage
+        ] + ctx.execution_context.storages:
+            if storage.storage_engine.storage_class == DatabaseStorageClass:
+                break
+        else:
+            raise Exception("No database storage found, cannot exeucte snap sql")
 
-        db_api = ctx.run_context.current_runtime.get_api()
+        sql = self.get_compiled_sql(ctx, storage, inputs)
+
+        db_api = storage.get_api()
         logger.debug(
-            f"Resolved in sql snap {ctx.executable.bound_interface.resolve_nominal_output_schema( ctx.worker.env)}"
+            f"Resolved in sql snap {ctx.bound_interface.resolve_nominal_output_schema( ctx.env)}"
         )
-        block, sdb = create_data_block_from_sql(
-            ctx.run_context.env,
-            sql,
-            db_api=db_api,
-            nominal_schema=ctx.executable.bound_interface.resolve_nominal_output_schema(
-                ctx.worker.env
-            ),
-            created_by_node_key=ctx.executable.node_key,
-        )
-
-        return sdb
+        tmp_name = f"_tmp_{rand_str(10)}".lower()
+        sql = db_api.clean_sub_sql(sql)
+        create_sql = f"""
+        create table {tmp_name} as
+        select
+        *
+        from (
+        {sql}
+        ) as __sub
+        """
+        db_api.execute_sql(create_sql)
+        ctx.emit(name=tmp_name, storage=storage, data_format=DatabaseTableFormat)
+        # block, sdb = create_data_block_from_sql(
+        #     ctx.env,
+        #     sql,
+        #     db_api=db_api,
+        #     nominal_schema=ctx.bound_interface.resolve_nominal_output_schema(ctx.env),
+        #     created_by_node_key=ctx.node.key,
+        # )
 
     def get_input_table_stmts(
         self,
+        ctx: SnapContext,
+        storage: Storage,
         inputs: Dict[str, DataBlock] = None,
     ) -> Dict[str, str]:
         if inputs is None:
@@ -298,25 +340,24 @@ class SqlSnapWrapper:
         table_stmts = {}
         for input_name, block in inputs.items():
             if isinstance(block, DataBlock):
-                table_stmts[input_name] = block.as_table_stmt()
+                table_stmts[input_name] = block.as_sql_from_stmt(storage)
         return table_stmts
 
     def get_compiled_sql(
         self,
         ctx: SnapContext,
+        storage: Storage,
         inputs: Dict[str, DataBlock] = None,
     ):
-        from snapflow.storage.db.utils import compile_jinja_sql
 
         parsed = self.get_parsed_statement()
-        input_sql = self.get_input_table_stmts(inputs)
+        input_sql = self.get_input_table_stmts(ctx, storage, inputs)
         sql_ctx = dict(
-            execution_context=ctx.run_context,
-            worker=ctx.worker,
-            execution=ctx.executable,
+            ctx=ctx,
             inputs=input_sql,
             input_objects={i.name: i for i in ctx.inputs},
-            params=params_as_sql(ctx.get_params())
+            params=params_as_sql(ctx.get_params()),
+            storage=storage,
             # TODO: we haven't logged the input blocks yet (in the case of a stream) so we can't
             #    resolve the nominal output schema at this point. But it is _possible_ if necessary -- is it?
             # output_schema=ctx.execution.bound_interface.resolve_nominal_output_schema(

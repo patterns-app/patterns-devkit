@@ -4,7 +4,7 @@ description: Description
 unique_on: uniq
 fields:
   uniq:
-    type: Unicode(3)
+    type: Text(3)
     validators:
       - NotNull
   other_field:

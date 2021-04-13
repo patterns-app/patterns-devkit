@@ -2,27 +2,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Dict, List, Optional, Type
+from typing import TYPE_CHECKING, Dict, List, Optional, Type, Union
 from urllib.parse import urlparse
 
-from snapflow.core.environment import Environment
-from snapflow.storage.storage import (
+from dcp.storage.base import (
     DatabaseStorageClass,
     LocalPythonStorageEngine,
+    MemoryStorageClass,
     MysqlStorageEngine,
     PostgresStorageEngine,
-    PythonStorageClass,
     SqliteStorageEngine,
     Storage,
     StorageApi,
     StorageClass,
     StorageEngine,
 )
-from snapflow.utils.common import rand_str
+from dcp.utils.common import rand_str
+from snapflow.core.environment import Environment
 from snapflow.utils.registry import global_registry
-
-if TYPE_CHECKING:
-    from snapflow.storage.db.api import DatabaseApi
 
 
 class RuntimeClass:
@@ -34,7 +31,7 @@ class DatabaseRuntimeClass(RuntimeClass):
 
 
 class PythonRuntimeClass(RuntimeClass):
-    natural_storage_class = PythonStorageClass
+    natural_storage_class = MemoryStorageClass
 
 
 class RuntimeEngine:
@@ -118,3 +115,9 @@ class Runtime:
     def get_api(self) -> StorageApi:
         # TODO: separate runtime apis eventually
         return self.as_storage().get_api()
+
+
+def ensure_runtime(s: Union[Runtime, str]) -> Runtime:
+    if isinstance(s, str):
+        s = Runtime.from_url(s)
+    return s

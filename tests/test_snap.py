@@ -6,6 +6,7 @@ import pytest
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.execution import SnapContext
+from snapflow.core.execution.executable import Executable, ExecutableConfiguration
 from snapflow.core.graph import Graph, graph
 from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
 from snapflow.core.node import DeclaredNode, node
@@ -223,7 +224,8 @@ def test_generic_schema_resolution():
     n1 = g.create_node(key="node1", snap=snap_generic, input="n0")
     # pi = n1.get_interface()
     with env.md_api.begin():
-        im = NodeInterfaceManager(ctx=ec, node=n1)
+        exe = Executable(node=n1, snap=n1.snap, execution_context=ec)
+        im = NodeInterfaceManager(exe)
         block = DataBlockMetadata(
             nominal_schema_key="_test.TestSchema1",
             realized_schema_key="_test.TestSchema2",
@@ -307,12 +309,16 @@ def test_inputs():
     pi = n4.instantiate(env).get_interface()
     assert pi is not None
 
-    ec.graph = g.instantiate(env)
+    # ec.graph = g.instantiate(env)
+    n1 = n1.instantiate(env)
+    n4 = n4.instantiate(env)
     with env.md_api.begin():
-        im = NodeInterfaceManager(ctx=ec, node=n1.instantiate(env))
+        exe = Executable(node=n1, snap=n1.snap, execution_context=ec)
+        im = NodeInterfaceManager(exe)
         bi = im.get_bound_interface()
         assert bi is not None
-        im = NodeInterfaceManager(ctx=ec, node=n4.instantiate(env))
+        exe = Executable(node=n4, snap=n4.snap, execution_context=ec)
+        im = NodeInterfaceManager(exe)
         db = DataBlockMetadata(
             nominal_schema_key="_test.TestSchema1",
             realized_schema_key="_test.TestSchema1",
@@ -388,8 +394,7 @@ def test_node_params():
         param_vals.append(ctx.get_param("test"))
 
     n = g.create_node(key="ctx", snap=snap_ctx, params={"test": 1, "extra_arg": 2})
-    with env.run(g) as exe:
-        exe.execute(n)
+    env.run_node(n, g)
     assert param_vals == [1]
 
 

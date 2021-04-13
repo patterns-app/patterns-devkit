@@ -3,55 +3,39 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Iterator, Optional, Tuple, Type
 
+from commonmodel.base import Schema, SchemaKey, SchemaTranslation
+from dcp.data_copy.graph import StorageFormat
+from dcp.data_format.base import DataFormat
+from dcp.data_format.formats.database.base import DatabaseTableFormat
+from dcp.data_format.formats.memory.dataframe import DataFrameFormat
+from dcp.data_format.formats.memory.records import Records, RecordsFormat
+from dcp.data_format.handler import FormatHandler, get_handler_for_name
+from dcp.storage.base import MemoryStorageClass, Storage
+from dcp.storage.memory.engines.python import LOCAL_PYTHON_STORAGE
+from dcp.utils.common import as_identifier, rand_str
 from loguru import logger
 from pandas import DataFrame
 from snapflow.core.environment import Environment
-from snapflow.core.metadata.orm import BaseModel, timestamp_increment_key
-from snapflow.core.typing.inference import infer_schema_from_db_table
-from snapflow.schema import Schema, SchemaKey, SchemaLike, SchemaTranslation
-from snapflow.schema.casting import cast_to_realized_schema
-from snapflow.storage.data_formats import (
-    DataFormat,
-    DataFrameFormat,
-    get_data_format_of_object,
+from snapflow.core.metadata.orm import (
+    BaseModel,
+    DataFormatType,
+    timestamp_increment_key,
 )
-from snapflow.storage.data_formats.base import MemoryDataFormatBase
-from snapflow.storage.data_formats.data_frame import DataFrameIteratorFormat
-from snapflow.storage.data_formats.database_table import DatabaseTableFormat
-from snapflow.storage.data_formats.database_table_ref import (
-    DatabaseTableRef,
-    DatabaseTableRefFormat,
-)
-from snapflow.storage.data_formats.delimited_file_object import (
-    DelimitedFileObjectIteratorFormat,
-)
-from snapflow.storage.data_formats.records import (
-    Records,
-    RecordsFormat,
-    RecordsIteratorFormat,
-)
-from snapflow.storage.data_records import MemoryDataRecords, as_records
-from snapflow.storage.db.api import DatabaseStorageApi
-from snapflow.storage.storage import PythonStorageClass
-from snapflow.utils.common import as_identifier, rand_str
 from snapflow.utils.registry import ClassBasedEnumSqlalchemyType
 from snapflow.utils.typing import T
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, select
 from sqlalchemy.orm import RelationshipProperty, Session, relationship
 
 if TYPE_CHECKING:
-    from snapflow.core.storage import ensure_data_block_on_storage
-    from snapflow.core.storage import convert_sdb, get_copy_path_for_sdb
-    from snapflow.storage.data_copy.base import StorageFormat
-    from snapflow.core.execution import RunContext
-    from snapflow.storage.storage import (
-        Storage,
-        LocalPythonStorageEngine,
-    )
+    from snapflow.core.execution.executable import ExecutionContext
 
 
 def get_datablock_id() -> str:
-    return timestamp_increment_key()
+    return timestamp_increment_key(prefix="db")
+
+
+def get_stored_datablock_id() -> str:
+    return timestamp_increment_key(prefix="sdb")
 
 
 class DataBlockMetadata(BaseModel):  # , Generic[DT]):
@@ -94,10 +78,10 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 
     def as_managed_data_block(
         self,
-        ctx: RunContext,
+        env: Environment,
         schema_translation: Optional[SchemaTranslation] = None,
     ):
-        mgr = DataBlockManager(ctx, self, schema_translation=schema_translation)
+        mgr = DataBlockManager(env, self, schema_translation=schema_translation)
         return ManagedDataBlock(
             data_block_id=self.id,
             inferred_schema_key=self.inferred_schema_key,
@@ -148,23 +132,25 @@ class ManagedDataBlock(Generic[T]):
     def as_dataframe(self) -> DataFrame:
         return self.manager.as_dataframe()
 
-    def as_dataframe_iterator(self) -> DataFrame:
-        return self.manager.as_format(DataFrameIteratorFormat)
-
     def as_records(self) -> Records:
         return self.manager.as_records()
-
-    def as_records_iterator(self) -> Records:
-        return self.manager.as_format(RecordsIteratorFormat)
-
-    def as_table(self) -> DatabaseTableRef:
-        return self.manager.as_table()
 
     def as_format(self, fmt: DataFormat) -> Any:
         return self.manager.as_format(fmt)
 
-    def as_table_stmt(self) -> str:
-        return self.as_table().get_table_stmt()
+    def as_table(self, storage: Storage) -> str:
+        return self.manager.as_table(storage)
+
+    def as_sql_from_stmt(self, storage: Storage) -> str:
+        from snapflow.core.sql.sql_snap import apply_schema_translation_as_sql
+
+        # TODO: this feels pretty forced -- how do we do schema transations in a general way for non-memory storages / runtimes?
+        sql = self.manager.as_table(storage)
+        if self.manager.schema_translation:
+            sql = apply_schema_translation_as_sql(
+                self.manager.env, sql, self.manager.schema_translation
+            )
+        return sql
 
     def has_format(self, fmt: DataFormat) -> bool:
         return self.manager.has_format(fmt)
@@ -186,14 +172,15 @@ DataBlock = ManagedDataBlock
 
 
 class StoredDataBlockMetadata(BaseModel):
-    id = Column(String(128), primary_key=True, default=get_datablock_id)
+    # id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(String(128), primary_key=True, default=get_stored_datablock_id)
     # id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(128), nullable=True)
     data_block_id = Column(
         String(128), ForeignKey(DataBlockMetadata.id), nullable=False
     )
     storage_url = Column(String(128), nullable=False)
-    data_format: DataFormat = Column(ClassBasedEnumSqlalchemyType, nullable=False)  # type: ignore
+    data_format: DataFormat = Column(DataFormatType, nullable=False)  # type: ignore
     aliases: RelationshipProperty = relationship(
         "Alias", backref="stored_data_block", lazy="dynamic"
     )
@@ -208,6 +195,18 @@ class StoredDataBlockMetadata(BaseModel):
             data_format=self.data_format,
             storage_url=self.storage_url,
         )
+
+    def get_name_for_storage(self) -> str:
+        if self.name:
+            return self.name
+        if self.id is None:
+            raise Exception("ID not set yet")
+        node_key = self.data_block.created_by_node_key or ""
+        self.name = as_identifier(f"_{node_key[:30]}_{self.id}")
+        return self.name
+
+    def get_handler(self) -> FormatHandler:
+        return get_handler_for_name(self.name, self.storage)()
 
     def inferred_schema(self, env: Environment) -> Optional[Schema]:
         if self.data_block.inferred_schema_key is None:
@@ -226,29 +225,18 @@ class StoredDataBlockMetadata(BaseModel):
 
     @property
     def storage(self) -> Storage:
-        from snapflow.storage.storage import Storage
-
         return Storage.from_url(self.storage_url)
-
-    def get_name(self) -> str:
-        if self.name:
-            return self.name
-        if self.data_block_id is None or self.id is None:
-            raise Exception("Id not set yet")
-        node_key = self.data_block.created_by_node_key or ""
-        self.name = as_identifier(f"_{node_key[:40]}_{self.id}")
-        return self.name
 
     def get_storage_format(self) -> StorageFormat:
         return StorageFormat(self.storage.storage_engine, self.data_format)
 
     def exists(self) -> bool:
-        return self.storage.get_api().exists(self.get_name())
+        return self.storage.get_api().exists(self.get_name_for_storage())
 
     def record_count(self) -> Optional[int]:
         if self.data_block.record_count is not None:
             return self.data_block.record_count
-        return self.storage.get_api().record_count(self.get_name())
+        return self.storage.get_api().record_count(self.get_name_for_storage())
 
     def get_alias(self, env: Environment) -> Optional[Alias]:
         return env.md_api.execute(
@@ -280,7 +268,7 @@ class StoredDataBlockMetadata(BaseModel):
         else:
             a.data_block_id = self.data_block_id
             a.stored_data_block_id = self.id
-        self.storage.get_api().create_alias(self.get_name(), alias)
+        self.storage.get_api().create_alias(self.get_name_for_storage(), alias)
         return a
 
 
@@ -302,7 +290,7 @@ class Alias(BaseModel):
 
     def update_alias(self, env: Environment, new_alias: str):
         self.stored_data_block.storage.get_api().create_alias(
-            self.stored_data_block.get_name(), new_alias
+            self.stored_data_block.get_name_for_storage(), new_alias
         )
         self.stored_data_block.storage.get_api().remove_alias(self.alias)
         self.alias = new_alias
@@ -312,110 +300,110 @@ class Alias(BaseModel):
 class DataBlockManager:
     def __init__(
         self,
-        ctx: RunContext,
+        env: Environment,
         data_block: DataBlockMetadata,
         schema_translation: Optional[SchemaTranslation] = None,
     ):
 
-        self.ctx = ctx
+        self.env = env
 
         self.data_block = data_block
         self.schema_translation = schema_translation
 
     def __str__(self):
-        return f"DRM: {self.data_block}, Local: {self.ctx.local_python_storage}, rest: {self.ctx.storages}"
+        return f"DRM: {self.data_block}, Local: {self.env._local_python_storage}, rest: {self.env.storages}"
 
-    def get_runtime_storage(self) -> Optional[Storage]:
-        if self.ctx.current_runtime is None:
-            return None
-        return self.ctx.current_runtime.as_storage()
+    # def get_runtime_storage(self) -> Optional[Storage]:
+    #     if self.ctx.current_runtime is None:
+    #         return None
+    #     return self.ctx.current_runtime.as_storage()
 
     def inferred_schema(self) -> Optional[Schema]:
         if self.data_block.inferred_schema_key is None:
             return None
-        return self.ctx.env.get_schema(self.data_block.inferred_schema_key)
+        return self.env.get_schema(self.data_block.inferred_schema_key)
 
     def nominal_schema(self) -> Optional[Schema]:
         if self.data_block.nominal_schema_key is None:
             return None
-        return self.ctx.env.get_schema(self.data_block.nominal_schema_key)
+        return self.env.get_schema(self.data_block.nominal_schema_key)
 
     def realized_schema(self) -> Schema:
         if self.data_block.realized_schema_key is None:
             return None
-        return self.ctx.env.get_schema(self.data_block.realized_schema_key)
+        return self.env.get_schema(self.data_block.realized_schema_key)
 
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFrameFormat)
 
-    def as_dataframe_iterator(self) -> Iterator[DataFrame]:
-        return self.as_format(DataFrameIteratorFormat)
-
     def as_records(self) -> Records:
         return self.as_format(RecordsFormat)
 
-    def as_records_iterator(self) -> Iterator[Records]:
-        return self.as_format(RecordsIteratorFormat)
+    def as_table(self, storage: Storage) -> str:
+        return self.as_format(DatabaseTableFormat, storage)
 
-    def as_table(self) -> DatabaseTableRef:
-        return self.as_format(DatabaseTableFormat)
+    def as_format(self, fmt: DataFormat, storage: Storage = None) -> Any:
+        with self.env.metadata_api.ensure_session() as sess:
+            self.data_block = sess.merge(self.data_block)
+            sdb = self.ensure_format(fmt, storage)
+            return self.as_python_object(sdb)
 
-    def as_format(self, fmt: DataFormat) -> Any:
-        sdb = self.ensure_format(fmt)
-        return self.as_python_object(sdb)
-
-    def ensure_format(self, fmt: DataFormat) -> Any:
+    def ensure_format(self, fmt: DataFormat, target_storage: Storage = None) -> Any:
         from snapflow.core.storage import ensure_data_block_on_storage
 
-        target_storage = self.get_runtime_storage()
-        if fmt.is_python_format():
+        if fmt.natural_storage_class == MemoryStorageClass:
             # Ensure we are putting memory format in memory
             # if not target_storage.storage_engine.storage_class == PythonStorageClass:
-            target_storage = self.ctx.local_python_storage
+            target_storage = self.env._local_python_storage
         assert target_storage is not None
         sdb = ensure_data_block_on_storage(
-            self.ctx.env,
+            self.env,
             block=self.data_block,
             storage=target_storage,
             fmt=fmt,
-            eligible_storages=self.ctx.storages,
+            eligible_storages=self.env.storages,
         )
         return sdb
 
     def as_python_object(self, sdb: StoredDataBlockMetadata) -> Any:
-        if sdb.data_format.is_python_format():
-            obj = sdb.storage.get_api().get(sdb.get_name()).records_object
+        if self.schema_translation:
+            sdb.get_handler().apply_schema_translation(
+                sdb.get_name_for_storage(), sdb.storage, self.schema_translation
+            )
+        if sdb.data_format.natural_storage_class == MemoryStorageClass:
+            obj = sdb.storage.get_api().get(sdb.get_name_for_storage())
         else:
             if sdb.data_format == DatabaseTableFormat:
-                obj = DatabaseTableRef(sdb.get_name(), storage_url=sdb.storage.url)
+                # TODO:
+                # obj = DatabaseTableRef(sdb.get_name(), storage_url=sdb.storage.url)
+                # raise NotImplementedError
+                return sdb.get_name_for_storage()
             else:
                 # TODO: what is general solution to this? if we do DataFormat.as_python_object(sdb) then
                 #       we have formats depending on StoredDataBlocks again, and no seperation of concerns
                 #       BUT what other option is there? Need knowledge of storage url and name to make useful "pointer" object
-                raise NotImplementedError(
-                    f"Don't know how to bring '{sdb.data_format}' into python'"
-                )
-        if self.schema_translation:
-            obj = sdb.data_format.apply_schema_translation(self.schema_translation, obj)
+                # raise NotImplementedError(
+                #     f"Don't know how to bring '{sdb.data_format}' into python'"
+                # )
+                return sdb.get_name_for_storage()
         return obj
 
     def has_format(self, fmt: DataFormat) -> bool:
         return (
-            self.ctx.env.md_api.execute(
+            self.env.md_api.execute(
                 select(StoredDataBlockMetadata)
                 .filter(StoredDataBlockMetadata.data_block == self.data_block)
                 .filter(StoredDataBlockMetadata.data_format == fmt)
-                .count()
             )
-        ) > 0
+        ).scalar_one_or_none() is not None
 
     # def get_or_create_local_stored_data_block(
     #     self, target_format: DataFormat
     # ) -> StoredDataBlockMetadata:
-    #     from snapflow.storage.data_copy.base import (
+    #
     #         StorageFormat,
     #     )
-    #     from snapflow.core.storage import convert_sdb, get_copy_path_for_sdb
+    #
 
     #     cnt = (
     #         self.env.md_api.execute(select(StoredDataBlockMetadata)
@@ -474,102 +462,101 @@ class DataBlockManager:
     #     storage)
 
 
-def create_data_block_from_records(
-    env: Environment,
-    local_storage: Storage,
-    records: Any,
-    nominal_schema: Schema = None,
-    inferred_schema: Schema = None,
-    created_by_node_key: str = None,
-) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
-    from snapflow.storage.storage import LocalPythonStorageEngine
+# def create_data_block_from_records(
+#     env: Environment,
+#     local_storage: Storage,
+#     records: Any,
+#     nominal_schema: Schema = None,
+#     inferred_schema: Schema = None,
+#     created_by_node_key: str = None,
+# ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
 
-    logger.debug("CREATING DATA BLOCK")
-    if isinstance(records, MemoryDataRecords):
-        dro = records
-        # Important: override nominal schema with DRO entry if it exists
-        if dro.nominal_schema is not None:
-            nominal_schema = env.get_schema(dro.nominal_schema)
-    else:
-        dro = as_records(records, schema=nominal_schema)
-    if not nominal_schema:
-        nominal_schema = env.get_schema("Any")
-    if not inferred_schema:
-        inferred_schema = dro.data_format.infer_schema_from_records(dro.records_object)
-        env.add_new_generated_schema(inferred_schema)
-    realized_schema = cast_to_realized_schema(env, inferred_schema, nominal_schema)
-    dro = dro.conform_to_schema(realized_schema)
-    block = DataBlockMetadata(
-        id=get_datablock_id(),
-        inferred_schema_key=inferred_schema.key if inferred_schema else None,
-        nominal_schema_key=nominal_schema.key,
-        realized_schema_key=realized_schema.key,
-        record_count=dro.record_count,
-        created_by_node_key=created_by_node_key,
-    )
-    sdb = StoredDataBlockMetadata(  # type: ignore
-        id=get_datablock_id(),
-        data_block_id=block.id,
-        data_block=block,
-        storage_url=local_storage.url,
-        data_format=dro.data_format,
-    )
-    env.md_api.add(block)
-    env.md_api.add(sdb)
-    # env.md_api.flush([block, sdb])
-    local_storage.get_api().put(sdb.get_name(), dro)
-    return block, sdb
+#     logger.debug("CREATING DATA BLOCK")
+#     if isinstance(records, MemoryDataRecords):
+#         dro = records
+#         # Important: override nominal schema with DRO entry if it exists
+#         if dro.nominal_schema is not None:
+#             nominal_schema = env.get_schema(dro.nominal_schema)
+#     else:
+#         dro = as_records(records, schema=nominal_schema)
+#     if not nominal_schema:
+#         nominal_schema = env.get_schema("Any")
+#     if not inferred_schema:
+#         inferred_schema = dro.data_format.infer_schema_from_records(dro.records_object)
+#         env.add_new_generated_schema(inferred_schema)
+#     realized_schema = cast_to_realized_schema(env, inferred_schema, nominal_schema)
+#     dro = dro.conform_to_schema(realized_schema)
+#     block = DataBlockMetadata(
+#         id=get_datablock_id(),
+#         inferred_schema_key=inferred_schema.key if inferred_schema else None,
+#         nominal_schema_key=nominal_schema.key,
+#         realized_schema_key=realized_schema.key,
+#         record_count=dro.record_count,
+#         created_by_node_key=created_by_node_key,
+#     )
+#     sdb = StoredDataBlockMetadata(  # type: ignore
+#         id=get_stored_datablock_id(),
+#         data_block_id=block.id,
+#         data_block=block,
+#         storage_url=local_storage.url,
+#         data_format=dro.data_format,
+#     )
+#     env.md_api.add(block)
+#     env.md_api.add(sdb)
+#     # env.md_api.flush([block, sdb])
+#     local_storage.get_api().put(sdb.get_name_for_storage(), dro)
+#     return block, sdb
 
 
-def create_data_block_from_sql(
-    env: Environment,
-    sql: str,
-    db_api: DatabaseStorageApi,
-    nominal_schema: Schema = None,
-    inferred_schema: Schema = None,
-    created_by_node_key: str = None,
-) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
-    # TODO: we are special casing sql right now, but could create another DataFormat (SqlQueryFormat, non-storable).
-    #       but, not sure how well it fits paradigm (it's a fundamentally non-python operation, the only one for now --
-    #       if we had an R runtime or any other shell command, they would also be in this bucket)
-    #       fine here for now, but there is a generalization that might make the sql snap less awkward (returning sdb)
-    logger.debug("CREATING DATA BLOCK from sql")
-    tmp_name = f"_tmp_{rand_str(10)}".lower()
-    sql = db_api.clean_sub_sql(sql)
-    create_sql = f"""
-    create table {tmp_name} as
-    select
-    *
-    from (
-    {sql}
-    ) as __sub
-    """
-    db_api.execute_sql(create_sql)
-    cnt = db_api.count(tmp_name)
-    if not nominal_schema:
-        nominal_schema = env.get_schema("Any")
-    if not inferred_schema:
-        inferred_schema = infer_schema_from_db_table(db_api, tmp_name)
-        env.add_new_generated_schema(inferred_schema)
-    realized_schema = cast_to_realized_schema(env, inferred_schema, nominal_schema)
-    block = DataBlockMetadata(
-        id=get_datablock_id(),
-        inferred_schema_key=inferred_schema.key if inferred_schema else None,
-        nominal_schema_key=nominal_schema.key,
-        realized_schema_key=realized_schema.key,
-        record_count=cnt,
-        created_by_node_key=created_by_node_key,
-    )
-    storage_url = db_api.url
-    sdb = StoredDataBlockMetadata(
-        id=get_datablock_id(),
-        data_block_id=block.id,
-        data_block=block,
-        storage_url=storage_url,
-        data_format=DatabaseTableFormat,
-    )
-    env.md_api.add(block)
-    env.md_api.add(sdb)
-    # env.md_api.flush([block, sdb])
-    db_api.rename_table(tmp_name, sdb.get_name())
-    return block, sdb
+# def create_data_block_from_sql(
+#     env: Environment,
+#     sql: str,
+#     db_api: DatabaseStorageApi,
+#     nominal_schema: Schema = None,
+#     inferred_schema: Schema = None,
+#     created_by_node_key: str = None,
+# ) -> Tuple[DataBlockMetadata, StoredDataBlockMetadata]:
+#     # TODO: we are special casing sql right now, but could create another DataFormat (SqlQueryFormat, non-storable).
+#     #       but, not sure how well it fits paradigm (it's a fundamentally non-python operation, the only one for now --
+#     #       if we had an R runtime or any other shell command, they would also be in this bucket)
+#     #       fine here for now, but there is a generalization that might make the sql snap less awkward (returning sdb)
+#     logger.debug("CREATING DATA BLOCK from sql")
+#     tmp_name = f"_tmp_{rand_str(10)}".lower()
+#     sql = db_api.clean_sub_sql(sql)
+#     create_sql = f"""
+#     create table {tmp_name} as
+#     select
+#     *
+#     from (
+#     {sql}
+#     ) as __sub
+#     """
+#     db_api.execute_sql(create_sql)
+#     cnt = db_api.count(tmp_name)
+#     if not nominal_schema:
+#         nominal_schema = env.get_schema("Any")
+#     if not inferred_schema:
+#         inferred_schema = infer_schema_from_db_table(db_api, tmp_name)
+#         env.add_new_generated_schema(inferred_schema)
+#     realized_schema = cast_to_realized_schema(env, inferred_schema, nominal_schema)
+#     block = DataBlockMetadata(
+#         id=get_datablock_id(),
+#         inferred_schema_key=inferred_schema.key if inferred_schema else None,
+#         nominal_schema_key=nominal_schema.key,
+#         realized_schema_key=realized_schema.key,
+#         record_count=cnt,
+#         created_by_node_key=created_by_node_key,
+#     )
+#     storage_url = db_api.url
+#     sdb = StoredDataBlockMetadata(
+#         id=get_stored_datablock_id(),
+#         data_block_id=block.id,
+#         data_block=block,
+#         storage_url=storage_url,
+#         data_format=DatabaseTableFormat,
+#     )
+#     env.md_api.add(block)
+#     env.md_api.add(sdb)
+#     # env.md_api.flush([block, sdb])
+#     db_api.rename_table(tmp_name, sdb.get_name_for_storage())
+#     return block, sdb

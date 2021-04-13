@@ -4,7 +4,6 @@ description: All-purpose testing schema
 unique_on:
   - k1
   - k2
-updated_at_field_name: f4
 fields:
   k1:
     type: Integer

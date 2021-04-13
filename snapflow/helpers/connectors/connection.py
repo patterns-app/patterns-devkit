@@ -104,6 +104,17 @@ Solution 3: Treat mutable records as immutable records
  - it is possible to provide both an immutable and mutable interface to the same API endpoint
  - in this case, we'll again ask the end user to choose a "Check records for updates every" setting
 
+Solution 4: General solution for all sources
+ - Create multiple importers for same source of differing frequency and re-fetch window
+ - For example, one importer checks for new records in last day every 5 minutes,
+   another re-imports the last week every hour, and a final one imports all-time once a day
+ - Pros:
+    - works for any source that can sort and filter by a monotonic field, regardless of mutability
+    - fairly obvious and configurable to end user
+    - has reasonable tradeoff of freshness vs effort
+ - Cons:
+    - No real guarantee on freshness / accuracy other than after total re-fetch
+    - If source has frequently updating records that are very old (no "curing window"), data will be out-of-date more often
 """
 
 

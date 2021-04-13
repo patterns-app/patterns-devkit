@@ -5,19 +5,13 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
+from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
+from dcp.storage.base import Storage
 from loguru import logger
 from snapflow.core import operators
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment
-from snapflow.schema.base import (
-    GenericSchemaException,
-    Schema,
-    SchemaKey,
-    SchemaLike,
-    SchemaTranslation,
-    is_any,
-    is_generic,
-)
+from snapflow.core.schema import GenericSchemaException, is_generic
 
 if TYPE_CHECKING:
     from snapflow.core.snap import (
@@ -25,8 +19,8 @@ if TYPE_CHECKING:
         SnapCallable,
     )
     from snapflow.core.node import Node, Node, NodeLike
-    from snapflow.storage.storage import Storage
-    from snapflow.core.execution import RunContext
+
+    from snapflow.core.execution.executable import Executable
     from snapflow.core.streams import (
         StreamBuilder,
         InputStreams,
@@ -493,13 +487,13 @@ def get_schema_translation(
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
             translation=declared_schema_translation,
-            from_schema=source_schema,
+            from_schema_key=source_schema.key,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed
         return None
     # Otherwise map found schema to expected schema
-    return source_schema.get_translation_to(env, target_schema)
+    return source_schema.get_translation_to(target_schema)
 
 
 class NodeInterfaceManager:
@@ -508,15 +502,12 @@ class NodeInterfaceManager:
     Node.
     """
 
-    def __init__(self, ctx: RunContext, node: Node, strict_storages: bool = True):
-        self.env = ctx.env
+    def __init__(self, exe: Executable):
+        self.env = exe.execution_context.env
 
-        self.ctx = ctx
-        self.node = node
+        self.exe = exe
+        self.node = exe.node
         self.snap_interface: DeclaredSnapInterface = self.node.get_interface()
-        self.strict_storages = (
-            strict_storages  # Only pull datablocks from given storages
-        )
 
     def get_bound_interface(
         self, input_db_streams: Optional[InputStreams] = None
@@ -562,7 +553,7 @@ class NodeInterfaceManager:
             stream_builder = self._filter_stream(
                 stream_builder,
                 input,
-                self.ctx.all_storages if self.strict_storages else None,
+                self.exe.execution_context.storages,
             )
 
             """
@@ -572,7 +563,7 @@ class NodeInterfaceManager:
 
             In other words, if ANY block stream is empty, bail out. If ALL DS streams are empty, bail
             """
-            if stream_builder.get_count(self.ctx) == 0:
+            if stream_builder.get_count(self.env) == 0:
                 logger.debug(
                     f"Couldnt find eligible DataBlocks for input `{input.name}` from {stream_builder}"
                 )
@@ -589,7 +580,7 @@ class NodeInterfaceManager:
                 except GenericSchemaException:
                     declared_schema = None
                 input_streams[input.name] = stream_builder.as_managed_stream(
-                    self.ctx,
+                    self.exe.execution_context,
                     declared_schema=declared_schema,
                     declared_schema_translation=input.declared_schema_translation,
                 )
@@ -608,11 +599,11 @@ class NodeInterfaceManager:
         input: NodeInput,
         storages: List[Storage] = None,
     ) -> StreamBuilder:
-        logger.debug(f"{stream_builder.get_count(self.ctx)} available DataBlocks")
+        logger.debug(f"{stream_builder.get_count(self.env)} available DataBlocks")
         if storages:
             stream_builder = stream_builder.filter_storages(storages)
             logger.debug(
-                f"{stream_builder.get_count(self.ctx)} available DataBlocks in storages {storages}"
+                f"{stream_builder.get_count(self.env)} available DataBlocks in storages {storages}"
             )
         if input.declared_input.reference:
             logger.debug("Reference input, taking latest")
@@ -622,5 +613,5 @@ class NodeInterfaceManager:
             stream_builder = stream_builder.filter_unprocessed(
                 self.node, allow_cycle=input.declared_input.from_self
             )
-            logger.debug(f"{stream_builder.get_count(self.ctx)} unprocessed DataBlocks")
+            logger.debug(f"{stream_builder.get_count(self.env)} unprocessed DataBlocks")
         return stream_builder

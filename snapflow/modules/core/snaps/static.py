@@ -2,17 +2,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from dcp import data_format
+from dcp.data_format.formats import (
+    CsvFileObjectFormat,
+    DataFrameFormat,
+    JsonLinesFileObjectFormat,
+)
+from dcp.storage.base import Storage
 from pandas import DataFrame
 from snapflow.core.execution import SnapContext
 from snapflow.core.snap import Param, Snap
-from snapflow.schema.base import SchemaLike
-from snapflow.storage.data_formats import DataFrameFormat, RecordsFormat
-from snapflow.storage.data_formats.delimited_file_object import (
-    DelimitedFileObjectFormat,
-)
-from snapflow.storage.data_records import MemoryDataRecords, as_records
-from snapflow.storage.storage import Storage
-from snapflow.utils.data import read_csv
 
 
 @dataclass
@@ -27,7 +26,7 @@ class LocalImportState:
 )
 @Param("dataframe", datatype="DataFrame")
 @Param("schema", datatype="str", required=False)
-def import_dataframe(ctx: SnapContext) -> MemoryDataRecords:  # TODO optional
+def import_dataframe(ctx: SnapContext):  # TODO optional
     imported = ctx.get_state_value("imported")
     if imported:
         # Just emit once
@@ -35,13 +34,13 @@ def import_dataframe(ctx: SnapContext) -> MemoryDataRecords:  # TODO optional
     ctx.emit_state_value("imported", True)
     schema = ctx.get_param("schema")
     df = ctx.get_param("dataframe")
-    return as_records(df, data_format=DataFrameFormat, schema=schema)
+    ctx.emit(df, data_format=DataFrameFormat, schema=schema)
 
 
 @Snap(module="core", state_class=LocalImportState, display_name="Import local CSV")
 @Param("path", datatype="str")
 @Param("schema", datatype="str", required=False)
-def import_local_csv(ctx: SnapContext) -> MemoryDataRecords:
+def import_local_csv(ctx: SnapContext):
     imported = ctx.get_state_value("imported")
     if imported:
         return
@@ -50,7 +49,7 @@ def import_local_csv(ctx: SnapContext) -> MemoryDataRecords:
     f = open(path)
     ctx.emit_state_value("imported", True)
     schema = ctx.get_param("schema")
-    return as_records(f, data_format=DelimitedFileObjectFormat, schema=schema)
+    ctx.emit(f, data_format=CsvFileObjectFormat, schema=schema)
 
 
 @Snap(
@@ -59,7 +58,7 @@ def import_local_csv(ctx: SnapContext) -> MemoryDataRecords:
 @Param("name", datatype="str")
 @Param("storage_url", datatype="str")
 @Param("schema", datatype="str", required=False)
-def import_storage_csv(ctx: SnapContext) -> MemoryDataRecords:
+def import_storage_csv(ctx: SnapContext):
     imported = ctx.get_state_value("imported")
     if imported:
         return
@@ -70,4 +69,4 @@ def import_storage_csv(ctx: SnapContext) -> MemoryDataRecords:
     f = fs_api.open_name(name)
     ctx.emit_state_value("imported", True)
     schema = ctx.get_param("schema")
-    return as_records(f, data_format=DelimitedFileObjectFormat, schema=schema)
+    ctx.emit(f, data_format=CsvFileObjectFormat, schema=schema)

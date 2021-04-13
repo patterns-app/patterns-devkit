@@ -25,7 +25,7 @@ g = graph_from_yaml(
     """
 nodes:
   - key: stripe_charges
-    snap: stripe.extract_charges
+    snap: stripe.import_charges
     params:
       api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
   - key: accumulated_stripe_charges
@@ -42,7 +42,7 @@ assert len(g._nodes) == 3
 
 
 env = Environment(modules=[stripe])
-run(g, env=env, node_timelimit_seconds=1)
+run(g, env=env, execution_timelimit_seconds=1)
 
 # Get the final output block
 datablock = env.get_latest_output("stripe_customer_lifetime_sales", g)
