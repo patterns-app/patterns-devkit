@@ -52,7 +52,8 @@ def has_subset_fields(sub: Schema, supr: Schema) -> bool:
 
 def has_subset_nonnull_fields(sub: Schema, supr: Schema) -> bool:
     sub_fields = [f.name for f in sub.fields if not f.is_nullable()]
-    supr_fields = [f.name for f in supr.fields if not f.is_nullable()]
+    # TODO inferred field will not have any validators
+    supr_fields = [f.name for f in supr.fields]  # if not f.is_nullable()]
     return set(sub_fields) <= set(supr_fields)
 
 

@@ -274,6 +274,8 @@ class SnapContext:  # TODO: (Generic[C, S]):
             nominal_output_schema = self.bound_interface.resolve_nominal_output_schema(
                 self.env
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
+        if nominal_output_schema is not None:
+            nominal_output_schema = self.env.get_schema(nominal_output_schema)
         sdb = self.get_stored_datablock_for_output(output)
         sdb.data_format = data_format
         db = sdb.data_block
@@ -286,6 +288,10 @@ class SnapContext:  # TODO: (Generic[C, S]):
             name = "_tmp_obj_" + rand_str(10)
             storage = self.execution_context.local_storage
             storage.get_api().put(name, records_obj)
+            if nominal_output_schema is not None:
+                # TODO: still unclear on when and why to do this cast
+                handler = get_handler_for_name(name, storage)
+                handler().cast_to_schema(name, storage, nominal_output_schema)
         sdb.storage_url = storage.url
         assert name is not None
         assert storage is not None

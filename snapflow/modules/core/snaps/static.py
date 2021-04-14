@@ -20,9 +20,7 @@ class LocalImportState:
 
 
 @Snap(
-    module="core",
-    state_class=LocalImportState,
-    display_name="Import Pandas DataFrame",
+    module="core", state_class=LocalImportState, display_name="Import Pandas DataFrame",
 )
 @Param("dataframe", datatype="DataFrame")
 @Param("schema", datatype="str", required=False)

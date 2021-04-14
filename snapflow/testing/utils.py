@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional
 
 from commonmodel.base import Schema, SchemaLike
-from dcp.data_format.handler import infer_schema_for_name
+from dcp.data_format.handler import get_handler_for_name, infer_schema_for_name
+from dcp.data_format.formats.memory.records import PythonRecordsHandler
 from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
@@ -45,13 +46,16 @@ def str_as_dataframe(
             raw_records = [read_json(line) for line in f]
     else:
         # Raw str csv
-        raw_records = read_raw_string_csv(test_data)
+        raw_records = list(read_raw_string_csv(test_data))
     tmp = "_test_obj_" + rand_str()
     env._local_python_storage.get_api().put(tmp, raw_records)
     if nominal_schema is None:
         auto_schema = infer_schema_for_name(tmp, env._local_python_storage)
         nominal_schema = auto_schema
-    # TODO: conform
+    else:
+        PythonRecordsHandler().cast_to_schema(
+            tmp, env._local_python_storage, nominal_schema
+        )
     df = DataFrame.from_records(raw_records)
     return df
 
