@@ -39,10 +39,7 @@ class InputExhaustedException(SnapException):
 SnapCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    DataBlockMetadata,
-    DataBlock,
+    DataFrame, Records, DataBlockMetadata, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 DEFAULT_OUTPUT_NAME = "default"
@@ -96,6 +93,7 @@ class _Snap:
     ignore_signature: bool = (
         False  # Whether to ignore signature if there are any declared i/o
     )
+    _original_object: Any = None
     display_name: Optional[str] = None
     description: Optional[str] = None
 
@@ -113,6 +111,9 @@ class _Snap:
         self, *args: SnapContext, **kwargs: DataInterfaceType
     ) -> Optional[DataInterfaceType]:
         return self.snap_callable(*args, **kwargs)
+
+    def get_original_object(self) -> Any:
+        return self._original_object or self.snap_callable
 
     def get_interface(self) -> DeclaredSnapInterface:
         """"""
@@ -324,11 +325,7 @@ def add_param_decorator(
     help: str = "",
 ):
     p = Parameter(
-        name=name,
-        datatype=datatype,
-        required=required,
-        default=default,
-        help=help,
+        name=name, datatype=datatype, required=required, default=default, help=help,
     )
 
     def dec(snap_like: Union[SnapCallable, _Snap]) -> _Snap:

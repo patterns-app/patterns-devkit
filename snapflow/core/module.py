@@ -204,3 +204,17 @@ class SnapflowModule:
 
 
 DEFAULT_LOCAL_MODULE = SnapflowModule(DEFAULT_LOCAL_MODULE_NAME)
+
+
+# Refactor modules
+"""
+Pip installable
+Auto discoverable snaps and schemas
+Can create with `snapflow new <modulename>`
+Has a "namespace", so not tied 1-1 with python module
+"""
+# class SnapflowModule:
+#     namespace: str
+#     snap_paths: List[str] = ["snaps"]
+#     schema_paths: List[str] = ["schemas"]
+
