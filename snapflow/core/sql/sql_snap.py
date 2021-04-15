@@ -380,7 +380,8 @@ def process_sql(sql: str, file_path: str = None) -> str:
             raise Exception(
                 f"Must specify @SqlSnap(file=__file__) in order to load sql file {sql}"
             )
-        sql = load_file(file_path, sql)
+        dir_path = Path(file_path) / ".."
+        sql = load_file(str(dir_path), sql)
     return sql
 
 
@@ -388,8 +389,8 @@ def sql_snap_factory(
     name: str,
     sql: str = None,
     file: str = None,
-    module: Optional[Union[SnapflowModule, str]] = None,
-    compatible_runtimes: str = None,  # TODO: engine support
+    namespace: Optional[Union[SnapflowModule, str]] = None,
+    required_storage_classes: List[str] = None,
     wrapper_cls: type = SqlSnapWrapper,
     autodetect_inputs: bool = True,
     **kwargs,  # TODO: explicit options
@@ -400,8 +401,8 @@ def sql_snap_factory(
     p = snap_factory(
         wrapper_cls(sql, autodetect_inputs=autodetect_inputs),
         name=name,
-        module=module,
-        compatible_runtimes=compatible_runtimes or "database",
+        namespace=namespace,
+        required_storage_classes=required_storage_classes or ["database"],
         ignore_signature=True,  # For SQL, ignore signature if explicit inputs are provided
         **kwargs,
     )
@@ -433,8 +434,8 @@ def sql_snap_decorator(
         return snap_factory(
             sql_fn_or_snap,
             ignore_signature=True,
-            compatible_runtimes="database",
-            module=sql_fn_or_snap.module_name,
+            required_storage_classes=["database"],
+            namespace=sql_fn_or_snap.namespace,
             _original_object=sql_fn_or_snap.snap_callable,
             **kwargs,
         )

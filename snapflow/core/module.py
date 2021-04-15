@@ -1,29 +1,20 @@
 from __future__ import annotations
 
-import inspect
 import os
+from pathlib import Path
 import sys
-from contextlib import contextmanager
-from io import TextIOBase
 from types import ModuleType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
-    Generator,
-    Iterable,
-    Iterator,
     List,
     Optional,
-    Sequence,
-    TextIO,
-    Type,
     Union,
 )
 
 from commonmodel.base import Schema, SchemaLike, schema_from_yaml
-from dcp.utils.common import AttrDict
-from snapflow.core.component import ComponentLibrary
+from loguru import logger
+from snapflow.core.component import ComponentLibrary, DictView
 
 if TYPE_CHECKING:
     from snapflow.core.snap import (
@@ -31,8 +22,10 @@ if TYPE_CHECKING:
         _Snap,
         make_snap,
     )
+    from snapflow.core.snap_package import SnapPackage
 
-DEFAULT_LOCAL_MODULE_NAME = "_local_"
+DEFAULT_LOCAL_NAMESPACE = "_local"
+DEFAULT_NAMESPACE = DEFAULT_LOCAL_NAMESPACE
 
 
 class ModuleException(Exception):
@@ -40,56 +33,117 @@ class ModuleException(Exception):
 
 
 class SnapflowModule:
-    name: str
+    namespace: str
     py_module_path: Optional[str]
-    py_module_name: Optional[str]
+    py_namespace: Optional[str]
+    snap_paths: List[str] = ["snaps"]
+    schema_paths: List[str] = ["schemas"]
     library: ComponentLibrary
-    test_cases: List[Callable]
     dependencies: List[SnapflowModule]
 
     def __init__(
         self,
-        name: str,
+        namespace: str,
         py_module_path: Optional[str] = None,
-        py_module_name: Optional[str] = None,
-        schemas: Optional[Sequence[SchemaLike]] = None,
-        snaps: Optional[Sequence[Union[SnapLike, str, ModuleType]]] = None,
-        tests: Optional[Sequence[Callable]] = None,
+        py_namespace: Optional[str] = None,
+        snap_paths: List[str] = ["snaps"],
+        schema_paths: List[str] = ["schemas"],
         dependencies: List[
             SnapflowModule
         ] = None,  # TODO: support str references to external deps (will need repo hooks...)
     ):
 
-        self.name = name
+        self.namespace = namespace
         if py_module_path:
             py_module_path = os.path.dirname(py_module_path)
         self.py_module_path = py_module_path
-        self.py_module_name = py_module_name
-        self.library = ComponentLibrary(module_lookup_keys=[self.name])
-        self.test_cases = []
+        self.py_namespace = py_namespace
+        self.library = ComponentLibrary(namespace_lookup_keys=[self.namespace])
+        self.snap_paths = snap_paths
+        self.schema_paths = schema_paths
         self.dependencies = []
-        for schema in schemas or []:
-            self.add_schema(schema)
-        for fn in snaps or []:
-            self.add_snap(fn)
-        for t in tests or []:
-            self.add_test(t)
+        self.snap_packages = {}
+        if self.py_module_path:
+            self.discover_schemas()
+            self.discover_snaps()
         for d in dependencies or []:
             self.add_dependency(d)
         # for t in tests or []:
         #     self.add_test_case(t)
 
-    # TODO: implement dir for usability
-    # def __dir__(self):
-    #     return list(self.members().keys())
-
-    @contextmanager
-    def open_module_file(self, fp: str) -> Iterator[TextIO]:
+    def discover_snaps(self):
         if not self.py_module_path:
-            raise Exception(f"Module path not set, cannot read {fp}")
-        typedef_path = os.path.join(self.py_module_path, fp)
-        with open(typedef_path) as f:
-            yield f
+            return
+        from snapflow.core.snap_package import SnapPackage
+
+        for snaps_path in self.snap_paths:
+            snaps_root = Path(self.py_module_path).resolve() / snaps_path
+            packages = SnapPackage.all_from_root_path(
+                str(snaps_root), namespace=self.namespace
+            )
+            for pkg in packages:
+                self.snap_packages[pkg.name] = pkg
+                self.library.add_snap(pkg.snap)
+
+    def discover_schemas(self):
+        if not self.py_module_path:
+            return
+        for schemas_path in self.schema_paths:
+            schemas_root = Path(self.py_module_path).resolve() / schemas_path
+            for fname in os.listdir(schemas_root):
+                if fname.endswith(".yml") or fname.endswith(".yaml"):
+                    with open(schemas_root / fname) as f:
+                        yml = f.read()
+                        self.add_schema(yml)
+
+    def add_snap_package(self, pkg: SnapPackage):
+        self.snap_packages[pkg.name] = pkg
+        self.add_snap(pkg.snap)
+
+    def add_snap(self, snap_like: Union[SnapLike, str]) -> _Snap:
+        p = self.process_snap(snap_like)
+        self.validate_key(p)
+        self.library.add_snap(p)
+        return p
+
+    def add_schema(self, schema_like: SchemaLike) -> Schema:
+        schema = self.process_schema(schema_like)
+        self.validate_key(schema)
+        self.library.add_schema(schema)
+        return schema
+
+    def process_snap(self, snap_like: Union[SnapLike, str, ModuleType]) -> _Snap:
+        from snapflow.core.snap import _Snap, make_snap, PythonCodeSnapWrapper
+        from snapflow.core.sql.sql_snap import sql_snap
+        from snapflow.core.snap_package import SnapPackage
+
+        if isinstance(snap_like, _Snap):
+            snap = snap_like
+        else:
+            if callable(snap_like):
+                snap = make_snap(snap_like, namespace=self.namespace)
+            # elif isinstance(snap_like, str):
+            #     # Just a string, not a sql file, assume it is python? TODO
+            #     snap = make_snap(PythonCodeSnapWrapper(snap_like), module=self.name)
+            elif isinstance(snap_like, ModuleType):
+                # Module snap (the new default)
+                pkg = SnapPackage.from_module(snap_like)
+                self.add_snap_package(pkg)
+                return pkg.snap
+                # code = inspect.getsource(snap_like)
+                # snap = make_snap(PythonCodeSnapWrapper(code), module=self.name)
+            else:
+                raise TypeError(snap_like)
+        return snap
+
+    def process_schema(self, schema_like: SchemaLike) -> Schema:
+        if isinstance(schema_like, Schema):
+            schema = schema_like
+        elif isinstance(schema_like, str):
+            schema = schema_from_yaml(schema_like, namespace=self.namespace)
+        else:
+            raise TypeError(schema_like)
+        return schema
 
     def get_schema(self, schema_like: SchemaLike) -> Schema:
         if isinstance(schema_like, Schema):
@@ -104,98 +158,49 @@ class SnapflowModule:
         return self.library.get_snap(snap_like)
 
     def export(self):
-        if self.py_module_name is None:
-            raise Exception("Cannot export module, no module_name set")
-        sys.modules[self.py_module_name] = self  # type: ignore  # sys.module_lookup_names wants a modulefinder.Module type and it's not gonna get it
+        if self.py_namespace is None:
+            raise Exception("Cannot export module, no namespace set")
+        mod = sys.modules[
+            self.py_namespace
+        ]  # = self  # type: ignore  # sys.module_lookup_names wants a modulefinder.Module type and it's not gonna get it
+        setattr(mod, "snaps", self.snaps)
+        setattr(mod, "schemas", self.schemas)
 
     @property
-    def schemas(self) -> AttrDict[str, Schema]:
+    def schemas(self) -> DictView[str, Schema]:
         return self.library.get_schemas_view()
 
     @property
-    def snaps(self) -> AttrDict[str, _Snap]:
+    def snaps(self) -> DictView[str, _Snap]:
         return self.library.get_snaps_view()
 
     def validate_key(self, obj: Any):
-        if hasattr(obj, "module_name"):
-            if obj.module_name != self.name:
+        if hasattr(obj, "namespace"):
+            if obj.namespace != self.namespace:
                 raise ModuleException(
-                    f"Component {obj} module name `{obj.module_name}` does not match module `{self.name}` to which it was added"
+                    f"Component {obj} namespace `{obj.namespace}` does not match module namespace `{self.namespace}` to which it was added"
                 )
-
-    def add_schema(self, schema_like: SchemaLike) -> Schema:
-        schema = self.process_schema(schema_like)
-        self.validate_key(schema)
-        self.library.add_schema(schema)
-        return schema
-
-    def process_schema(self, schema_like: SchemaLike) -> Schema:
-        if isinstance(schema_like, Schema):
-            schema = schema_like
-        elif isinstance(schema_like, str):
-            with self.open_module_file(schema_like) as f:
-                yml = f.read()
-                schema = schema_from_yaml(yml, namespace=self.name)
-        else:
-            raise TypeError(schema_like)
-        return schema
-
-    def add_snap(self, snap_like: Union[SnapLike, str]) -> _Snap:
-        p = self.process_snap(snap_like)
-        self.validate_key(p)
-        self.library.add_snap(p)
-        return p
 
     def remove_snap(self, snap_like: Union[SnapLike, str]):
         self.library.remove_snap(snap_like)
 
-    def process_snap(self, snap_like: Union[SnapLike, str, ModuleType]) -> _Snap:
-        from snapflow.core.snap import _Snap, make_snap, PythonCodeSnapWrapper
-        from snapflow.core.sql.sql_snap import sql_snap
-
-        if isinstance(snap_like, _Snap):
-            snap = snap_like
-        else:
-            if callable(snap_like):
-                snap = make_snap(snap_like, module=self.name)
-            elif isinstance(snap_like, str) and snap_like.endswith(".sql"):
-                if not self.py_module_path:
-                    raise Exception(
-                        f"Module path not set, cannot read sql definition {snap_like}"
-                    )
-                sql_file_path = os.path.join(self.py_module_path, snap_like)
-                with open(sql_file_path) as f:
-                    sql = f.read()
-                file_name = os.path.basename(snap_like)[:-4]
-                snap = sql_snap(
-                    name=file_name, module=self.name, sql=sql
-                )  # TODO: versions, runtimes, etc for sql (someway to specify in a .sql file)
-            elif isinstance(snap_like, str):
-                # Just a string, not a sql file, assume it is python? TODO
-                snap = make_snap(PythonCodeSnapWrapper(snap_like), module=self.name)
-            elif isinstance(snap_like, ModuleType):
-                # Module snap (the new default)
-                code = inspect.getsource(snap_like)
-                snap = make_snap(PythonCodeSnapWrapper(code), module=self.name)
-            else:
-                raise TypeError(snap_like)
-        return snap
-
-    def add_test(self, test_case: Callable):
-        self.test_cases.append(test_case)
-
     def run_tests(self):
-        print(f"Running tests for module {self.name}")
-        for test in self.test_cases:
-            print(f"======= {test.__name__} =======")
-            try:
-                test()
-            except Exception as e:
-                import traceback
+        from snapflow.testing.utils import run_test_case, TestFeatureNotImplementedError
 
-                print(traceback.format_exc())
-                print(e)
-                raise e
+        for name, pkg in self.snap_packages.items():
+            print(f"Running tests for snap {name}")
+            for case in pkg.get_test_cases():
+                print(f"======= {case.name} =======")
+                try:
+                    run_test_case(case)
+                except TestFeatureNotImplementedError as e:
+                    logger.warning(f"Test feature not implemented yet {e.args[0]}")
+                except Exception as e:
+                    import traceback
+
+                    print(traceback.format_exc())
+                    print(e)
+                    raise e
 
     def add_dependency(self, m: SnapflowModule):
         # if isinstance(m, SnapflowModule):
@@ -203,18 +208,4 @@ class SnapflowModule:
         self.dependencies.append(m)
 
 
-DEFAULT_LOCAL_MODULE = SnapflowModule(DEFAULT_LOCAL_MODULE_NAME)
-
-
-# Refactor modules
-"""
-Pip installable
-Auto discoverable snaps and schemas
-Can create with `snapflow new <modulename>`
-Has a "namespace", so not tied 1-1 with python module
-"""
-# class SnapflowModule:
-#     namespace: str
-#     snap_paths: List[str] = ["snaps"]
-#     schema_paths: List[str] = ["schemas"]
-
+DEFAULT_LOCAL_MODULE = SnapflowModule(DEFAULT_LOCAL_NAMESPACE)

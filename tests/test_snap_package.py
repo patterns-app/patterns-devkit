@@ -25,6 +25,8 @@ def test_from_path():
     assert i.context is not None
     readme = mfsnap.load_readme()
     assert len(readme) > 5
+    assert len(mfsnap.tests) == 2
+    assert len(mfsnap.tests[0]["inputs"]) == 1
 
 
 def test_from_snap():

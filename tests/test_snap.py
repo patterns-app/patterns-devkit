@@ -8,7 +8,7 @@ from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.execution import SnapContext
 from snapflow.core.execution.executable import Executable, ExecutableConfiguration
 from snapflow.core.graph import Graph, graph
-from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
+from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
 from snapflow.core.node import DeclaredNode, node
 from snapflow.core.snap import (
     DeclaredSnapInterface,
@@ -119,11 +119,7 @@ def snap_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     pass
 
 
-def df4(
-    input: DataBlock[T],
-    dr2: DataBlock[U],
-    dr3: DataBlock[U],
-) -> DataFrame[T]:
+def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
     pass
 
 
@@ -157,8 +153,7 @@ def df4(
                     ),
                 ],
                 output=DeclaredOutput(
-                    data_format="DataFrame",
-                    schema_like="TestSchema2",
+                    data_format="DataFrame", schema_like="TestSchema2",
                 ),
             ),
         ),
@@ -173,10 +168,7 @@ def df4(
                         _required=True,
                     ),
                 ],
-                output=DeclaredOutput(
-                    data_format="DataFrame",
-                    schema_like="T",
-                ),
+                output=DeclaredOutput(data_format="DataFrame", schema_like="T",),
             ),
         ),
         (
@@ -198,10 +190,7 @@ def df4(
                         reference=True,
                     ),
                 ],
-                output=DeclaredOutput(
-                    data_format="DataFrame",
-                    schema_like="T",
-                ),
+                output=DeclaredOutput(data_format="DataFrame", schema_like="T",),
             ),
         ),
     ],
@@ -249,8 +238,7 @@ def test_declared_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
@@ -278,8 +266,7 @@ def test_natural_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     with env.md_api.begin():
         schema_translation = get_schema_translation(
@@ -337,18 +324,18 @@ def test_python_snap():
     k = "name1"
     p = Snap(snap_t1_sink, name=k)
     assert p.name == k
-    assert p.key == f"{DEFAULT_LOCAL_MODULE_NAME}.{k}"
+    assert p.key == f"{DEFAULT_LOCAL_NAMESPACE}.{k}"
 
     pi = p.get_interface()
     assert pi is not None
 
 
-@Snap("k1", compatible_runtimes="python")
+@Snap("k1")
 def df1():
     pass
 
 
-@Snap("k1", compatible_runtimes="mysql")
+@Snap("k1", required_storage_classes=["database"])
 def df2():
     pass
 
@@ -436,9 +423,9 @@ def test_api():
 
     for snp in [s1, s2, s3, s4]:
         if snp in (s1, s2):
-            assert snp.module_name == "module1"
+            assert snp.namespace == "module1"
         else:
-            assert snp.module_name == DEFAULT_LOCAL_MODULE_NAME
+            assert snp.namespace == DEFAULT_LOCAL_NAMESPACE
         assert snp.name == "s1"
         assert len(snp.params) == 1
         i = snp.get_interface()

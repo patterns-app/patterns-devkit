@@ -1,4 +1,4 @@
-from snapflow.core.snap_package import load_file
+from __future__ import annotations
 from snapflow import SqlSnap, SnapContext
 
 

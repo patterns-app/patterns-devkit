@@ -11,7 +11,8 @@ from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
-    DEFAULT_LOCAL_MODULE_NAME,
+    DEFAULT_LOCAL_NAMESPACE,
+    DEFAULT_NAMESPACE,
     SnapflowModule,
 )
 from snapflow.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
@@ -26,6 +27,7 @@ from snapflow.core.snap_interface import (
 if TYPE_CHECKING:
     from snapflow.core.execution import SnapContext
     from snapflow import Environment
+    from snapflow.core.snap_package import SnapPackage
 
 
 class SnapException(Exception):
@@ -83,9 +85,11 @@ class Parameter:
 class _Snap:
     # Underscored so the decorator API can use `Snap`. TODO: Is there a better way / name?
     name: str
-    module_name: str
+    namespace: str
     snap_callable: Callable
-    compatible_runtime_classes: List[Type[RuntimeClass]]
+    required_storage_classes: List[str] = field(default_factory=list)
+    required_storage_engines: List[str] = field(default_factory=list)
+    # compatible_runtime_classes: List[Type[RuntimeClass]]
     params: List[Parameter] = field(default_factory=list)
     state_class: Optional[Type] = None
     declared_inputs: Optional[List[DeclaredInput]] = None
@@ -94,6 +98,7 @@ class _Snap:
         False  # Whether to ignore signature if there are any declared i/o
     )
     _original_object: Any = None
+    package: SnapPackage = None
     display_name: Optional[str] = None
     description: Optional[str] = None
 
@@ -103,8 +108,8 @@ class _Snap:
     @property
     def key(self) -> str:
         k = self.name
-        if self.module_name:
-            k = self.module_name + "." + k
+        if self.namespace:
+            k = self.namespace + "." + k
         return k
 
     def __call__(
@@ -166,43 +171,37 @@ SnapLike = Union[SnapCallable, _Snap]
 def snap_factory(
     snap_like: Union[SnapCallable, _Snap],
     name: str = None,
-    module: Optional[Union[SnapflowModule, str]] = None,
-    compatible_runtimes: str = None,
+    namespace: Optional[Union[SnapflowModule, str]] = None,
     **kwargs: Any,
 ) -> _Snap:
     if name is None:
         assert snap_like is not None
         name = make_snap_name(snap_like)
-    runtime_class = get_runtime_class(compatible_runtimes)
     if isinstance(snap_like, _Snap):
         # TODO: this is dicey, merging an existing snap ... which values take precedence?
         # old_attrs = asdict(snap_like)
-        if isinstance(module, SnapflowModule):
-            module_name = module.name
+        if isinstance(namespace, SnapflowModule):
+            namespace = namespace.namespace
         else:
-            module_name = module
+            namespace = namespace
         # Because we default to local module if not specified, but allow chaining decorators
         # (like Snap(module="core")(Param(...)(Param.....))) we must undo adding to default local
         # module if we later run into a specified module.
-        if (
-            snap_like.module_name
-            and module_name
-            and snap_like.module_name != module_name
-        ):
+        if snap_like.namespace and namespace and snap_like.namespace != namespace:
             # We're moving modules, so make that happen here if default
-            if snap_like.module_name == DEFAULT_LOCAL_MODULE_NAME:
+            if snap_like.namespace == DEFAULT_NAMESPACE:
                 DEFAULT_LOCAL_MODULE.remove_snap(snap_like)
-        module_name = module_name or snap_like.module_name
-        if module_name is None:
-            module_name = DEFAULT_LOCAL_MODULE_NAME
-        compatible_runtime_classes = (
-            [runtime_class] if runtime_class else snap_like.compatible_runtime_classes
-        )
+        namespace = namespace or snap_like.namespace
+        if namespace is None:
+            namespace = DEFAULT_LOCAL_NAMESPACE
         snap = _Snap(
             name=name,
-            module_name=module_name,
+            namespace=namespace,
             snap_callable=snap_like.snap_callable,
-            compatible_runtime_classes=compatible_runtime_classes,
+            required_storage_classes=kwargs.get("required_storage_classes")
+            or snap_like.required_storage_classes,
+            required_storage_engines=kwargs.get("required_storage_engines")
+            or snap_like.required_storage_engines,
             params=kwargs.get("params") or snap_like.params,
             state_class=kwargs.get("state_class") or snap_like.state_class,
             declared_inputs=kwargs.get("declared_inputs") or snap_like.declared_inputs,
@@ -213,20 +212,14 @@ def snap_factory(
             description=kwargs.get("description") or snap_like.description,
         )
     else:
-        if module is None:
-            module = DEFAULT_LOCAL_MODULE
-        if isinstance(module, SnapflowModule):
-            module_name = module.name
+        if namespace is None:
+            namespace = DEFAULT_NAMESPACE
+        if isinstance(namespace, SnapflowModule):
+            namespace = namespace.namespace
         else:
-            module_name = module
-        snap = _Snap(
-            name=name,
-            module_name=module_name,
-            snap_callable=snap_like,
-            compatible_runtime_classes=[runtime_class],
-            **kwargs,
-        )
-    if module_name == DEFAULT_LOCAL_MODULE_NAME:
+            namespace = namespace
+        snap = _Snap(name=name, namespace=namespace, snap_callable=snap_like, **kwargs,)
+    if namespace == DEFAULT_NAMESPACE:
         # Add to default module
         DEFAULT_LOCAL_MODULE.add_snap(snap)
     return snap
@@ -235,8 +228,7 @@ def snap_factory(
 def snap_decorator(
     snap_or_name: Union[str, SnapCallable, _Snap] = None,
     name: str = None,
-    module: Optional[Union[SnapflowModule, str]] = None,
-    compatible_runtimes: str = None,
+    namespace: Optional[Union[SnapflowModule, str]] = None,
     params: List[Parameter] = None,
     state_class: Optional[Type] = None,
     **kwargs,
@@ -244,9 +236,8 @@ def snap_decorator(
     if isinstance(snap_or_name, str) or snap_or_name is None:
         return partial(
             snap_decorator,
-            module=module,
+            namespace=namespace,
             name=name or snap_or_name,
-            compatible_runtimes=compatible_runtimes,
             params=params,
             state_class=state_class,
             **kwargs,
@@ -254,8 +245,7 @@ def snap_decorator(
     return snap_factory(
         snap_or_name,
         name=name,
-        module=module,
-        compatible_runtimes=compatible_runtimes,
+        namespace=namespace,
         params=params,
         state_class=state_class,
         **kwargs,

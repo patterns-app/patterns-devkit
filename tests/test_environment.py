@@ -17,8 +17,8 @@ def env_init(env: Environment):
         assert len(env.get_module_order()) == 1
         env.add_module(_test_module)
         assert env.get_module_order() == [
-            env.get_local_module().name,
-            _test_module.name,
+            env.get_local_module().namespace,
+            _test_module.namespace,
         ]
         assert env.get_schema("TestSchema") is _test_module.schemas.TestSchema
         assert env.get_snap("test_sql") is _test_module.snaps.test_sql

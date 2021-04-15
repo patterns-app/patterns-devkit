@@ -36,25 +36,17 @@ def make_test_env(**kwargs) -> Environment:
         metadata_storage = Storage.from_url(url)
         kwargs["metadata_storage"] = metadata_storage
     env = Environment(settings=SnapflowSettings(abort_on_snap_error=True), **kwargs)
-    test_module = SnapflowModule(
-        "_test",
-        schemas=[TestSchema1, TestSchema2, TestSchema3, TestSchema4],
-    )
+    test_module = SnapflowModule("_test",)
+    for schema in [TestSchema1, TestSchema2, TestSchema3, TestSchema4]:
+        env.add_schema(schema)
     env.add_module(test_module)
     return env
 
 
 def make_test_run_context(**kwargs) -> ExecutionContext:
-    s = Storage.from_url(
-        url=f"python://_test_default_{rand_str(6)}",
-    )
+    s = Storage.from_url(url=f"python://_test_default_{rand_str(6)}",)
     env = make_test_env()
-    args = dict(
-        env=env,
-        local_storage=s,
-        target_storage=s,
-        storages=[s],
-    )
+    args = dict(env=env, local_storage=s, target_storage=s, storages=[s],)
     args.update(**kwargs)
     return ExecutionContext(**args)
 

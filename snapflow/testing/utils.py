@@ -1,9 +1,11 @@
 from __future__ import annotations
+from snapflow.core.snap import DEFAULT_OUTPUT_NAME
+from snapflow.core.snap_package import SnapPackage
 
 import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Union
 
 from commonmodel.base import Schema, SchemaLike
 from dcp.data_format.handler import get_handler_for_name, infer_schema_for_name
@@ -12,6 +14,7 @@ from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from dcp.utils.data import read_csv, read_json, read_raw_string_csv
+from dcp.utils.pandas import assert_dataframes_are_almost_equal
 from pandas import DataFrame
 from snapflow import DataBlock, Environment, Graph, _Snap
 from snapflow.core.module import SnapflowModule
@@ -30,23 +33,24 @@ def display_snap_log(env: Environment):
 def str_as_dataframe(
     env: Environment,
     test_data: str,
-    module: Optional[SnapflowModule] = None,
+    package: Optional[SnapPackage] = None,
     nominal_schema: Optional[Schema] = None,
 ) -> DataFrame:
     # TODO: add conform_dataframe_to_schema option
-    if test_data.endswith(".csv"):
-        if module is None:
-            raise
-        with module.open_module_file(test_data) as f:
-            raw_records = list(read_csv(f.readlines()))
-    elif test_data.endswith(".json"):
-        if module is None:
-            raise
-        with module.open_module_file(test_data) as f:
-            raw_records = [read_json(line) for line in f]
-    else:
-        # Raw str csv
-        raw_records = list(read_raw_string_csv(test_data))
+    # TODO: support files
+    # if test_data.endswith(".csv"):
+    #     if module is None:
+    #         raise
+    #     with module.open_module_file(test_data) as f:
+    #         raw_records = list(read_csv(f.readlines()))
+    # elif test_data.endswith(".json"):
+    #     if module is None:
+    #         raise
+    #     with module.open_module_file(test_data) as f:
+    #         raw_records = [read_json(line) for line in f]
+    # else:
+    # Raw str csv
+    raw_records = list(read_raw_string_csv(test_data))
     tmp = "_test_obj_" + rand_str()
     env._local_python_storage.get_api().put(tmp, raw_records)
     if nominal_schema is None:
@@ -64,14 +68,14 @@ def str_as_dataframe(
 class DataInput:
     data: str
     schema: Optional[SchemaLike] = None
-    module: Optional[SnapflowModule] = None
+    package: Optional[SnapPackage] = None
 
     def as_dataframe(self, env: Environment):
         schema = None
         if self.schema:
             schema = env.get_schema(self.schema)
         return str_as_dataframe(
-            env, self.data, module=self.module, nominal_schema=schema
+            env, self.data, package=self.package, nominal_schema=schema
         )
 
     def get_schema_key(self) -> Optional[str]:
@@ -80,6 +84,60 @@ class DataInput:
         if isinstance(self.schema, str):
             return self.schema
         return self.schema.key
+
+    @classmethod
+    def from_input(cls, input: Union[str, Dict], package: SnapPackage) -> DataInput:
+        data = None
+        schema = None
+        if isinstance(input, str):
+            data = input
+        elif isinstance(input, dict):
+            data = input["data"]
+            schema = input["schema"]
+        else:
+            raise TypeError(input)
+        return DataInput(data=data, schema=schema, package=package)
+
+
+@dataclass
+class TestCase:
+    name: str
+    inputs: Dict[str, DataInput]
+    outputs: Dict[str, DataInput]
+    package: Optional[SnapPackage] = None
+
+    @classmethod
+    def from_test(cls, test: Dict, package: SnapPackage) -> TestCase:
+        inputs = {}
+        for name, i in test.get("inputs", {}).items():
+            inputs[name] = DataInput.from_input(i, package)
+        outputs = {}
+        for name, i in test.get("outputs", {}).items():
+            outputs[name] = DataInput.from_input(i, package)
+        return TestCase(
+            name=test.get("__name__"), inputs=inputs, outputs=outputs, package=package
+        )
+
+
+def run_test_case(case: TestCase):
+    with produce_snap_output_for_static_input(
+        snap=case.package.snap, inputs=case.inputs,
+    ) as blocks:
+        if not case.outputs:
+            assert len(blocks) == 0
+        else:
+            assert len(blocks) == 1  # TODO: multiple output blocks
+            output = blocks[0]
+            expected = case.outputs[DEFAULT_OUTPUT_NAME]  # TODO: custom output name
+            assert_dataframes_are_almost_equal(
+                output.as_dataframe(),
+                expected.as_dataframe(output.manager.env),
+                schema=output.nominal_schema,
+            )
+
+
+class TestFeatureNotImplementedError(Exception):
+    pass
 
 
 @contextmanager
@@ -97,6 +155,13 @@ def produce_snap_output_for_static_input(
     if env is None:
         db = get_tmp_sqlite_db_url()
         env = Environment(metadata_storage=db)
+    if not target_storage:
+        if "database" in snap.required_storage_classes:
+            target_storage = Storage(get_tmp_sqlite_db_url())
+        if snap.required_storage_engines:
+            raise TestFeatureNotImplementedError(
+                "No testing support for required storage engines yet"
+            )
     if target_storage:
         target_storage = env.add_storage(target_storage)
     with env.md_api.begin():
@@ -114,6 +179,7 @@ def produce_snap_output_for_static_input(
             input_data = input_datas[inpt.name]
             if isinstance(input_data, str):
                 input_data = DataInput(data=input_data)
+            assert isinstance(input_data, DataInput)
             n = g.create_node(
                 key=f"_input_{inpt.name}",
                 snap="core.import_dataframe",
