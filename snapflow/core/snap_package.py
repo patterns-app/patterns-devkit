@@ -196,7 +196,7 @@ class SnapPackage:
                 pkg = SnapPackage.from_path(f.path, namespace=namespace)
                 pkgs.append(pkg)
             except (NoSnapFoundError, ModuleNotFoundError) as e:
-                raise e
+                pass
         return pkgs
 
     def load_readme(self) -> str:
