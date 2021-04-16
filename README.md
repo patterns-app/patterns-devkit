@@ -111,7 +111,7 @@ nodes:
     input: stripe_charges
   - key: stripe_customer_lifetime_sales
     snap: customer_lifetime_sales
-    input: accumulated_stripe_charge
+    input: accumulated_stripe_charges
 """)
 
 print(g)
