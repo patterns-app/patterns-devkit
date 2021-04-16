@@ -11,10 +11,9 @@ def df1(ctx: SnapContext) -> DataBlock[T]:
 
 
 module = SnapflowModule(
-    "_test_module",
-    py_module_path=__file__,
-    py_module_name=__name__,
-    schemas=["schemas/test_schema.yml"],
-    snaps=["test_sql.sql", df1],
+    namespace="_test_module", py_module_path=__file__, py_module_name=__name__,
 )
-module.export()
+# Shortcuts, for tooling and convenience
+namespace = module.namespace
+all_snaps = module.snaps
+all_schemas = module.schemas

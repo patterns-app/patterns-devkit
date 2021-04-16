@@ -65,9 +65,11 @@ skip_glob = "examples/*"
 use_parentheses = true
 
 [tool.pytest.ini_options]
-filterwarnings = [
-  "error",
-  "ignore:skipping",
+norecursedirs = [
+  "_*/*",
+]
+testpaths = [
+  "tests",
 ]
 
 [build-system]

@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
+from types import ModuleType
 
 from alembic import command
 from alembic.config import Config
@@ -20,7 +21,7 @@ from snapflow.core.metadata.api import MetadataApi
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
-    DEFAULT_LOCAL_MODULE_NAME,
+    DEFAULT_LOCAL_NAMESPACE,
     SnapflowModule,
 )
 from snapflow.core.schema import GeneratedSchema, GenericSchemaException, is_generic
@@ -57,7 +58,7 @@ class EnvironmentConfiguration:
     name: str = "default"
     metadata_storage_url: Optional[str] = None
     # modules: List[SnapflowModule] = field(default_factory=list)
-    module_names: List[str] = field(default_factory=list)
+    namespaces: List[str] = field(default_factory=list)
     default_storage_url: Optional[str] = None
     storage_urls: List[str] = field(default_factory=list)
     runtime_urls: List[str] = field(default_factory=list)
@@ -121,7 +122,7 @@ class Environment:
         env = Environment(
             name=cfg.name,
             metadata_storage=cfg.metadata_storage_url,
-            modules=cfg.module_names,
+            modules=cfg.namespaces,
             storages=cfg.storage_urls,
             default_storage=cfg.default_storage_url,
             runtimes=cfg.runtime_urls,
@@ -138,14 +139,14 @@ class Environment:
         return EnvironmentConfiguration(
             name=self.name,
             metadata_storage_url=self.metadata_storage.url,
-            module_names=self.get_module_names(),  # TODO: check if these are importable, raise if not
+            namespaces=self.get_namespaces(),  # TODO: check if these are importable, raise if not
             default_storage_url=self.get_default_storage().url,
             storage_urls=[s.url for s in self.storages],
             runtime_urls=[s.url for s in self.runtimes],
             settings=self.settings,
         )
 
-    def get_module_names(self) -> List[str]:
+    def get_namespaces(self) -> List[str]:
         return self.library.module_lookup_names
 
     # Shortcut
@@ -214,10 +215,10 @@ class Environment:
     def all_snaps(self) -> List[_Snap]:
         return self.library.all_snaps()
 
-    def add_module(self, *modules: Union[SnapflowModule, str]):
+    def add_module(self, *modules: Union[SnapflowModule, ModuleType, str]):
         for module in modules:
             if isinstance(module, str):
-                if module in (DEFAULT_LOCAL_MODULE_NAME, "core"):
+                if module in (DEFAULT_LOCAL_NAMESPACE, "core"):
                     continue
                 try:
                     module = import_module(module)
@@ -559,8 +560,8 @@ def run(
 #     )
 #     for url in yml.get("storages", []):
 #         env.add_storage(Storage.from_url(url))
-#     for module_name in yml.get("modules", []):
-#         m = import_module(module_name)
+#     for namespace in yml.get("modules", []):
+#         m = import_module(namespace)
 #         env.add_module(m)
 #     return env
 
@@ -573,8 +574,8 @@ def load_environment_from_project(project: Any) -> Environment:
     )
     for url in getattr(project, "storages", []):
         env.add_storage(Storage.from_url(url))
-    for module_name in getattr(project, "modules", []):
-        m = import_module(module_name)
+    for namespace in getattr(project, "modules", []):
+        m = import_module(namespace)
         env.add_module(m)  # type: ignore  # We hijack the module
     return env
 

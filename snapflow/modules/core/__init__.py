@@ -1,29 +1,11 @@
 from commonmodel.base import AnySchema
 from snapflow.core.module import SnapflowModule
-from snapflow.modules.core.snaps import conform_to_schema
 
-from .snaps import accumulator, dedupe, static
 
-module = SnapflowModule(
-    "core",
-    py_module_path=__file__,
-    py_module_name=__name__,
-    schemas=[AnySchema, "schemas/core_test_type.yml"],
-    snaps=[
-        conform_to_schema.dataframe_conform_to_schema,
-        conform_to_schema.sql_conform_to_schema,
-        dedupe.sql_dedupe_unique_keep_newest_row,
-        dedupe.dataframe_dedupe_unique_keep_newest_row,
-        accumulator.sql_accumulator,
-        accumulator.dataframe_accumulator,
-        static.import_dataframe,
-        static.import_local_csv,
-        static.import_storage_csv,
-    ],
-    tests=[
-        accumulator.test_accumulator,
-        dedupe.test_dedupe,
-        conform_to_schema.test_conform,
-    ],
-)
-module.export()
+module = SnapflowModule("core", py_module_path=__file__, py_module_name=__name__,)
+module.add_schema(AnySchema)
+# module.export()
+namespace = module.namespace
+all_snaps = module.snaps  # Shortcuts, for tooling
+all_schemas = module.schemas  # Shortcuts, for tooling
+

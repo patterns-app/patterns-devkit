@@ -28,14 +28,14 @@ class MetadataApi:
 
     @contextmanager
     def begin(self) -> Iterator[Session]:
-        # if self.active_session is None:
-        with self.Session.begin() as sess:
-            self.active_session = sess
-            yield sess
-        self.active_session = None
-        # else:
-        #     # TODO: handle nested tx
-        #     yield self.active_session
+        if self.active_session is None:
+            with self.Session.begin() as sess:
+                self.active_session = sess
+                yield sess
+            self.active_session = None
+        else:
+            # TODO: handle nested tx
+            yield self.active_session
 
     @contextmanager
     def begin_nested(self) -> Iterator[SessionTransaction]:

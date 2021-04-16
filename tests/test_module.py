@@ -14,17 +14,17 @@ logger.enable("snapflow")
 def test_module_init():
     from . import _test_module
 
-    assert isinstance(_test_module, SnapflowModule)
-    assert len(_test_module.schemas) >= 1
-    assert len(_test_module.snaps) >= 2
+    assert isinstance(_test_module.module, SnapflowModule)
+    assert len(_test_module.all_schemas) >= 1
+    assert len(_test_module.all_snaps) >= 2
 
 
 def test_core_module():
-    # These are times two because we have an entry for both `name` and `module_name.name`
-    assert len(core.snaps) == 9 * 2
-    assert len(core.schemas) == 3
+    # These are times two because we have an entry for both `name` and `namespace.name`
+    assert len(core.all_snaps) == 8
+    assert len(core.all_schemas) == 2
 
-    core.run_tests()
+    core.module.run_tests()
 
 
 def test_default_module():

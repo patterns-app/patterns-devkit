@@ -107,7 +107,7 @@ nodes:
     params:
       api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
   - key: accumulated_stripe_charges
-    snap: core.dataframe_accumulator
+    snap: core.accumulator
     input: stripe_charges
   - key: stripe_customer_lifetime_sales
     snap: customer_lifetime_sales
@@ -178,20 +178,20 @@ def customer_lifetime_sales(ctx: SnapContext, txs: DataBlock):
     return txs_df.groupby("customer")[metric].sum().reset_index()
 
 @SqlSnap
-@Param("metric", datatype="str", default="amount")
+@Param("metric", datatype="raw", default="amount")
 @Input("txs", schema="Transaction")
 def customer_lifetime_sales_sql():
   return """
-  select
-      customer
-    , sum(:metric) as :metric
-  from txs
-  group by customer
-  """
+      select
+          customer
+        , sum(:metric) as :metric
+      from txs
+      group by customer
+  """)
 ```
 
-Note the special syntax introduced into the SQL query for using a
-parameter.
+Note the special syntax `:metric` in the SQL query for using a parameter. It is of type
+`raw` since it is used as an identifier (we don't want it quoted as a string).
 
 ### Schemas
 

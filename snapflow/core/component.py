@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Dict, List, Union
 
+from types import ModuleType
+
 from commonmodel import Schema
 from dcp.utils.common import AttrDict
 
@@ -13,26 +15,34 @@ if TYPE_CHECKING:
     from snapflow.core.module import SnapflowModule
 
 
+class DictView(dict):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__dict__ = self
+
+
 class ComponentLibrary:
     snaps: Dict[str, _Snap]
     schemas: Dict[str, Schema]
     module_lookup_names: List[str]
 
-    def __init__(self, module_lookup_keys: List[str] = None):
-        from snapflow.core.module import DEFAULT_LOCAL_MODULE_NAME
+    def __init__(self, namespace_lookup_keys: List[str] = None):
+        from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
 
         self.snaps = {}
         self.schemas = {}
-        self.module_lookup_names = [DEFAULT_LOCAL_MODULE_NAME]
-        if module_lookup_keys:
-            for k in module_lookup_keys:
-                self.add_module_name(k)
+        self.module_lookup_names = [DEFAULT_LOCAL_NAMESPACE]
+        if namespace_lookup_keys:
+            for k in namespace_lookup_keys:
+                self.add_namespace(k)
 
-    def add_module_name(self, k: str):
+    def add_namespace(self, k: str):
         if k not in self.module_lookup_names:
             self.module_lookup_names.append(k)
 
-    def add_module(self, module: SnapflowModule):
+    def add_module(self, module: Union[SnapflowModule, ModuleType]):
+        if isinstance(module, ModuleType):
+            module = module.module
         self.merge(module.library)
 
     def add_snap(self, p: _Snap):
@@ -61,7 +71,7 @@ class ComponentLibrary:
             return self.snaps[snap_like]
         except KeyError as e:
             if try_module_lookups:
-                return self.module_name_lookup(self.snaps, snap_like)
+                return self.namespace_lookup(self.snaps, snap_like)
             raise e
 
     def get_schema(
@@ -76,10 +86,10 @@ class ComponentLibrary:
             return self.schemas[schema_like]
         except KeyError as e:
             if try_module_lookups:
-                return self.module_name_lookup(self.schemas, schema_like)
+                return self.namespace_lookup(self.schemas, schema_like)
             raise e
 
-    def module_name_lookup(self, d: Dict[str, Any], k: str) -> Any:
+    def namespace_lookup(self, d: Dict[str, Any], k: str) -> Any:
         if "." in k:
             raise KeyError(k)
         for m in self.module_lookup_names:
@@ -99,17 +109,17 @@ class ComponentLibrary:
         self.snaps.update(other.snaps)
         self.schemas.update(other.schemas)
         for k in other.module_lookup_names:
-            self.add_module_name(k)
+            self.add_namespace(k)
 
-    def get_view(self, d: Dict) -> AttrDict:
-        ad: AttrDict = AttrDict()
+    def get_view(self, d: Dict) -> DictView[str, Any]:
+        ad: DictView = DictView()
         for k, p in d.items():
-            ad[k] = p
+            # ad[k] = p
             ad[k.split(".")[-1]] = p  # TODO: module precedence
         return ad
 
-    def get_snaps_view(self) -> AttrDict[str, _Snap]:
+    def get_snaps_view(self) -> DictView[str, _Snap]:
         return self.get_view(self.snaps)
 
-    def get_schemas_view(self) -> AttrDict[str, Schema]:
+    def get_schemas_view(self) -> DictView[str, Schema]:
         return self.get_view(self.schemas)

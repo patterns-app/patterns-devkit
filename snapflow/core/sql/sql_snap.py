@@ -1,9 +1,11 @@
 from __future__ import annotations
+from pathlib import Path
 
 import re
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from functools import partial
+from snapflow.core.snap_package import load_file
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import sqlparse
@@ -23,7 +25,7 @@ from snapflow.core.execution.execution import SnapContext
 from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DataBlockLog
 from snapflow.core.runtime import DatabaseRuntimeClass, RuntimeClass
-from snapflow.core.snap import DataInterfaceType, _Snap, snap_factory
+from snapflow.core.snap import DataInterfaceType, Parameter, _Snap, snap_factory
 from snapflow.core.snap_interface import (
     DEFAULT_CONTEXT,
     DEFAULT_INPUT_ANNOTATION,
@@ -99,9 +101,7 @@ class ParsedSqlStatement:
         else:
             output = make_default_output()
         return DeclaredSnapInterface(
-            inputs=inputs,
-            output=output,
-            context=DEFAULT_CONTEXT,
+            inputs=inputs, output=output, context=DEFAULT_CONTEXT,
         )
 
 
@@ -128,9 +128,7 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=sql_with_jinja_vars,
-        found_params=params,
+        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
     )
 
 
@@ -240,13 +238,20 @@ def parse_sql_statement(sql: str, autodetect_tables: bool = True) -> ParsedSqlSt
     )
 
 
-def params_as_sql(params: Dict[str, Any]) -> Dict[str, Any]:
+def params_as_sql(ctx: SnapContext) -> Dict[str, Any]:
+    param_values = ctx.get_params()
     sql_params = {}
-    for k, v in params.items():
+    for k, v in param_values.items():
+        p = ctx.snap.get_param(k)
+        if p.datatype == "raw":
+            sql_params[k] = v
+            continue
+        # First convert things to strings where makes sense
         if isinstance(v, datetime):
             v = v.isoformat()
         if isinstance(v, date):
             v = v.strftime("%Y-%m-%d")
+        # Then quote string
         if isinstance(v, str):
             v = "'" + v + "'"
         sql_params[k] = v
@@ -330,10 +335,7 @@ class SqlSnapWrapper:
         # )
 
     def get_input_table_stmts(
-        self,
-        ctx: SnapContext,
-        storage: Storage,
-        inputs: Dict[str, DataBlock] = None,
+        self, ctx: SnapContext, storage: Storage, inputs: Dict[str, DataBlock] = None,
     ) -> Dict[str, str]:
         if inputs is None:
             return {}
@@ -344,10 +346,7 @@ class SqlSnapWrapper:
         return table_stmts
 
     def get_compiled_sql(
-        self,
-        ctx: SnapContext,
-        storage: Storage,
-        inputs: Dict[str, DataBlock] = None,
+        self, ctx: SnapContext, storage: Storage, inputs: Dict[str, DataBlock] = None,
     ):
 
         parsed = self.get_parsed_statement()
@@ -356,7 +355,7 @@ class SqlSnapWrapper:
             ctx=ctx,
             inputs=input_sql,
             input_objects={i.name: i for i in ctx.inputs},
-            params=params_as_sql(ctx.get_params()),
+            params=params_as_sql(ctx),
             storage=storage,
             # TODO: we haven't logged the input blocks yet (in the case of a stream) so we can't
             #    resolve the nominal output schema at this point. But it is _possible_ if necessary -- is it?
@@ -375,22 +374,35 @@ class SqlSnapWrapper:
         return stmt.as_interface()
 
 
+def process_sql(sql: str, file_path: str = None) -> str:
+    if sql.endswith(".sql"):
+        if not file_path:
+            raise Exception(
+                f"Must specify @SqlSnap(file=__file__) in order to load sql file {sql}"
+            )
+        dir_path = Path(file_path) / ".."
+        sql = load_file(str(dir_path), sql)
+    return sql
+
+
 def sql_snap_factory(
     name: str,
     sql: str = None,
-    module: Optional[Union[SnapflowModule, str]] = None,
-    compatible_runtimes: str = None,  # TODO: engine support
+    file: str = None,
+    namespace: Optional[Union[SnapflowModule, str]] = None,
+    required_storage_classes: List[str] = None,
     wrapper_cls: type = SqlSnapWrapper,
     autodetect_inputs: bool = True,
     **kwargs,  # TODO: explicit options
 ) -> _Snap:
     if not sql:
         raise ValueError("Must provide sql")
+    sql = process_sql(sql, file)
     p = snap_factory(
         wrapper_cls(sql, autodetect_inputs=autodetect_inputs),
         name=name,
-        module=module,
-        compatible_runtimes=compatible_runtimes or "database",
+        namespace=namespace,
+        required_storage_classes=required_storage_classes or ["database"],
         ignore_signature=True,  # For SQL, ignore signature if explicit inputs are provided
         **kwargs,
     )
@@ -402,15 +414,18 @@ sql_snap = sql_snap_factory
 
 def sql_snap_decorator(
     sql_fn_or_snap: Union[_Snap, Callable] = None,
+    file: str = None,
     autodetect_inputs: bool = True,
     **kwargs,
 ) -> Union[Callable, _Snap]:
     if sql_fn_or_snap is None:
+        # handle bare decorator @SqlSnap
         return partial(
-            sql_snap_decorator, autodetect_inputs=autodetect_inputs, **kwargs
+            sql_snap_decorator, file=file, autodetect_inputs=autodetect_inputs, **kwargs
         )
     if isinstance(sql_fn_or_snap, _Snap):
         sql = sql_fn_or_snap.snap_callable()
+        sql = process_sql(sql, file)
         sql_fn_or_snap.snap_callable = SqlSnapWrapper(
             sql, autodetect_inputs=autodetect_inputs
         )
@@ -419,8 +434,9 @@ def sql_snap_decorator(
         return snap_factory(
             sql_fn_or_snap,
             ignore_signature=True,
-            compatible_runtimes="database",
-            module=sql_fn_or_snap.module_name,
+            required_storage_classes=["database"],
+            namespace=sql_fn_or_snap.namespace,
+            _original_object=sql_fn_or_snap.snap_callable,
             **kwargs,
         )
     sql = sql_fn_or_snap()
@@ -429,12 +445,10 @@ def sql_snap_decorator(
     else:
         name = sql_fn_or_snap.__name__
     return sql_snap_factory(
-        name=name,
-        sql=sql,
-        autodetect_inputs=autodetect_inputs,
-        **kwargs,
+        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
     )
 
 
 SqlSnap = sql_snap_decorator
 Sql = sql_snap_decorator
+
