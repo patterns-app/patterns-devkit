@@ -28,6 +28,7 @@ black = "^19.10b0"
 # common-model = {path = "../common-model/python", develop = true}
 # datacopy = {path = "../dcp", develop = true}
 # snapflow-stripe = {path = "../snapflow-modules/snapflow-stripe", develop = true}
+cookiecutter = "^1.7.2"
 flake8 = "^3.8.1"
 ipython = "^7.13.0"
 isort = "^4.3.21"
