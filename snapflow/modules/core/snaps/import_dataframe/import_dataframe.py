@@ -13,7 +13,7 @@ from snapflow.core.snap import Input, Output, Param, Snap
 
 
 @Snap(
-    module="core", display_name="Import Pandas DataFrame",
+    namespace="core", display_name="Import Pandas DataFrame",
 )
 @Param("dataframe", datatype="DataFrame")
 @Param("schema", datatype="str", required=False)

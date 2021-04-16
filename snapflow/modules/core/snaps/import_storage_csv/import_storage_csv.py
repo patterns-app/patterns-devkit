@@ -16,7 +16,7 @@ from snapflow.core.snap import Input, Output, Param, Snap
 from snapflow.utils.typing import T
 
 
-@Snap(module="core", display_name="Import CSV from Storage")
+@Snap(namespace="core", display_name="Import CSV from Storage")
 @Param("name", datatype="str")
 @Param("storage_url", datatype="str")
 @Param("schema", datatype="str", required=False)

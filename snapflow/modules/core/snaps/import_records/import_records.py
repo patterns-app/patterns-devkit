@@ -15,7 +15,7 @@ from snapflow.core.snap import Input, Output, Param, Snap
 
 
 @Snap(
-    module="core", display_name="Import Records (List of dicts)",
+    namespace="core", display_name="Import Records (List of dicts)",
 )
 @Param("records", datatype="json")
 @Param("schema", datatype="str", required=False)

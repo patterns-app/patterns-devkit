@@ -14,7 +14,7 @@ from snapflow.core.snap import Input, Output, Param, Snap
 from snapflow.utils.typing import T
 
 
-@Snap(module="core", display_name="Import local CSV")
+@Snap(namespace="core", display_name="Import local CSV")
 @Param("path", datatype="str")
 @Param("schema", datatype="str", required=False)
 def import_local_csv(ctx: SnapContext):

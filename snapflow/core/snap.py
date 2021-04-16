@@ -185,7 +185,7 @@ def snap_factory(
         else:
             namespace = namespace
         # Because we default to local module if not specified, but allow chaining decorators
-        # (like Snap(module="core")(Param(...)(Param.....))) we must undo adding to default local
+        # (like Snap(namespace="core")(Param(...)(Param.....))) we must undo adding to default local
         # module if we later run into a specified module.
         if snap_like.namespace and namespace and snap_like.namespace != namespace:
             # We're moving modules, so make that happen here if default

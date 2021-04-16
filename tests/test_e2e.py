@@ -187,9 +187,7 @@ def test_repeated_runs():
     assert len(blocks) == 0
 
     # now add new node and process all at once
-    g.create_node(
-        key="new_accumulator", snap="core.dataframe_accumulator", input="source"
-    )
+    g.create_node(key="new_accumulator", snap="core.accumulator", input="source")
     blocks = env.produce("new_accumulator", g, target_storage=s)
     assert len(blocks) == 1
     records = blocks[0].as_records()
@@ -283,7 +281,7 @@ def test_node_reset():
     batches = 2
     cfg = {"batches": batches}
     source = g.create_node(customer_source, params=cfg)
-    accum = g.create_node("core.dataframe_accumulator", input=source)
+    accum = g.create_node("core.accumulator", input=source)
     metrics = g.create_node(shape_metrics, input=accum)
     # Run first time
     produce(source, graph=g, target_storage=s, env=env)
@@ -330,7 +328,7 @@ def test_ref_input():
     batches = 2
     cfg = {"batches": batches}
     source = g.create_node(customer_source, params=cfg)
-    accum = g.create_node("core.dataframe_accumulator", input=source)
+    accum = g.create_node("core.accumulator", input=source)
     metrics = g.create_node(shape_metrics, input=accum)
     join_ref = g.create_node(
         with_latest_metrics, inputs={"metrics": metrics, "cust": source}

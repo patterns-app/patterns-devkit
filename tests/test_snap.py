@@ -399,14 +399,14 @@ def test_any_schema_interface():
 
 
 def test_api():
-    @Snap(module="module1")
+    @Snap(namespace="module1")
     @Param("p1", "str")
     @Input("i1")
     def s1(ctx: SnapContext):
         pass
 
     @Param("p1", "str")
-    @Snap("s1", module="module1")
+    @Snap("s1", namespace="module1")
     def s2(ctx: SnapContext, i1: DataBlock):
         pass
 

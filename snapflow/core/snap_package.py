@@ -190,6 +190,8 @@ class SnapPackage:
         for f in os.scandir(path):
             if not f.is_dir():
                 continue
+            if f.name.startswith("__"):
+                continue
             try:
                 pkg = SnapPackage.from_path(f.path, namespace=namespace)
                 pkgs.append(pkg)

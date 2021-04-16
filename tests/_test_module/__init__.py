@@ -11,6 +11,9 @@ def df1(ctx: SnapContext) -> DataBlock[T]:
 
 
 module = SnapflowModule(
-    namespace="_test_module", py_module_path=__file__, py_namespace=__name__,
+    namespace="_test_module", py_module_path=__file__, py_module_name=__name__,
 )
-module.export()
+# Shortcuts, for tooling and convenience
+namespace = module.namespace
+all_snaps = module.snaps
+all_schemas = module.schemas

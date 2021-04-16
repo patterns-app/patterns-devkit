@@ -33,31 +33,33 @@ class ModuleException(Exception):
 
 
 class SnapflowModule:
+    name: Optional[str]
     namespace: str
     py_module_path: Optional[str]
-    py_namespace: Optional[str]
-    snap_paths: List[str] = ["snaps"]
-    schema_paths: List[str] = ["schemas"]
+    py_module_name: Optional[str]
+    snap_paths: List[str] = ["components/snaps"]
+    schema_paths: List[str] = ["components/schemas"]
     library: ComponentLibrary
     dependencies: List[SnapflowModule]
 
     def __init__(
         self,
         namespace: str,
+        name: Optional[str] = None,
         py_module_path: Optional[str] = None,
-        py_namespace: Optional[str] = None,
+        py_module_name: Optional[str] = None,
         snap_paths: List[str] = ["snaps"],
         schema_paths: List[str] = ["schemas"],
         dependencies: List[
             SnapflowModule
         ] = None,  # TODO: support str references to external deps (will need repo hooks...)
     ):
-
+        self.name = name or py_module_name
         self.namespace = namespace
         if py_module_path:
             py_module_path = os.path.dirname(py_module_path)
         self.py_module_path = py_module_path
-        self.py_namespace = py_namespace
+        self.py_module_name = py_module_name
         self.library = ComponentLibrary(namespace_lookup_keys=[self.namespace])
         self.snap_paths = snap_paths
         self.schema_paths = schema_paths
@@ -72,16 +74,19 @@ class SnapflowModule:
         #     self.add_test_case(t)
 
     def discover_snaps(self):
-        if not self.py_module_path:
-            return
         from snapflow.core.snap_package import SnapPackage
 
+        if not self.py_module_path:
+            return
+
         for snaps_path in self.snap_paths:
+            logger.debug(f"Discovering snaps in {snaps_path}")
             snaps_root = Path(self.py_module_path).resolve() / snaps_path
             packages = SnapPackage.all_from_root_path(
                 str(snaps_root), namespace=self.namespace
             )
             for pkg in packages:
+                logger.debug(f"Found package {pkg.name}")
                 self.snap_packages[pkg.name] = pkg
                 self.library.add_snap(pkg.snap)
 
@@ -124,14 +129,14 @@ class SnapflowModule:
                 snap = make_snap(snap_like, namespace=self.namespace)
             # elif isinstance(snap_like, str):
             #     # Just a string, not a sql file, assume it is python? TODO
-            #     snap = make_snap(PythonCodeSnapWrapper(snap_like), module=self.name)
+            #     snap = make_snap(PythonCodeSnapWrapper(snap_like), namespaceself.name)
             elif isinstance(snap_like, ModuleType):
                 # Module snap (the new default)
                 pkg = SnapPackage.from_module(snap_like)
                 self.add_snap_package(pkg)
                 return pkg.snap
                 # code = inspect.getsource(snap_like)
-                # snap = make_snap(PythonCodeSnapWrapper(code), module=self.name)
+                # snap = make_snap(PythonCodeSnapWrapper(code), namespaceself.name)
             else:
                 raise TypeError(snap_like)
         return snap
@@ -158,13 +163,22 @@ class SnapflowModule:
         return self.library.get_snap(snap_like)
 
     def export(self):
-        if self.py_namespace is None:
-            raise Exception("Cannot export module, no namespace set")
-        mod = sys.modules[
-            self.py_namespace
-        ]  # = self  # type: ignore  # sys.module_lookup_names wants a modulefinder.Module type and it's not gonna get it
-        setattr(mod, "snaps", self.snaps)
-        setattr(mod, "schemas", self.schemas)
+        pass
+        # if self.py_module_name is None:
+        #     raise Exception("Cannot export module, no namespace set")
+        # mod = sys.modules[
+        #     self.py_module_name
+        # ]  # = self  # type: ignore  # sys.module_lookup_names wants a modulefinder.Module type and it's not gonna get it
+        # setattr(mod, "__getattr__", self.__getattribute__)
+
+    # Add to dir:
+    # setattr(mod, "snaps", self.snaps)
+    # setattr(mod, "schemas", self.schemas)
+    # setattr(mod, "run_tests", self.run_tests)
+    # setattr(mod, "namespace", self.namespace)
+
+    def __getattr__(self):
+        pass
 
     @property
     def schemas(self) -> DictView[str, Schema]:

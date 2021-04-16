@@ -10,8 +10,8 @@ from snapflow.core.snap import Input, Output, Snap
 from snapflow.utils.typing import T
 
 
-# @snap(module="core")
-@Input("input", schema="T")
+# @snap(namespace="core")
+@Input("input", schema="T", stream=True)
 @Input("previous", schema="T", from_self=True)
 @Snap(namespace="core", display_name="Accumulate DataFrames")
 def accumulator(

@@ -107,7 +107,7 @@ nodes:
     params:
       api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
   - key: accumulated_stripe_charges
-    snap: core.dataframe_accumulator
+    snap: core.accumulator
     input: stripe_charges
   - key: stripe_customer_lifetime_sales
     snap: customer_lifetime_sales

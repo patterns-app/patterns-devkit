@@ -2,6 +2,10 @@ from commonmodel.base import AnySchema
 from snapflow.core.module import SnapflowModule
 
 
-module = SnapflowModule("core", py_module_path=__file__, py_namespace=__name__,)
+module = SnapflowModule("core", py_module_path=__file__, py_module_name=__name__,)
 module.add_schema(AnySchema)
-module.export()
+# module.export()
+namespace = module.namespace
+all_snaps = module.snaps  # Shortcuts, for tooling
+all_schemas = module.schemas  # Shortcuts, for tooling
+
