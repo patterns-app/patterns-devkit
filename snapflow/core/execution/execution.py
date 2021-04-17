@@ -42,14 +42,14 @@ from snapflow.core.execution.executable import (
     ExecutionResult,
 )
 from snapflow.core.metadata.api import MetadataApi
-from snapflow.core.node import DataBlockLog, Direction, Node, SnapLog, get_state
-from snapflow.core.snap import (
+from snapflow.core.node import DataBlockLog, Direction, Node, FunctionLog, get_state
+from snapflow.core.function import (
     DEFAULT_OUTPUT_NAME,
     DataInterfaceType,
     InputExhaustedException,
-    _Snap,
+    _Function,
 )
-from snapflow.core.snap_interface import (
+from snapflow.core.function_interface import (
     BoundInterface,
     NodeInterfaceManager,
     StreamInput,
@@ -78,15 +78,15 @@ def validate_data_blocks(env: Environment):
 
 
 @dataclass(frozen=True)
-class SnapContext:  # TODO: (Generic[C, S]):
+class FunctionContext:  # TODO: (Generic[C, S]):
     env: Environment
-    snap: _Snap
+    function: _Function
     node: Node
     executable: Executable
     metadata_api: MetadataApi
     inputs: List[StreamInput]
     bound_interface: BoundInterface
-    snap_log: SnapLog
+    function_log: FunctionLog
     execution_context: ExecutionContext
     input_blocks_processed: Dict[str, Set[DataBlockMetadata]] = field(
         default_factory=lambda: defaultdict(set)
@@ -105,7 +105,7 @@ class SnapContext:  # TODO: (Generic[C, S]):
     def ensure_log(self, block: DataBlockMetadata, direction: Direction, name: str):
         if self.metadata_api.execute(
             select(DataBlockLog).filter_by(
-                snap_log_id=self.snap_log.id,
+                function_log_id=self.function_log.id,
                 stream_name=name,
                 data_block_id=block.id,
                 direction=direction,
@@ -113,7 +113,7 @@ class SnapContext:  # TODO: (Generic[C, S]):
         ).scalar_one_or_none():
             return
         drl = DataBlockLog(  # type: ignore
-            snap_log_id=self.snap_log.id,
+            function_log_id=self.function_log.id,
             stream_name=name,
             data_block_id=block.id,
             direction=direction,
@@ -148,42 +148,42 @@ class SnapContext:  # TODO: (Generic[C, S]):
             logger.debug(f"Output logged: {sdb.data_block}")
             self.ensure_log(sdb.data_block, Direction.OUTPUT, output_name)
 
-    def get_snap_args(self) -> Tuple[List, Dict]:
-        snap_args = []
+    def get_function_args(self) -> Tuple[List, Dict]:
+        function_args = []
         if self.bound_interface.context:
-            snap_args.append(self)
-        snap_inputs = self.bound_interface.inputs_as_kwargs()
-        snap_kwargs = snap_inputs
-        return (snap_args, snap_kwargs)
+            function_args.append(self)
+        function_inputs = self.bound_interface.inputs_as_kwargs()
+        function_kwargs = function_inputs
+        return (function_args, function_kwargs)
 
     def get_param(self, key: str, default: Any = None) -> Any:
         if default is None:
             try:
-                default = self.snap.get_param(key).default
+                default = self.function.get_param(key).default
             except KeyError:
                 pass
         return self.node.params.get(key, default)
 
     def get_params(self, defaults: Dict[str, Any] = None) -> Dict[str, Any]:
-        final_params = {p.name: p.default for p in self.snap.params}
+        final_params = {p.name: p.default for p in self.function.params}
         final_params.update(defaults or {})
         final_params.update(self.node.params)
         return final_params
 
     def get_state_value(self, key: str, default: Any = None) -> Any:
-        assert isinstance(self.snap_log.node_end_state, dict)
-        return self.snap_log.node_end_state.get(key, default)
+        assert isinstance(self.function_log.node_end_state, dict)
+        return self.function_log.node_end_state.get(key, default)
 
     def get_state(self) -> Dict[str, Any]:
-        return self.snap_log.node_end_state
+        return self.function_log.node_end_state
 
     def emit_state_value(self, key: str, new_value: Any):
-        new_state = self.snap_log.node_end_state.copy()
+        new_state = self.function_log.node_end_state.copy()
         new_state[key] = new_value
-        self.snap_log.node_end_state = new_state
+        self.function_log.node_end_state = new_state
 
     def emit_state(self, new_state: Dict):
-        self.snap_log.node_end_state = new_state
+        self.function_log.node_end_state = new_state
 
     def emit(
         self,
@@ -262,8 +262,8 @@ class SnapContext:  # TODO: (Generic[C, S]):
         #   Answer: ok to return as is (just mark it as 'output' in DBL)
         if isinstance(records_obj, StoredDataBlockMetadata):
             # TODO is it in local storage tho? we skip conversion below...
-            # This is just special case right now to support SQL snap
-            # Will need better solution for explicitly creating DB/SDBs inside of snaps
+            # This is just special case right now to support SQL function
+            # Will need better solution for explicitly creating DB/SDBs inside of functions
             return records_obj
         elif isinstance(records_obj, DataBlockMetadata):
             raise NotImplementedError
@@ -366,12 +366,12 @@ class SnapContext:  # TODO: (Generic[C, S]):
 
     def should_continue(self) -> bool:
         """
-        Long running snaps should check this function periodically
+        Long running functions should check this function periodically
         to honor time limits.
         """
         if not self.execution_context.execution_timelimit_seconds:
             return True
-        seconds_elapsed = (utcnow() - self.snap_log.started_at).total_seconds()
+        seconds_elapsed = (utcnow() - self.function_log.started_at).total_seconds()
         return seconds_elapsed < self.execution_context.execution_timelimit_seconds
 
     def as_execution_result(self) -> ExecutionResult:
@@ -391,11 +391,11 @@ class SnapContext:  # TODO: (Generic[C, S]):
             non_reference_inputs_bound=self.bound_interface.non_reference_bound_inputs(),
             input_block_counts=input_block_counts,
             output_blocks=output_blocks,
-            error=self.snap_log.error.get("error")
-            if isinstance(self.snap_log.error, dict)
+            error=self.function_log.error.get("error")
+            if isinstance(self.function_log.error, dict)
             else None,
-            traceback=self.snap_log.error.get("traceback")
-            if isinstance(self.snap_log.error, dict)
+            traceback=self.function_log.error.get("traceback")
+            if isinstance(self.function_log.error, dict)
             else None,
         )
 
@@ -409,11 +409,9 @@ class ExecutionManager:
 
     def execute(self) -> ExecutionResult:
         # Setup for run
-        base_msg = (
-            f"Running node {cf.bold(self.node.key)} {cf.dimmed(self.node.snap.key)}\n"
-        )
+        base_msg = f"Running node {cf.bold(self.node.key)} {cf.dimmed(self.node.function.key)}\n"
         logger.debug(
-            f"RUNNING NODE {self.node.key} {self.node.snap.key} with params `{self.node.params}`"
+            f"RUNNING NODE {self.node.key} {self.node.function.key} with params `{self.node.params}`"
         )
         self.logger.log(base_msg)
         with self.logger.indent():
@@ -422,12 +420,14 @@ class ExecutionManager:
             if not result.error:
                 self.logger.log(cf.success("Ok " + success_symbol + "\n"))  # type: ignore
             else:
-                error = result.error or "Snap failed (unknown error)"
+                error = result.error or "Function failed (unknown error)"
                 self.logger.log(cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n")  # type: ignore
                 if result.traceback:
                     self.logger.log(cf.dimmed(result.traceback), indent=2)  # type: ignore
             logger.debug(f"Execution result: {result}")
-            logger.debug(f"*DONE* RUNNING NODE {self.node.key} {self.node.snap.key}")
+            logger.debug(
+                f"*DONE* RUNNING NODE {self.node.key} {self.node.function.key}"
+            )
         return result
 
     def _execute(self) -> ExecutionResult:
@@ -439,23 +439,25 @@ class ExecutionManager:
                 logger.debug(f"Inputs exhausted {e}")
                 raise e
                 # return ExecutionResult.empty()
-            with self.start_snap_run(self.node, bound_interface) as snap_ctx:
-                # snap = executable.compiled_snap.snap
+            with self.start_function_run(self.node, bound_interface) as function_ctx:
+                # function = executable.compiled_function.function
                 # local_vars = locals()
-                # if hasattr(snap, "_locals"):
-                #     local_vars.update(snap._locals)
-                # exec(snap.get_source_code(), globals(), local_vars)
-                # output_obj = local_vars[snap.snap_callable.__name__](
-                snap_args, snap_kwargs = snap_ctx.get_snap_args()
-                output_obj = snap_ctx.snap.snap_callable(*snap_args, **snap_kwargs,)
+                # if hasattr(function, "_locals"):
+                #     local_vars.update(function._locals)
+                # exec(function.get_source_code(), globals(), local_vars)
+                # output_obj = local_vars[function.function_callable.__name__](
+                function_args, function_kwargs = function_ctx.get_function_args()
+                output_obj = function_ctx.function.function_callable(
+                    *function_args, **function_kwargs,
+                )
                 if output_obj is not None:
-                    self.emit_output_object(output_obj, snap_ctx)
-            result = snap_ctx.as_execution_result()
+                    self.emit_output_object(output_obj, function_ctx)
+            result = function_ctx.as_execution_result()
         logger.debug(f"EXECUTION RESULT {result}")
         return result
 
     def emit_output_object(
-        self, output_obj: DataInterfaceType, snap_ctx: SnapContext,
+        self, output_obj: DataInterfaceType, function_ctx: FunctionContext,
     ):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):
@@ -466,12 +468,12 @@ class ExecutionManager:
         for output_obj in output_iterator:
             logger.debug(output_obj)
             i += 1
-            snap_ctx.emit(output_obj)
+            function_ctx.emit(output_obj)
 
     @contextmanager
-    def start_snap_run(
+    def start_function_run(
         self, node: Node, bound_interface: BoundInterface
-    ) -> Iterator[SnapContext]:
+    ) -> Iterator[FunctionContext]:
         from snapflow.core.graph import GraphMetadata
 
         # assert self.current_runtime is not None, "Runtime not set"
@@ -490,50 +492,50 @@ class ExecutionManager:
             md.flush()  # [new_graph_meta])
             graph_meta = new_graph_meta
 
-        snap_log = SnapLog(  # type: ignore
+        function_log = FunctionLog(  # type: ignore
             graph_id=graph_meta.hash,
             node_key=node.key,
             node_start_state=node_state.copy(),  # {k: v for k, v in node_state.items()},
             node_end_state=node_state,
-            snap_key=node.snap.key,
-            snap_params=node.params,
+            function_key=node.function.key,
+            function_params=node.params,
             # runtime_url=self.current_runtime.url,
             started_at=utcnow(),
         )
-        md.add(snap_log)
-        md.flush([snap_log])
-        snap_ctx = SnapContext(
+        md.add(function_log)
+        md.flush([function_log])
+        function_ctx = FunctionContext(
             env=self.env,
-            snap=self.exe.snap,
+            function=self.exe.function,
             node=self.exe.node,
             executable=self.exe,
             metadata_api=self.env.md_api,
             inputs=bound_interface.inputs,
-            snap_log=snap_log,
+            function_log=function_log,
             bound_interface=bound_interface,
             execution_context=self.exe.execution_context,
         )
         try:
-            yield snap_ctx
+            yield function_ctx
             # Validate local memory objects: Did we leave any non-storeables hanging?
             validate_data_blocks(self.env)
         except Exception as e:
             # Don't worry about exhaustion exceptions
             if not isinstance(e, InputExhaustedException):
                 logger.debug(f"Error running node:\n{traceback.format_exc()}")
-                snap_log.set_error(e)
-                snap_log.persist_state(self.env)
-                snap_log.completed_at = utcnow()
+                function_log.set_error(e)
+                function_log.persist_state(self.env)
+                function_log.completed_at = utcnow()
                 # TODO: should clean this up so transaction surrounds things that you DO
                 #       want to rollback, obviously
                 # md.commit()  # MUST commit here since the re-raised exception will issue a rollback
-                if self.exe.execution_context.abort_on_snap_error:
+                if self.exe.execution_context.abort_on_function_error:
                     raise e
         finally:
-            snap_ctx.finish_execution()
+            function_ctx.finish_execution()
             # Persist state on success OR error:
-            snap_log.persist_state(self.env)
-            snap_log.completed_at = utcnow()
+            function_log.persist_state(self.env)
+            function_log.completed_at = utcnow()
 
     def log_execution_result(self, result: ExecutionResult):
         self.logger.log("Inputs: ")

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from snapflow.core.data_block import DataBlockMetadata
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, Direction, SnapLog
+from snapflow.core.node import DataBlockLog, Direction, FunctionLog
 from snapflow.core.operators import filter, latest, operator
 from snapflow.core.streams import (
     DataBlockStream,
@@ -13,10 +13,10 @@ from snapflow.core.streams import (
 )
 from tests.utils import (
     make_test_run_context,
-    snap_generic,
-    snap_t1_sink,
-    snap_t1_source,
-    snap_t1_to_t2,
+    function_generic,
+    function_t1_sink,
+    function_t1_source,
+    function_t1_to_t2,
 )
 
 
@@ -45,15 +45,17 @@ class TestStreams:
             nominal_schema_key="_test.TestSchema2",
             realized_schema_key="_test.TestSchema2",
         )
-        self.node_source = self.g.create_node(key="snap_source", snap=snap_t1_source)
+        self.node_source = self.g.create_node(
+            key="function_source", function=function_t1_source
+        )
         self.node1 = self.g.create_node(
-            key="snap1", snap=snap_t1_sink, input="snap_source"
+            key="function1", function=function_t1_sink, input="function_source"
         )
         self.node2 = self.g.create_node(
-            key="snap2", snap=snap_t1_to_t2, input="snap_source"
+            key="function2", function=function_t1_to_t2, input="function_source"
         )
         self.node3 = self.g.create_node(
-            key="snap3", snap=snap_generic, input="snap_source"
+            key="function3", function=function_generic, input="function_source"
         )
         self.env.md_api.add(self.dr1t1)
         self.env.md_api.add(self.dr2t1)
@@ -70,16 +72,14 @@ class TestStreams:
         assert s.get_query_result(self.env).scalar_one_or_none() is None
 
     def test_stream_unprocessed_eligible(self):
-        dfl = SnapLog(
+        dfl = FunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
-            snap_key=self.node_source.snap.key,
+            function_key=self.node_source.function.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.env.md_api.add_all([dfl, drl])
 
@@ -88,27 +88,23 @@ class TestStreams:
         assert s.get_query_result(self.env).scalar_one_or_none() == self.dr1t1
 
     def test_stream_unprocessed_ineligible_already_input(self):
-        dfl = SnapLog(
+        dfl = FunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
-            snap_key=self.node_source.snap.key,
+            function_key=self.node_source.function.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        dfl2 = SnapLog(
+        dfl2 = FunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node1.key,
-            snap_key=self.node1.snap.key,
+            function_key=self.node1.function.key,
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            snap_log=dfl2,
-            data_block=self.dr1t1,
-            direction=Direction.INPUT,
+            function_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
         )
         self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 
@@ -121,27 +117,23 @@ class TestStreams:
         By default we don't input a block that has already been output by a DF, _even if that block was never input_,
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
-        dfl = SnapLog(
+        dfl = FunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
-            snap_key=self.node_source.snap.key,
+            function_key=self.node_source.function.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        dfl2 = SnapLog(
+        dfl2 = FunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node1.key,
-            snap_key=self.node1.snap.key,
+            function_key=self.node1.function.key,
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            snap_log=dfl2,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl2, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 
@@ -154,16 +146,14 @@ class TestStreams:
         assert s2.get_query_result(self.env).scalar_one_or_none() == self.dr1t1
 
     def test_stream_unprocessed_eligible_schema(self):
-        dfl = SnapLog(
+        dfl = FunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
-            snap_key=self.node_source.snap.key,
+            function_key=self.node_source.function.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.env.md_api.add_all([dfl, drl])
 
@@ -176,21 +166,17 @@ class TestStreams:
         assert s.get_query_result(self.env).scalar_one_or_none() is None
 
     def test_operators(self):
-        dfl = SnapLog(
+        dfl = FunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
-            snap_key=self.node_source.snap.key,
+            function_key=self.node_source.function.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         drl2 = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr2t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr2t1, direction=Direction.OUTPUT,
         )
         self.env.md_api.add_all([dfl, drl, drl2])
 
@@ -219,27 +205,23 @@ class TestStreams:
         assert self._cnt == 0
 
     def test_managed_stream(self):
-        dfl = SnapLog(
+        dfl = FunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
-            snap_key=self.node_source.snap.key,
+            function_key=self.node_source.function.key,
             runtime_url="test",
         )
         drl = DataBlockLog(
-            snap_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
-        dfl2 = SnapLog(
+        dfl2 = FunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node1.key,
-            snap_key=self.node1.snap.key,
+            function_key=self.node1.function.key,
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            snap_log=dfl2,
-            data_block=self.dr1t1,
-            direction=Direction.INPUT,
+            function_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
         )
         self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 

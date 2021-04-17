@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from snapflow.core.data_block import DataBlock
-from snapflow.core.execution import SnapContext
+from snapflow.core.execution import FunctionContext
 from snapflow.core.module import SnapflowModule
 from snapflow.utils.typing import T
 
 
-def df1(ctx: SnapContext) -> DataBlock[T]:
+def df1(ctx: FunctionContext) -> DataBlock[T]:
     pass
 
 
@@ -15,5 +15,5 @@ module = SnapflowModule(
 )
 # Shortcuts, for tooling and convenience
 namespace = module.namespace
-all_snaps = module.snaps
+all_functions = module.functions
 all_schemas = module.schemas

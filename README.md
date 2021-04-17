@@ -8,10 +8,10 @@
 <p>&nbsp;</p>
 
 **Snapflow** is a framework for building **functional reactive data pipelines** from modular
-components. It lets developers write gradually-typed pure data functions, called `snaps`, in **Python or SQL**
+components. It lets developers write gradually-typed pure data `functions` in **Python or SQL**
 that operate reactively on `datablocks`, immutable sets of data records whose
 structure and semantics are described by flexible `schemas`.
-These snaps can be composed into simple or complex data
+These functions can be composed into simple or complex data
 pipelines that tackle every step of the data processing pipeline, from API ingestion to transformation
 to analysis and modeling.
 
@@ -22,7 +22,7 @@ This functional reactive framework provides powerful benefits:
   incremental updates become simple stateless operators.
 
 - **Reusable components** — Because they are self-contained with documented inputs and outputs,
-  snaps can be easily plugged together, shared and
+  functions can be easily plugged together, shared and
   reused across projects, open-sourced, and catalogued in the snapflow repository (coming soon).
   Some example snapflow modules and components:
 
@@ -43,16 +43,16 @@ This functional reactive framework provides powerful benefits:
   complex pipelines down to the byte, and configure how active snapflow is in discarding
   stale and obsolete data.
 
-- **Portability** — With modular and testable snaps, developing consistent
+- **Portability** — With modular and testable functions, developing consistent
   data operations across different database engines and storage systems is safe and efficient.
   Snapflow supports any major database vendor (postgres, mysql, snowflake, bigquery, redshift),
   file system (local, S3, etc), as well as any data format, whether it's csv, json, or apache arrow.
 
-- **Testability** — Snaps provide explicit test
+- **Testability** — Functions provide explicit test
   inputs and the expected output under various data scenarios — a **data ETL unit test**, bringing
   the rigor and reliability of software to the world of data.
 
-- **Zero cost abstractions and high performance** — Snapflow snap operations and immutability
+- **Zero cost abstractions and high performance** — Snapflow function operations and immutability
   guarantees can be compiled down at execution time for high performance. Deterministic state
   and immutable records give snapflow leverage in optimizing performance. This means developers and
   analysts can work with clean mental models and strong guarantees while also getting superior
@@ -70,31 +70,31 @@ Install core library and the Stripe module:
 
 `pip install snapflow snapflow-stripe`
 
-Define a snap:
+Define a function:
 
 ```python
-from snapflow import Snap
+from snapflow import Function
 
-@Snap
+@Function
 def customer_lifetime_sales(txs):
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
 ```
 
-We could define this snap in equivalent sql too:
+We could define this function in equivalent sql too:
 
 ```python
-from snapflow import SqlSnap
+from snapflow import SqlFunction
 
-@SqlSnap
+@SqlFunction
 def customer_lifetime_sales_sql():
   return "select customer, sum(amount) as amount from txs group by customer"
   # Or use a jinja template:
   # return template("sql/customer_lifetime_sales.sql", ctx)
 ```
 
-We can connect snaps as nodes in a graph. Note, we leverage the existing
-`import_charges` snap of the `snapflow-stripe` module.
+We can connect functions as nodes in a graph. Note, we leverage the existing
+`import_charges` function of the `snapflow-stripe` module.
 
 ```python
 from snapflow import run, graph_from_yaml
@@ -103,14 +103,14 @@ g = graph_from_yaml(
 """
 nodes:
   - key: stripe_charges
-    snap: stripe.import_charges
+    function: stripe.import_charges
     params:
       api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
   - key: accumulated_stripe_charges
-    snap: core.accumulator
+    function: core.accumulator
     input: stripe_charges
   - key: stripe_customer_lifetime_sales
-    snap: customer_lifetime_sales
+    function: customer_lifetime_sales
     input: accumulated_stripe_charges
 """)
 
@@ -133,7 +133,7 @@ print(datablock.as_dataframe())
 
 ## Architecture overview
 
-All snapflow pipelines are directed graphs of `snap` nodes, consisting of one or more "source" nodes
+All snapflow pipelines are directed graphs of `function` nodes, consisting of one or more "source" nodes
 that create and emit datablocks when run. This stream of blocks is
 then consumed by downstream nodes, which each in turn may emit their own blocks. Source nodes can be scheduled
 to run as needed, downstream nodes will automatically ingest upstream datablocks reactively.
@@ -145,7 +145,7 @@ Below are more details on the key components of snapflow.
 ### Datablocks
 
 A `datablock` is an immutable set of data records of uniform `schema` -- think csv file, pandas
-dataframe, or database table. `datablocks` are the basic data unit of snapflow, the unit that `snaps` take
+dataframe, or database table. `datablocks` are the basic data unit of snapflow, the unit that `functions` take
 as input and produce as output. Once created, a datablock's data will never change: no records will
 be added or deleted, or data points modified. More precisely, `datablocks` are a reference to an
 abstract ideal of a set of records, and will have one or more `StoredDataBlocks` persisting those
@@ -154,16 +154,16 @@ local file, a JSON string in memory, or a table in Postgres. Snapflow abstracts 
 formats and storage engines, and provides conversion and i/o between them while
 maintaining byte-perfect consistency -- to the extent possible for given formats and storages.
 
-### Snaps
+### Functions
 
-`snaps` are the core computational unit of snapflow. They are functions that operate on
-`datablocks` and are added as nodes to a snap graph, linking one node's output to another's
-input via `streams`. Snaps are written in python or sql.
+`functions` are the core computational unit of snapflow. They are functions that operate on
+`datablocks` and are added as nodes to a function graph, linking one node's output to another's
+input via `streams`. Functions are written in python or sql.
 
-Snaps may take any number of inputs, and optionally may output data. A snap with no inputs
-is a "source" snap. These snaps often fetch data from an external API or data source.
-Snaps can also take parameters. Inputs (upstream nodes) can be declared explicitly or,
-alternatively, snapflow will infer automatically a snap's interface from its type annotations --
+Functions may take any number of inputs, and optionally may output data. A function with no inputs
+is a "source" function. These functions often fetch data from an external API or data source.
+Functions can also take parameters. Inputs (upstream nodes) can be declared explicitly or,
+alternatively, snapflow will infer automatically a function's interface from its type annotations --
 what inputs are required or optional, and what schemas are expected.
 
 Taking our example from above, we can now more explicitly annotate and parameterize it:
@@ -171,13 +171,13 @@ Taking our example from above, we can now more explicitly annotate and parameter
 ```python
 @Param("metric", datatype="str", default="amount")
 @Input("txs", schema="Transaction")
-def customer_lifetime_sales(ctx: SnapContext, txs: DataBlock):
-    # SnapContext object automatically injected if declared
+def customer_lifetime_sales(ctx: FunctionContext, txs: DataBlock):
+    # FunctionContext object automatically injected if declared
     metric = ctx.get_param("metric")
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")[metric].sum().reset_index()
 
-@SqlSnap
+@SqlFunction
 @Param("metric", datatype="raw", default="amount")
 @Input("txs", schema="Transaction")
 def customer_lifetime_sales_sql():
@@ -195,7 +195,7 @@ Note the special syntax `:metric` in the SQL query for using a parameter. It is 
 
 ### Schemas
 
-`schemas` are record type definitions (think database table schema) that let `snaps` specify the
+`schemas` are record type definitions (think database table schema) that let `functions` specify the
 data structure they expect and allow them to inter-operate safely. They also
 provide a natural place for field descriptions, validation logic, uniqueness constraints,
 default deduplication behavior, relations to other schemas, and other metadata associated with
@@ -213,8 +213,8 @@ A minimal `schema` example, in yaml:
 name: Order
 description: An example schema representing a basic order (purchase)
 version: 1.0
-unique on: id
-on duplicate: ReplaceWithNewer
+unique on:
+  - id
 fields:
   id:
     type: Text
@@ -233,12 +233,12 @@ fields:
     type: Text
 ```
 
-`snaps` can declare the `schemas` they expect with type hints, allowing them to specify the
+`functions` can declare the `schemas` they expect with type hints, allowing them to specify the
 (minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
 
 ```python
 # In python, use python's type annotations to specify expected schemas:
-@Snap
+@Function
 def sales(txs: DataBlock[Transaction]) -> DataBlock[CustomerMetric]:
     df = txs.as_dataframe()
     return df.groupby("customer_id").sum("amount").reset_index()
@@ -280,8 +280,8 @@ implementations:
     value: amount
 ```
 
-Here we have _implemented_ the `common.TimeSeries` schema, so any `snap` that accepts
-timeseries data, say a seasonality modeling snap, can now be applied to this `Order` data. We could
+Here we have _implemented_ the `common.TimeSeries` schema, so any `function` that accepts
+timeseries data, say a seasonality modeling function, can now be applied to this `Order` data. We could
 also apply this schema implementation ad-hoc at node declaration time with the
 `schema_translation` kwarg:
 
@@ -297,7 +297,7 @@ n = node(
    })
 ```
 
-Typing is always optional, our original snap definitions were valid with
+Typing is always optional, our original function definitions were valid with
 no annotated `schemas`. Snapflow `schemas` are a powerful mechanism for producing reusable
 components and building maintainable large-scale data projects and ecosystems. They are always
 optional though, and should be used when the utility they provide out-weighs the friction they
@@ -305,7 +305,7 @@ introduce.
 
 ### Streams
 
-Datablock `streams` connect nodes in the snap graph. By default every node's output is a simple
+Datablock `streams` connect nodes in the function graph. By default every node's output is a simple
 stream of datablocks, consumed by one or more other downstream nodes. Stream **operators** allow
 you to manipulate these streams:
 
@@ -333,7 +333,7 @@ def sample(stream: Stream, sample_rate: float = .5) -> Stream:
             yield block
 ```
 
-It's important to note that streams, unlike snaps, never _create_ new datablocks or have any
+It's important to note that streams, unlike functions, never _create_ new datablocks or have any
 effect on what is stored on disk. They only alter _which_ datablocks end up as input to a node.
 
 ## Other concepts
@@ -349,8 +349,8 @@ warning or, if serious enough, fail with an error. (Partially implemented, see #
 
 ### Environment and metadata
 
-A snapflow `environment` tracks the snap graph, and acts as a registry for the `modules`,
-`runtimes`, and `storages` available to snaps. It is associated one-to-one with a single
+A snapflow `environment` tracks the function graph, and acts as a registry for the `modules`,
+`runtimes`, and `storages` available to functions. It is associated one-to-one with a single
 `metadata database`. The primary responsibility of the metadata database is to track which
 nodes have processed which DataBlocks, and the state of nodes. In this sense, the environment and
 its associated metadata database contain all the "state" of a snapflow project. If you delete the
@@ -367,7 +367,7 @@ Developing new snapflow components is straightforward and can be done as part of
 Data blocks have three associated schemas:
 
 - Inferred schema - the structure and datatypes automatically inferred from the actual data
-- Nominal schema - the schema that was declared (or resolved, for a generic) in the snap graph
+- Nominal schema - the schema that was declared (or resolved, for a generic) in the function graph
 - Realized schema - the schema that was ultimately used to physically store the data on a specific
   storage (the schema used to create a database table, for instance)
 
@@ -385,3 +385,72 @@ The following table gives the logic for possible behavior of realized schema:
 | inferred is missing nullable fields from nominal                                                        | " "                                       | realized schema == nominal schema, but use inferred field definitions for extra fields, fill missing columns with NULL                                    | exception is raised                                        |
 | inferred is missing non-nullable fields from nominal                                                    | " "                                       | exception is raised                                                                                                                                       | exception is raised                                        |
 | inferred field has datatype mismatch with nominal field definition (eg string in a nominal float field) | " "                                       | realized schema is downcast to inferred datatype (and warning issued if `WARN_ON_DOWNCAST`). If `FAIL_ON_DOWNCAST` is set, an exception is raised instead | exception is raised                                        |
+
+## Snapflow Module and Function development
+
+The recommended way to build your own reusable snapflow components
+is to create a snapflow `module` as a standalone python package. This
+makes it simple for anyone to reuse your components by installing via pip/poetry.
+
+### Creating a snapflow module
+
+Start by creating a new python project
+
+`poetry new snapflow-mymodule`
+
+`cd snapflow-mymodule`
+
+`poetry add snapflow`
+
+Then you may need to remove the folder poetry created:
+
+`rm -r snapflow_mymodule`
+
+Now we can create our snapflow module:
+
+`snapflow new module snapflow_mymodule`
+
+This will create the following structure:
+
+```
+snapflow-mymodule/
+  pyproject.toml
+  README.rst
+  snapflow_mymodule/
+    __init__.py
+    functions/
+      __init__.py
+    schemas/
+  tests/
+    test_mymodule.py
+```
+
+### Creating a new data function
+
+Now that you have a snapflow module, you can create your own functions:
+
+`snapflow new function my_function`
+
+Which results in this file structure:
+
+```
+snapflow-mymodule/snapflow_mymodule/functions/
+  __init__.py
+  my_function/
+    __init__.py
+    my_function.py
+    README.md
+    tests/
+      test_my_function.py
+```
+
+The actual function is in `my_function.py` and will be an identify function to start:
+
+```python
+# @Input("input", stream=True)
+# @Param("param1", datatype="int")
+@Function(namespace="mymodule")
+def my_function(ctx: FunctionContext, input: DataBlock):
+    df = input.as_dataframe() # Or .as_records()
+    return df
+```

@@ -7,7 +7,7 @@ from dcp.utils.common import rand_str
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment, SnapflowSettings
-from snapflow.core.execution import ExecutionManager, SnapContext
+from snapflow.core.execution import ExecutionManager, FunctionContext
 from snapflow.core.execution.executable import (
     ExecutableConfiguration,
     ExecutionConfiguration,
@@ -35,7 +35,7 @@ def make_test_env(**kwargs) -> Environment:
         url = get_tmp_sqlite_db_url()
         metadata_storage = Storage.from_url(url)
         kwargs["metadata_storage"] = metadata_storage
-    env = Environment(settings=SnapflowSettings(abort_on_snap_error=True), **kwargs)
+    env = Environment(settings=SnapflowSettings(abort_on_function_error=True), **kwargs)
     test_module = SnapflowModule("_test",)
     for schema in [TestSchema1, TestSchema2, TestSchema3, TestSchema4]:
         env.add_schema(schema)
@@ -55,36 +55,34 @@ def make_test_execution_manager(**kwargs) -> ExecutionManager:
     return ExecutionManager(make_test_run_context(**kwargs))
 
 
-def snap_t1_sink(ctx: SnapContext, input: DataBlock[TestSchema1]):
+def function_t1_sink(ctx: FunctionContext, input: DataBlock[TestSchema1]):
     pass
 
 
-def snap_t1_to_t2(input: DataBlock[TestSchema1]) -> DataFrame[TestSchema2]:
+def function_t1_to_t2(input: DataBlock[TestSchema1]) -> DataFrame[TestSchema2]:
     pass
 
 
-def snap_generic(input: DataBlock[T]) -> DataFrame[T]:
+def function_generic(input: DataBlock[T]) -> DataFrame[T]:
     pass
 
 
-def snap_t1_source(ctx: SnapContext) -> DataFrame[TestSchema1]:
+def function_t1_source(ctx: FunctionContext) -> DataFrame[TestSchema1]:
     pass
 
 
-def snap_stream(input: DataBlockStream) -> DataBlock:
+def function_stream(input: DataBlockStream) -> DataBlock:
     pass
 
 
-snap_chain_t1_to_t2 = (
-    snap_t1_to_t2  # snap_chain("snap_chain_t1_to_t2", [snap_t1_to_t2, snap_generic])
-)
+function_chain_t1_to_t2 = function_t1_to_t2  # function_chain("function_chain_t1_to_t2", [function_t1_to_t2, function_generic])
 
 
-def snap_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
+def function_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
     pass
 
 
-def snap_multiple_input(
+def function_multiple_input(
     input: DataBlock[T], other_t2: DataBlock[TestSchema2] = None
 ) -> DataFrame[T]:
     pass

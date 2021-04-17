@@ -27,7 +27,7 @@ from snapflow.utils.typing import T, V
 
 
 """
-WIP - Helpers for building source connection snaps
+WIP - Helpers for building source connection functions
 
 
 # API fetching basics

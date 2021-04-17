@@ -11,8 +11,17 @@ from loguru import logger
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
-from snapflow.core.snap import SnapLike, _Snap, ensure_snap, make_snap, make_snap_name
-from snapflow.core.snap_interface import DeclaredSnapInterface, DeclaredStreamInput
+from snapflow.core.function import (
+    FunctionLike,
+    _Function,
+    ensure_function,
+    make_function,
+    make_function_name,
+)
+from snapflow.core.function_interface import (
+    DeclaredFunctionInterface,
+    DeclaredStreamInput,
+)
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.expression import select, update
@@ -44,7 +53,7 @@ def ensure_stream(stream_like: StreamLike) -> StreamBuilder:
 @dataclass(frozen=True)
 class NodeConfiguration:
     key: str
-    snap_key: str
+    function_key: str
     inputs: Dict[str, str]
     params: Dict[str, Any]  # TODO: acceptable param types?
     output_alias: Optional[str] = None
@@ -56,12 +65,12 @@ class DeclaredNode:
     """
     Node as it is declared, which may be before
     we have loaded necessary modules, or seen the full graph,
-    so we will not have schema or snap definitions, will not know the
+    so we will not have schema or function definitions, will not know the
     interfaces, and will not be able to hook up the graph
     yet. Only after a call to `instantiate_node` do we then do these things.
     """
 
-    snap: Union[SnapLike, str]
+    function: Union[FunctionLike, str]
     key: str
     params: Dict[str, Any] = field(default_factory=dict)
     inputs: Union[StreamLike, Dict[str, StreamLike]] = field(default_factory=dict)
@@ -73,7 +82,7 @@ class DeclaredNode:
     def from_config(cfg: NodeConfiguration) -> DeclaredNode:
         return node(
             key=cfg.key,
-            snap=cfg.snap_key,
+            function=cfg.function_key,
             inputs=cfg.inputs,
             params=cfg.params,
             output_alias=cfg.output_alias,
@@ -90,7 +99,7 @@ class DeclaredNode:
         # self.graph.add_node(self)
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}(key={self.key}, snap={self.snap})>"
+        return f"<{self.__class__.__name__}(key={self.key}, function={self.function})>"
 
     def __hash__(self):
         return hash(self.key)
@@ -131,7 +140,7 @@ class DeclaredNode:
 
 
 def node(
-    snap: Union[SnapLike, str],
+    function: Union[FunctionLike, str],
     key: Optional[str] = None,
     params: Dict[str, Any] = None,
     inputs: Dict[str, StreamLike] = None,
@@ -143,9 +152,9 @@ def node(
     upstream: Union[StreamLike, Dict[str, StreamLike]] = None,  # TODO: DEPRECATED
 ) -> DeclaredNode:
     if key is None:
-        key = make_snap_name(snap)
+        key = make_function_name(function)
     return DeclaredNode(
-        snap=snap,
+        function=function,
         key=key,
         params=params or {},
         inputs=inputs or upstream or input or {},
@@ -156,15 +165,13 @@ def node(
 
 
 def instantiate_node(
-    env: Environment,
-    graph: Graph,
-    declared_node: DeclaredNode,
+    env: Environment, graph: Graph, declared_node: DeclaredNode,
 ):
-    if isinstance(declared_node.snap, str):
-        snap = env.get_snap(declared_node.snap)
+    if isinstance(declared_node.function, str):
+        function = env.get_function(declared_node.function)
     else:
-        snap = make_snap(declared_node.snap)
-    interface = snap.get_interface()
+        function = make_function(declared_node.function)
+    interface = function.get_interface()
     schema_translations = interface.assign_translations(
         declared_node.schema_translations
     )
@@ -178,7 +185,7 @@ def instantiate_node(
     n = Node(
         graph=graph,
         key=declared_node.key,
-        snap=snap,
+        function=function,
         params=declared_node.params,
         interface=interface,
         declared_inputs=declared_inputs,
@@ -198,15 +205,17 @@ def make_default_output_alias(node: Node) -> str:
 class Node:
     graph: Graph
     key: str
-    snap: _Snap
+    function: _Function
     params: Dict[str, Any]
-    interface: DeclaredSnapInterface
+    interface: DeclaredFunctionInterface
     declared_inputs: Dict[str, DeclaredStreamInput]
     output_alias: Optional[str] = None
     declared_schema_translation: Optional[Dict[str, Dict[str, str]]] = None
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}(key={self.key}, snap={self.snap.key})>"
+        return (
+            f"<{self.__class__.__name__}(key={self.key}, function={self.function.key})>"
+        )
 
     def __hash__(self):
         return hash(self.key)
@@ -225,7 +234,7 @@ class Node:
             ident
         )  # TODO: this logic should be storage api specific! and then shared back?
 
-    def get_interface(self) -> DeclaredSnapInterface:
+    def get_interface(self) -> DeclaredFunctionInterface:
         return self.interface
 
     def get_schema_translation_for_input(
@@ -243,10 +252,10 @@ class Node:
             env.md_api.execute(
                 select(DataBlockMetadata)
                 .join(DataBlockLog)
-                .join(SnapLog)
+                .join(FunctionLog)
                 .filter(
                     DataBlockLog.direction == Direction.OUTPUT,
-                    SnapLog.node_key == self.key,
+                    FunctionLog.node_key == self.key,
                 )
                 .order_by(DataBlockLog.created_at.desc())
             )
@@ -273,8 +282,8 @@ class Node:
             r
             for r in env.md_api.execute(
                 select(DataBlockLog.id)
-                .join(SnapLog)
-                .filter(SnapLog.node_key == self.key)
+                .join(FunctionLog)
+                .filter(FunctionLog.node_key == self.key)
             )
             .scalars()
             .all()
@@ -292,7 +301,7 @@ class Node:
         logs are invalidated. Output datablocks are NOT deleted.
         NB: If downstream nodes have already processed an output datablock,
         this will have no effect on them.
-        TODO: consider "cascading reset" for downstream recursive snaps (which will still have
+        TODO: consider "cascading reset" for downstream recursive functions (which will still have
         accumulated output from this node)
         """
         self._reset_state(env)
@@ -304,10 +313,7 @@ class NodeState(BaseModel):
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(
-            node_key=self.node_key,
-            state=self.state,
-        )
+        return self._repr(node_key=self.node_key, state=self.state,)
 
 
 def get_state(env: Environment, node_key: str) -> Optional[Dict]:
@@ -319,7 +325,7 @@ def get_state(env: Environment, node_key: str) -> Optional[Dict]:
     return None
 
 
-class SnapLog(BaseModel):
+class FunctionLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     graph_id = Column(
         String(128),
@@ -329,15 +335,15 @@ class SnapLog(BaseModel):
     node_key = Column(String(128), nullable=False)
     node_start_state = Column(JSON, nullable=True)
     node_end_state = Column(JSON, nullable=True)
-    snap_key = Column(String(128), nullable=False)
-    snap_params = Column(JSON, nullable=True)
+    function_key = Column(String(128), nullable=False)
+    function_params = Column(JSON, nullable=True)
     runtime_url = Column(String(128), nullable=True)  # TODO
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
     error = Column(JSON, nullable=True)
     data_block_logs: RelationshipProperty = relationship(
-        "DataBlockLog", backref="snap_log"
+        "DataBlockLog", backref="function_log"
     )
     graph: "GraphMetadata"
 
@@ -346,7 +352,7 @@ class SnapLog(BaseModel):
             id=self.id,
             graph_id=self.graph_id,
             node_key=self.node_key,
-            snap_key=self.snap_key,
+            function_key=self.function_key,
             runtime_url=self.runtime_url,
             started_at=self.started_at,
         )
@@ -396,7 +402,7 @@ class Direction(enum.Enum):
 
 class DataBlockLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    snap_log_id = Column(Integer, ForeignKey(SnapLog.id), nullable=False)
+    function_log_id = Column(Integer, ForeignKey(FunctionLog.id), nullable=False)
     data_block_id = Column(
         String(128),
         ForeignKey(f"{SNAPFLOW_METADATA_TABLE_PREFIX}data_block_metadata.id"),
@@ -408,12 +414,12 @@ class DataBlockLog(BaseModel):
     invalidated = Column(Boolean, default=False)
     # Hints
     data_block: "DataBlockMetadata"
-    snap_log: SnapLog
+    function_log: FunctionLog
 
     def __repr__(self):
         return self._repr(
             id=self.id,
-            snap_log=self.snap_log,
+            function_log=self.function_log,
             data_block=self.data_block,
             direction=self.direction,
             processed_at=self.processed_at,
@@ -423,7 +429,7 @@ class DataBlockLog(BaseModel):
     def summary(cls, env: Environment) -> str:
         s = ""
         for dbl in env.md_api.execute(select(DataBlockLog)).scalars().all():
-            s += f"{dbl.snap_log.node_key:50}"
+            s += f"{dbl.function_log.node_key:50}"
             s += f"{str(dbl.data_block_id):23}"
             s += f"{str(dbl.data_block.record_count):6}"
             s += f"{dbl.direction.value:9}{str(dbl.data_block.updated_at):22}"

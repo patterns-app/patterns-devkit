@@ -8,6 +8,6 @@ from .execution import (
     Executable,
     ExecutionContext,
     ExecutionManager,
-    SnapContext,
+    FunctionContext,
     execute_to_exhaustion,
 )

@@ -2,19 +2,19 @@
 import sys
 
 import snapflow_stripe as stripe
-from snapflow import Environment, Snap, SqlSnap, graph_from_yaml, run
+from snapflow import Environment, Function, SqlFunction, graph_from_yaml, run
 from snapflow.core.module import DEFAULT_LOCAL_MODULE
 
 sys.path.append(".")
 
 
-@Snap
+@Function
 def customer_lifetime_sales(txs):
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
 
 
-@SqlSnap
+@SqlFunction
 def customer_lifetime_sales_sql():
     return "select customer, sum(amount) as amount from txs group by customer"
     # Can use jinja templates too
@@ -25,14 +25,14 @@ g = graph_from_yaml(
     """
 nodes:
   - key: stripe_charges
-    snap: stripe.import_charges
+    function: stripe.import_charges
     params:
       api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
   - key: accumulated_stripe_charges
-    snap: core.accumulator
+    function: core.accumulator
     input: stripe_charges
   - key: stripe_customer_lifetime_sales
-    snap: customer_lifetime_sales
+    function: customer_lifetime_sales
     input: accumulated_stripe_charges
 """
 )

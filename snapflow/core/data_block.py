@@ -77,9 +77,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self,
-        env: Environment,
-        schema_translation: Optional[SchemaTranslation] = None,
+        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
     ):
         mgr = DataBlockManager(env, self, schema_translation=schema_translation)
         return ManagedDataBlock(
@@ -100,11 +98,11 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 
     # def created_by(self: Session) -> Optional[str]:
     #     from snapflow.core.node import DataBlockLog
-    #     from snapflow.core.node import SnapLog
+    #     from snapflow.core.node import FunctionLog
     #     from snapflow.core.node import Direction
 
     #     result = (
-    #         env.md_api.execute(select(SnapLog.node_key)
+    #         env.md_api.execute(select(FunctionLog.node_key)
     #         .join(DataBlockLog)
     #         .filter(
     #             DataBlockLog.direction == Direction.OUTPUT,
@@ -142,7 +140,7 @@ class ManagedDataBlock(Generic[T]):
         return self.manager.as_table(storage)
 
     def as_sql_from_stmt(self, storage: Storage) -> str:
-        from snapflow.core.sql.sql_snap import apply_schema_translation_as_sql
+        from snapflow.core.sql.sql_function import apply_schema_translation_as_sql
 
         # TODO: this feels pretty forced -- how do we do schema transations in a general way for non-memory storages / runtimes?
         sql = self.manager.as_table(storage)
@@ -519,7 +517,7 @@ class DataBlockManager:
 #     # TODO: we are special casing sql right now, but could create another DataFormat (SqlQueryFormat, non-storable).
 #     #       but, not sure how well it fits paradigm (it's a fundamentally non-python operation, the only one for now --
 #     #       if we had an R runtime or any other shell command, they would also be in this bucket)
-#     #       fine here for now, but there is a generalization that might make the sql snap less awkward (returning sdb)
+#     #       fine here for now, but there is a generalization that might make the sql function less awkward (returning sdb)
 #     logger.debug("CREATING DATA BLOCK from sql")
 #     tmp_name = f"_tmp_{rand_str(10)}".lower()
 #     sql = db_api.clean_sub_sql(sql)

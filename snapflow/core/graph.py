@@ -20,7 +20,7 @@ from dcp.utils.common import md5_hash, remove_dupes
 from loguru import logger
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DeclaredNode, Node, NodeConfiguration, NodeLike, node
-from snapflow.core.snap import SnapLike
+from snapflow.core.function import FunctionLike
 from sqlalchemy import Column, String
 from sqlalchemy.sql.sqltypes import JSON
 
@@ -38,9 +38,7 @@ class GraphMetadata(BaseModel):
     adjacency = Column(JSON)
 
     def __repr__(self) -> str:
-        return self._repr(
-            hash=self.hash,
-        )
+        return self._repr(hash=self.hash,)
 
 
 class DeclaredGraph:
@@ -56,7 +54,7 @@ class DeclaredGraph:
 
     def node(
         self,
-        snap: Union[SnapLike, str],
+        function: Union[FunctionLike, str],
         key: Optional[str] = None,
         params: Dict[str, Any] = None,
         inputs: Dict[str, StreamLike] = None,
@@ -67,7 +65,7 @@ class DeclaredGraph:
         upstream: Union[StreamLike, Dict[str, StreamLike]] = None,  # TODO: DEPRECATED
     ) -> DeclaredNode:
         dn = node(
-            snap=snap,
+            function=function,
             key=key,
             params=params,
             inputs=inputs,
@@ -149,7 +147,7 @@ class Graph:
     # TODO: duplicated code
     def node(
         self,
-        snap: Union[SnapLike, str],
+        function: Union[FunctionLike, str],
         key: Optional[str] = None,
         params: Dict[str, Any] = None,
         inputs: Dict[str, StreamLike] = None,
@@ -160,7 +158,7 @@ class Graph:
         upstream: Union[StreamLike, Dict[str, StreamLike]] = None,  # TODO: DEPRECATED
     ) -> Node:
         dn = node(
-            snap=snap,
+            function=function,
             key=key,
             params=params,
             inputs=inputs,
@@ -201,7 +199,7 @@ class Graph:
     def validate_graph(self) -> bool:
         # TODO
         #  validate node keys are valid
-        #  validate snaps are valid
+        #  validate functions are valid
         #  validate types are valid
         #  etc
         return True
@@ -253,7 +251,7 @@ def load_graph_from_dict(raw_graph: Dict[str, Any]) -> DeclaredGraph:
     """
     nodes:
       - key: node1
-        snap: core.import_local_csv
+        function: core.import_local_csv
         output_alias: csv1
         inputs:
           input: othernode

@@ -4,6 +4,6 @@ from cleo.application import Application
 from snapflow.cli.commands.generate import GenerateCommand
 
 
-app = Application()
+app = Application("snapflow")
 app.add(GenerateCommand())
 app.run()

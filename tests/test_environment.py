@@ -13,7 +13,7 @@ logger.enable("snapflow")
 
 
 def env_init(env: Environment):
-    from . import _test_module
+    from ._test_module import module as _test_module
 
     # Test module / components
     with env.md_api.begin():
@@ -23,8 +23,11 @@ def env_init(env: Environment):
             env.get_local_module().namespace,
             _test_module.namespace,
         ]
-        assert env.get_schema("TestSchema") is _test_module.all_schemas.TestSchema
-        assert env.get_snap("test_sql_snap") is _test_module.all_snaps.test_sql_snap
+        assert env.get_schema("TestSchema") is _test_module.schemas.TestSchema
+        assert (
+            env.get_function("test_sql_function")
+            is _test_module.functions.test_sql_function
+        )
         # Test runtime / storage
         env.add_storage("postgresql://test")
         assert len(env.storages) == 2  # added plus default local memory

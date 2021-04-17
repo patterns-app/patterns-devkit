@@ -13,8 +13,8 @@ from snapflow.core.environment import (
 from snapflow.core.graph import DeclaredGraph, Graph, graph
 from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DeclaredNode, Node, node
-from snapflow.core.snap import Input, Output, Param, Snap, _Snap
-from snapflow.core.sql.sql_snap import Sql, SqlSnap, sql_snap
+from snapflow.core.function import Input, Output, Param, Function, _Function
+from snapflow.core.sql.sql_function import Sql, SqlFunction, sql_function
 from snapflow.core.streams import DataBlockStream, StreamBuilder
 
 # TODO: use an existing lib for this:
