@@ -19,7 +19,7 @@ class GenerateCommand(Command):
     new
         {type : Type of component to generate, one of (module, function, schema)}
         {name : name of the component }
-        {--n|namespace : namespace of the component, defaults to current module namespace }
+        {--s|namespace : namespace of the component, defaults to current module namespace }
     """
 
     def handle(self):
