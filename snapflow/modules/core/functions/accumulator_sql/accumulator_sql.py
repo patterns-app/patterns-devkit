@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from snapflow.core.function import Function, Input, Output
 from snapflow.core.sql.sql_function import SqlFunction
-from snapflow.core.function import Input, Output, Function
 
 
 @Input("previous", schema="T", from_self=True)

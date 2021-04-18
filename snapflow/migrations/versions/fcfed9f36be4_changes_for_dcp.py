@@ -24,7 +24,9 @@ def upgrade():
     )
     with op.batch_alter_table("_snapflow_snap_log") as batch_op:
         batch_op.alter_column(
-            "runtime_url", existing_type=sa.VARCHAR(length=128), nullable=True,
+            "runtime_url",
+            existing_type=sa.VARCHAR(length=128),
+            nullable=True,
         )
     # ### end Alembic commands ###
 

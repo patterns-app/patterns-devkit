@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from snapflow import Function, FunctionContext, DataBlock
+from snapflow import DataBlock, Function, FunctionContext
 
 
 @Function(namespace="{{ cookiecutter.namespace }}")

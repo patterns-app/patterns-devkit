@@ -5,9 +5,9 @@ Revises: fcfed9f36be4
 Create Date: 2021-04-18 13:35:05.061458
 
 """
-from alembic import op
-import sqlalchemy as sa
 import snapflow
+import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.

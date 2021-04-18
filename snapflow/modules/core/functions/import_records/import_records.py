@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from dcp.data_format.formats.memory.records import RecordsFormat
-from snapflow.core.execution.execution import FunctionContext
-from snapflow.core.streams import Stream
-
 from typing import Optional
 
 from dcp.data_format.formats import (
@@ -11,11 +7,15 @@ from dcp.data_format.formats import (
     DataFrameFormat,
     JsonLinesFileObjectFormat,
 )
-from snapflow.core.function import Input, Output, Param, Function
+from dcp.data_format.formats.memory.records import RecordsFormat
+from snapflow.core.execution.execution import FunctionContext
+from snapflow.core.function import Function, Input, Output, Param
+from snapflow.core.streams import Stream
 
 
 @Function(
-    namespace="core", display_name="Import Records (List of dicts)",
+    namespace="core",
+    display_name="Import Records (List of dicts)",
 )
 @Param("records", datatype="json")
 @Param("schema", datatype="str", required=False)

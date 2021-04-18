@@ -4,8 +4,8 @@ from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.pandas import assert_dataframes_are_almost_equal
 from pandas import DataFrame
 from snapflow import DataBlock
-from snapflow.core.node import DataBlockLog
 from snapflow.core.function import Function
+from snapflow.core.node import DataBlockLog
 from snapflow.core.sql.sql_function import Sql, SqlFunction
 from snapflow.testing.utils import DataInput, produce_function_output_for_static_input
 from snapflow.utils.typing import T
@@ -15,7 +15,8 @@ from snapflow.utils.typing import T
 
 
 @Function(
-    namespace="core", display_name="Dedupe DataFrame (keep latest)",
+    namespace="core",
+    display_name="Dedupe DataFrame (keep latest)",
 )
 def dedupe_keep_latest(input: DataBlock[T]) -> DataFrame[T]:
     if input.nominal_schema is None or not input.nominal_schema.unique_on:
@@ -42,4 +43,3 @@ def dedupe_keep_latest(input: DataBlock[T]) -> DataFrame[T]:
 #     1,4,,,"[1,2,3]",2012-01-01
 #     2,2,1.0,2.1,"[1,2,3]",2012-01-01
 # """
-

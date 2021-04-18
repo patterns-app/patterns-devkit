@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Union
-
 from types import ModuleType
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
 from commonmodel import Schema
 from dcp.utils.common import AttrDict

@@ -15,6 +15,18 @@ from snapflow.core.sql.sql_function import (
 from tests.utils import make_test_env
 
 
+"""
+Future test cases
+
+select:T
+from previous:SelfReference[T] -- Previous output
+-- from new:Stream[T] -- with comment
+with error:T -- comment
+with state:State
+
+"""
+
+
 def test_sql_parse_params():
     sql = """select 1 from from t1:Schema1
         -- unrelated comment with a colon: in it

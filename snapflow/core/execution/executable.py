@@ -16,10 +16,10 @@ from snapflow.core.data_block import (
     StoredDataBlockMetadata,
 )
 from snapflow.core.environment import Environment, EnvironmentConfiguration
-from snapflow.core.graph import DeclaredGraph, NxAdjacencyList, graph_from_node_configs
-from snapflow.core.node import DeclaredNode, Node, NodeConfiguration, FunctionLog
 from snapflow.core.function import DEFAULT_OUTPUT_NAME, _Function
 from snapflow.core.function_interface import StreamInput
+from snapflow.core.graph import DeclaredGraph, NxAdjacencyList, graph_from_node_configs
+from snapflow.core.node import DeclaredNode, FunctionLog, Node, NodeConfiguration
 from sqlalchemy.sql.expression import select
 
 
@@ -138,7 +138,9 @@ class ExecutionResult:
     @classmethod
     def empty(cls) -> ExecutionResult:
         return ExecutionResult(
-            inputs_bound=[], non_reference_inputs_bound=[], input_block_counts={},
+            inputs_bound=[],
+            non_reference_inputs_bound=[],
+            input_block_counts={},
         )
 
     def set_error(self, e: Exception):

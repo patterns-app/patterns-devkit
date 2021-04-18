@@ -9,21 +9,21 @@ from loguru import logger
 from pandas import DataFrame
 from snapflow.core.data_block import Alias, DataBlock, DataBlockMetadata
 from snapflow.core.execution import Executable, ExecutionManager
-from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, Direction, FunctionLog
 from snapflow.core.function import Input
 from snapflow.core.function_interface import NodeInterfaceManager
+from snapflow.core.graph import Graph
+from snapflow.core.node import DataBlockLog, Direction, FunctionLog
 from snapflow.modules import core
 from sqlalchemy.sql.expression import select
 from tests.utils import (
     TestSchema1,
     TestSchema4,
-    make_test_env,
-    make_test_run_context,
     function_generic,
     function_t1_sink,
     function_t1_source,
     function_t1_to_t2,
+    make_test_env,
+    make_test_run_context,
 )
 
 logger.enable("snapflow")

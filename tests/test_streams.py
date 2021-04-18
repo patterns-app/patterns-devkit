@@ -12,11 +12,11 @@ from snapflow.core.streams import (
     stream,
 )
 from tests.utils import (
-    make_test_run_context,
     function_generic,
     function_t1_sink,
     function_t1_source,
     function_t1_to_t2,
+    make_test_run_context,
 )
 
 
@@ -79,7 +79,9 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            function_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         self.env.md_api.add_all([dfl, drl])
 
@@ -95,7 +97,9 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            function_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         dfl2 = FunctionLog(
             graph_id=self.graph.hash,
@@ -104,7 +108,9 @@ class TestStreams:
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            function_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
+            function_log=dfl2,
+            data_block=self.dr1t1,
+            direction=Direction.INPUT,
         )
         self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 
@@ -124,7 +130,9 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            function_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         dfl2 = FunctionLog(
             graph_id=self.graph.hash,
@@ -133,7 +141,9 @@ class TestStreams:
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            function_log=dfl2, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            function_log=dfl2,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 
@@ -153,7 +163,9 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            function_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         self.env.md_api.add_all([dfl, drl])
 
@@ -173,10 +185,14 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            function_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         drl2 = DataBlockLog(
-            function_log=dfl, data_block=self.dr2t1, direction=Direction.OUTPUT,
+            function_log=dfl,
+            data_block=self.dr2t1,
+            direction=Direction.OUTPUT,
         )
         self.env.md_api.add_all([dfl, drl, drl2])
 
@@ -212,7 +228,9 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+            function_log=dfl,
+            data_block=self.dr1t1,
+            direction=Direction.OUTPUT,
         )
         dfl2 = FunctionLog(
             graph_id=self.graph.hash,
@@ -221,7 +239,9 @@ class TestStreams:
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            function_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
+            function_log=dfl2,
+            data_block=self.dr1t1,
+            direction=Direction.INPUT,
         )
         self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 

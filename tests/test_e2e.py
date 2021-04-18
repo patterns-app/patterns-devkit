@@ -12,11 +12,11 @@ from dcp.data_format.formats.memory.records import Records, RecordsFormat
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from loguru import logger
 from pandas._testing import assert_almost_equal
-from snapflow import DataBlock, Input, Output, Param, Function, sql_function
+from snapflow import DataBlock, Function, Input, Output, Param, sql_function
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import FunctionContext
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, NodeState, FunctionLog
+from snapflow.core.node import DataBlockLog, FunctionLog, NodeState
 from snapflow.modules import core
 from sqlalchemy import select
 

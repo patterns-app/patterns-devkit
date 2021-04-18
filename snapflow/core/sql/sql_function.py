@@ -1,11 +1,10 @@
 from __future__ import annotations
-from pathlib import Path
 
 import re
 from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from functools import partial
-from snapflow.core.function_package import load_file
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import sqlparse
@@ -22,9 +21,6 @@ from snapflow.core.data_block import (
 )
 from snapflow.core.environment import Environment
 from snapflow.core.execution.execution import FunctionContext
-from snapflow.core.module import SnapflowModule
-from snapflow.core.node import DataBlockLog
-from snapflow.core.runtime import DatabaseRuntimeClass, RuntimeClass
 from snapflow.core.function import (
     DataInterfaceType,
     Parameter,
@@ -35,14 +31,18 @@ from snapflow.core.function_interface import (
     DEFAULT_CONTEXT,
     DEFAULT_INPUT_ANNOTATION,
     BadAnnotationException,
-    DeclaredInput,
     DeclaredFunctionInterface,
+    DeclaredInput,
     ParsedAnnotation,
-    make_default_output,
-    parse_annotation,
     function_input_from_annotation,
     function_output_from_annotation,
+    make_default_output,
+    parse_annotation,
 )
+from snapflow.core.function_package import load_file
+from snapflow.core.module import SnapflowModule
+from snapflow.core.node import DataBlockLog
+from snapflow.core.runtime import DatabaseRuntimeClass, RuntimeClass
 from snapflow.core.streams import DataBlockStream, ManagedDataBlockStream
 from sqlparse import tokens
 
@@ -106,7 +106,9 @@ class ParsedSqlStatement:
         else:
             output = make_default_output()
         return DeclaredFunctionInterface(
-            inputs=inputs, output=output, context=DEFAULT_CONTEXT,
+            inputs=inputs,
+            output=output,
+            context=DEFAULT_CONTEXT,
         )
 
 
@@ -133,7 +135,9 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
+        original_sql=sql,
+        sql_with_jinja_vars=sql_with_jinja_vars,
+        found_params=params,
     )
 
 
@@ -459,10 +463,13 @@ def sql_function_decorator(
     else:
         name = sql_fn_or_function.__name__
     return sql_function_factory(
-        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
+        name=name,
+        sql=sql,
+        file=file,
+        autodetect_inputs=autodetect_inputs,
+        **kwargs,
     )
 
 
 SqlFunction = sql_function_decorator
 Sql = sql_function_decorator
-

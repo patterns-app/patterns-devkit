@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from snapflow import Function, FunctionContext, DataBlock
+from snapflow import DataBlock, Function, FunctionContext
+
 
 # Add inputs and params
 # @Input("input", stream=True)

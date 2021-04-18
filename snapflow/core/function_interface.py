@@ -490,7 +490,8 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation, from_schema_key=source_schema.key,
+            translation=declared_schema_translation,
+            from_schema_key=source_schema.key,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed
@@ -554,7 +555,9 @@ class NodeInterfaceManager:
                 raise Exception(f"Missing required input {input.name}")
             logger.debug(f"Building stream for `{input.name}` from {stream_builder}")
             stream_builder = self._filter_stream(
-                stream_builder, input, self.exe.execution_context.storages,
+                stream_builder,
+                input,
+                self.exe.execution_context.storages,
             )
 
             """

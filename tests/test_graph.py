@@ -4,13 +4,13 @@ import pytest
 from snapflow.core.graph import Graph, graph_from_yaml
 from snapflow.modules import core
 from tests.utils import (
-    make_test_env,
     function_chain_t1_to_t2,
     function_generic,
     function_multiple_input,
     function_self,
     function_t1_source,
     function_t1_to_t2,
+    make_test_env,
 )
 
 
@@ -72,9 +72,21 @@ def test_make_graph():
     assert len(g.get_all_nodes_in_execution_order()) == len(nodes)
     execution_order = [n.key for n in g.get_all_nodes_in_execution_order()]
     expected_orderings = [
-        ["node2", "node4", "node5",],
-        ["node2", "node4", "node6",],
-        ["node1", "node3", "node7",],
+        [
+            "node2",
+            "node4",
+            "node5",
+        ],
+        [
+            "node2",
+            "node4",
+            "node6",
+        ],
+        [
+            "node1",
+            "node3",
+            "node7",
+        ],
     ]
     # TODO: graph sort not stable!
     for ordering in expected_orderings:

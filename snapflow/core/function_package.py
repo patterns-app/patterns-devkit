@@ -1,34 +1,23 @@
 from __future__ import annotations
 
 import os
-from snapflow.core.function import Function, _Function, ensure_function, make_function
 import sys
-from importlib import import_module
-from pathlib import Path
 from dataclasses import asdict, dataclass, field
 from functools import partial
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Type,
-    Union,
-    cast,
-)
+from importlib import import_module
+from pathlib import Path
 from types import ModuleType
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.function import Function, _Function, ensure_function, make_function
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
     DEFAULT_LOCAL_NAMESPACE,
     SnapflowModule,
 )
-
 
 if TYPE_CHECKING:
     from snapflow.testing.utils import TestCase
@@ -63,7 +52,7 @@ class FunctionPackage:
     ) -> FunctionPackage:
         pth = Path(abs_path)
         name = pth.parts[-1]
-        python_path = str(pth / (name + ".py"))
+        # python_path = str(pth / (name + ".py"))
         # local_vars = load_python_file(python_path, __file__=python_path)
         m = load_module(pth / name)
         function = getattr(m, name)
@@ -195,7 +184,7 @@ class FunctionPackage:
             try:
                 pkg = FunctionPackage.from_path(f.path, namespace=namespace)
                 pkgs.append(pkg)
-            except (NoFunctionFoundError, ModuleNotFoundError) as e:
+            except (NoFunctionFoundError, ModuleNotFoundError):
                 pass
         return pkgs
 

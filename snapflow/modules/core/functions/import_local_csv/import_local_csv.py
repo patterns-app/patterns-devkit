@@ -1,6 +1,4 @@
 from __future__ import annotations
-from snapflow.core.execution.execution import FunctionContext
-from snapflow.core.streams import Stream
 
 from typing import Optional
 
@@ -9,8 +7,9 @@ from dcp.data_format.formats import (
     DataFrameFormat,
     JsonLinesFileObjectFormat,
 )
-from snapflow.core.function import Input, Output, Param, Function
-
+from snapflow.core.execution.execution import FunctionContext
+from snapflow.core.function import Function, Input, Output, Param
+from snapflow.core.streams import Stream
 from snapflow.utils.typing import T
 
 
@@ -27,4 +26,3 @@ def import_local_csv(ctx: FunctionContext):
     ctx.emit_state_value("imported", True)
     schema = ctx.get_param("schema")
     ctx.emit(f, data_format=CsvFileObjectFormat, schema=schema)
-

@@ -1,4 +1,5 @@
 from pathlib import Path
+
 from cookiecutter.main import cookiecutter
 
 dir_path = Path(__file__).parent

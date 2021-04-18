@@ -5,8 +5,8 @@ import os
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 from types import ModuleType
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from alembic import command
 from alembic.config import Config

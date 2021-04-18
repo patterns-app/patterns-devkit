@@ -32,10 +32,11 @@ jobs:
           poetry run flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
       - name: Test with pytest
         run: |
-          poetry run pytest
-      - name: Install example dependencies
-        run: |
-          poetry add snapflow-stripe
-      - name: Test readme example
-        run: |
-          poetry run python examples/readme.py
+          poetry run pytest tests
+      # - name: Install example dependencies
+      #   run: |
+      #     poetry add snapflow-stripe
+      # Disable until modules are updated
+      # - name: Test readme example
+      #   run: |
+      #     poetry run python examples/readme.py

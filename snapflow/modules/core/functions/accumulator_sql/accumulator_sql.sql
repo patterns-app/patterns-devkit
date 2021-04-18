@@ -1,5 +1,4 @@
 -- TODO: this is no-op if "this" is empty... is there a way to shortcut?
--- TODO: does the bound stream thing even work?? Do we have a test somewhere?
 -- TODO: what if we have mixed schemas? need explicit columns
 
 {% if input_objects.previous.bound_block %}

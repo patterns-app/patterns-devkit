@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dcp.utils.common import rand_str
+from loguru import logger
 from snapflow.core.environment import (
     Environment,
     EnvironmentConfiguration,
     SnapflowSettings,
 )
 from snapflow.core.graph import Graph
-from loguru import logger
 
 logger.enable("snapflow")
 

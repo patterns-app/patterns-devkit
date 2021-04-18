@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from pathlib import Path
 import os
-from snapflow.templates.generator import generate_template
+from pathlib import Path
+
 from cleo import Command
+from snapflow.templates.generator import generate_template
 
 
 def strip_snapflow(s: str) -> str:

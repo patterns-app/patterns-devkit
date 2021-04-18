@@ -1,6 +1,4 @@
 from __future__ import annotations
-from snapflow.core.function import DEFAULT_OUTPUT_NAME
-from snapflow.core.function_package import FunctionPackage
 
 import tempfile
 from contextlib import contextmanager
@@ -8,8 +6,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Union
 
 from commonmodel.base import Schema, SchemaLike
-from dcp.data_format.handler import get_handler_for_name, infer_schema_for_name
 from dcp.data_format.formats.memory.records import PythonRecordsHandler
+from dcp.data_format.handler import get_handler_for_name, infer_schema_for_name
 from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
@@ -17,8 +15,10 @@ from dcp.utils.data import read_csv, read_json, read_raw_string_csv
 from dcp.utils.pandas import assert_dataframes_are_almost_equal
 from pandas import DataFrame
 from snapflow import DataBlock, Environment, Graph, _Function
+from snapflow.core.function import DEFAULT_OUTPUT_NAME
+from snapflow.core.function_package import FunctionPackage
 from snapflow.core.module import SnapflowModule
-from snapflow.core.node import DataBlockLog, Node, FunctionLog
+from snapflow.core.node import DataBlockLog, FunctionLog, Node
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
 
@@ -123,7 +123,8 @@ class TestCase:
 
 def run_test_case(case: TestCase):
     with produce_function_output_for_static_input(
-        function=case.package.function, inputs=case.inputs,
+        function=case.package.function,
+        inputs=case.inputs,
     ) as blocks:
         if not case.outputs:
             assert len(blocks) == 0

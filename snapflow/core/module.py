@@ -1,16 +1,10 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 from types import ModuleType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    List,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from commonmodel.base import Schema, SchemaLike, schema_from_yaml
 from loguru import logger

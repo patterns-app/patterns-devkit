@@ -1,5 +1,6 @@
 from __future__ import annotations
-from snapflow import SqlFunction, FunctionContext
+
+from snapflow import FunctionContext, SqlFunction
 
 
 @SqlFunction(namespace="_test_module", file=__file__)

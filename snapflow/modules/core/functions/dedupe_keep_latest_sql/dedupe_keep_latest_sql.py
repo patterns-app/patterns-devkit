@@ -12,4 +12,3 @@ from snapflow.core.sql.sql_function import SqlFunction
 )
 def dedupe_keep_latest_sql():
     return "dedupe_keep_latest_sql.sql"
-

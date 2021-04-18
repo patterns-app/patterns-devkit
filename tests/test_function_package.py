@@ -1,16 +1,17 @@
 from __future__ import annotations
 
 import logging
-from pprint import pprint
 from pathlib import Path
+from pprint import pprint
+
+from loguru import logger
+from snapflow import Function, _Function
+from snapflow.core.environment import Environment
 from snapflow.core.execution.execution import FunctionContext
 from snapflow.core.function_interface import DeclaredFunctionInterface
-from loguru import logger
-from snapflow.core.environment import Environment
-from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.core.function_package import FunctionPackage
+from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.modules import core
-from snapflow import _Function, Function
 
 logger.enable("snapflow")
 

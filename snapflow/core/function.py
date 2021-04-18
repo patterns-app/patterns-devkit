@@ -9,6 +9,13 @@ from commonmodel.base import SchemaLike
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.function_interface import (
+    DeclaredFunctionInterface,
+    DeclaredInput,
+    DeclaredOutput,
+    function_interface_from_callable,
+    merge_declared_interface_with_signature_interface,
+)
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
     DEFAULT_LOCAL_NAMESPACE,
@@ -16,13 +23,6 @@ from snapflow.core.module import (
     SnapflowModule,
 )
 from snapflow.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
-from snapflow.core.function_interface import (
-    DeclaredInput,
-    DeclaredOutput,
-    DeclaredFunctionInterface,
-    merge_declared_interface_with_signature_interface,
-    function_interface_from_callable,
-)
 
 if TYPE_CHECKING:
     from snapflow.core.execution import FunctionContext
@@ -41,7 +41,10 @@ class InputExhaustedException(FunctionException):
 FunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame, Records, DataBlockMetadata, DataBlock,
+    DataFrame,
+    Records,
+    DataBlockMetadata,
+    DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 DEFAULT_OUTPUT_NAME = "default"
@@ -225,7 +228,10 @@ def function_factory(
         else:
             namespace = namespace
         function = _Function(
-            name=name, namespace=namespace, function_callable=function_like, **kwargs,
+            name=name,
+            namespace=namespace,
+            function_callable=function_like,
+            **kwargs,
         )
     if namespace == DEFAULT_NAMESPACE:
         # Add to default module
@@ -323,7 +329,11 @@ def add_param_decorator(
     help: str = "",
 ):
     p = Parameter(
-        name=name, datatype=datatype, required=required, default=default, help=help,
+        name=name,
+        datatype=datatype,
+        required=required,
+        default=default,
+        help=help,
     )
 
     def dec(function_like: Union[FunctionCallable, _Function]) -> _Function:

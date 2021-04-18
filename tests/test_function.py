@@ -7,17 +7,14 @@ from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.execution import FunctionContext
 from snapflow.core.execution.executable import Executable, ExecutableConfiguration
-from snapflow.core.graph import Graph, graph
-from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
-from snapflow.core.node import DeclaredNode, node
 from snapflow.core.function import (
     DeclaredFunctionInterface,
+    Function,
+    FunctionLike,
     Input,
     Output,
     Param,
     Parameter,
-    Function,
-    FunctionLike,
     _Function,
 )
 from snapflow.core.function_interface import (
@@ -25,18 +22,19 @@ from snapflow.core.function_interface import (
     DeclaredOutput,
     NodeInterfaceManager,
     ParsedAnnotation,
+    function_interface_from_callable,
     get_schema_translation,
     make_default_output,
     parse_annotation,
-    function_interface_from_callable,
 )
+from snapflow.core.graph import Graph, graph
+from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
+from snapflow.core.node import DeclaredNode, node
 from snapflow.core.streams import StreamBuilder, block_as_stream
 from snapflow.modules import core
 from snapflow.utils.typing import T, U
 from tests.utils import (
     TestSchema1,
-    make_test_env,
-    make_test_run_context,
     function_chain_t1_to_t2,
     function_generic,
     function_multiple_input,
@@ -45,6 +43,8 @@ from tests.utils import (
     function_t1_sink,
     function_t1_source,
     function_t1_to_t2,
+    make_test_env,
+    make_test_run_context,
 )
 
 context_input = DeclaredInput(
@@ -119,7 +119,11 @@ def function_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     pass
 
 
-def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
+def df4(
+    input: DataBlock[T],
+    dr2: DataBlock[U],
+    dr3: DataBlock[U],
+) -> DataFrame[T]:
     pass
 
 
@@ -153,7 +157,8 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                     ),
                 ],
                 output=DeclaredOutput(
-                    data_format="DataFrame", schema_like="TestSchema2",
+                    data_format="DataFrame",
+                    schema_like="TestSchema2",
                 ),
             ),
         ),
@@ -168,7 +173,10 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                         _required=True,
                     ),
                 ],
-                output=DeclaredOutput(data_format="DataFrame", schema_like="T",),
+                output=DeclaredOutput(
+                    data_format="DataFrame",
+                    schema_like="T",
+                ),
             ),
         ),
         (
@@ -190,7 +198,10 @@ def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame
                         reference=True,
                     ),
                 ],
-                output=DeclaredOutput(data_format="DataFrame", schema_like="T",),
+                output=DeclaredOutput(
+                    data_format="DataFrame",
+                    schema_like="T",
+                ),
             ),
         ),
     ],
@@ -243,7 +254,8 @@ def test_declared_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
@@ -274,7 +286,8 @@ def test_natural_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
     )
     with env.md_api.begin():
         schema_translation = get_schema_translation(
