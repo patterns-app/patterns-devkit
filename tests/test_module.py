@@ -12,11 +12,11 @@ logger.enable("snapflow")
 
 
 def test_module_init():
-    from . import _test_module
+    from ._test_module import module as _test_module
 
-    assert isinstance(_test_module.module, SnapflowModule)
-    assert len(_test_module.all_schemas) >= 1
-    assert len(_test_module.all_functions) >= 2
+    assert isinstance(_test_module, SnapflowModule)
+    assert len(_test_module.schemas) >= 1
+    assert len(_test_module.functions) >= 2
 
 
 def test_core_module():

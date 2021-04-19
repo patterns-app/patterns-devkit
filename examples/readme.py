@@ -1,7 +1,7 @@
 # flake8: noqa F402
 import sys
 
-import snapflow_stripe as stripe
+from snapflow_stripe import module as stripe
 from snapflow import Environment, Function, SqlFunction, graph_from_yaml, run
 from snapflow.core.module import DEFAULT_LOCAL_MODULE
 

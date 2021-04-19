@@ -118,7 +118,7 @@ Then we run the graph once (time-limited for demo) and print out the final outpu
 
 ```python
 from snapflow import Environment
-import snapflow_stripe as stripe
+from snapflow_stripe import module as stripe
 
 env = Environment(modules=[stripe])
 run(g, env=env, execution_timelimit_seconds=5)
