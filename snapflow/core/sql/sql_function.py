@@ -83,6 +83,7 @@ class AnnotatedSqlTable:
 class AnnotatedParam:
     name: str
     annotation: Optional[str] = None
+    default: Optional[str] = None
 
 
 DFEAULT_PARAMETER_ANNOTATION = "Text"
@@ -122,7 +123,7 @@ class ParsedSqlStatement:
                         ap.annotation or DFEAULT_PARAMETER_ANNOTATION
                     ),
                     ap.name,
-                    None,
+                    ap.default,
                 )
 
         return FunctionInterface(
@@ -141,7 +142,9 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         - inputs, automatically inferred `input1` but can have optional schema `input1:Transaction`
         - output is annoatated on the select keyword: `select:Transaction`
     """
-    param_re = re.compile(r"(?P<whitespace>^|\s):(?P<name>\w+)(:(?P<datatype>\w+))?")
+    param_re = re.compile(
+        r"(?P<whitespace>^|\s):(?P<name>\w+)(:(?P<datatype>\w+))?(=(?P<default>[A-z0-9_.]+))?"
+    )
     params = {}
     sql_with_jinja_vars = sql
     while True:
@@ -149,13 +152,13 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         if m is None:
             break
         d = m.groupdict()
-        params[d["name"]] = AnnotatedParam(name=d["name"], annotation=d.get("datatype"))
+        params[d["name"]] = AnnotatedParam(
+            name=d["name"], annotation=d.get("datatype"), default=d.get("default")
+        )
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=sql_with_jinja_vars,
-        found_params=params,
+        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
     )
 
 
@@ -481,11 +484,7 @@ def sql_function_decorator(
     else:
         name = sql_fn_or_function.__name__
     return sql_function_factory(
-        name=name,
-        sql=sql,
-        file=file,
-        autodetect_inputs=autodetect_inputs,
-        **kwargs,
+        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
     )
 
 
