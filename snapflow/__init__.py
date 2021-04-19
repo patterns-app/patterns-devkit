@@ -1,4 +1,4 @@
-__version__ = "0.1.1"
+__version__ = "0.5.0.a1"
 
 from . import logging
 from .api import *
