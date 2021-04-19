@@ -7,6 +7,7 @@ version = "0.4.1"
 
 [tool.poetry.dependencies]
 alembic = "^1.5.5"
+cleo = "^0.8.1"
 click = "^7.1.1"
 colorful = "^0.5.4"
 common-model = "~0.1.1"
@@ -36,6 +37,7 @@ mkdocs = "^1.1.2"
 mkdocs-material = "^6.1.7"
 mypy = "^0.770"
 pre-commit = "^2.1.1"
+psycopg2-binary = "^2.8.6"
 pydeps = "^1.9.0"
 pytest = "^4.6"
 pytest-cov = "^2.8.1"
@@ -54,6 +56,7 @@ exclude = '''
   | \.venv
   | build
   | dist
+  | snapflow/templates/templates
 )/
 '''
 
@@ -62,12 +65,13 @@ force_grid_wrap = 0
 include_trailing_comma = true
 line_length = 88
 multi_line_output = 3
-skip_glob = "examples/*"
+skip_glob = ["examples/*", "snapflow/templates/templates/*"]
 use_parentheses = true
 
 [tool.pytest.ini_options]
+addopts = "-ra -q"
 norecursedirs = [
-  "_*/*",
+  "tests/_test_module/*",
 ]
 testpaths = [
   "tests",

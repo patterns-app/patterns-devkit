@@ -4,13 +4,13 @@ import pytest
 from snapflow.core.graph import Graph, graph_from_yaml
 from snapflow.modules import core
 from tests.utils import (
+    function_chain_t1_to_t2,
+    function_generic,
+    function_multiple_input,
+    function_self,
+    function_t1_source,
+    function_t1_to_t2,
     make_test_env,
-    snap_chain_t1_to_t2,
-    snap_generic,
-    snap_multiple_input,
-    snap_self,
-    snap_t1_source,
-    snap_t1_to_t2,
 )
 
 
@@ -18,15 +18,15 @@ def make_graph() -> Graph:
     env = make_test_env()
     env.add_module(core)
     g = Graph(env)
-    g.create_node(key="node1", snap=snap_t1_source)
-    g.node(key="node2", snap=snap_t1_source)
-    g.node(key="node3", snap=snap_t1_to_t2, input="node1")
-    g.node(key="node4", snap=snap_t1_to_t2, input="node2")
-    g.node(key="node5", snap=snap_generic, input="node4")
-    g.node(key="node6", snap=snap_self, input="node4")
+    g.create_node(key="node1", function=function_t1_source)
+    g.node(key="node2", function=function_t1_source)
+    g.node(key="node3", function=function_t1_to_t2, input="node1")
+    g.node(key="node4", function=function_t1_to_t2, input="node2")
+    g.node(key="node5", function=function_generic, input="node4")
+    g.node(key="node6", function=function_self, input="node4")
     g.node(
         key="node7",
-        snap=snap_multiple_input,
+        function=function_multiple_input,
         inputs={"input": "node4", "other_t2": "node3"},
     )
     return g
@@ -35,7 +35,7 @@ def make_graph() -> Graph:
 def test_dupe_node():
     g = make_graph()
     with pytest.raises(KeyError):
-        g.create_node(key="node1", snap=snap_t1_source)
+        g.create_node(key="node1", function=function_t1_source)
 
 
 def test_declared_graph():
@@ -72,9 +72,21 @@ def test_make_graph():
     assert len(g.get_all_nodes_in_execution_order()) == len(nodes)
     execution_order = [n.key for n in g.get_all_nodes_in_execution_order()]
     expected_orderings = [
-        ["node2", "node4", "node5",],
-        ["node2", "node4", "node6",],
-        ["node1", "node3", "node7",],
+        [
+            "node2",
+            "node4",
+            "node5",
+        ],
+        [
+            "node2",
+            "node4",
+            "node6",
+        ],
+        [
+            "node1",
+            "node3",
+            "node7",
+        ],
     ]
     # TODO: graph sort not stable!
     for ordering in expected_orderings:
@@ -87,15 +99,15 @@ def test_graph_from_yaml():
         """
     nodes:
       - key: stripe_charges
-        snap: stripe.extract_charges
+        function: stripe.extract_charges
         params:
           api_key: "*****"
       - key: accumulated_stripe_charges
-        snap: core.accumulator
+        function: core.accumulator
         inputs:
           - stripe_charges
       - key: stripe_customer_lifetime_sales
-        snap: customer_lifetime_sales
+        function: customer_lifetime_sales
         inputs:
           - accumulated_stripe_charges
     """

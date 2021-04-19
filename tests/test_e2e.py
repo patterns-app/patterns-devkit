@@ -12,11 +12,11 @@ from dcp.data_format.formats.memory.records import Records, RecordsFormat
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from loguru import logger
 from pandas._testing import assert_almost_equal
-from snapflow import DataBlock, Input, Output, Param, Snap, sql_snap
+from snapflow import DataBlock, Function, Input, Output, Param, sql_function
 from snapflow.core.environment import Environment, produce
-from snapflow.core.execution import SnapContext
+from snapflow.core.execution import FunctionContext
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, NodeState, SnapLog
+from snapflow.core.node import DataBlockLog, FunctionLog, NodeState
 from snapflow.modules import core
 from sqlalchemy import select
 
@@ -28,7 +28,7 @@ Customer = create_quick_schema(
 Metric = create_quick_schema("Metric", [("metric", "Text"), ("value", "Decimal(12,2)")])
 
 
-@Snap
+@Function
 def shape_metrics(i1: DataBlock) -> Records[Metric]:
     df = i1.as_dataframe()
     return [
@@ -37,7 +37,7 @@ def shape_metrics(i1: DataBlock) -> Records[Metric]:
     ]
 
 
-@Snap
+@Function
 def aggregate_metrics(
     i1: DataBlock, this: Optional[DataBlock] = None
 ) -> Records[Metric]:
@@ -63,8 +63,8 @@ batch_size = 4
 chunk_size = 2
 
 
-@Snap
-def customer_source(ctx: SnapContext) -> Iterator[Records[Customer]]:
+@Function
+def customer_source(ctx: FunctionContext) -> Iterator[Records[Customer]]:
     n_batches = ctx.get_param("batches")
     fail = ctx.get_param("fail")
     n = ctx.get_state_value("records_imported", 0)
@@ -91,7 +91,7 @@ def customer_source(ctx: SnapContext) -> Iterator[Records[Customer]]:
             return
 
 
-aggregate_metrics_sql = sql_snap(
+aggregate_metrics_sql = sql_function(
     "aggregate_metrics_sql",
     sql="""
     select -- :Metric
@@ -102,7 +102,7 @@ aggregate_metrics_sql = sql_snap(
 )
 
 
-dataset_inputs_sql = sql_snap(
+dataset_inputs_sql = sql_function(
     "dataset_inputs_sql",
     sql="""
     select
@@ -118,7 +118,7 @@ dataset_inputs_sql = sql_snap(
 )
 
 
-mixed_inputs_sql = sql_snap(
+mixed_inputs_sql = sql_function(
     "mixed_inputs_sql",
     sql="""
     select
@@ -148,7 +148,7 @@ def test_simple_import():
     g = Graph(env)
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
-    g.create_node(key="n1", snap="import_dataframe", params={"dataframe": df})
+    g.create_node(key="n1", function="import_dataframe", params={"dataframe": df})
     blocks = env.produce("n1", g)
     assert_almost_equal(blocks[0].as_dataframe(), df, check_dtype=False)
 
@@ -160,8 +160,8 @@ def test_repeated_runs():
     # Initial graph
     batches = 2
     N = batches * batch_size
-    g.create_node(key="source", snap=customer_source, params={"batches": batches})
-    metrics = g.create_node(key="metrics", snap=shape_metrics, input="source")
+    g.create_node(key="source", function=customer_source, params={"batches": batches})
+    metrics = g.create_node(key="metrics", function=shape_metrics, input="source")
     # Run first time
     blocks = env.produce("metrics", g, target_storage=s)
     assert blocks[0].nominal_schema_key.endswith("Metric")
@@ -187,7 +187,7 @@ def test_repeated_runs():
     assert len(blocks) == 0
 
     # now add new node and process all at once
-    g.create_node(key="new_accumulator", snap="core.accumulator", input="source")
+    g.create_node(key="new_accumulator", function="core.accumulator", input="source")
     blocks = env.produce("new_accumulator", g, target_storage=s)
     assert len(blocks) == 1
     records = blocks[0].as_records()
@@ -217,7 +217,7 @@ def test_alternate_apis():
     assert records == expected_records
 
 
-def test_snap_failure():
+def test_function_failure():
     env = get_env()
     g = Graph(env)
     s = env._local_python_storage
@@ -230,15 +230,15 @@ def test_snap_failure():
     records = blocks[0].as_records()
     assert len(records) == 2
     with env.md_api.begin():
-        assert env.md_api.count(select(SnapLog)) == 1
+        assert env.md_api.count(select(FunctionLog)) == 1
         assert env.md_api.count(select(DataBlockLog)) == 1
-        pl = env.md_api.execute(select(SnapLog)).scalar_one_or_none()
+        pl = env.md_api.execute(select(FunctionLog)).scalar_one_or_none()
         assert pl.node_key == source.key
         assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {}
         assert pl.node_end_state == {"records_imported": chunk_size}
-        assert pl.snap_key == source.snap.key
-        assert pl.snap_params == cfg
+        assert pl.function_key == source.function.key
+        assert pl.function_params == cfg
         assert pl.error is not None
         assert FAIL_MSG in pl.error["error"]
         ns = env.md_api.execute(
@@ -253,10 +253,12 @@ def test_snap_failure():
     records = blocks[0].as_records()
     assert len(records) == batch_size
     with env.md_api.begin():
-        assert env.md_api.count(select(SnapLog)) == 2
+        assert env.md_api.count(select(FunctionLog)) == 2
         assert env.md_api.count(select(DataBlockLog)) == 2
         pl = (
-            env.md_api.execute(select(SnapLog).order_by(SnapLog.completed_at.desc()))
+            env.md_api.execute(
+                select(FunctionLog).order_by(FunctionLog.completed_at.desc())
+            )
             .scalars()
             .first()
         )
@@ -264,8 +266,8 @@ def test_snap_failure():
         assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {"records_imported": chunk_size}
         assert pl.node_end_state == {"records_imported": chunk_size + batch_size}
-        assert pl.snap_key == source.snap.key
-        assert pl.snap_params == cfg
+        assert pl.function_key == source.function.key
+        assert pl.function_params == cfg
         assert pl.error is None
         ns = env.md_api.execute(
             select(NodeState).filter(NodeState.node_key == pl.node_key)

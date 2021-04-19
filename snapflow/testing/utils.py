@@ -1,6 +1,4 @@
 from __future__ import annotations
-from snapflow.core.snap import DEFAULT_OUTPUT_NAME
-from snapflow.core.snap_package import SnapPackage
 
 import tempfile
 from contextlib import contextmanager
@@ -8,32 +6,36 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Union
 
 from commonmodel.base import Schema, SchemaLike
-from dcp.data_format.handler import get_handler_for_name, infer_schema_for_name
 from dcp.data_format.formats.memory.records import PythonRecordsHandler
+from dcp.data_format.handler import get_handler_for_name, infer_schema_for_name
 from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from dcp.utils.data import read_csv, read_json, read_raw_string_csv
 from dcp.utils.pandas import assert_dataframes_are_almost_equal
 from pandas import DataFrame
-from snapflow import DataBlock, Environment, Graph, _Snap
+from snapflow import DataBlock, Environment, Graph, _Function
+from snapflow.core.function import DEFAULT_OUTPUT_NAME
+from snapflow.core.function_package import FunctionPackage
 from snapflow.core.module import SnapflowModule
-from snapflow.core.node import DataBlockLog, Node, SnapLog
+from snapflow.core.node import DataBlockLog, FunctionLog, Node
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
 
 
-def display_snap_log(env: Environment):
+def display_function_log(env: Environment):
     for dbl in env.md_api.execute(
         select(DataBlockLog).order_by(DataBlockLog.created_at)
     ):
-        print(f"{dbl.snap_log.snap_key:30} {dbl.data_block_id:4} {dbl.direction}")
+        print(
+            f"{dbl.function_log.function_key:30} {dbl.data_block_id:4} {dbl.direction}"
+        )
 
 
 def str_as_dataframe(
     env: Environment,
     test_data: str,
-    package: Optional[SnapPackage] = None,
+    package: Optional[FunctionPackage] = None,
     nominal_schema: Optional[Schema] = None,
 ) -> DataFrame:
     # TODO: add conform_dataframe_to_schema option
@@ -68,7 +70,7 @@ def str_as_dataframe(
 class DataInput:
     data: str
     schema: Optional[SchemaLike] = None
-    package: Optional[SnapPackage] = None
+    package: Optional[FunctionPackage] = None
 
     def as_dataframe(self, env: Environment):
         schema = None
@@ -86,7 +88,7 @@ class DataInput:
         return self.schema.key
 
     @classmethod
-    def from_input(cls, input: Union[str, Dict], package: SnapPackage) -> DataInput:
+    def from_input(cls, input: Union[str, Dict], package: FunctionPackage) -> DataInput:
         data = None
         schema = None
         if isinstance(input, str):
@@ -104,10 +106,10 @@ class TestCase:
     name: str
     inputs: Dict[str, DataInput]
     outputs: Dict[str, DataInput]
-    package: Optional[SnapPackage] = None
+    package: Optional[FunctionPackage] = None
 
     @classmethod
-    def from_test(cls, test: Dict, package: SnapPackage) -> TestCase:
+    def from_test(cls, test: Dict, package: FunctionPackage) -> TestCase:
         inputs = {}
         for name, i in test.get("inputs", {}).items():
             inputs[name] = DataInput.from_input(i, package)
@@ -120,8 +122,9 @@ class TestCase:
 
 
 def run_test_case(case: TestCase):
-    with produce_snap_output_for_static_input(
-        snap=case.package.snap, inputs=case.inputs,
+    with produce_function_output_for_static_input(
+        function=case.package.function,
+        inputs=case.inputs,
     ) as blocks:
         if not case.outputs:
             assert len(blocks) == 0
@@ -141,8 +144,8 @@ class TestFeatureNotImplementedError(Exception):
 
 
 @contextmanager
-def produce_snap_output_for_static_input(
-    snap: _Snap,
+def produce_function_output_for_static_input(
+    function: _Function,
     params: Dict[str, Any] = None,
     input: Any = None,
     inputs: Any = None,
@@ -156,9 +159,9 @@ def produce_snap_output_for_static_input(
         db = get_tmp_sqlite_db_url()
         env = Environment(metadata_storage=db)
     if not target_storage:
-        if "database" in snap.required_storage_classes:
+        if "database" in function.required_storage_classes:
             target_storage = Storage(get_tmp_sqlite_db_url())
-        if snap.required_storage_engines:
+        if function.required_storage_engines:
             raise TestFeatureNotImplementedError(
                 "No testing support for required storage engines yet"
             )
@@ -168,7 +171,7 @@ def produce_snap_output_for_static_input(
         g = Graph(env)
         input_datas = inputs
         input_nodes: Dict[str, Node] = {}
-        pi = snap.get_interface()
+        pi = function.get_interface()
         if not isinstance(inputs, dict):
             assert len(pi.get_non_recursive_inputs()) == 1
             input_datas = {pi.get_non_recursive_inputs()[0].name: inputs}
@@ -182,7 +185,7 @@ def produce_snap_output_for_static_input(
             assert isinstance(input_data, DataInput)
             n = g.create_node(
                 key=f"_input_{inpt.name}",
-                snap="core.import_dataframe",
+                function="core.import_dataframe",
                 params={
                     "dataframe": input_data.as_dataframe(env),
                     "schema": input_data.get_schema_key(),
@@ -190,7 +193,7 @@ def produce_snap_output_for_static_input(
             )
             input_nodes[inpt.name] = n
         test_node = g.create_node(
-            key=f"{snap.name}", snap=snap, params=params, inputs=input_nodes
+            key=f"{function.name}", function=function, params=params, inputs=input_nodes
         )
         blocks = env.produce(
             test_node, to_exhaustion=False, target_storage=target_storage

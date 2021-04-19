@@ -5,8 +5,8 @@ import os
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 from types import ModuleType
+from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from alembic import command
 from alembic.config import Config
@@ -29,7 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
-    from snapflow.core.snap import _Snap
+    from snapflow.core.function import _Function
     from snapflow.core.node import Node, NodeLike
     from snapflow.core.data_block import DataBlock
     from snapflow.core.graph import Graph, DeclaredGraph, DEFAULT_GRAPH
@@ -46,7 +46,7 @@ Serializable = Union[str, int, float, bool]
 @dataclass(frozen=True)
 class SnapflowSettings:
     initialize_metadata_storage: bool = True
-    abort_on_snap_error: bool = False
+    abort_on_function_error: bool = False
     execution_timelimit_seconds: Optional[int] = None
     fail_on_downcast: bool = False
     warn_on_downcast: bool = True
@@ -206,14 +206,14 @@ class Environment:
     def all_schemas(self) -> List[Schema]:
         return self.library.all_schemas()
 
-    def get_snap(self, snap_like: str) -> _Snap:
-        return self.library.get_snap(snap_like)
+    def get_function(self, function_like: str) -> _Function:
+        return self.library.get_function(function_like)
 
-    def add_snap(self, snap: _Snap):
-        self.library.add_snap(snap)
+    def add_function(self, function: _Function):
+        self.library.add_function(function)
 
-    def all_snaps(self) -> List[_Snap]:
-        return self.library.all_snaps()
+    def all_functions(self) -> List[_Function]:
+        return self.library.all_functions()
 
     def add_module(self, *modules: Union[SnapflowModule, ModuleType, str]):
         for module in modules:
@@ -262,7 +262,7 @@ class Environment:
             local_storage=self._local_python_storage,
             target_storage=target_storage,
             storages=self.storages,
-            abort_on_snap_error=self.settings.abort_on_snap_error,
+            abort_on_function_error=self.settings.abort_on_function_error,
         )
         args.update(**kwargs)
         return ExecutionContext(**args)
@@ -293,7 +293,7 @@ class Environment:
 
         return Executable(
             node=node,
-            snap=node.snap,
+            function=node.function,
             execution_context=self.get_execution_context(
                 target_storage=target_storage, **kwargs
             ),

@@ -1,4 +1,4 @@
-exclude: '.mypy_cache|.pytest_cache|.venv'
+exclude: ".mypy_cache|.pytest_cache|.venv|snapflow/templates/templates"
 repos:
   - repo: https://github.com/psf/black
     rev: 20.8b1

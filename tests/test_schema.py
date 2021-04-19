@@ -1,15 +1,13 @@
 from __future__ import annotations
-from commonmodel.base import create_quick_schema
 
 import pytest
-
+from commonmodel.base import create_quick_schema
 from snapflow.core.typing.casting import (
     CastToSchemaLevel,
     SchemaTypeError,
     cast_to_realized_schema,
 )
 from tests.utils import make_test_env, sample_records
-
 
 ERROR = "_error"
 WARN = "_warn"

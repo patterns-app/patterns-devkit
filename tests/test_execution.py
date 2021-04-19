@@ -9,21 +9,21 @@ from loguru import logger
 from pandas import DataFrame
 from snapflow.core.data_block import Alias, DataBlock, DataBlockMetadata
 from snapflow.core.execution import Executable, ExecutionManager
+from snapflow.core.function import Input
+from snapflow.core.function_interface import NodeInterfaceManager
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, Direction, SnapLog
-from snapflow.core.snap import Input
-from snapflow.core.snap_interface import NodeInterfaceManager
+from snapflow.core.node import DataBlockLog, Direction, FunctionLog
 from snapflow.modules import core
 from sqlalchemy.sql.expression import select
 from tests.utils import (
     TestSchema1,
     TestSchema4,
+    function_generic,
+    function_t1_sink,
+    function_t1_source,
+    function_t1_to_t2,
     make_test_env,
     make_test_run_context,
-    snap_generic,
-    snap_t1_sink,
-    snap_t1_source,
-    snap_t1_to_t2,
 )
 
 logger.enable("snapflow")
@@ -31,30 +31,30 @@ logger.enable("snapflow")
 mock_dl_output = [{"f1": "2"}, {"f2": 3}]
 
 
-def snap_dl_source() -> Records[TestSchema4]:
+def function_dl_source() -> Records[TestSchema4]:
     return mock_dl_output
 
 
-def snap_error() -> Records[TestSchema4]:
-    raise Exception("snap FAIL")
+def function_error() -> Records[TestSchema4]:
+    raise Exception("function FAIL")
 
 
 def test_exe():
     env = make_test_env()
     g = Graph(env)
-    node = g.create_node(key="node", snap=snap_t1_source)
+    node = g.create_node(key="node", function=function_t1_source)
     exe = env.get_executable(node)
     result = ExecutionManager(exe).execute()
     with env.md_api.begin():
         assert not result.output_blocks
-        assert env.md_api.count(select(SnapLog)) == 1
-        pl = env.md_api.execute(select(SnapLog)).scalar_one_or_none()
+        assert env.md_api.count(select(FunctionLog)) == 1
+        pl = env.md_api.execute(select(FunctionLog)).scalar_one_or_none()
         assert pl.node_key == node.key
         assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {}
         assert pl.node_end_state == {}
-        assert pl.snap_key == node.snap.key
-        assert pl.snap_params == {}
+        assert pl.function_key == node.function.key
+        assert pl.function_params == {}
 
 
 def test_exe_output():
@@ -67,7 +67,9 @@ def test_exe_output():
     # ec = env.get_run_context(g, current_runtime=rt, target_storage=env.storages[0])
     # ec = env.get_run_context(g, current_runtime=rt, target_storage=rt.as_storage())
     output_alias = "node_output"
-    node = g.create_node(key="node", snap=snap_dl_source, output_alias=output_alias)
+    node = g.create_node(
+        key="node", function=function_dl_source, output_alias=output_alias
+    )
     exe = env.get_executable(node)
     result = ExecutionManager(exe).execute()
     with env.md_api.begin():
@@ -89,19 +91,19 @@ def test_exe_output():
         assert dbl.direction == Direction.OUTPUT
 
 
-def test_non_terminating_snap():
+def test_non_terminating_function():
     def never_stop(input: Optional[DataBlock] = None) -> DataFrame:
         pass
 
     env = make_test_env()
     g = Graph(env)
-    node = g.create_node(key="node", snap=never_stop)
+    node = g.create_node(key="node", function=never_stop)
     exe = env.get_executable(node)
     result = ExecutionManager(exe).execute()
     assert result.get_output_block(env) is None
 
 
-def test_non_terminating_snap_with_reference_input():
+def test_non_terminating_function_with_reference_input():
     @Input("input", reference=True, required=False)
     def never_stop(input: Optional[DataBlock] = None) -> DataFrame:
         # Does not use input but doesn't matter cause reference
@@ -110,10 +112,10 @@ def test_non_terminating_snap_with_reference_input():
     env = make_test_env()
     g = Graph(env)
     source = g.create_node(
-        snap="core.import_dataframe",
+        function="core.import_dataframe",
         params={"dataframe": pd.DataFrame({"a": range(10)})},
     )
-    node = g.create_node(key="node", snap=never_stop, input=source)
+    node = g.create_node(key="node", function=never_stop, input=source)
     exe = env.get_executable(source)
     # TODO: reference inputs need to log too? (So they know when to update)
     # with env.md_api.begin():

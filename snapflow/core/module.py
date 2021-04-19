@@ -1,28 +1,22 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 from types import ModuleType
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    List,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from commonmodel.base import Schema, SchemaLike, schema_from_yaml
 from loguru import logger
 from snapflow.core.component import ComponentLibrary, DictView
 
 if TYPE_CHECKING:
-    from snapflow.core.snap import (
-        SnapLike,
-        _Snap,
-        make_snap,
+    from snapflow.core.function import (
+        FunctionLike,
+        _Function,
+        make_function,
     )
-    from snapflow.core.snap_package import SnapPackage
+    from snapflow.core.function_package import FunctionPackage
 
 DEFAULT_LOCAL_NAMESPACE = "_local"
 DEFAULT_NAMESPACE = DEFAULT_LOCAL_NAMESPACE
@@ -37,7 +31,7 @@ class SnapflowModule:
     namespace: str
     py_module_path: Optional[str]
     py_module_name: Optional[str]
-    snap_paths: List[str] = ["components/snaps"]
+    function_paths: List[str] = ["components/functions"]
     schema_paths: List[str] = ["components/schemas"]
     library: ComponentLibrary
     dependencies: List[SnapflowModule]
@@ -48,7 +42,7 @@ class SnapflowModule:
         name: Optional[str] = None,
         py_module_path: Optional[str] = None,
         py_module_name: Optional[str] = None,
-        snap_paths: List[str] = ["snaps"],
+        function_paths: List[str] = ["functions"],
         schema_paths: List[str] = ["schemas"],
         dependencies: List[
             SnapflowModule
@@ -61,34 +55,34 @@ class SnapflowModule:
         self.py_module_path = py_module_path
         self.py_module_name = py_module_name
         self.library = ComponentLibrary(namespace_lookup_keys=[self.namespace])
-        self.snap_paths = snap_paths
+        self.function_paths = function_paths
         self.schema_paths = schema_paths
         self.dependencies = []
-        self.snap_packages = {}
+        self.function_packages = {}
         if self.py_module_path:
             self.discover_schemas()
-            self.discover_snaps()
+            self.discover_functions()
         for d in dependencies or []:
             self.add_dependency(d)
         # for t in tests or []:
         #     self.add_test_case(t)
 
-    def discover_snaps(self):
-        from snapflow.core.snap_package import SnapPackage
+    def discover_functions(self):
+        from snapflow.core.function_package import FunctionPackage
 
         if not self.py_module_path:
             return
 
-        for snaps_path in self.snap_paths:
-            logger.debug(f"Discovering snaps in {snaps_path}")
-            snaps_root = Path(self.py_module_path).resolve() / snaps_path
-            packages = SnapPackage.all_from_root_path(
-                str(snaps_root), namespace=self.namespace
+        for functions_path in self.function_paths:
+            logger.debug(f"Discovering functions in {functions_path}")
+            functions_root = Path(self.py_module_path).resolve() / functions_path
+            packages = FunctionPackage.all_from_root_path(
+                str(functions_root), namespace=self.namespace
             )
             for pkg in packages:
                 logger.debug(f"Found package {pkg.name}")
-                self.snap_packages[pkg.name] = pkg
-                self.library.add_snap(pkg.snap)
+                self.function_packages[pkg.name] = pkg
+                self.library.add_function(pkg.function)
 
     def discover_schemas(self):
         if not self.py_module_path:
@@ -101,14 +95,14 @@ class SnapflowModule:
                         yml = f.read()
                         self.add_schema(yml)
 
-    def add_snap_package(self, pkg: SnapPackage):
-        self.snap_packages[pkg.name] = pkg
-        self.add_snap(pkg.snap)
+    def add_function_package(self, pkg: FunctionPackage):
+        self.function_packages[pkg.name] = pkg
+        self.add_function(pkg.function)
 
-    def add_snap(self, snap_like: Union[SnapLike, str]) -> _Snap:
-        p = self.process_snap(snap_like)
+    def add_function(self, function_like: Union[FunctionLike, str]) -> _Function:
+        p = self.process_function(function_like)
         self.validate_key(p)
-        self.library.add_snap(p)
+        self.library.add_function(p)
         return p
 
     def add_schema(self, schema_like: SchemaLike) -> Schema:
@@ -117,29 +111,35 @@ class SnapflowModule:
         self.library.add_schema(schema)
         return schema
 
-    def process_snap(self, snap_like: Union[SnapLike, str, ModuleType]) -> _Snap:
-        from snapflow.core.snap import _Snap, make_snap, PythonCodeSnapWrapper
-        from snapflow.core.sql.sql_snap import sql_snap
-        from snapflow.core.snap_package import SnapPackage
+    def process_function(
+        self, function_like: Union[FunctionLike, str, ModuleType]
+    ) -> _Function:
+        from snapflow.core.function import (
+            _Function,
+            make_function,
+            PythonCodeFunctionWrapper,
+        )
+        from snapflow.core.sql.sql_function import sql_function
+        from snapflow.core.function_package import FunctionPackage
 
-        if isinstance(snap_like, _Snap):
-            snap = snap_like
+        if isinstance(function_like, _Function):
+            function = function_like
         else:
-            if callable(snap_like):
-                snap = make_snap(snap_like, namespace=self.namespace)
-            # elif isinstance(snap_like, str):
+            if callable(function_like):
+                function = make_function(function_like, namespace=self.namespace)
+            # elif isinstance(function_like, str):
             #     # Just a string, not a sql file, assume it is python? TODO
-            #     snap = make_snap(PythonCodeSnapWrapper(snap_like), namespaceself.name)
-            elif isinstance(snap_like, ModuleType):
-                # Module snap (the new default)
-                pkg = SnapPackage.from_module(snap_like)
-                self.add_snap_package(pkg)
-                return pkg.snap
-                # code = inspect.getsource(snap_like)
-                # snap = make_snap(PythonCodeSnapWrapper(code), namespaceself.name)
+            #     function = make_function(PythonCodeFunctionWrapper(function_like), namespaceself.name)
+            elif isinstance(function_like, ModuleType):
+                # Module function (the new default)
+                pkg = FunctionPackage.from_module(function_like)
+                self.add_function_package(pkg)
+                return pkg.function
+                # code = inspect.getsource(function_like)
+                # function = make_function(PythonCodeFunctionWrapper(code), namespaceself.name)
             else:
-                raise TypeError(snap_like)
-        return snap
+                raise TypeError(function_like)
+        return function
 
     def process_schema(self, schema_like: SchemaLike) -> Schema:
         if isinstance(schema_like, Schema):
@@ -155,12 +155,12 @@ class SnapflowModule:
             return schema_like
         return self.library.get_schema(schema_like)
 
-    def get_snap(self, snap_like: Union[_Snap, str]) -> _Snap:
-        from snapflow.core.snap import _Snap
+    def get_function(self, function_like: Union[_Function, str]) -> _Function:
+        from snapflow.core.function import _Function
 
-        if isinstance(snap_like, _Snap):
-            return snap_like
-        return self.library.get_snap(snap_like)
+        if isinstance(function_like, _Function):
+            return function_like
+        return self.library.get_function(function_like)
 
     def export(self):
         pass
@@ -172,7 +172,7 @@ class SnapflowModule:
         # setattr(mod, "__getattr__", self.__getattribute__)
 
     # Add to dir:
-    # setattr(mod, "snaps", self.snaps)
+    # setattr(mod, "functions", self.functions)
     # setattr(mod, "schemas", self.schemas)
     # setattr(mod, "run_tests", self.run_tests)
     # setattr(mod, "namespace", self.namespace)
@@ -185,8 +185,8 @@ class SnapflowModule:
         return self.library.get_schemas_view()
 
     @property
-    def snaps(self) -> DictView[str, _Snap]:
-        return self.library.get_snaps_view()
+    def functions(self) -> DictView[str, _Function]:
+        return self.library.get_functions_view()
 
     def validate_key(self, obj: Any):
         if hasattr(obj, "namespace"):
@@ -195,14 +195,14 @@ class SnapflowModule:
                     f"Component {obj} namespace `{obj.namespace}` does not match module namespace `{self.namespace}` to which it was added"
                 )
 
-    def remove_snap(self, snap_like: Union[SnapLike, str]):
-        self.library.remove_snap(snap_like)
+    def remove_function(self, function_like: Union[FunctionLike, str]):
+        self.library.remove_function(function_like)
 
     def run_tests(self):
         from snapflow.testing.utils import run_test_case, TestFeatureNotImplementedError
 
-        for name, pkg in self.snap_packages.items():
-            print(f"Running tests for snap {name}")
+        for name, pkg in self.function_packages.items():
+            print(f"Running tests for function {name}")
             for case in pkg.get_test_cases():
                 print(f"======= {case.name} =======")
                 try:

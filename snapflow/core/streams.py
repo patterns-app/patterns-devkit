@@ -24,16 +24,16 @@ from snapflow.core.data_block import (
     StoredDataBlockMetadata,
 )
 from snapflow.core.environment import Environment
+from snapflow.core.function_interface import get_schema_translation
 from snapflow.core.graph import Graph
 from snapflow.core.node import (
     DataBlockLog,
     DeclaredNode,
     Direction,
+    FunctionLog,
     Node,
     NodeLike,
-    SnapLog,
 )
-from snapflow.core.snap_interface import get_schema_translation
 from sqlalchemy import and_, not_
 from sqlalchemy.engine import Result
 from sqlalchemy.orm import Query
@@ -207,15 +207,17 @@ class StreamBuilder:
             # Only exclude blocks processed as INPUT
             filter_clause = and_(
                 DataBlockLog.direction == Direction.INPUT,
-                SnapLog.node_key == self._filters.unprocessed_by_node_key,
+                FunctionLog.node_key == self._filters.unprocessed_by_node_key,
             )
         else:
             # No block cycles allowed
             # Exclude blocks processed as INPUT and blocks outputted
-            filter_clause = SnapLog.node_key == self._filters.unprocessed_by_node_key
+            filter_clause = (
+                FunctionLog.node_key == self._filters.unprocessed_by_node_key
+            )
         already_processed_drs = (
             Query(DataBlockLog.data_block_id)
-            .join(SnapLog)
+            .join(FunctionLog)
             .filter(filter_clause)
             .filter(DataBlockLog.invalidated == False)  # noqa
             .distinct()
@@ -237,10 +239,10 @@ class StreamBuilder:
             return query
         eligible_input_drs = (
             Query(DataBlockLog.data_block_id)
-            .join(SnapLog)
+            .join(FunctionLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                SnapLog.node_key.in_(self._filters.node_keys),
+                FunctionLog.node_key.in_(self._filters.node_keys),
             )
             .filter(DataBlockLog.invalidated == False)  # noqa
             .distinct()

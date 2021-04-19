@@ -16,10 +16,10 @@ from snapflow.core.data_block import (
     StoredDataBlockMetadata,
 )
 from snapflow.core.environment import Environment, EnvironmentConfiguration
+from snapflow.core.function import DEFAULT_OUTPUT_NAME, _Function
+from snapflow.core.function_interface import StreamInput
 from snapflow.core.graph import DeclaredGraph, NxAdjacencyList, graph_from_node_configs
-from snapflow.core.node import DeclaredNode, Node, NodeConfiguration, SnapLog
-from snapflow.core.snap import DEFAULT_OUTPUT_NAME, _Snap
-from snapflow.core.snap_interface import StreamInput
+from snapflow.core.node import DeclaredNode, FunctionLog, Node, NodeConfiguration
 from sqlalchemy.sql.expression import select
 
 
@@ -72,7 +72,7 @@ class ExecutionContext:
     storages: List[Storage] = None
     logger: ExecutionLogger = field(default_factory=ExecutionLogger)
     execution_timelimit_seconds: Optional[int] = None
-    abort_on_snap_error: bool = False
+    abort_on_function_error: bool = False
     execution_config: ExecutionConfiguration = None
 
     @staticmethod
@@ -86,7 +86,7 @@ class ExecutionContext:
             storages=[ensure_storage(s) for s in cfg.storage_urls],
             # logger=ExecutionLogger(),  # TODO: from config
             execution_timelimit_seconds=cfg.execution_timelimit_seconds,
-            abort_on_snap_error=env.settings.abort_on_snap_error,
+            abort_on_function_error=env.settings.abort_on_function_error,
             execution_config=cfg,
         )
 
@@ -94,7 +94,7 @@ class ExecutionContext:
 @dataclass
 class ExecutableConfiguration:
     node_key: str
-    snap_key: str
+    function_key: str
     execution_config: ExecutionConfiguration
     nodes: Dict[str, NodeConfiguration]
 
@@ -102,7 +102,7 @@ class ExecutableConfiguration:
 @dataclass(frozen=True)
 class Executable:
     node: Node
-    snap: _Snap
+    function: _Function
     execution_context: ExecutionContext
     executable_config: ExecutableConfiguration = None
     # graph_adjacency: NxAdjacencyList # Graph is implied by node_key (nodes only belong to one graph)
@@ -113,7 +113,7 @@ class Executable:
         graph = graph_from_node_configs(ec.env, cfg.nodes.values())
         return Executable(
             node=graph.get_node(cfg.node_key),
-            snap=ec.env.get_snap(cfg.snap_key),
+            function=ec.env.get_function(cfg.function_key),
             execution_context=ec,
             executable_config=cfg,
         )

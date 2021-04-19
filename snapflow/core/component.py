@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Union
-
 from types import ModuleType
+from typing import TYPE_CHECKING, Any, Dict, List, Union
 
 from commonmodel import Schema
 from dcp.utils.common import AttrDict
 
 if TYPE_CHECKING:
-    from snapflow.core.snap import (
-        SnapLike,
-        _Snap,
+    from snapflow.core.function import (
+        FunctionLike,
+        _Function,
     )
     from snapflow.core.module import SnapflowModule
 
@@ -22,14 +21,14 @@ class DictView(dict):
 
 
 class ComponentLibrary:
-    snaps: Dict[str, _Snap]
+    functions: Dict[str, _Function]
     schemas: Dict[str, Schema]
     module_lookup_names: List[str]
 
     def __init__(self, namespace_lookup_keys: List[str] = None):
         from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
 
-        self.snaps = {}
+        self.functions = {}
         self.schemas = {}
         self.module_lookup_names = [DEFAULT_LOCAL_NAMESPACE]
         if namespace_lookup_keys:
@@ -45,33 +44,35 @@ class ComponentLibrary:
             module = module.module
         self.merge(module.library)
 
-    def add_snap(self, p: _Snap):
-        self.snaps[p.key] = p
+    def add_function(self, p: _Function):
+        self.functions[p.key] = p
 
     def add_schema(self, schema: Schema):
         self.schemas[schema.key] = schema
 
-    def remove_snap(self, snap_like: Union[_Snap, str]):
-        from snapflow.core.snap import _Snap
+    def remove_function(self, function_like: Union[_Function, str]):
+        from snapflow.core.function import _Function
 
-        if isinstance(snap_like, _Snap):
-            snap_like = snap_like.key
-        if snap_like not in self.snaps:
+        if isinstance(function_like, _Function):
+            function_like = function_like.key
+        if function_like not in self.functions:
             return
-        del self.snaps[snap_like]
+        del self.functions[function_like]
 
-    def get_snap(self, snap_like: Union[_Snap, str], try_module_lookups=True) -> _Snap:
-        from snapflow.core.snap import _Snap
+    def get_function(
+        self, function_like: Union[_Function, str], try_module_lookups=True
+    ) -> _Function:
+        from snapflow.core.function import _Function
 
-        if isinstance(snap_like, _Snap):
-            return snap_like
-        if not isinstance(snap_like, str):
-            raise TypeError(snap_like)
+        if isinstance(function_like, _Function):
+            return function_like
+        if not isinstance(function_like, str):
+            raise TypeError(function_like)
         try:
-            return self.snaps[snap_like]
+            return self.functions[function_like]
         except KeyError as e:
             if try_module_lookups:
-                return self.namespace_lookup(self.snaps, snap_like)
+                return self.namespace_lookup(self.functions, function_like)
             raise e
 
     def get_schema(
@@ -99,14 +100,14 @@ class ComponentLibrary:
                 pass
         raise KeyError(f"`{k}` not found in modules {self.module_lookup_names}")
 
-    def all_snaps(self) -> List[_Snap]:
-        return list(self.snaps.values())
+    def all_functions(self) -> List[_Function]:
+        return list(self.functions.values())
 
     def all_schemas(self) -> List[Schema]:
         return list(self.schemas.values())
 
     def merge(self, other: ComponentLibrary):
-        self.snaps.update(other.snaps)
+        self.functions.update(other.functions)
         self.schemas.update(other.schemas)
         for k in other.module_lookup_names:
             self.add_namespace(k)
@@ -118,8 +119,8 @@ class ComponentLibrary:
             ad[k.split(".")[-1]] = p  # TODO: module precedence
         return ad
 
-    def get_snaps_view(self) -> DictView[str, _Snap]:
-        return self.get_view(self.snaps)
+    def get_functions_view(self) -> DictView[str, _Function]:
+        return self.get_view(self.functions)
 
     def get_schemas_view(self) -> DictView[str, Schema]:
         return self.get_view(self.schemas)
