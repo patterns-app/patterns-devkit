@@ -73,9 +73,6 @@ Install core library and the Stripe module:
 Define a function:
 
 ```python
-from snapflow import Function
-
-@Function
 def customer_lifetime_sales(txs):
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
@@ -162,46 +159,46 @@ input via `streams`. Functions are written in python or sql.
 
 Functions may take any number of inputs, and optionally may output data. A function with no inputs
 is a "source" function. These functions often fetch data from an external API or data source.
-Functions can also take parameters. Inputs (upstream nodes) can be declared explicitly or,
-alternatively, snapflow will infer automatically a function's interface from its type annotations --
-what inputs are required or optional, and what schemas are expected.
+Functions can also take parameters. Inputs (upstream nodes) and parameters (configuration)
+are inferred automatically a function's type annotations --
+the type of input, whether required or optional, and what schemas are expected.
 
 Taking our example from above, we can now more explicitly annotate and parameterize it:
 
 ```python
-@Param("metric", datatype="str", default="amount")
-@Input("txs", schema="Transaction")
-def customer_lifetime_sales(ctx: FunctionContext, txs: DataBlock):
+def customer_lifetime_sales(
+  ctx: FunctionContext,
+  txs: DataBlock[Transaction],
+  metric: str = "amount"
+):
     # FunctionContext object automatically injected if declared
-    metric = ctx.get_param("metric")
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")[metric].sum().reset_index()
 
 @SqlFunction
-@Param("metric", datatype="raw", default="amount")
-@Input("txs", schema="Transaction")
 def customer_lifetime_sales_sql():
   return """
       select
           customer
-        , sum(:metric) as :metric
-      from txs
+        , sum(:metric) as :metric:raw=amount
+      from txs:Transaction
       group by customer
-  """)
+  """
 ```
 
-Note the special syntax `:metric` in the SQL query for using a parameter. It is of type
-`raw` since it is used as an identifier (we don't want it quoted as a string).
+Note the special syntax `:metric` in the SQL query for specifying a parameter. It is of type
+`raw` since it is used as an identifier (we don't want it quoted as a string), and has a default
+value of `amount`, the same as in our python example above.
 
 ### Schemas
 
-`schemas` are record type definitions (think database table schema) that let `functions` specify the
+`Schemas` are record type definitions (think database table schema) that let `functions` specify the
 data structure they expect and allow them to inter-operate safely. They also
 provide a natural place for field descriptions, validation logic, uniqueness constraints,
 default deduplication behavior, relations to other schemas, and other metadata associated with
 a specific type of data record.
 
-`schemas` behave like _interfaces_ in other typed languages. The snapflow type system is structurally and
+`Schemas` behave like _interfaces_ in other typed languages. The snapflow type system is structurally and
 gradually typed -- schemas are both optional and inferred, there is no explicit type hierarchy, and
 type compatibility can be inspected at runtime. A type is a subtype of, or "compatible" with, another
 type if it defines a superset of compatible fields or if it provides an `implementation`
@@ -213,7 +210,7 @@ A minimal `schema` example, in yaml:
 name: Order
 description: An example schema representing a basic order (purchase)
 version: 1.0
-unique on:
+unique_on:
   - id
 fields:
   id:
@@ -238,18 +235,7 @@ fields:
 
 ```python
 # In python, use python's type annotations to specify expected schemas:
-@Function
-def sales(txs: DataBlock[Transaction]) -> DataBlock[CustomerMetric]:
-    df = txs.as_dataframe()
-    return df.groupby("customer_id").sum("amount").reset_index()
-```
-
-You can also more explicitly define inputs and outputs with the `@Input` and `@Output` decorators:
-
-```python
-@Input("txs", schema="Transaction")
-@Output(schema="CustomerMetric")
-def sales(txs: DataBlock[Transaction]) -> DataBlock[CustomerMetric]:
+def sales(txs: DataBlock[Transaction]) -> DataFrame[CustomerMetric]:
     df = txs.as_dataframe()
     return df.groupby("customer_id").sum("amount").reset_index()
 ```
@@ -258,11 +244,10 @@ In SQL, we add type hints with comments after the `select` statement (for output
 identifiers (for inputs):
 
 ```sql
--- In SQL, we use comments to specify expected schemas
-select -- :CustomerMetric
+select:CustomerMetric
     customer_id
   , sum(amount) as amount
-from txs -- :Transaction
+from txs:Transaction
 group by customer_id
 ```
 
@@ -281,9 +266,9 @@ implementations:
 ```
 
 Here we have _implemented_ the `common.TimeSeries` schema, so any `function` that accepts
-timeseries data, say a seasonality modeling function, can now be applied to this `Order` data. We could
-also apply this schema implementation ad-hoc at node declaration time with the
-`schema_translation` kwarg:
+timeseries data -- a seasonality modeling function, for example -- can now be applied to
+this `Order` data as well. We could also apply this schema implementation ad-hoc at
+node declaration time with the `schema_translation` kwarg:
 
 ```python
 orders = node(order_source)
@@ -300,8 +285,7 @@ n = node(
 Typing is always optional, our original function definitions were valid with
 no annotated `schemas`. Snapflow `schemas` are a powerful mechanism for producing reusable
 components and building maintainable large-scale data projects and ecosystems. They are always
-optional though, and should be used when the utility they provide out-weighs the friction they
-introduce.
+optional though, and should be used when the utility they provide out-weighs any friction.
 
 ### Streams
 
@@ -333,7 +317,9 @@ def sample(stream: Stream, sample_rate: float = .5) -> Stream:
             yield block
 ```
 
-It's important to note that streams, unlike functions, never _create_ new datablocks or have any
+#### Operators vs functions
+
+It's important to note that streams, unlike functions, never _create_ new datablocks nor have any
 effect on what is stored on disk. They only alter _which_ datablocks end up as input to a node.
 
 ## Other concepts
@@ -447,10 +433,13 @@ snapflow-mymodule/snapflow_mymodule/functions/
 The actual function is in `my_function.py` and will be an identify function to start:
 
 ```python
-# @Input("input", stream=True)
-# @Param("param1", datatype="int")
 @Function(namespace="mymodule")
-def my_function(ctx: FunctionContext, input: DataBlock):
+def my_function(
+    ctx: FunctionContext,
+    input: DataBlock
+    # ref: Reference   # A reference input
+    # param1: str = "default val"  # A parameter with default
+):
     df = input.as_dataframe() # Or .as_records()
     return df
 ```

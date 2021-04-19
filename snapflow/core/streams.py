@@ -24,7 +24,7 @@ from snapflow.core.data_block import (
     StoredDataBlockMetadata,
 )
 from snapflow.core.environment import Environment
-from snapflow.core.function_interface import get_schema_translation
+from snapflow.core.function_interface_manager import get_schema_translation
 from snapflow.core.graph import Graph
 from snapflow.core.node import (
     DataBlockLog,

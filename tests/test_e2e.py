@@ -15,6 +15,7 @@ from pandas._testing import assert_almost_equal
 from snapflow import DataBlock, Function, Input, Output, Param, sql_function
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import FunctionContext
+from snapflow.core.function_interface import Consumable, Reference
 from snapflow.core.graph import Graph
 from snapflow.core.node import DataBlockLog, FunctionLog, NodeState
 from snapflow.modules import core
@@ -64,11 +65,11 @@ chunk_size = 2
 
 
 @Function
-def customer_source(ctx: FunctionContext) -> Iterator[Records[Customer]]:
-    n_batches = ctx.get_param("batches")
-    fail = ctx.get_param("fail")
+def customer_source(
+    ctx: FunctionContext, batches: int, fail: bool = False
+) -> Iterator[Records[Customer]]:
     n = ctx.get_state_value("records_imported", 0)
-    N = n_batches * batch_size
+    N = batches * batch_size
     if n >= N:
         return
     for i in range(batch_size // chunk_size):
@@ -306,17 +307,13 @@ def test_node_reset():
     assert records == expected_records
 
 
-@Input("metrics", schema="Metric")
-@Input("cust", schema="Customer")
-def with_latest_metrics_no_ref(metrics: DataBlock, cust: DataBlock):
+def with_latest_metrics_no_ref(metrics: DataBlock[Metric], cust: DataBlock[Customer]):
     m = metrics.as_dataframe()
     c = cust.as_dataframe()
     return pd.concat([m, c])
 
 
-@Input("metrics", schema="Metric", reference=True)
-@Input("cust", schema="Customer")
-def with_latest_metrics(metrics: DataBlock, cust: DataBlock):
+def with_latest_metrics(cust: Consumable[Customer], metrics: Reference[Metric]):
     m = metrics.as_dataframe()
     c = cust.as_dataframe()
     return pd.concat([m, c])

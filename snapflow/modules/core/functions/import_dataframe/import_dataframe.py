@@ -17,35 +17,19 @@ from snapflow.core.streams import Stream
     namespace="core",
     display_name="Import Pandas DataFrame",
 )
-@Param("dataframe", datatype="DataFrame")
-@Param("schema", datatype="str", required=False)
-def import_dataframe(ctx: FunctionContext):  # TODO optional
+def import_dataframe(
+    ctx: FunctionContext, dataframe: str, schema: Optional[str] = None
+):
+    """
+    Import pandas DataFrame
+
+    dataframe:
+    """
     imported = ctx.get_state_value("imported")
     if imported:
         # Just emit once
         return  # TODO: typing fix here?
     ctx.emit_state_value("imported", True)
-    schema = ctx.get_param("schema")
-    df = ctx.get_param("dataframe")
-    ctx.emit(df, data_format=DataFrameFormat, schema=schema)
-
-
-# @Function(
-#     namespace="core", display_name="Import Pandas DataFrame",
-# )
-# def import_dataframe(
-#     ctx: FunctionContext, dataframe: DataFrame, schema: Optional[str] = None
-# ):
-#     """
-#     Import pandas DataFrame
-
-#     dataframe:
-#     """
-#     imported = ctx.get_state_value("imported")
-#     if imported:
-#         # Just emit once
-#         return  # TODO: typing fix here?
-#     ctx.emit_state_value("imported", True)
-#     schema = ctx.get_param("schema")
-#     df = ctx.get_param("dataframe")
-#     ctx.emit(df, data_format=DataFrameFormat, schema=schema)
+    # schema = ctx.get_param("schema")
+    # df = ctx.get_param("dataframe")
+    ctx.emit(dataframe, data_format=DataFrameFormat, schema=schema)

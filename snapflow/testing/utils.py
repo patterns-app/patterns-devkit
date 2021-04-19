@@ -174,9 +174,9 @@ def produce_function_output_for_static_input(
         pi = function.get_interface()
         if not isinstance(inputs, dict):
             assert len(pi.get_non_recursive_inputs()) == 1
-            input_datas = {pi.get_non_recursive_inputs()[0].name: inputs}
-        for inpt in pi.inputs:
-            if inpt.from_self:
+            input_datas = {pi.get_single_non_recursive_input().name: inputs}
+        for inpt in pi.inputs.values():
+            if inpt.is_self_reference:
                 continue
             assert inpt.name is not None
             input_data = input_datas[inpt.name]

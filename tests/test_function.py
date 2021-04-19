@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Callable
+from typing import Any, Callable
 
 import pytest
 from pandas import DataFrame
@@ -8,8 +8,9 @@ from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.execution import FunctionContext
 from snapflow.core.execution.executable import Executable, ExecutableConfiguration
 from snapflow.core.function import (
-    DeclaredFunctionInterface,
+    DEFAULT_OUTPUT_NAME,
     Function,
+    FunctionInterface,
     FunctionLike,
     Input,
     Output,
@@ -18,14 +19,17 @@ from snapflow.core.function import (
     _Function,
 )
 from snapflow.core.function_interface import (
-    DeclaredInput,
-    DeclaredOutput,
-    NodeInterfaceManager,
+    DEFAULT_OUTPUT,
+    DEFAULT_OUTPUTS,
+    FunctionInput,
+    FunctionOutput,
+    InputType,
     ParsedAnnotation,
-    function_interface_from_callable,
+    parse_input_annotation,
+)
+from snapflow.core.function_interface_manager import (
+    NodeInterfaceManager,
     get_schema_translation,
-    make_default_output,
-    parse_annotation,
 )
 from snapflow.core.graph import Graph, graph
 from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
@@ -47,17 +51,6 @@ from tests.utils import (
     make_test_run_context,
 )
 
-context_input = DeclaredInput(
-    name="ctx",
-    schema_like="Any",
-    data_format="FunctionContext",
-    reference=False,
-    _required=True,
-    from_self=False,
-    stream=False,
-    context=True,
-)
-
 
 @pytest.mark.parametrize(
     "annotation,expected",
@@ -65,52 +58,52 @@ context_input = DeclaredInput(
         (
             "DataBlock[Type]",
             ParsedAnnotation(
-                data_format_class="DataBlock",
-                schema_like="Type",
-                is_optional=False,
+                input_type=InputType("DataBlock"),
+                schema="Type",
+                optional=False,
                 original_annotation="DataBlock[Type]",
             ),
         ),
         (
             "Optional[DataBlock[Type]]",
             ParsedAnnotation(
-                data_format_class="DataBlock",
-                schema_like="Type",
-                is_optional=True,
+                input_type=InputType("DataBlock"),
+                schema="Type",
+                optional=True,
                 original_annotation="Optional[DataBlock[Type]]",
             ),
         ),
         (
-            "DataFrame[Type]",
+            "SelfReference[Type]",
             ParsedAnnotation(
-                data_format_class="DataFrame",
-                schema_like="Type",
-                is_optional=False,
-                original_annotation="DataFrame[Type]",
+                input_type=InputType("SelfReference"),
+                schema="Type",
+                optional=False,
+                original_annotation="SelfReference[Type]",
             ),
         ),
         (
-            "DataBlock[T]",
+            "Reference[T]",
             ParsedAnnotation(
-                data_format_class="DataBlock",
-                schema_like="T",
-                is_optional=False,
-                original_annotation="DataBlock[T]",
+                input_type=InputType("Reference"),
+                schema="T",
+                optional=False,
+                original_annotation="Reference[T]",
             ),
         ),
         (
-            "DataBlockStream[Type]",
+            "Stream[Type]",
             ParsedAnnotation(
-                data_format_class="DataBlockStream",
-                schema_like="Type",
-                is_optional=False,
-                original_annotation="DataBlockStream[Type]",
+                input_type=InputType("Stream"),
+                schema="Type",
+                optional=False,
+                original_annotation="Stream[Type]",
             ),
         ),
     ],
 )
 def test_typed_annotation(annotation: str, expected: ParsedAnnotation):
-    tda = parse_annotation(annotation)
+    tda = parse_input_annotation(annotation)
     assert tda == expected
 
 
@@ -132,87 +125,93 @@ def df4(
     [
         (
             function_t1_sink,
-            DeclaredFunctionInterface(
-                inputs=[
-                    DeclaredInput(
-                        data_format="DataBlock",
-                        schema_like="TestSchema1",
+            FunctionInterface(
+                inputs={
+                    "input": FunctionInput(
                         name="input",
-                        _required=True,
+                        input_type=InputType("DataBlock"),
+                        schema_like="TestSchema1",
+                        required=True,
                     ),
-                ],
-                output=make_default_output(),
-                context=context_input,
+                },
+                outputs={DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT},
+                parameters={},
+                uses_context=True,
             ),
         ),
         (
             function_t1_to_t2,
-            DeclaredFunctionInterface(
-                inputs=[
-                    DeclaredInput(
-                        data_format="DataBlock",
-                        schema_like="TestSchema1",
+            FunctionInterface(
+                inputs={
+                    "input": FunctionInput(
                         name="input",
-                        _required=True,
+                        input_type=InputType("DataBlock"),
+                        schema_like="TestSchema1",
+                        required=True,
                     ),
-                ],
-                output=DeclaredOutput(
-                    data_format="DataFrame",
-                    schema_like="TestSchema2",
-                ),
+                },
+                outputs={
+                    DEFAULT_OUTPUT_NAME: FunctionOutput(
+                        data_format="DataFrame", schema_like="TestSchema2"
+                    )
+                },
+                parameters={},
+                uses_context=True,
             ),
         ),
         (
             function_generic,
-            DeclaredFunctionInterface(
-                inputs=[
-                    DeclaredInput(
-                        data_format="DataBlock",
-                        schema_like="T",
+            FunctionInterface(
+                inputs={
+                    "input": FunctionInput(
                         name="input",
-                        _required=True,
+                        input_type=InputType("DataBlock"),
+                        schema_like="T",
+                        required=True,
                     ),
-                ],
-                output=DeclaredOutput(
-                    data_format="DataFrame",
-                    schema_like="T",
-                ),
+                },
+                outputs={
+                    DEFAULT_OUTPUT_NAME: FunctionOutput(
+                        data_format="DataFrame", schema_like="T"
+                    )
+                },
+                parameters={},
+                uses_context=False,
             ),
         ),
         (
             function_self,
-            DeclaredFunctionInterface(
-                inputs=[
-                    DeclaredInput(
-                        data_format="DataBlock",
-                        schema_like="T",
+            FunctionInterface(
+                inputs={
+                    "input": FunctionInput(
                         name="input",
-                        _required=True,
-                    ),
-                    DeclaredInput(
-                        data_format="DataBlock",
+                        input_type=InputType("DataBlock"),
                         schema_like="T",
-                        name="this",
-                        _required=False,
-                        from_self=True,
-                        reference=True,
+                        required=True,
                     ),
-                ],
-                output=DeclaredOutput(
-                    data_format="DataFrame",
-                    schema_like="T",
-                ),
+                    "previous": FunctionInput(
+                        name="previous",
+                        input_type=InputType("SelfReference"),
+                        schema_like="T",
+                        required=False,
+                    ),
+                },
+                outputs={
+                    DEFAULT_OUTPUT_NAME: FunctionOutput(
+                        data_format="DataFrame", schema_like="T"
+                    )
+                },
+                parameters={},
+                uses_context=False,
             ),
         ),
     ],
 )
-def test_function_interface(
-    function_like: FunctionLike, expected: DeclaredFunctionInterface
-):
+def test_function_interface(function_like: FunctionLike, expected: FunctionInterface):
     p = Function(function_like)
     val = p.get_interface()
     assert set(val.inputs) == set(expected.inputs)
-    assert val.output == expected.output
+    assert val.outputs == expected.outputs
     # node = DeclaredNode(key="_test", function=function, inputs={"input": "mock"}).instantiate(
     #     env
     # )
@@ -265,7 +264,9 @@ def test_declared_schema_translation():
         schema_translation = get_schema_translation(
             env,
             block.realized_schema(env),
-            target_schema=env.get_schema(pi.inputs[0].schema_like),
+            target_schema=env.get_schema(
+                pi.get_single_non_recursive_input().schema_like
+            ),
             declared_schema_translation=translation,
         )
         assert schema_translation.as_dict() == translation
@@ -293,7 +294,9 @@ def test_natural_schema_translation():
         schema_translation = get_schema_translation(
             env,
             block.realized_schema(env),
-            target_schema=env.get_schema(pi.inputs[0].schema_like),
+            target_schema=env.get_schema(
+                pi.get_single_non_recursive_input().schema_like
+            ),
             declared_schema_translation=translation,
         )
         assert schema_translation.as_dict() == translation
@@ -368,8 +371,8 @@ def test_node_no_inputs():
     node1 = g.create_node(key="node1", function=df)
     assert {node1: node1}[node1] is node1  # Test hash
     pi = node1.get_interface()
-    assert pi.inputs == []
-    assert pi.output is not None
+    assert pi.inputs == {}
+    assert pi.outputs != {}
     assert node1.declared_inputs == {}
 
 
@@ -382,14 +385,14 @@ def test_node_inputs():
     node1 = g.create_node(key="node1", function=df, input=node)
     pi = node1.get_interface()
     assert len(pi.inputs) == 1
-    assert pi.output == make_default_output()
+    assert pi.outputs == DEFAULT_OUTPUTS
     assert list(node1.declared_inputs.keys()) == ["input"]
 
 
 def test_node_stream_inputs():
     pi = Function(function_stream).get_interface()
     assert len(pi.inputs) == 1
-    assert pi.inputs[0].stream
+    assert pi.get_single_non_recursive_input().input_type == InputType("Stream")
 
 
 def test_node_params():
@@ -397,13 +400,10 @@ def test_node_params():
     g = Graph(env)
     param_vals = []
 
-    @Param("test", "str")
-    def function_ctx(ctx: FunctionContext):
-        param_vals.append(ctx.get_param("test"))
+    def function_ctx(ctx: FunctionContext, test: str):
+        param_vals.append(test)
 
-    n = g.create_node(
-        key="ctx", function=function_ctx, params={"test": 1, "extra_arg": 2}
-    )
+    n = g.create_node(key="ctx", function=function_ctx, params={"test": 1})
     env.run_node(n, g)
     assert param_vals == [1]
 
@@ -417,34 +417,28 @@ def test_any_schema_interface():
 
     df = Function(function_any)
     pi = df.get_interface()
-    assert pi.inputs[0].schema_like == "Any"
-    assert pi.output.schema_like == "Any"
+    assert pi.get_single_non_recursive_input().schema_like == "Any"
+    assert pi.get_default_output().schema_like == "Any"
 
 
 def test_api():
     @Function(namespace="module1")
-    @Param("p1", "str")
-    @Input("i1")
-    def s1(ctx: FunctionContext):
+    def s1(ctx, i1, p1: str):
         pass
 
-    @Param("p1", "str")
     @Function("s1", namespace="module1")
-    def s2(ctx: FunctionContext, i1: DataBlock):
+    def s2(ctx: FunctionContext, i1: DataBlock, p1: str = "default val"):
         pass
 
     @Function("s1")
-    @Param("p1", "str")
-    @Input("i1")
-    def s3(ctx: FunctionContext, i1: DataBlock):
+    def s3(ctx, i1: DataBlock[TestSchema1], p1: str):
         pass
 
-    @Output(schema="Any")
-    @Function(name="s1", params=[Parameter(name="p1", datatype="str")])
-    def s4(ctx: FunctionContext, i1: DataBlock):
-        pass
+    # @Function(name="s1", params=[Parameter(name="p1", datatype="str")])
+    # def s4(ctx: FunctionContext, i1: DataBlock) -> Any:
+    #     pass
 
-    for snp in [s1, s2, s3, s4]:
+    for snp in [s1, s2, s3]:  # , s4]:
         if snp in (s1, s2):
             assert snp.namespace == "module1"
         else:

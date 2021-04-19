@@ -17,7 +17,7 @@ from snapflow.core.data_block import (
 )
 from snapflow.core.environment import Environment, EnvironmentConfiguration
 from snapflow.core.function import DEFAULT_OUTPUT_NAME, _Function
-from snapflow.core.function_interface import StreamInput
+from snapflow.core.function_interface_manager import StreamInput
 from snapflow.core.graph import DeclaredGraph, NxAdjacencyList, graph_from_node_configs
 from snapflow.core.node import DeclaredNode, FunctionLog, Node, NodeConfiguration
 from sqlalchemy.sql.expression import select

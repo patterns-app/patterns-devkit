@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from commonmodel.base import create_quick_schema
 from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
@@ -13,10 +15,11 @@ from snapflow.core.execution.executable import (
     ExecutionConfiguration,
     ExecutionContext,
 )
+from snapflow.core.function_interface import SelfReference
 from snapflow.core.graph import Graph
 from snapflow.core.module import SnapflowModule
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
-from snapflow.core.streams import DataBlockStream
+from snapflow.core.streams import DataBlockStream, Stream
 from snapflow.utils.typing import T
 
 TestSchema1 = create_quick_schema("TestSchema1", [("f1", "Text")], namespace="_test")
@@ -80,19 +83,19 @@ def function_t1_source(ctx: FunctionContext) -> DataFrame[TestSchema1]:
     pass
 
 
-def function_stream(input: DataBlockStream) -> DataBlock:
+def function_stream(input: Stream) -> DataBlock:
     pass
 
 
 function_chain_t1_to_t2 = function_t1_to_t2  # function_chain("function_chain_t1_to_t2", [function_t1_to_t2, function_generic])
 
 
-def function_self(input: DataBlock[T], this: DataBlock[T] = None) -> DataFrame[T]:
+def function_self(input: DataBlock[T], previous: SelfReference[T]) -> DataFrame[T]:
     pass
 
 
 def function_multiple_input(
-    input: DataBlock[T], other_t2: DataBlock[TestSchema2] = None
+    input: DataBlock[T], other_t2: Optional[DataBlock[TestSchema2]]
 ) -> DataFrame[T]:
     pass
 

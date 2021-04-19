@@ -17,10 +17,8 @@ from snapflow.core.function import (
     make_function,
     make_function_name,
 )
-from snapflow.core.function_interface import (
-    DeclaredFunctionInterface,
-    DeclaredStreamInput,
-)
+from snapflow.core.function_interface import FunctionInterface
+from snapflow.core.function_interface_manager import DeclaredStreamInput
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
@@ -30,7 +28,6 @@ from sqlalchemy.sql.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
 if TYPE_CHECKING:
-    from snapflow.core.execution import RunContext
     from snapflow.core.streams import StreamBuilder, StreamLike
     from snapflow.core.graph import Graph, GraphMetadata, DeclaredGraph, DEFAULT_GRAPH
 
@@ -209,7 +206,7 @@ class Node:
     key: str
     function: _Function
     params: Dict[str, Any]
-    interface: DeclaredFunctionInterface
+    interface: FunctionInterface
     declared_inputs: Dict[str, DeclaredStreamInput]
     output_alias: Optional[str] = None
     declared_schema_translation: Optional[Dict[str, Dict[str, str]]] = None
@@ -236,7 +233,7 @@ class Node:
             ident
         )  # TODO: this logic should be storage api specific! and then shared back?
 
-    def get_interface(self) -> DeclaredFunctionInterface:
+    def get_interface(self) -> FunctionInterface:
         return self.interface
 
     def get_schema_translation_for_input(

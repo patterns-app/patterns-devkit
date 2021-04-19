@@ -9,12 +9,12 @@ from commonmodel.base import SchemaLike
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
-from snapflow.core.function_interface import (
-    DeclaredFunctionInterface,
-    DeclaredInput,
-    DeclaredOutput,
+from snapflow.core.function_interface import (  # merge_declared_interface_with_signature_interface,
+    FunctionInput,
+    FunctionInterface,
+    FunctionOutput,
+    Parameter,
     function_interface_from_callable,
-    merge_declared_interface_with_signature_interface,
 )
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
@@ -75,15 +75,6 @@ def make_function_name(function: Union[FunctionCallable, _Function, str]) -> str
     raise Exception(f"Cannot make name for function-like {function}")
 
 
-@dataclass
-class Parameter:
-    name: str
-    datatype: str
-    required: bool = False
-    default: Any = None
-    help: str = ""
-
-
 @dataclass  # (frozen=True)
 class _Function:
     # Underscored so the decorator API can use `Function`. TODO: Is there a better way / name?
@@ -93,10 +84,10 @@ class _Function:
     required_storage_classes: List[str] = field(default_factory=list)
     required_storage_engines: List[str] = field(default_factory=list)
     # compatible_runtime_classes: List[Type[RuntimeClass]]
-    params: List[Parameter] = field(default_factory=list)
+    # params: List[Parameter] = field(default_factory=list)
     state_class: Optional[Type] = None
-    declared_inputs: Optional[List[DeclaredInput]] = None
-    declared_output: Optional[DeclaredOutput] = None
+    # declared_inputs: Optional[List[FunctionInput]] = None
+    # declared_output: Optional[FunctionOutput] = None
     ignore_signature: bool = (
         False  # Whether to ignore signature if there are any declared i/o
     )
@@ -123,25 +114,27 @@ class _Function:
     def get_original_object(self) -> Any:
         return self._original_object or self.function_callable
 
-    def get_interface(self) -> DeclaredFunctionInterface:
+    def get_interface(self) -> FunctionInterface:
         """"""
         found_signature_interface = self._get_function_interface()
-        declared_interface = DeclaredFunctionInterface(
-            inputs=self.declared_inputs or [], output=self.declared_output
-        )
-        return merge_declared_interface_with_signature_interface(
-            declared_interface,
-            found_signature_interface,
-            ignore_signature=self.ignore_signature,
-        )
+        return found_signature_interface
+        # declared_interface = FunctionInterface(
+        #     inputs=self.declared_inputs or [], output=self.declared_output
+        # )
+        # return merge_declared_interface_with_signature_interface(
+        #     declared_interface,
+        #     found_signature_interface,
+        #     ignore_signature=self.ignore_signature,
+        # )
+
+    @property
+    def params(self) -> Dict[str, Parameter]:
+        return self.get_interface().parameters
 
     def get_param(self, name: str) -> Parameter:
-        for p in self.params or []:
-            if p.name == name:
-                return p
-        raise KeyError(name)
+        return self.get_interface().parameters[name]
 
-    def _get_function_interface(self) -> DeclaredFunctionInterface:
+    def _get_function_interface(self) -> FunctionInterface:
         if hasattr(self.function_callable, "get_interface"):
             return self.function_callable.get_interface()  # type: ignore
         return function_interface_from_callable(self.function_callable)
@@ -209,12 +202,12 @@ def function_factory(
             or function_like.required_storage_classes,
             required_storage_engines=kwargs.get("required_storage_engines")
             or function_like.required_storage_engines,
-            params=kwargs.get("params") or function_like.params,
+            # params=kwargs.get("params") or function_like.params,
             state_class=kwargs.get("state_class") or function_like.state_class,
-            declared_inputs=kwargs.get("declared_inputs")
-            or function_like.declared_inputs,
-            declared_output=kwargs.get("declared_output")
-            or function_like.declared_output,
+            # declared_inputs=kwargs.get("declared_inputs")
+            # or function_like.declared_inputs,
+            # declared_output=kwargs.get("declared_output")
+            # or function_like.declared_output,
             ignore_signature=kwargs.get("ignore_signature")
             or function_like.ignore_signature,
             display_name=kwargs.get("display_name") or function_like.display_name,
@@ -243,7 +236,7 @@ def function_decorator(
     function_or_name: Union[str, FunctionCallable, _Function] = None,
     name: str = None,
     namespace: Optional[Union[SnapflowModule, str]] = None,
-    params: List[Parameter] = None,
+    # params: List[Parameter] = None,
     state_class: Optional[Type] = None,
     **kwargs,
 ) -> Union[Callable, _Function]:
@@ -252,7 +245,7 @@ def function_decorator(
             function_decorator,
             namespace=namespace,
             name=name or function_or_name,
-            params=params,
+            # params=params,
             state_class=state_class,
             **kwargs,
         )
@@ -260,93 +253,89 @@ def function_decorator(
         function_or_name,
         name=name,
         namespace=namespace,
-        params=params,
+        # params=params,
         state_class=state_class,
         **kwargs,
     )
 
 
-def add_declared_input_decorator(
-    name: str,
-    schema: Optional[SchemaLike] = None,
-    reference: bool = False,
-    required: bool = True,
-    from_self: bool = False,  # TODO: name
-    stream: bool = False,
-):
-    inpt = DeclaredInput(
-        name=name,
-        schema_like=schema or "Any",
-        reference=reference,
-        _required=required,
-        from_self=from_self,
-        stream=stream,
-    )
+# def add_declared_input_decorator(
+#     name: str,
+#     schema: Optional[SchemaLike] = None,
+#     reference: bool = False,
+#     required: bool = True,
+#     from_self: bool = False,  # TODO: name
+#     stream: bool = False,
+# ):
+#     inpt = FunctionInput(
+#         name=name,
+#         schema_like=schema or "Any",
+#         reference=reference,
+#         _required=required,
+#         from_self=from_self,
+#         stream=stream,
+#     )
 
-    def dec(function_like: Union[FunctionCallable, _Function]) -> _Function:
-        if not isinstance(function_like, _Function):
-            function_like = function_factory(function_like)
-        function: _Function = function_like
-        if function.declared_inputs is None:
-            function.declared_inputs = [inpt]
-        else:
-            function.declared_inputs.append(inpt)
-        return function
+#     def dec(function_like: Union[FunctionCallable, _Function]) -> _Function:
+#         if not isinstance(function_like, _Function):
+#             function_like = function_factory(function_like)
+#         function: _Function = function_like
+#         if function.declared_inputs is None:
+#             function.declared_inputs = [inpt]
+#         else:
+#             function.declared_inputs.append(inpt)
+#         return function
 
-    return dec
-
-
-def add_declared_output_decorator(
-    schema: Optional[SchemaLike] = None,
-    optional: bool = False,
-    name: Optional[str] = None,
-    stream: bool = False,
-    default: bool = True,
-):
-    output = DeclaredOutput(
-        name=name,
-        schema_like=schema or "Any",
-        optional=optional,
-        stream=stream,
-        default=default,
-    )
-
-    def dec(function_like: Union[FunctionCallable, _Function]) -> _Function:
-        if not isinstance(function_like, _Function):
-            function_like = function_factory(function_like)
-        function: _Function = function_like
-        function.declared_output = output
-        return function
-
-    return dec
+#     return dec
 
 
-def add_param_decorator(
-    name: str,
-    datatype: str,
-    required: bool = False,
-    default: Any = None,
-    help: str = "",
-):
-    p = Parameter(
-        name=name,
-        datatype=datatype,
-        required=required,
-        default=default,
-        help=help,
-    )
+# def add_declared_output_decorator(
+#     schema: Optional[SchemaLike] = None,
+#     optional: bool = False,
+#     name: Optional[str] = None,
+#     stream: bool = False,
+#     default: bool = True,
+# ):
+#     output = FunctionOutput(
+#         name=name,
+#         schema_like=schema or "Any",
+#         optional=optional,
+#         stream=stream,
+#         default=default,
+#     )
 
-    def dec(function_like: Union[FunctionCallable, _Function]) -> _Function:
-        if not isinstance(function_like, _Function):
-            function_like = function_factory(function_like)
-        function: _Function = function_like
-        if function.params is None:
-            function.params = [p]
-        else:
-            function.params.append(p)
-        return function
+#     def dec(function_like: Union[FunctionCallable, _Function]) -> _Function:
+#         if not isinstance(function_like, _Function):
+#             function_like = function_factory(function_like)
+#         function: _Function = function_like
+#         function.declared_output = output
+#         return function
 
-    return dec
+#     return dec
+
+
+# def add_param_decorator(
+#     name: str,
+#     datatype: str,
+#     required: bool = False,
+#     default: Any = None,
+#     help: str = "",
+# ):
+#     p = Parameter(
+#         name=name, datatype=datatype, required=required, default=default, help=help,
+#     )
+
+#     def dec(function_like: Union[FunctionCallable, _Function]) -> _Function:
+#         if not isinstance(function_like, _Function):
+#             function_like = function_factory(function_like)
+#         function: _Function = function_like
+#         if function.params is None:
+#             function.params = [p]
+#         else:
+#             function.params.append(p)
+#         return function
+
+#     return dec
 
 
 def make_function(function_like: FunctionLike, **kwargs) -> _Function:
@@ -381,7 +370,7 @@ class PythonCodeFunctionWrapper:
             raise Exception("Function not found in code")
         return function
 
-    def get_interface(self) -> DeclaredFunctionInterface:
+    def get_interface(self) -> FunctionInterface:
         return self.get_function().get_interface()
 
     def __getattr__(self, name: str) -> Any:
@@ -400,8 +389,12 @@ class PythonCodeFunctionWrapper:
         return scope["ret"]
 
 
+def deprecated(*args, **kwargs):
+    raise DeprecationWarning()
+
+
 # Decorator API
-Input = add_declared_input_decorator
-Output = add_declared_output_decorator
-Param = add_param_decorator
+Input = deprecated
+Output = deprecated
+Param = deprecated
 Function = function_decorator
