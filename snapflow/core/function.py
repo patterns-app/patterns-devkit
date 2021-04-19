@@ -10,11 +10,11 @@ from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.function_interface import (
-    DeclaredFunctionInterface,
-    DeclaredInput,
-    DeclaredOutput,
+    FunctionInterface,
+    FunctionInput,
+    FunctionOutput,
     function_interface_from_callable,
-    merge_declared_interface_with_signature_interface,
+    # merge_declared_interface_with_signature_interface,
 )
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
@@ -41,10 +41,7 @@ class InputExhaustedException(FunctionException):
 FunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    DataBlockMetadata,
-    DataBlock,
+    DataFrame, Records, DataBlockMetadata, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 DEFAULT_OUTPUT_NAME = "default"
@@ -75,15 +72,6 @@ def make_function_name(function: Union[FunctionCallable, _Function, str]) -> str
     raise Exception(f"Cannot make name for function-like {function}")
 
 
-@dataclass
-class Parameter:
-    name: str
-    datatype: str
-    required: bool = False
-    default: Any = None
-    help: str = ""
-
-
 @dataclass  # (frozen=True)
 class _Function:
     # Underscored so the decorator API can use `Function`. TODO: Is there a better way / name?
@@ -95,8 +83,8 @@ class _Function:
     # compatible_runtime_classes: List[Type[RuntimeClass]]
     params: List[Parameter] = field(default_factory=list)
     state_class: Optional[Type] = None
-    declared_inputs: Optional[List[DeclaredInput]] = None
-    declared_output: Optional[DeclaredOutput] = None
+    declared_inputs: Optional[List[FunctionInput]] = None
+    declared_output: Optional[FunctionOutput] = None
     ignore_signature: bool = (
         False  # Whether to ignore signature if there are any declared i/o
     )
@@ -123,10 +111,10 @@ class _Function:
     def get_original_object(self) -> Any:
         return self._original_object or self.function_callable
 
-    def get_interface(self) -> DeclaredFunctionInterface:
+    def get_interface(self) -> FunctionInterface:
         """"""
         found_signature_interface = self._get_function_interface()
-        declared_interface = DeclaredFunctionInterface(
+        declared_interface = FunctionInterface(
             inputs=self.declared_inputs or [], output=self.declared_output
         )
         return merge_declared_interface_with_signature_interface(
@@ -141,7 +129,7 @@ class _Function:
                 return p
         raise KeyError(name)
 
-    def _get_function_interface(self) -> DeclaredFunctionInterface:
+    def _get_function_interface(self) -> FunctionInterface:
         if hasattr(self.function_callable, "get_interface"):
             return self.function_callable.get_interface()  # type: ignore
         return function_interface_from_callable(self.function_callable)
@@ -228,10 +216,7 @@ def function_factory(
         else:
             namespace = namespace
         function = _Function(
-            name=name,
-            namespace=namespace,
-            function_callable=function_like,
-            **kwargs,
+            name=name, namespace=namespace, function_callable=function_like, **kwargs,
         )
     if namespace == DEFAULT_NAMESPACE:
         # Add to default module
@@ -274,7 +259,7 @@ def add_declared_input_decorator(
     from_self: bool = False,  # TODO: name
     stream: bool = False,
 ):
-    inpt = DeclaredInput(
+    inpt = FunctionInput(
         name=name,
         schema_like=schema or "Any",
         reference=reference,
@@ -303,7 +288,7 @@ def add_declared_output_decorator(
     stream: bool = False,
     default: bool = True,
 ):
-    output = DeclaredOutput(
+    output = FunctionOutput(
         name=name,
         schema_like=schema or "Any",
         optional=optional,
@@ -329,11 +314,7 @@ def add_param_decorator(
     help: str = "",
 ):
     p = Parameter(
-        name=name,
-        datatype=datatype,
-        required=required,
-        default=default,
-        help=help,
+        name=name, datatype=datatype, required=required, default=default, help=help,
     )
 
     def dec(function_like: Union[FunctionCallable, _Function]) -> _Function:
@@ -381,7 +362,7 @@ class PythonCodeFunctionWrapper:
             raise Exception("Function not found in code")
         return function
 
-    def get_interface(self) -> DeclaredFunctionInterface:
+    def get_interface(self) -> FunctionInterface:
         return self.get_function().get_interface()
 
     def __getattr__(self, name: str) -> Any:

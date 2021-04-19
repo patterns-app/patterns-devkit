@@ -17,10 +17,7 @@ from snapflow.core.function import (
     make_function,
     make_function_name,
 )
-from snapflow.core.function_interface import (
-    DeclaredFunctionInterface,
-    DeclaredStreamInput,
-)
+from snapflow.core.function_interface import FunctionInterface
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
@@ -30,7 +27,6 @@ from sqlalchemy.sql.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
 if TYPE_CHECKING:
-    from snapflow.core.execution import RunContext
     from snapflow.core.streams import StreamBuilder, StreamLike
     from snapflow.core.graph import Graph, GraphMetadata, DeclaredGraph, DEFAULT_GRAPH
 
@@ -165,9 +161,7 @@ def node(
 
 
 def instantiate_node(
-    env: Environment,
-    graph: Graph,
-    declared_node: DeclaredNode,
+    env: Environment, graph: Graph, declared_node: DeclaredNode,
 ):
     if isinstance(declared_node.function, str):
         function = env.get_function(declared_node.function)
@@ -209,7 +203,7 @@ class Node:
     key: str
     function: _Function
     params: Dict[str, Any]
-    interface: DeclaredFunctionInterface
+    interface: FunctionInterface
     declared_inputs: Dict[str, DeclaredStreamInput]
     output_alias: Optional[str] = None
     declared_schema_translation: Optional[Dict[str, Dict[str, str]]] = None
@@ -236,7 +230,7 @@ class Node:
             ident
         )  # TODO: this logic should be storage api specific! and then shared back?
 
-    def get_interface(self) -> DeclaredFunctionInterface:
+    def get_interface(self) -> FunctionInterface:
         return self.interface
 
     def get_schema_translation_for_input(
@@ -315,10 +309,7 @@ class NodeState(BaseModel):
     state = Column(JSON, nullable=True)
 
     def __repr__(self):
-        return self._repr(
-            node_key=self.node_key,
-            state=self.state,
-        )
+        return self._repr(node_key=self.node_key, state=self.state,)
 
 
 def get_state(env: Environment, node_key: str) -> Optional[Dict]:

@@ -1,17 +1,13 @@
 from __future__ import annotations
+from enum import Enum
 
 import inspect
 import re
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
-from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
-from dcp.storage.base import Storage
-from loguru import logger
-from snapflow.core import operators
-from snapflow.core.data_block import DataBlock
-from snapflow.core.environment import Environment
-from snapflow.core.schema import GenericSchemaException, is_generic
+from commonmodel.base import SchemaLike
+from snapflow.core.schema import is_generic
 
 if TYPE_CHECKING:
     from snapflow.core.function import (
@@ -21,110 +17,196 @@ if TYPE_CHECKING:
     from snapflow.core.node import Node, Node, NodeLike
 
     from snapflow.core.execution.executable import Executable
-    from snapflow.core.streams import (
-        StreamBuilder,
-        InputStreams,
-        DataBlockStream,
-        StreamLike,
-    )
+    from snapflow.core.streams import StreamLike
 
 
-re_type_hint = re.compile(
+re_input_type_hint = re.compile(
     r"(?P<optional>(Optional)\[)?(?P<origin>\w+)(\[(?P<arg>(\w+\.)?\w+)\])?\]?"
 )
+re_output_type_hint = re.compile(
+    r"(?P<iterator>(Iterator|Iterable|Generator)\[)?(?P<origin>\w+)(\[(?P<arg>(\w+\.)?\w+)\])?\]?"
+)
 
-VALID_DATA_INTERFACE_TYPES = [
-    # TODO: is this list just a list of formats? which ones are valid i/o to Functions?
-    # TODO: do we even want this check?
-    "Stream",
-    "DataBlockStream",
-    "Block",
-    "DataBlock",
-    "DataFrame",
-    "Records",
-    "RecordsIterator",
-    "DataFrameIterator",
-    "DatabaseTableRef",
-    "DataRecordsObject",
-    "Any",
-    # "DatabaseCursor",
-]
+DEFAULT_OUTPUT_NAME = "default"
 
-SELF_REF_PARAM_NAME = "this"
+
+# VALID_DATA_INTERFACE_TYPES = [
+#     # TODO: is this list just a list of formats? which ones are valid i/o to Functions?
+#     # TODO: do we even want this check?
+#     "Stream",
+#     "DataBlockStream",
+#     "Block",
+#     "DataBlock",
+#     "DataFrame",
+#     "Records",
+#     "RecordsIterator",
+#     "DataFrameIterator",
+#     "DatabaseTableRef",
+#     "DataRecordsObject",
+#     "Any",
+#     # "DatabaseCursor",
+# ]
+
+# SELF_REF_PARAM_NAME = "this" # TODO: not necessary?
+
+
+class InputType(Enum):
+    DataBlock = "DataBlock"
+    Reference = "Reference"
+    Stream = "Stream"
+    SelfReference = "SelfReference"
+
+
+class ParameterType(Enum):
+    Text = "str"
+    Integer = "int"
+    Float = "float"
+    Json = "Dict"
+
+
+@dataclass
+class ParsedAnnotation:
+    input_type: Optional[InputType] = None
+    parameter_type: Optional[ParameterType] = None
+    output_type: Optional[str] = None
+    schema: Optional[str] = None
+    optional: bool = False
+    iterator: bool = False
+    original_annotation: Optional[str] = None
+    is_context: bool = False
+    is_none: bool = False
 
 
 class BadAnnotationException(Exception):
     pass
 
 
-DEFAULT_INPUT_ANNOTATION = "DataBlock"
+def parse_input_annotation(a: str) -> ParsedAnnotation:
+    parsed = ParsedAnnotation()
+    m = re_input_type_hint.match(a)
+    if m is None:
+        raise BadAnnotationException(f"Invalid Function annotation '{a}'")
+    md = m.groupdict()
+    if md.get("optional"):
+        parsed.optional = True
+    origin = md["origin"]
+    if origin == "FunctionContext":
+        parsed.is_context = True
+    elif origin in [it.value for it in InputType]:
+        parsed.input_type = InputType(origin)
+        parsed.schema = md.get("arg")
+    elif origin in [pt.value for pt in ParameterType]:
+        parsed.parameter_type = ParameterType(origin)
+    else:
+        raise BadAnnotationException(
+            f"{origin} is not an accepted input or parameter type"
+        )
+    return parsed
+
+
+def parse_output_annotation(a: str) -> ParsedAnnotation:
+    parsed = ParsedAnnotation()
+    m = re_output_type_hint.match(a)
+    if m is None:
+        raise BadAnnotationException(f"Invalid Function annotation '{a}'")
+    md = m.groupdict()
+    if md.get("iterator"):
+        parsed.iterator = True
+    origin = md["origin"]
+    if origin == "None":
+        parsed.is_none = True
+    else:
+        parsed.output_type = (
+            origin  # TODO: validate this type? hard with any possible format
+        )
+    parsed.schema = md.get("arg")
+    return parsed
+
+
+@dataclass
+class Parameter:
+    name: str
+    datatype: str
+    required: bool = False
+    default: Any = None
+    help: str = ""
 
 
 @dataclass(frozen=True)
-class DeclaredInput:
+class FunctionInput:
     name: str
     schema_like: SchemaLike
-    data_format: str = "DataBlock"
-    reference: bool = False
-    _required: bool = True
-    from_self: bool = False  # TODO: name
-    stream: bool = False
-    context: bool = False
-
-    @property
-    def required(self) -> bool:
-        # Can't require recursive input!
-        return (not self.from_self) and self._required
+    input_type: InputType = InputType.DataBlock
+    required: bool = True
+    description: Optional[str] = None
 
     @property
     def is_generic(self) -> bool:
         return is_generic(self.schema_like)
+
+    @property
+    def is_stream(self) -> bool:
+        return self.input_type == InputType.Stream
+
+    @property
+    def is_self_reference(self) -> bool:
+        return self.input_type == InputType.SelfReference
+
+    @property
+    def is_reference(self) -> bool:
+        return self.input_type in (InputType.Reference, InputType.SelfReference)
 
 
 @dataclass(frozen=True)
-class DeclaredOutput:
+class FunctionOutput:
     schema_like: SchemaLike
-    name: Optional[str] = None
+    name: str = DEFAULT_OUTPUT_NAME
     data_format: Optional[Any] = None
     # reference: bool = False # TODO: not a thing right? that's up to downstream to decide
-    optional: bool = False
-    default: bool = True
-    stream: bool = False
+    # optional: bool = False
+    is_iterator: bool = False
+    is_default: bool = True
+    # stream: bool = False # TODO: do we ever need this?
+    description: Optional[str] = None
 
     @property
     def is_generic(self) -> bool:
         return is_generic(self.schema_like)
 
 
-DEFAULT_CONTEXT = DeclaredInput(
-    name="ctx",
-    schema_like="Any",
-    data_format="FunctionContext",
-    reference=False,
-    _required=True,
-    from_self=False,
-    stream=False,
-    context=True,
+DEFAULT_INPUT_ANNOTATION = "DataBlock"
+DEFAULT_OUTPUT = FunctionOutput(schema_like="Any", name=DEFAULT_OUTPUT_NAME,)
+DEFAULT_STATE_OUTPUT_NAME = "state"
+DEFAULT_STATE_OUTPUT = FunctionOutput(
+    schema_like="core.State", name=DEFAULT_STATE_OUTPUT_NAME, is_default=False
+)
+DEFAULT_ERROR_OUTPUT_NAME = "error"
+DEFAULT_ERROR_OUTPUT = FunctionOutput(
+    schema_like="Any",  # TODO: probably same as default output (how to parameterize tho?)
+    name=DEFAULT_ERROR_OUTPUT_NAME,
+    is_default=False,
 )
 
 
 @dataclass(frozen=True)
-class DeclaredFunctionInterface:
-    inputs: List[DeclaredInput]
-    output: Optional[DeclaredOutput] = None
-    context: Optional[DeclaredInput] = None
+class FunctionInterface:
+    inputs: Dict[str, FunctionInput]
+    outputs: Dict[str, FunctionOutput]
+    parameters: Dict[str, Parameter]
+    uses_context: bool = False
+    uses_state: bool = False
+    uses_error: bool = False
+    none_output: bool = False  # When return explicitly set to None (for identifying exporters) #TODO
 
-    def get_input(self, name: str) -> DeclaredInput:
-        for input in self.inputs:
-            if input.name == name:
-                return input
-        raise KeyError(name)
+    def get_input(self, name: str) -> FunctionInput:
+        return self.inputs[name]
 
-    def get_non_recursive_inputs(self) -> List[DeclaredInput]:
-        return [i for i in self.inputs if not i.from_self and not i.context]
-
-    def get_inputs_dict(self) -> Dict[str, DeclaredInput]:
-        return {i.name: i for i in self.inputs if i.name and not i.context}
+    def get_non_recursive_inputs(self) -> Dict[str, FunctionInput]:
+        return {
+            n: i
+            for n, i in self.inputs.items()
+            if not i.input_type == InputType.SelfReference
+        }
 
     # TODO: move these assign methods somewhere else?
     def assign_inputs(
@@ -134,12 +216,12 @@ class DeclaredFunctionInterface:
             assert (
                 len(self.get_non_recursive_inputs()) == 1
             ), f"Wrong number of inputs. (Variadic inputs not supported yet) {inputs} {self.get_non_recursive_inputs()}"
-            return {self.get_non_recursive_inputs()[0].name: inputs}
+            return {self.get_non_recursive_inputs().popitem()[0]: inputs}
         input_names_have = set(inputs.keys())
         input_names_must_have = set(
-            i.name for i in self.get_non_recursive_inputs() if i.required
+            i.name for i in self.get_non_recursive_inputs().values() if i.required
         )
-        input_names_ok_to_have = set(i.name for i in self.inputs)
+        input_names_ok_to_have = set(self.inputs)
         assert (
             input_names_have >= input_names_must_have
         ), f"Missing required input(s): {input_names_must_have - input_names_have}"
@@ -161,461 +243,128 @@ class DeclaredFunctionInterface:
                 len(self.get_non_recursive_inputs()) == 1
             ), "Wrong number of translations"
             return {
-                self.get_non_recursive_inputs()[0].name: declared_schema_translation
+                self.get_non_recursive_inputs().popitem()[
+                    0
+                ]: declared_schema_translation
             }
         if isinstance(v, dict):
             return declared_schema_translation
         raise TypeError(declared_schema_translation)
 
-    # TODO: move
-    def connect(
-        self, declared_inputs: Dict[str, DeclaredStreamInput]
-    ) -> ConnectedInterface:
-        inputs = []
-        for input in self.inputs:
-            input_stream_builder = None
-            translation = None
-            assert input.name is not None
-            dni = declared_inputs.get(input.name)
-            if dni:
-                input_stream_builder = dni.stream
-                translation = dni.declared_schema_translation
-            ni = NodeInput(
-                name=input.name,
-                declared_input=input,
-                input_stream_builder=input_stream_builder,
-                declared_schema_translation=translation,
-            )
-            inputs.append(ni)
-        return ConnectedInterface(
-            inputs=inputs, output=self.output, context=self.context
+    def get_default_output(self) -> Optional[FunctionOutput]:
+        return self.outputs.get(DEFAULT_OUTPUT_NAME)
+
+
+class NonStringAnnotationException(Exception):
+    def __init__(self):
+        super().__init__(
+            "Parameter type annotation must be a string. Try adding "
+            "`from __future__ import annotations` to file where function is declared."
         )
 
 
-def function_interface_from_callable(
-    function: FunctionCallable,
-) -> DeclaredFunctionInterface:
+def function_interface_from_callable(function: FunctionCallable,) -> FunctionInterface:
     signature = inspect.signature(function)
-    output = None
-    context = None
+    outputs = {}
+    params = {}
+    uses_context = False
+    unannotated_found = False
     ret = signature.return_annotation
-    if ret is not inspect.Signature.empty:
+    if ret is inspect.Signature.empty:
+        """
+        By default, we assume every Function may return an output,
+        unless specifically annotated with '-> None'.
+        """
+        default_output = DEFAULT_OUTPUT
+    else:
         if not isinstance(ret, str):
-            raise Exception("Return type annotation not a string")
-        output = function_output_from_annotation(ret)
-    inputs = []
+            raise NonStringAnnotationException()
+        default_output = function_output_from_annotation(ret)
+    if default_output is not None:
+        outputs[DEFAULT_OUTPUT_NAME] = default_output
+    inputs = {}
     parameters = list(signature.parameters.items())
     for name, param in parameters:
         a = param.annotation
         annotation_is_empty = a is inspect.Signature.empty
         if not annotation_is_empty and not isinstance(a, str):
-            raise Exception(
-                "Parameter type annotation must be a string. (Try adding `from __future__ import annotations` to file where function is declared)"
-            )
-        i = function_input_from_parameter(param)
-        if i.context:
-            assert context is None
-            context = i
+            raise NonStringAnnotationException()
+        if annotation_is_empty:
+            if name in ("ctx", "context"):
+                uses_context = True
+            else:
+                # TODO: handle un-annotated parameters?
+                if unannotated_found:
+                    raise Exception(
+                        "Cannot have more than one un-annotated input to a Function"
+                    )
+                unannotated_found = True
+                a = DEFAULT_INPUT_ANNOTATION
+        parsed = parse_input_annotation(a)
+        if parsed.input_type is None:
+            assert parsed.parameter_type is not None
+            p = parameter_from_annotation(parsed, name=name, default=param.default)
+            params[p.name] = p
         else:
-            inputs.append(i)
-    return DeclaredFunctionInterface(inputs=inputs, output=output, context=context)
+            i = function_input_from_parameter(param)
+            i = function_input_from_annotation(parsed, name=param.name,)
+            inputs[i.name] = i
+    return FunctionInterface(
+        inputs=inputs, outputs=outputs, parameters=params, uses_context=uses_context
+    )
 
 
-def function_input_from_parameter(param: inspect.Parameter) -> DeclaredInput:
+def function_input_from_parameter(param: inspect.Parameter) -> FunctionInput:
     a = param.annotation
     annotation_is_empty = a is inspect.Signature.empty
     if not annotation_is_empty and not isinstance(a, str):
-        raise Exception(
-            "Parameter type annotation not a string. (Try adding `from __future__ import annotations` to your file)"
-        )
+        raise NonStringAnnotationException()
     annotation = param.annotation
     if annotation is inspect.Signature.empty:
         if param.name in ("ctx", "context"):  # TODO: hack
             annotation = "FunctionContext"
         else:
             annotation = DEFAULT_INPUT_ANNOTATION
-    is_optional = param.default != inspect.Parameter.empty
-    parsed = parse_annotation(annotation)
-    return function_input_from_annotation(
-        parsed, name=param.name, is_optional=is_optional
-    )
+    # is_optional = param.default != inspect.Parameter.empty
+    parsed = parse_input_annotation(annotation)
+    return function_input_from_annotation(parsed, name=param.name,)
 
 
 def function_input_from_annotation(
-    parsed: ParsedAnnotation, name: str, is_optional: bool = False
-) -> DeclaredInput:
-    return DeclaredInput(
+    parsed: ParsedAnnotation, name: str
+) -> FunctionInput:
+    return FunctionInput(
         name=name,
-        schema_like=parsed.schema_like or "Any",
-        data_format=parsed.data_format_class,
-        # TODO: can also tell reference from order (all inputs beyond first are def reference, first assumed consumable)
-        reference=name == SELF_REF_PARAM_NAME,
-        _required=(not (is_optional or parsed.is_optional)),
-        from_self=name == SELF_REF_PARAM_NAME,
-        stream=parsed.is_stream,
-        context=parsed.is_context,
+        schema_like=parsed.schema or "Any",
+        input_type=parsed.input_type or InputType.DataBlock,
+        required=(not parsed.optional),
     )
 
 
 def function_output_from_annotation(
     annotation: Union[str, ParsedAnnotation]
-) -> DeclaredOutput:
+) -> Optional[FunctionOutput]:
     if isinstance(annotation, str):
-        parsed = parse_annotation(annotation)
+        parsed = parse_output_annotation(annotation)
     else:
         parsed = annotation
-    return DeclaredOutput(
-        schema_like=parsed.schema_like or "Any",
-        data_format=parsed.data_format_class,
-        optional=parsed.is_optional,
-    )
-
-
-def parse_annotation(annotation: str, **kwargs) -> ParsedAnnotation:
-    """
-    Annotation of form `DataBlock[T]` for example
-    """
-    if not annotation:
-        raise BadAnnotationException(f"Invalid _Function annotation '{annotation}'")
-    m = re_type_hint.match(
-        annotation
-    )  # TODO: get more strict with matches, for sql comment annotations (would be nice to have example where it fails...?)
-    if m is None:
-        raise BadAnnotationException(f"Invalid _Function annotation '{annotation}'")
-    is_optional = bool(m.groupdict()["optional"])
-    data_format_class = m.groupdict()["origin"]
-    schema_name = m.groupdict()["arg"]
-    args = dict(
-        data_format_class=data_format_class,
-        schema_like=schema_name,
-        is_optional=is_optional,
-        original_annotation=annotation,
-    )
-    args.update(**kwargs)
-    return ParsedAnnotation(**args)
-
-
-@dataclass(frozen=True)
-class ParsedAnnotation:
-    data_format_class: str
-    schema_like: SchemaLike
-    is_optional: bool = False
-    original_annotation: Optional[str] = None
-
-    @property
-    def is_generic(self) -> bool:
-        return is_generic(self.schema_like)
-
-    @property
-    def is_stream(self) -> bool:
-        return self.data_format_class in {"Stream", "DataBlockStream"}
-
-    @property
-    def is_context(self) -> bool:
-        return self.data_format_class == "FunctionContext"
-
-
-def make_default_output() -> DeclaredOutput:
-    return DeclaredOutput(data_format="Any", schema_like="Any")
-
-
-def merge_declared_interface_with_signature_interface(
-    declared: DeclaredFunctionInterface,
-    signature: DeclaredFunctionInterface,
-    ignore_signature: bool = False,
-) -> DeclaredFunctionInterface:
-    # ctx can come from EITHER
-    # Take union of inputs from both, with declared taking precedence
-    # UNLESS ignore_signature, then only use signature if NO declared inputs
-    if ignore_signature and declared.inputs:
-        inputs = declared.inputs
-    else:
-        all_inputs = set(
-            [i.name for i in declared.inputs] + [i.name for i in signature.inputs]
-        )
-        inputs = []
-        for name in all_inputs:
-            # Declared take precedence
-            for i in declared.inputs:
-                if i.name == name:
-                    inputs.append(i)
-                    break
-            else:
-                for i in signature.inputs:
-                    if i.name == name:
-                        inputs.append(i)
-    output = declared.output or signature.output or make_default_output()
-    return DeclaredFunctionInterface(
-        inputs=inputs, output=output, context=declared.context or signature.context
-    )
-
-
-@dataclass(frozen=True)
-class DeclaredStreamLikeInput:
-    stream_like: StreamLike
-    declared_schema_translation: Optional[Dict[str, str]] = None
-
-
-@dataclass(frozen=True)
-class DeclaredStreamInput:
-    stream: StreamBuilder
-    declared_schema_translation: Optional[Dict[str, str]] = None
-
-
-@dataclass(frozen=True)
-class NodeInput:
-    name: str
-    declared_input: DeclaredInput
-    declared_schema_translation: Optional[Dict[str, str]] = None
-    input_stream_builder: Optional[StreamBuilder] = None
-
-
-@dataclass(frozen=True)
-class ConnectedInterface:
-    inputs: List[NodeInput]
-    output: Optional[DeclaredOutput] = None
-    context: Optional[DeclaredInput] = None
-
-    def get_input(self, name: str) -> NodeInput:
-        for input in self.inputs:
-            if input.name == name:
-                return input
-        raise KeyError(name)
-
-    def bind(self, input_streams: InputStreams) -> BoundInterface:
-        inputs = []
-        for node_input in self.inputs:
-            dbs = input_streams.get(node_input.name)
-            bound_stream = None
-            bound_block = None
-            if dbs is not None:
-                bound_stream = dbs
-                if not node_input.declared_input.stream:
-                    # TODO: handle StopIteration here? Happens if `get_bound_interface` is passed empty stream
-                    #   (will trigger an InputExhastedException earlier otherwise)
-                    bound_block = next(dbs)
-            si = StreamInput(
-                name=node_input.name,
-                declared_input=node_input.declared_input,
-                declared_schema_translation=node_input.declared_schema_translation,
-                input_stream_builder=node_input.input_stream_builder,
-                is_stream=node_input.declared_input.stream,
-                bound_stream=bound_stream,
-                bound_block=bound_block,
-            )
-            inputs.append(si)
-        return BoundInterface(inputs=inputs, output=self.output, context=self.context)
-
-
-@dataclass(frozen=True)
-class StreamInput:
-    name: str
-    declared_input: DeclaredInput
-    declared_schema_translation: Optional[Dict[str, str]] = None
-    input_stream_builder: Optional[StreamBuilder] = None
-    is_stream: bool = False
-    bound_stream: Optional[DataBlockStream] = None
-    bound_block: Optional[DataBlock] = None
-
-    def get_bound_block_property(self, prop: str):
-        if self.bound_block:
-            return getattr(self.bound_block, prop)
-        if self.bound_stream:
-            emitted = self.bound_stream.get_emitted_managed_blocks()
-            if not emitted:
-                # if self.bound_stream.count():
-                #     logger.warning("No blocks emitted yet from non-empty stream")
-                return None
-            return getattr(emitted[0], prop)
+    if parsed.is_none:
         return None
-
-    def get_bound_nominal_schema(self) -> Optional[Schema]:
-        # TODO: what is this and what is this called? "resolved"?
-        return self.get_bound_block_property("nominal_schema")
-
-    @property
-    def nominal_schema(self) -> Optional[Schema]:
-        return self.get_bound_block_property("nominal_schema")
-
-    @property
-    def realized_schema(self) -> Optional[Schema]:
-        return self.get_bound_block_property("realized_schema")
+    return FunctionOutput(
+        schema_like=parsed.schema or "Any",
+        data_format=parsed.output_type,
+        is_iterator=parsed.iterator,
+    )
 
 
-@dataclass(frozen=True)
-class BoundInterface:
-    inputs: List[StreamInput]
-    output: Optional[DeclaredOutput] = None
-    context: Optional[DeclaredInput] = None
-    # resolved_generics: Dict[str, SchemaKey] = field(default_factory=dict)
-
-    def inputs_as_kwargs(self) -> Dict[str, Union[DataBlock, DataBlockStream]]:
-        return {
-            i.name: i.bound_stream if i.is_stream else i.bound_block
-            for i in self.inputs
-            if i.bound_stream is not None
-        }
-
-    def non_reference_bound_inputs(self) -> List[StreamInput]:
-        return [
-            i
-            for i in self.inputs
-            if i.bound_stream is not None and not i.declared_input.reference
-        ]
-
-    def resolve_nominal_output_schema(self, env: Environment) -> Optional[Schema]:
-        if not self.output:
-            return None
-        if not self.output.is_generic:
-            return env.get_schema(self.output.schema_like)
-        output_generic = self.output.schema_like
-        for input in self.inputs:
-            if not input.declared_input.is_generic:
-                continue
-            if input.declared_input.schema_like == output_generic:
-                schema = input.get_bound_nominal_schema()
-                # We check if None -- there may be more than one input with same generic, we'll take any that are resolvable
-                if schema is not None:
-                    return schema
-        raise Exception(f"Unable to resolve generic '{output_generic}'")
-
-
-def get_schema_translation(
-    env: Environment,
-    source_schema: Schema,
-    target_schema: Optional[Schema] = None,
-    declared_schema_translation: Optional[Dict[str, str]] = None,
-) -> Optional[SchemaTranslation]:
-    # THE place to determine requested/necessary schema translation
-    if declared_schema_translation:
-        # If we are given a declared translation, then that overrides a natural translation
-        return SchemaTranslation(
-            translation=declared_schema_translation,
-            from_schema_key=source_schema.key,
-        )
-    if target_schema is None or is_any(target_schema):
-        # Nothing expected, so no translation needed
-        return None
-    # Otherwise map found schema to expected schema
-    return source_schema.get_translation_to(target_schema)
-
-
-class NodeInterfaceManager:
-    """
-    Responsible for finding and preparing DataBlocks for input to a
-    Node.
-    """
-
-    def __init__(self, exe: Executable):
-        self.env = exe.execution_context.env
-
-        self.exe = exe
-        self.node = exe.node
-        self.function_interface: DeclaredFunctionInterface = self.node.get_interface()
-
-    def get_bound_interface(
-        self, input_db_streams: Optional[InputStreams] = None
-    ) -> BoundInterface:
-        ci = self.get_connected_interface()
-        if input_db_streams is None:
-            input_db_streams = self.get_input_data_block_streams()
-        return ci.bind(input_db_streams)
-
-    def get_connected_interface(self) -> ConnectedInterface:
-        inputs = self.node.declared_inputs
-        # Add "this" if it has a self-ref (TODO: a bit hidden down here no?)
-        for input in self.function_interface.inputs:
-            if input.from_self:
-                inputs[input.name] = DeclaredStreamInput(
-                    stream=self.node.as_stream_builder(),
-                    declared_schema_translation=self.node.get_schema_translation_for_input(
-                        input.name
-                    ),
-                )
-        ci = self.function_interface.connect(inputs)
-        return ci
-
-    def is_input_required(self, input: DeclaredInput) -> bool:
-        # TODO: is there other logic we want here? why have method?
-        if input.required:
-            return True
-        return False
-
-    def get_input_data_block_streams(self) -> InputStreams:
-        from snapflow.core.function import InputExhaustedException
-
-        logger.debug(f"GETTING INPUTS for {self.node.key}")
-        input_streams: InputStreams = {}
-        any_unprocessed = False
-        for input in self.get_connected_interface().inputs:
-            stream_builder = input.input_stream_builder
-            if stream_builder is None:
-                if not input.declared_input.required:
-                    continue
-                raise Exception(f"Missing required input {input.name}")
-            logger.debug(f"Building stream for `{input.name}` from {stream_builder}")
-            stream_builder = self._filter_stream(
-                stream_builder,
-                input,
-                self.exe.execution_context.storages,
-            )
-
-            """
-            Inputs are considered "Exhausted" if:
-            - Single block stream (and zero or more reference inputs): no unprocessed blocks
-            - One or more reference inputs: if ALL reference streams have no unprocessed
-
-            In other words, if ANY block stream is empty, bail out. If ALL DS streams are empty, bail
-            """
-            if stream_builder.get_count(self.env) == 0:
-                logger.debug(
-                    f"Couldnt find eligible DataBlocks for input `{input.name}` from {stream_builder}"
-                )
-                if input.declared_input.required:
-                    raise InputExhaustedException(
-                        f"    Required input '{input.name}'={stream_builder} to _Function '{self.node.key}' is empty"
-                    )
-            else:
-                declared_schema: Optional[Schema]
-                try:
-                    declared_schema = self.env.get_schema(
-                        input.declared_input.schema_like
-                    )
-                except GenericSchemaException:
-                    declared_schema = None
-                input_streams[input.name] = stream_builder.as_managed_stream(
-                    self.exe.execution_context,
-                    declared_schema=declared_schema,
-                    declared_schema_translation=input.declared_schema_translation,
-                )
-            any_unprocessed = True
-
-        if input_streams and not any_unprocessed:
-            # TODO: is this really an exception always?
-            logger.debug("Inputs exhausted")
-            raise InputExhaustedException("All inputs exhausted")
-
-        return input_streams
-
-    def _filter_stream(
-        self,
-        stream_builder: StreamBuilder,
-        input: NodeInput,
-        storages: List[Storage] = None,
-    ) -> StreamBuilder:
-        logger.debug(f"{stream_builder.get_count(self.env)} available DataBlocks")
-        if storages:
-            stream_builder = stream_builder.filter_storages(storages)
-            logger.debug(
-                f"{stream_builder.get_count(self.env)} available DataBlocks in storages {storages}"
-            )
-        if input.declared_input.reference:
-            logger.debug("Reference input, taking latest")
-            stream_builder = operators.latest(stream_builder)
-        else:
-            logger.debug(f"Finding unprocessed input for: {stream_builder}")
-            stream_builder = stream_builder.filter_unprocessed(
-                self.node, allow_cycle=input.declared_input.from_self
-            )
-            logger.debug(f"{stream_builder.get_count(self.env)} unprocessed DataBlocks")
-        return stream_builder
+def parameter_from_annotation(
+    parsed: ParsedAnnotation, name: str, default: Any
+) -> Parameter:
+    return Parameter(
+        name=name,
+        datatype=(
+            parsed.parameter_type or ParameterType.Text
+        ).value,  # TODO: standardize param datatype to enum
+        required=(not parsed.optional),
+        default=default,
+    )

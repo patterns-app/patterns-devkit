@@ -8,7 +8,7 @@ from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.execution import FunctionContext
 from snapflow.core.execution.executable import Executable, ExecutableConfiguration
 from snapflow.core.function import (
-    DeclaredFunctionInterface,
+    FunctionInterface,
     Function,
     FunctionLike,
     Input,
@@ -18,8 +18,8 @@ from snapflow.core.function import (
     _Function,
 )
 from snapflow.core.function_interface import (
-    DeclaredInput,
-    DeclaredOutput,
+    FunctionInput,
+    FunctionOutput,
     NodeInterfaceManager,
     ParsedAnnotation,
     function_interface_from_callable,
@@ -47,7 +47,7 @@ from tests.utils import (
     make_test_run_context,
 )
 
-context_input = DeclaredInput(
+context_input = FunctionInput(
     name="ctx",
     schema_like="Any",
     data_format="FunctionContext",
@@ -119,11 +119,7 @@ def function_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     pass
 
 
-def df4(
-    input: DataBlock[T],
-    dr2: DataBlock[U],
-    dr3: DataBlock[U],
-) -> DataFrame[T]:
+def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
     pass
 
 
@@ -132,9 +128,9 @@ def df4(
     [
         (
             function_t1_sink,
-            DeclaredFunctionInterface(
+            FunctionInterface(
                 inputs=[
-                    DeclaredInput(
+                    FunctionInput(
                         data_format="DataBlock",
                         schema_like="TestSchema1",
                         name="input",
@@ -147,49 +143,45 @@ def df4(
         ),
         (
             function_t1_to_t2,
-            DeclaredFunctionInterface(
+            FunctionInterface(
                 inputs=[
-                    DeclaredInput(
+                    FunctionInput(
                         data_format="DataBlock",
                         schema_like="TestSchema1",
                         name="input",
                         _required=True,
                     ),
                 ],
-                output=DeclaredOutput(
-                    data_format="DataFrame",
-                    schema_like="TestSchema2",
+                output=FunctionOutput(
+                    data_format="DataFrame", schema_like="TestSchema2",
                 ),
             ),
         ),
         (
             function_generic,
-            DeclaredFunctionInterface(
+            FunctionInterface(
                 inputs=[
-                    DeclaredInput(
+                    FunctionInput(
                         data_format="DataBlock",
                         schema_like="T",
                         name="input",
                         _required=True,
                     ),
                 ],
-                output=DeclaredOutput(
-                    data_format="DataFrame",
-                    schema_like="T",
-                ),
+                output=FunctionOutput(data_format="DataFrame", schema_like="T",),
             ),
         ),
         (
             function_self,
-            DeclaredFunctionInterface(
+            FunctionInterface(
                 inputs=[
-                    DeclaredInput(
+                    FunctionInput(
                         data_format="DataBlock",
                         schema_like="T",
                         name="input",
                         _required=True,
                     ),
-                    DeclaredInput(
+                    FunctionInput(
                         data_format="DataBlock",
                         schema_like="T",
                         name="this",
@@ -198,17 +190,12 @@ def df4(
                         reference=True,
                     ),
                 ],
-                output=DeclaredOutput(
-                    data_format="DataFrame",
-                    schema_like="T",
-                ),
+                output=FunctionOutput(data_format="DataFrame", schema_like="T",),
             ),
         ),
     ],
 )
-def test_function_interface(
-    function_like: FunctionLike, expected: DeclaredFunctionInterface
-):
+def test_function_interface(function_like: FunctionLike, expected: FunctionInterface):
     p = Function(function_like)
     val = p.get_interface()
     assert set(val.inputs) == set(expected.inputs)
@@ -254,8 +241,7 @@ def test_declared_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
@@ -286,8 +272,7 @@ def test_natural_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     with env.md_api.begin():
         schema_translation = get_schema_translation(

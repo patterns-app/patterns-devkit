@@ -8,7 +8,7 @@ from loguru import logger
 from snapflow import Function, _Function
 from snapflow.core.environment import Environment
 from snapflow.core.execution.execution import FunctionContext
-from snapflow.core.function_interface import DeclaredFunctionInterface
+from snapflow.core.function_interface import FunctionInterface
 from snapflow.core.function_package import FunctionPackage
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.modules import core
@@ -21,7 +21,7 @@ def test_from_path():
     mffunction = FunctionPackage.from_path(str(pth))
     function = mffunction.function
     assert function.name == mffunction.name
-    i: DeclaredFunctionInterface = function.get_interface()
+    i: FunctionInterface = function.get_interface()
     assert not i.inputs
     assert i.context is not None
     readme = mffunction.load_readme()
@@ -40,7 +40,7 @@ def test_from_function():
     assert function1.name == mffunction.name
     function = mffunction.function
     assert function.name == "function1"
-    i: DeclaredFunctionInterface = function.get_interface()
+    i: FunctionInterface = function.get_interface()
     assert not i.inputs
     assert i.context is not None
 
@@ -52,7 +52,7 @@ def test_sql_function():
     mffunction = FunctionPackage.from_path(str(pth))
     function = mffunction.function
     assert function.name == mffunction.name
-    i: DeclaredFunctionInterface = function.get_interface()
+    i: FunctionInterface = function.get_interface()
     assert len(i.inputs) == 1
     assert i.context is not None
     readme = mffunction.load_readme()
