@@ -14,15 +14,11 @@ from snapflow.utils.typing import T
 
 
 @Function(namespace="core", display_name="Import local CSV")
-@Param("path", datatype="str")
-@Param("schema", datatype="str", required=False)
-def import_local_csv(ctx: FunctionContext):
+def import_local_csv(ctx: FunctionContext, path: str, schema: Optional[str] = None):
     imported = ctx.get_state_value("imported")
     if imported:
         return
         # Static resource, if already emitted, return
-    path = ctx.get_param("path")
     f = open(path)
     ctx.emit_state_value("imported", True)
-    schema = ctx.get_param("schema")
     ctx.emit(f, data_format=CsvFileObjectFormat, schema=schema)

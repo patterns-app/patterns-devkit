@@ -5,17 +5,15 @@ from typing import Optional
 from pandas import DataFrame, concat
 from snapflow.core.data_block import DataBlock
 from snapflow.core.function import Function, Input, Output
+from snapflow.core.function_interface import SelfReference
 from snapflow.core.streams import Stream
 from snapflow.utils.typing import T
 
 
-# @function(namespace="core")
-@Input("input", schema="T", stream=True)
-@Input("previous", schema="T", from_self=True)
 @Function(namespace="core", display_name="Accumulate DataFrames")
 def accumulator(
     input: Stream[T],
-    previous: Optional[DataBlock[T]] = None,
+    previous: SelfReference[T] = None,
 ) -> DataFrame[T]:
     # TODO: make this return a dataframe iterator right?
     accumulated_dfs = [block.as_dataframe() for block in input]

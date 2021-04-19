@@ -1,15 +1,9 @@
 from __future__ import annotations
-from enum import Enum
 
 import inspect
 import re
 from dataclasses import asdict, dataclass, field
-from snapflow.core.function_interface import (
-    FunctionInput,
-    FunctionInterface,
-    FunctionOutput,
-    InputType,
-)
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
@@ -18,6 +12,14 @@ from loguru import logger
 from snapflow.core import operators
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment
+from snapflow.core.function import DEFAULT_OUTPUT_NAME
+from snapflow.core.function_interface import (
+    DEFAULT_OUTPUT,
+    FunctionInput,
+    FunctionInterface,
+    FunctionOutput,
+    InputType,
+)
 from snapflow.core.schema import GenericSchemaException, is_generic
 
 if TYPE_CHECKING:
@@ -43,23 +45,21 @@ if TYPE_CHECKING:
 #     if ignore_signature and declared.inputs:
 #         inputs = declared.inputs
 #     else:
-#         all_inputs = set(
-#             [i.name for i in declared.inputs] + [i.name for i in signature.inputs]
-#         )
-#         inputs = []
+#         all_inputs = set(declared.inputs) | set(signature.inputs)
+#         inputs = {}
 #         for name in all_inputs:
 #             # Declared take precedence
-#             for i in declared.inputs:
-#                 if i.name == name:
-#                     inputs.append(i)
+#             for dname, i in declared.inputs.items():
+#                 if dname == name:
+#                     inputs[dname] = i
 #                     break
 #             else:
-#                 for i in signature.inputs:
-#                     if i.name == name:
-#                         inputs.append(i)
-#     output = declared.output or signature.output or make_default_output()
+#                 for sname, i in signature.inputs.items():
+#                     if sname == name:
+#                         inputs[sname] = i
+#     outputs = declared.outputs or signature.outputs or {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT} # TODO
 #     return FunctionInterface(
-#         inputs=inputs, output=output, context=declared.context or signature.context
+#         inputs=inputs, outputs=outputs, uses_context=declared.uses_context or signature.uses_context, parameters={}
 #     )
 
 
@@ -224,7 +224,8 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation, from_schema_key=source_schema.key,
+            translation=declared_schema_translation,
+            from_schema_key=source_schema.key,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed
@@ -288,7 +289,9 @@ class NodeInterfaceManager:
                 raise Exception(f"Missing required input {input.name}")
             logger.debug(f"Building stream for `{input.name}` from {stream_builder}")
             stream_builder = self._filter_stream(
-                stream_builder, input, self.exe.execution_context.storages,
+                stream_builder,
+                input,
+                self.exe.execution_context.storages,
             )
 
             """

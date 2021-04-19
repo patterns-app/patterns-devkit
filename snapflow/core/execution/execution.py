@@ -47,7 +47,7 @@ from snapflow.core.function import (
     InputExhaustedException,
     _Function,
 )
-from snapflow.core.function_interface import (
+from snapflow.core.function_interface_manager import (
     BoundInterface,
     NodeInterfaceManager,
     StreamInput,
@@ -150,10 +150,13 @@ class FunctionContext:  # TODO: (Generic[C, S]):
 
     def get_function_args(self) -> Tuple[List, Dict]:
         function_args = []
-        if self.bound_interface.context:
+        if self.bound_interface.interface.uses_context:
             function_args.append(self)
         function_inputs = self.bound_interface.inputs_as_kwargs()
         function_kwargs = function_inputs
+        function_params = self.get_params()
+        assert not set(function_params) & set(function_inputs)
+        function_kwargs.update(function_params)
         return (function_args, function_kwargs)
 
     def get_param(self, key: str, default: Any = None) -> Any:
@@ -165,7 +168,7 @@ class FunctionContext:  # TODO: (Generic[C, S]):
         return self.node.params.get(key, default)
 
     def get_params(self, defaults: Dict[str, Any] = None) -> Dict[str, Any]:
-        final_params = {p.name: p.default for p in self.function.params}
+        final_params = {p.name: p.default for p in self.function.params.values()}
         final_params.update(defaults or {})
         final_params.update(self.node.params)
         return final_params

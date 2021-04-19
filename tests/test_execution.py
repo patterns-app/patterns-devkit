@@ -10,7 +10,7 @@ from pandas import DataFrame
 from snapflow.core.data_block import Alias, DataBlock, DataBlockMetadata
 from snapflow.core.execution import Executable, ExecutionManager
 from snapflow.core.function import Input
-from snapflow.core.function_interface import NodeInterfaceManager
+from snapflow.core.function_interface import Reference
 from snapflow.core.graph import Graph
 from snapflow.core.node import DataBlockLog, Direction, FunctionLog
 from snapflow.modules import core
@@ -104,8 +104,7 @@ def test_non_terminating_function():
 
 
 def test_non_terminating_function_with_reference_input():
-    @Input("input", reference=True, required=False)
-    def never_stop(input: Optional[DataBlock] = None) -> DataFrame:
+    def never_stop(input: Optional[Reference]) -> DataFrame:
         # Does not use input but doesn't matter cause reference
         pass
 

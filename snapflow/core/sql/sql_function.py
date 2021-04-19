@@ -22,22 +22,25 @@ from snapflow.core.data_block import (
 from snapflow.core.environment import Environment
 from snapflow.core.execution.execution import FunctionContext
 from snapflow.core.function import (
+    DEFAULT_OUTPUT_NAME,
     DataInterfaceType,
     Parameter,
     _Function,
     function_factory,
 )
 from snapflow.core.function_interface import (
-    DEFAULT_CONTEXT,
     DEFAULT_INPUT_ANNOTATION,
+    DEFAULT_OUTPUT,
+    DEFAULT_OUTPUTS,
     BadAnnotationException,
-    FunctionInterface,
     FunctionInput,
+    FunctionInterface,
+    InputType,
     ParsedAnnotation,
     function_input_from_annotation,
     function_output_from_annotation,
-    make_default_output,
-    parse_annotation,
+    parameter_from_annotation,
+    parse_input_annotation,
 )
 from snapflow.core.function_package import load_file
 from snapflow.core.module import SnapflowModule
@@ -61,12 +64,12 @@ def skip_jinja(t: str, state: TableParseState, ignore_jinja: bool = True) -> boo
 
 
 def parse_sql_annotation(ann: str) -> ParsedAnnotation:
-    if "[" in ann:
-        # If type annotation is complex, parse it
-        parsed = parse_annotation(ann)
+    if "[" in ann or ann in (i.value for i in InputType):
+        # If type annotation is complex or a InputType, parse it
+        parsed = parse_input_annotation(ann)
     else:
         # If it's just a simple word, then assume it is a Schema name
-        parsed = ParsedAnnotation(schema_like=ann, data_format_class="DataBlock")
+        parsed = ParsedAnnotation(schema=ann)
     return parsed
 
 
@@ -82,6 +85,9 @@ class AnnotatedParam:
     annotation: Optional[str] = None
 
 
+DFEAULT_PARAMETER_ANNOTATION = "Text"
+
+
 @dataclass(frozen=True)
 class ParsedSqlStatement:
     original_sql: str
@@ -91,21 +97,37 @@ class ParsedSqlStatement:
     output_annotation: Optional[str] = None
 
     def as_interface(self) -> FunctionInterface:
-        inputs = []
+        inputs = {}
+        outputs = {}
+        params = {}
         for name, table in self.found_tables.items():
             if table.annotation:
                 ann = parse_sql_annotation(table.annotation)
             else:
-                ann = parse_annotation(DEFAULT_INPUT_ANNOTATION)
+                ann = parse_input_annotation(DEFAULT_INPUT_ANNOTATION)
             inpt = function_input_from_annotation(ann, name=name)
-            inputs.append(inpt)
+            inputs[name] = inpt
         if self.output_annotation:
             output = function_output_from_annotation(
                 parse_sql_annotation(self.output_annotation)
             )
+            if output:
+                outputs = {DEFAULT_OUTPUT_NAME: output}
         else:
-            output = make_default_output()
-        return FunctionInterface(inputs=inputs, output=output, context=DEFAULT_CONTEXT,)
+            outputs = DEFAULT_OUTPUTS
+        if self.found_params:
+            for name, ap in self.found_params.items():
+                params[name] = parameter_from_annotation(
+                    parse_input_annotation(
+                        ap.annotation or DFEAULT_PARAMETER_ANNOTATION
+                    ),
+                    ap.name,
+                    None,
+                )
+
+        return FunctionInterface(
+            inputs=inputs, outputs=outputs, uses_context=True, parameters=params
+        )
 
 
 def regex_repalce_match(s, m, r) -> str:
@@ -131,12 +153,14 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
+        original_sql=sql,
+        sql_with_jinja_vars=sql_with_jinja_vars,
+        found_params=params,
     )
 
 
 def extract_table_annotations(sql: str) -> ParsedSqlStatement:
-    table_re = re.compile(r"(^|\s)(?P<name>[A-z0-9_.]+):(?P<schema>[A-z0-9_\]\].]+)")
+    table_re = re.compile(r"(^|\s)(?P<name>[A-z0-9_.]+):(?P<schema>[A-z0-9_\[\].]+)")
     tables = {}
     output_annotation = None
     sql_with_jinja_vars = sql
@@ -457,7 +481,11 @@ def sql_function_decorator(
     else:
         name = sql_fn_or_function.__name__
     return sql_function_factory(
-        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
+        name=name,
+        sql=sql,
+        file=file,
+        autodetect_inputs=autodetect_inputs,
+        **kwargs,
     )
 
 

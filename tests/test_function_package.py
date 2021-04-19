@@ -23,7 +23,7 @@ def test_from_path():
     assert function.name == mffunction.name
     i: FunctionInterface = function.get_interface()
     assert not i.inputs
-    assert i.context is not None
+    assert i.uses_context
     readme = mffunction.load_readme()
     assert len(readme) > 5
     assert len(mffunction.tests) == 2
@@ -42,7 +42,7 @@ def test_from_function():
     assert function.name == "function1"
     i: FunctionInterface = function.get_interface()
     assert not i.inputs
-    assert i.context is not None
+    assert i.uses_context
 
 
 def test_sql_function():
@@ -54,7 +54,7 @@ def test_sql_function():
     assert function.name == mffunction.name
     i: FunctionInterface = function.get_interface()
     assert len(i.inputs) == 1
-    assert i.context is not None
+    assert i.uses_context
     readme = mffunction.load_readme()
     assert len(readme) > 5
 

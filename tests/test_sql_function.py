@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from snapflow.api import Input
+from snapflow.core.function_interface import InputType
 from snapflow.core.sql.sql_function import (
     AnnotatedParam,
     AnnotatedSqlTable,
@@ -113,13 +114,13 @@ def test_sql_function_interface():
     t3 = pi.get_input("t3")
     assert t1.schema_like == "T1"
     assert t1.name == "t1"
-    assert t1.data_format == "DataBlock"
+    assert t1.input_type == InputType("DataBlock")
     assert t2.schema_like == "Any"
     assert t2.name == "t2"
     assert t3.schema_like == "T2"
     assert t3.name == "t3"
-    assert t3.data_format == "DataBlock"
-    assert pi.output is not None
+    assert t3.input_type == InputType("DataBlock")
+    assert pi.get_default_output() is not None
 
 
 def test_sql_function_interface_fn():
@@ -139,13 +140,13 @@ def test_sql_function_interface_fn():
     t3 = pi.get_input("t3")
     assert t1.schema_like == "T1"
     assert t1.name == "t1"
-    assert t1.data_format == "DataBlock"
+    assert t1.input_type == InputType("DataBlock")
     assert t2.schema_like == "Any"
     assert t2.name == "t2"
     assert t3.schema_like == "T2"
     assert t3.name == "t3"
-    assert t3.data_format == "DataBlock"
-    assert pi.output is not None
+    assert t3.input_type == InputType("DataBlock")
+    assert pi.get_default_output() is not None
 
 
 def test_sql_function_interface_fn_no_autodetect():
@@ -200,9 +201,11 @@ def test_sql_function_interface_output():
     pi = df.get_interface()
     assert pi is not None
     assert len(pi.inputs) == 2
-    assert pi.output is not None
-    assert pi.output.schema_like == "T"
-    assert pi.output.data_format == "DataBlock"
+    assert pi.get_default_output() is not None
+    assert pi.get_default_output().schema_like == "T"
+    assert (
+        pi.get_default_output().data_format is None
+    )  # TODO: is this what we want? or is it "Any" by default?
 
 
 # Don't support aliases
@@ -217,9 +220,9 @@ def test_sql_function_interface_output():
 #     pi = df.get_interface()
 #     assert pi is not None
 #     assert len(pi.inputs) == 2
-#     assert pi.output is not None
-#     assert pi.output.schema_like == "T"
-#     assert pi.output.data_format == "DataBlock"
+#     assert pi.get_default_output() is not None
+#     assert pi.get_default_output().schema_like == "T"
+#     assert pi.get_default_output().data_format == "DataBlock"
 
 
 def test_sql_function_interface_comment_like_string():
@@ -245,16 +248,18 @@ def test_sql_function_interface_jinja_block():
 def test_sql_function_interface_self_ref():
     sql = """select 1, 'not a commment -- nope'
         from {% jinja block %}
-        this"""
-    df = Input(name="this", schema="T", from_self=True)(sql_function("s1", sql))
+        this:SelfReference"""
+    df = sql_function("s1", sql)
     pi = df.get_interface()
     assert pi is not None
     assert len(pi.inputs) == 1
-    assert pi.inputs[0].data_format == "DataBlock"
-    assert pi.inputs[0].name == "this"
-    assert pi.inputs[0].from_self
-    assert not pi.inputs[0].required
-    assert pi.inputs[0].is_generic
+    assert pi.get_single_input().input_type == InputType.SelfReference
+    assert pi.get_single_input().name == "this"
+    # assert pi.get_single_non_recursive_input().from_self
+    assert not pi.get_single_input().required
+    assert (
+        not pi.get_single_input().is_generic
+    )  # TODO: schema has to be same as default output
 
 
 def test_sql_function_interface_complex_jinja():
@@ -285,7 +290,7 @@ def test_sql_function_interface_complex_jinja():
     pi = df.get_interface()
     assert pi is not None
     assert len(pi.inputs) == 1
-    assert pi.inputs[0].is_generic
-    assert pi.inputs[0].schema_like == "T"
-    assert pi.output.is_generic
-    assert pi.output is not None
+    assert pi.get_single_non_recursive_input().is_generic
+    assert pi.get_single_non_recursive_input().schema_like == "T"
+    assert pi.get_default_output().is_generic
+    assert pi.get_default_output() is not None

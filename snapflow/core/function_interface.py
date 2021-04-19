@@ -1,12 +1,13 @@
 from __future__ import annotations
-from enum import Enum
 
 import inspect
 import re
 from dataclasses import asdict, dataclass, field
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from commonmodel.base import SchemaLike
+from snapflow.core.data_block import DataBlock
 from snapflow.core.schema import is_generic
 
 if TYPE_CHECKING:
@@ -55,10 +56,18 @@ class InputType(Enum):
     Reference = "Reference"
     Stream = "Stream"
     SelfReference = "SelfReference"
+    Consumable = "Consumable"
+
+
+# Type aliases
+SelfReference = Union[DataBlock, None]
+Reference = DataBlock
+Consumable = DataBlock
 
 
 class ParameterType(Enum):
     Text = "str"
+    Boolean = "bool"
     Integer = "int"
     Float = "float"
     Json = "Dict"
@@ -82,7 +91,7 @@ class BadAnnotationException(Exception):
 
 
 def parse_input_annotation(a: str) -> ParsedAnnotation:
-    parsed = ParsedAnnotation()
+    parsed = ParsedAnnotation(original_annotation=a)
     m = re_input_type_hint.match(a)
     if m is None:
         raise BadAnnotationException(f"Invalid Function annotation '{a}'")
@@ -105,7 +114,7 @@ def parse_input_annotation(a: str) -> ParsedAnnotation:
 
 
 def parse_output_annotation(a: str) -> ParsedAnnotation:
-    parsed = ParsedAnnotation()
+    parsed = ParsedAnnotation(original_annotation=a)
     m = re_output_type_hint.match(a)
     if m is None:
         raise BadAnnotationException(f"Invalid Function annotation '{a}'")
@@ -175,7 +184,11 @@ class FunctionOutput:
 
 
 DEFAULT_INPUT_ANNOTATION = "DataBlock"
-DEFAULT_OUTPUT = FunctionOutput(schema_like="Any", name=DEFAULT_OUTPUT_NAME,)
+DEFAULT_OUTPUT = FunctionOutput(
+    schema_like="Any",
+    name=DEFAULT_OUTPUT_NAME,
+)
+DEFAULT_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
 DEFAULT_STATE_OUTPUT = FunctionOutput(
     schema_like="core.State", name=DEFAULT_STATE_OUTPUT_NAME, is_default=False
@@ -196,10 +209,21 @@ class FunctionInterface:
     uses_context: bool = False
     uses_state: bool = False
     uses_error: bool = False
-    none_output: bool = False  # When return explicitly set to None (for identifying exporters) #TODO
+    none_output: bool = (
+        False  # When return explicitly set to None (for identifying exporters) #TODO
+    )
 
     def get_input(self, name: str) -> FunctionInput:
         return self.inputs[name]
+
+    def get_single_input(self) -> FunctionInput:
+        assert len(self.inputs) == 1, self.inputs
+        return self.inputs[list(self.inputs)[0]]
+
+    def get_single_non_recursive_input(self) -> FunctionInput:
+        inpts = self.get_non_recursive_inputs()
+        assert len(inpts) == 1, inpts
+        return inpts[list(inpts)[0]]
 
     def get_non_recursive_inputs(self) -> Dict[str, FunctionInput]:
         return {
@@ -216,7 +240,7 @@ class FunctionInterface:
             assert (
                 len(self.get_non_recursive_inputs()) == 1
             ), f"Wrong number of inputs. (Variadic inputs not supported yet) {inputs} {self.get_non_recursive_inputs()}"
-            return {self.get_non_recursive_inputs().popitem()[0]: inputs}
+            return {self.get_single_non_recursive_input().name: inputs}
         input_names_have = set(inputs.keys())
         input_names_must_have = set(
             i.name for i in self.get_non_recursive_inputs().values() if i.required
@@ -243,9 +267,7 @@ class FunctionInterface:
                 len(self.get_non_recursive_inputs()) == 1
             ), "Wrong number of translations"
             return {
-                self.get_non_recursive_inputs().popitem()[
-                    0
-                ]: declared_schema_translation
+                self.get_single_non_recursive_input().name: declared_schema_translation
             }
         if isinstance(v, dict):
             return declared_schema_translation
@@ -263,12 +285,16 @@ class NonStringAnnotationException(Exception):
         )
 
 
-def function_interface_from_callable(function: FunctionCallable,) -> FunctionInterface:
+def function_interface_from_callable(
+    function: FunctionCallable,
+) -> FunctionInterface:
     signature = inspect.signature(function)
     outputs = {}
+    inputs = {}
     params = {}
     uses_context = False
     unannotated_found = False
+    # Output
     ret = signature.return_annotation
     if ret is inspect.Signature.empty:
         """
@@ -282,7 +308,7 @@ def function_interface_from_callable(function: FunctionCallable,) -> FunctionInt
         default_output = function_output_from_annotation(ret)
     if default_output is not None:
         outputs[DEFAULT_OUTPUT_NAME] = default_output
-    inputs = {}
+    # Inputs and params
     parameters = list(signature.parameters.items())
     for name, param in parameters:
         a = param.annotation
@@ -292,6 +318,7 @@ def function_interface_from_callable(function: FunctionCallable,) -> FunctionInt
         if annotation_is_empty:
             if name in ("ctx", "context"):
                 uses_context = True
+                continue
             else:
                 # TODO: handle un-annotated parameters?
                 if unannotated_found:
@@ -301,13 +328,18 @@ def function_interface_from_callable(function: FunctionCallable,) -> FunctionInt
                 unannotated_found = True
                 a = DEFAULT_INPUT_ANNOTATION
         parsed = parse_input_annotation(a)
-        if parsed.input_type is None:
+        if parsed.is_context:
+            uses_context = True
+        elif parsed.input_type is None:
             assert parsed.parameter_type is not None
             p = parameter_from_annotation(parsed, name=name, default=param.default)
             params[p.name] = p
         else:
             i = function_input_from_parameter(param)
-            i = function_input_from_annotation(parsed, name=param.name,)
+            i = function_input_from_annotation(
+                parsed,
+                name=param.name,
+            )
             inputs[i.name] = i
     return FunctionInterface(
         inputs=inputs, outputs=outputs, parameters=params, uses_context=uses_context
@@ -327,7 +359,10 @@ def function_input_from_parameter(param: inspect.Parameter) -> FunctionInput:
             annotation = DEFAULT_INPUT_ANNOTATION
     # is_optional = param.default != inspect.Parameter.empty
     parsed = parse_input_annotation(annotation)
-    return function_input_from_annotation(parsed, name=param.name,)
+    return function_input_from_annotation(
+        parsed,
+        name=param.name,
+    )
 
 
 def function_input_from_annotation(
@@ -337,7 +372,8 @@ def function_input_from_annotation(
         name=name,
         schema_like=parsed.schema or "Any",
         input_type=parsed.input_type or InputType.DataBlock,
-        required=(not parsed.optional),
+        required=(not parsed.optional)
+        and (parsed.input_type != InputType.SelfReference),
     )
 
 

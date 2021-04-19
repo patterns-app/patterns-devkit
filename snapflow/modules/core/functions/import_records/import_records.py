@@ -17,14 +17,10 @@ from snapflow.core.streams import Stream
     namespace="core",
     display_name="Import Records (List of dicts)",
 )
-@Param("records", datatype="json")
-@Param("schema", datatype="str", required=False)
-def import_records(ctx: FunctionContext):
+def import_records(ctx: FunctionContext, records: str, schema: Optional[str] = None):
     imported = ctx.get_state_value("imported")
     if imported:
         # Just emit once
         return  # TODO: typing fix here?
     ctx.emit_state_value("imported", True)
-    schema = ctx.get_param("schema")
-    records = ctx.get_param("records")
     ctx.emit(records, data_format=RecordsFormat, schema=schema)
