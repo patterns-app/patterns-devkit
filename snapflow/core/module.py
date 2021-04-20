@@ -191,6 +191,9 @@ class SnapflowModule:
     def validate_key(self, obj: Any):
         if hasattr(obj, "namespace"):
             if obj.namespace != self.namespace:
+                if obj.name == "Any":
+                    # TODO: remove this once fixed upstream in common model
+                    return
                 raise ModuleException(
                     f"Component {obj} namespace `{obj.namespace}` does not match module namespace `{self.namespace}` to which it was added"
                 )
@@ -206,7 +209,7 @@ class SnapflowModule:
             for case in pkg.get_test_cases():
                 print(f"======= {case.name} =======")
                 try:
-                    run_test_case(case)
+                    run_test_case(case, module=self)
                 except TestFeatureNotImplementedError as e:
                     logger.warning(f"Test feature not implemented yet {e.args[0]}")
                 except Exception as e:

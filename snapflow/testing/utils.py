@@ -121,10 +121,9 @@ class TestCase:
         )
 
 
-def run_test_case(case: TestCase):
+def run_test_case(case: TestCase, **kwargs):
     with produce_function_output_for_static_input(
-        function=case.package.function,
-        inputs=case.inputs,
+        function=case.package.function, inputs=case.inputs, **kwargs
     ) as blocks:
         if not case.outputs:
             assert len(blocks) == 0
@@ -158,6 +157,8 @@ def produce_function_output_for_static_input(
     if env is None:
         db = get_tmp_sqlite_db_url()
         env = Environment(metadata_storage=db)
+    if module:
+        env.add_module(module)
     if not target_storage:
         if "database" in function.required_storage_classes:
             target_storage = Storage(get_tmp_sqlite_db_url())
