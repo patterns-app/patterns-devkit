@@ -70,7 +70,10 @@ class ParameterType(Enum):
     Boolean = "bool"
     Integer = "int"
     Float = "float"
+    Date = "date"
+    DateTime = "datetime"
     Json = "Dict"
+    List = "List"
 
 
 @dataclass
