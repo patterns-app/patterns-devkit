@@ -70,7 +70,7 @@ Install core library and the Stripe module:
 
 `pip install snapflow snapflow-stripe`
 
-Define a function:
+Define a data function:
 
 ```python
 def customer_lifetime_sales(txs):
@@ -153,23 +153,24 @@ maintaining byte-perfect consistency -- to the extent possible for given formats
 
 ### Functions
 
-`functions` are the core computational unit of snapflow. They are functions that operate on
+Data `functions` are the core computational unit of snapflow. They are pure functions that operate on
 `datablocks` and are added as nodes to a function graph, linking one node's output to another's
 input via `streams`. Functions are written in python or sql.
 
-Functions may take any number of inputs, and optionally may output data. A function with no inputs
-is a "source" function. These functions often fetch data from an external API or data source.
+Functions may consume (or "reference") zero or more inputs, and may emit zero or more output streams.
 Functions can also take parameters. Inputs (upstream nodes) and parameters (configuration)
-are inferred automatically a function's type annotations --
-the type of input, whether required or optional, and what schemas are expected.
+are inferred automatically from a function's type annotations --
+the type of input, whether required or optional, and what schemas/types are expected.
 
-Taking our example from above, we can now more explicitly annotate and parameterize it:
+Taking our example from above, we can more explicitly annotate and parameterize it (if there are
+no annotations provided on a data function, defaults are assumed). We do this for both python and
+sql:
 
 ```python
 def customer_lifetime_sales(
-  ctx: FunctionContext,
-  txs: DataBlock[Transaction],
-  metric: str = "amount"
+  ctx: FunctionContext,  # Inject a context object
+  txs: DataBlock[Transaction],  # Require an input stream conforming to schema "Transaction"
+  metric: str = "amount" # Accept an optional string parameter, with default of "amount"
 ):
     # FunctionContext object automatically injected if declared
     txs_df = txs.as_dataframe()
