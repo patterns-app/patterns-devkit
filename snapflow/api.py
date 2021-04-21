@@ -8,10 +8,18 @@ from .core.environment import (
     run_graph,
     run_node,
 )
-from .core.execution.execution import FunctionContext
-from .core.function import Function, Input, Output, Param, _Function
+from .core.execution.execution import DataFunctionContext
+from .core.function import (
+    DataFunction,
+    Function,
+    Input,
+    Output,
+    Param,
+    _Function,
+    datafunction,
+)
 from .core.graph import DeclaredGraph, Graph, graph, graph_from_yaml
 from .core.module import SnapflowModule
 from .core.node import DeclaredNode, Node, node
-from .core.sql.sql_function import Sql, SqlFunction, sql_function
-from .core.streams import DataBlockStream, StreamBuilder
+from .core.sql.sql_function import Sql, SqlFunction, sql_datafunction, sql_function
+from .core.streams import DataBlockStream, Stream, StreamBuilder

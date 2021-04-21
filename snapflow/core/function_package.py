@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Uni
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
-from snapflow.core.function import Function, _Function, ensure_function, make_function
+from snapflow.core.function import DataFunction, ensure_function, make_function
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
     DEFAULT_LOCAL_NAMESPACE,
@@ -23,15 +23,15 @@ if TYPE_CHECKING:
     from snapflow.testing.utils import TestCase
 
 
-class NoFunctionFoundError(Exception):
+class NoDataFunctionFoundError(Exception):
     pass
 
 
 @dataclass  # (frozen=True)
-class FunctionPackage:
+class DataFunctionPackage:
     name: str
     root_path: str
-    function: _Function
+    function: DataFunction
     # local_vars: Dict = None
     # root_module: ModuleType
     namespace: str = None
@@ -49,7 +49,7 @@ class FunctionPackage:
     @classmethod
     def from_path(
         cls, abs_path: str, namespace: str = None, **overrides: Any
-    ) -> FunctionPackage:
+    ) -> DataFunctionPackage:
         pth = Path(abs_path)
         name = pth.parts[-1]
         # python_path = str(pth / (name + ".py"))
@@ -58,15 +58,15 @@ class FunctionPackage:
         function = getattr(m, name)
         # function = local_vars.get(name)
         # if function is None:
-        #     functions = [v for v in local_vars.values() if isinstance(v, _Function)]
+        #     functions = [v for v in local_vars.values() if isinstance(v, DataFunction)]
         #     if not functions:
-        #         raise NoFunctionFoundError
+        #         raise NoDataFunctionFoundError
         #     assert len(functions) == 1, "One function per file"
         #     function = functions[0]
         function = make_function(function)
         if namespace:
             function.namespace = namespace
-        pkg = FunctionPackage(
+        pkg = DataFunctionPackage(
             name=name,
             root_path=abs_path,
             namespace=namespace,
@@ -78,7 +78,7 @@ class FunctionPackage:
         return pkg
 
     # @classmethod
-    # def create_from_module(cls, root_module: ModuleType) -> FunctionPackage:
+    # def create_from_module(cls, root_module: ModuleType) -> DataFunctionPackage:
     #     try:
     #         tests_package = import_module(".tests", package=root_module.__name__)
     #         print(tests_package)
@@ -90,9 +90,9 @@ class FunctionPackage:
     #     )
     #     functions = load_functions_from_module(function_module)
     #     if not functions:
-    #         raise NoFunctionFoundError
+    #         raise NoDataFunctionFoundError
     #     assert len(functions) == 1
-    #     return FunctionPackage(
+    #     return DataFunctionPackage(
     #         name=function_module.__name__,
     #         root_path=root_module.__file__,
     #         root_module=root_module,
@@ -129,7 +129,7 @@ class FunctionPackage:
         return cases
 
     @classmethod
-    def from_function(cls, function: _Function, **overrides: Any):
+    def from_function(cls, function: DataFunction, **overrides: Any):
         # TODO: probably not always right...?
         root_path = Path(
             sys.modules[function.get_original_object().__module__].__file__
@@ -143,19 +143,19 @@ class FunctionPackage:
             function=function,
         )
         args.update(overrides)
-        pkg = FunctionPackage(**args)
+        pkg = DataFunctionPackage(**args)
         function.package = pkg
         return pkg
 
     @classmethod
-    def from_module(cls, module: ModuleType, **overrides: Any) -> FunctionPackage:
+    def from_module(cls, module: ModuleType, **overrides: Any) -> DataFunctionPackage:
         # TODO: better to just load straight from module?
-        return FunctionPackage.from_path(module.__file__, **overrides)
+        return DataFunctionPackage.from_path(module.__file__, **overrides)
 
     # @classmethod
     # def all_from_root_module(
     #     cls, module: ModuleType, functions_module_path="functions", **overrides: Any
-    # ) -> List[FunctionPackage]:
+    # ) -> List[DataFunctionPackage]:
     #     # TODO: better to just load straight from module?
     #     pckgs = []
     #     functions_module = getattr(module, functions_module_path)
@@ -165,15 +165,15 @@ class FunctionPackage:
     #         obj = getattr(functions_module, name)
     #         if isinstance(obj, ModuleType):
     #             try:
-    #                 pckgs.append(FunctionPackage.from_module(obj))
-    #             except NoFunctionFoundError:
+    #                 pckgs.append(DataFunctionPackage.from_module(obj))
+    #             except NoDataFunctionFoundError:
     #                 pass
     #     return pckgs
 
     @classmethod
     def all_from_root_path(
         cls, path: str, namespace: str = None, **overrides: Any
-    ) -> List[FunctionPackage]:
+    ) -> List[DataFunctionPackage]:
         # TODO: better to just load straight from module?
         pkgs = []
         for f in os.scandir(path):
@@ -182,9 +182,9 @@ class FunctionPackage:
             if f.name.startswith("__"):
                 continue
             try:
-                pkg = FunctionPackage.from_path(f.path, namespace=namespace)
+                pkg = DataFunctionPackage.from_path(f.path, namespace=namespace)
                 pkgs.append(pkg)
-            except (NoFunctionFoundError, ModuleNotFoundError):
+            except (NoDataFunctionFoundError, ModuleNotFoundError):
                 pass
         return pkgs
 
@@ -217,16 +217,16 @@ def load_module(pth: Path) -> ModuleType:
             sys.path.remove(parent)
 
 
-def load_functions_from_file(pth: str, **local_vars: Any) -> List[_Function]:
+def load_functions_from_file(pth: str, **local_vars: Any) -> List[DataFunction]:
     objects = load_python_file(pth, **local_vars)
-    return [v for v in objects.values() if isinstance(v, _Function)]
+    return [v for v in objects.values() if isinstance(v, DataFunction)]
 
 
-def load_functions_from_module(module: ModuleType) -> List[_Function]:
+def load_functions_from_module(module: ModuleType) -> List[DataFunction]:
     return [
         getattr(module, n)
         for n in dir(module)
-        if isinstance(getattr(module, n), _Function)
+        if isinstance(getattr(module, n), DataFunction)
     ]
 
 

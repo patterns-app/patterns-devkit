@@ -100,11 +100,11 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 
     # def created_by(self: Session) -> Optional[str]:
     #     from snapflow.core.node import DataBlockLog
-    #     from snapflow.core.node import FunctionLog
+    #     from snapflow.core.node import DataFunctionLog
     #     from snapflow.core.node import Direction
 
     #     result = (
-    #         env.md_api.execute(select(FunctionLog.node_key)
+    #         env.md_api.execute(select(DataFunctionLog.node_key)
     #         .join(DataBlockLog)
     #         .filter(
     #             DataBlockLog.direction == Direction.OUTPUT,

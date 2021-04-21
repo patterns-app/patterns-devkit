@@ -8,7 +8,7 @@
 <p>&nbsp;</p>
 
 **Snapflow** is a framework for building **functional reactive data pipelines** from modular
-components. It lets developers write gradually-typed pure data `functions` in **Python or SQL**
+components. It lets developers write gradually-typed pure `datafunctions` in **Python or SQL**
 that operate reactively on `datablocks`, immutable sets of data records whose
 structure and semantics are described by flexible `schemas`.
 These functions can be composed into simple or complex data
@@ -48,7 +48,7 @@ This functional reactive framework provides powerful benefits:
   Snapflow supports any major database vendor (postgres, mysql, snowflake, bigquery, redshift),
   file system (local, S3, etc), as well as any data format, whether it's csv, json, or apache arrow.
 
-- **Testability** — Functions provide explicit test
+- **Testability** — DataFunctions provide explicit test
   inputs and the expected output under various data scenarios — a **data ETL unit test**, bringing
   the rigor and reliability of software to the world of data.
 
@@ -73,6 +73,9 @@ Install core library and the Stripe module:
 Define a data function:
 
 ```python
+from snapflow import datafunction
+
+@datafunction
 def customer_lifetime_sales(txs):
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
@@ -81,13 +84,13 @@ def customer_lifetime_sales(txs):
 We could define this function in equivalent sql too:
 
 ```python
-from snapflow import SqlFunction
+from snapflow import sql_datafunction
 
-@SqlFunction
+@sql_datafunction
 def customer_lifetime_sales_sql():
   return "select customer, sum(amount) as amount from txs group by customer"
-  # Or use a jinja template:
-  # return template("sql/customer_lifetime_sales.sql", ctx)
+  # Or from a separate file:
+  # return "sql/customer_lifetime_sales.sql"
 ```
 
 We can connect functions as nodes in a graph. Note, we leverage the existing
@@ -130,7 +133,7 @@ print(datablock.as_dataframe())
 
 ## Architecture overview
 
-All snapflow pipelines are directed graphs of `function` nodes, consisting of one or more "source" nodes
+All snapflow pipelines are directed graphs of `datafunction` nodes, consisting of one or more "source" nodes
 that create and emit datablocks when run. This stream of blocks is
 then consumed by downstream nodes, which each in turn may emit their own blocks. Source nodes can be scheduled
 to run as needed, downstream nodes will automatically ingest upstream datablocks reactively.
@@ -142,7 +145,7 @@ Below are more details on the key components of snapflow.
 ### Datablocks
 
 A `datablock` is an immutable set of data records of uniform `schema` -- think csv file, pandas
-dataframe, or database table. `datablocks` are the basic data unit of snapflow, the unit that `functions` take
+dataframe, or database table. `datablocks` are the basic data unit of snapflow, the unit that `datafunctions` take
 as input and produce as output. Once created, a datablock's data will never change: no records will
 be added or deleted, or data points modified. More precisely, `datablocks` are a reference to an
 abstract ideal of a set of records, and will have one or more `StoredDataBlocks` persisting those
@@ -151,14 +154,14 @@ local file, a JSON string in memory, or a table in Postgres. Snapflow abstracts 
 formats and storage engines, and provides conversion and i/o between them while
 maintaining byte-perfect consistency -- to the extent possible for given formats and storages.
 
-### Functions
+### DataFunctions
 
-Data `functions` are the core computational unit of snapflow. They are pure functions that operate on
+Data `datafunctions` are the core computational unit of snapflow. They are pure functions that operate on
 `datablocks` and are added as nodes to a function graph, linking one node's output to another's
-input via `streams`. Functions are written in python or sql.
+input via `streams`. DataFunctions are written in python or sql.
 
-Functions may consume (or "reference") zero or more inputs, and may emit zero or more output streams.
-Functions can also take parameters. Inputs (upstream nodes) and parameters (configuration)
+DataFunctions may consume (or "reference") zero or more inputs, and may emit zero or more output streams.
+DataFunctions can also take parameters. Inputs (upstream nodes) and parameters (configuration)
 are inferred automatically from a function's type annotations --
 the type of input, whether required or optional, and what schemas/types are expected.
 
@@ -168,15 +171,15 @@ sql:
 
 ```python
 def customer_lifetime_sales(
-  ctx: FunctionContext,  # Inject a context object
+  ctx: DataFunctionContext,  # Inject a context object
   txs: DataBlock[Transaction],  # Require an input stream conforming to schema "Transaction"
   metric: str = "amount" # Accept an optional string parameter, with default of "amount"
 ):
-    # FunctionContext object automatically injected if declared
+    # DataFunctionContext object automatically injected if declared
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")[metric].sum().reset_index()
 
-@SqlFunction
+@SqlDataFunction
 def customer_lifetime_sales_sql():
   return """
       select
@@ -193,7 +196,7 @@ value of `amount`, the same as in our python example above.
 
 ### Schemas
 
-`Schemas` are record type definitions (think database table schema) that let `functions` specify the
+`Schemas` are record type definitions (think database table schema) that let `datafunctions` specify the
 data structure they expect and allow them to inter-operate safely. They also
 provide a natural place for field descriptions, validation logic, uniqueness constraints,
 default deduplication behavior, relations to other schemas, and other metadata associated with
@@ -231,7 +234,7 @@ fields:
     type: Text
 ```
 
-`functions` can declare the `schemas` they expect with type hints, allowing them to specify the
+`datafunctions` can declare the `schemas` they expect with type hints, allowing them to specify the
 (minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
 
 ```python
@@ -266,7 +269,7 @@ implementations:
     value: amount
 ```
 
-Here we have _implemented_ the `common.TimeSeries` schema, so any `function` that accepts
+Here we have _implemented_ the `common.TimeSeries` schema, so any `datafunction` that accepts
 timeseries data -- a seasonality modeling function, for example -- can now be applied to
 this `Order` data as well. We could also apply this schema implementation ad-hoc at
 node declaration time with the `schema_translation` kwarg:
@@ -373,7 +376,7 @@ The following table gives the logic for possible behavior of realized schema:
 | inferred is missing non-nullable fields from nominal                                                    | " "                                       | exception is raised                                                                                                                                       | exception is raised                                        |
 | inferred field has datatype mismatch with nominal field definition (eg string in a nominal float field) | " "                                       | realized schema is downcast to inferred datatype (and warning issued if `WARN_ON_DOWNCAST`). If `FAIL_ON_DOWNCAST` is set, an exception is raised instead | exception is raised                                        |
 
-## Snapflow Module and Function development
+## Snapflow Module and DataFunction development
 
 The recommended way to build your own reusable snapflow components
 is to create a snapflow `module` as a standalone python package. This
@@ -434,9 +437,9 @@ snapflow-mymodule/snapflow_mymodule/functions/
 The actual function is in `my_function.py` and will be an identify function to start:
 
 ```python
-@Function(namespace="mymodule")
+@DataFunction(namespace="mymodule")
 def my_function(
-    ctx: FunctionContext,
+    ctx: DataFunctionContext,
     input: DataBlock
     # ref: Reference   # A reference input
     # param1: str = "default val"  # A parameter with default

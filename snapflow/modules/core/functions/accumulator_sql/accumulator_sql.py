@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from snapflow.core.sql.sql_function import SqlFunction
+from snapflow.core.sql.sql_function import sql_datafunction
 
 
-@SqlFunction(
+@sql_datafunction(
     namespace="core",
     autodetect_inputs=False,
     display_name="Accumulate Tables",

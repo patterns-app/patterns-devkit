@@ -5,24 +5,20 @@ from typing import Any, Callable
 import pytest
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
-from snapflow.core.execution import FunctionContext
+from snapflow.core.execution import DataFunctionContext
 from snapflow.core.execution.executable import Executable, ExecutableConfiguration
 from snapflow.core.function import (
     DEFAULT_OUTPUT_NAME,
-    Function,
-    FunctionInterface,
-    FunctionLike,
-    Input,
-    Output,
-    Param,
-    Parameter,
-    _Function,
+    DataFunction,
+    DataFunctionInterface,
+    DataFunctionLike,
+    datafunction,
 )
 from snapflow.core.function_interface import (
     DEFAULT_OUTPUT,
     DEFAULT_OUTPUTS,
-    FunctionInput,
-    FunctionOutput,
+    DataFunctionInput,
+    DataFunctionOutput,
     InputType,
     ParsedAnnotation,
     parse_input_annotation,
@@ -125,9 +121,9 @@ def df4(
     [
         (
             function_t1_sink,
-            FunctionInterface(
+            DataFunctionInterface(
                 inputs={
-                    "input": FunctionInput(
+                    "input": DataFunctionInput(
                         name="input",
                         input_type=InputType("DataBlock"),
                         schema_like="TestSchema1",
@@ -141,9 +137,9 @@ def df4(
         ),
         (
             function_t1_to_t2,
-            FunctionInterface(
+            DataFunctionInterface(
                 inputs={
-                    "input": FunctionInput(
+                    "input": DataFunctionInput(
                         name="input",
                         input_type=InputType("DataBlock"),
                         schema_like="TestSchema1",
@@ -151,7 +147,7 @@ def df4(
                     ),
                 },
                 outputs={
-                    DEFAULT_OUTPUT_NAME: FunctionOutput(
+                    DEFAULT_OUTPUT_NAME: DataFunctionOutput(
                         data_format="DataFrame", schema_like="TestSchema2"
                     )
                 },
@@ -161,9 +157,9 @@ def df4(
         ),
         (
             function_generic,
-            FunctionInterface(
+            DataFunctionInterface(
                 inputs={
-                    "input": FunctionInput(
+                    "input": DataFunctionInput(
                         name="input",
                         input_type=InputType("DataBlock"),
                         schema_like="T",
@@ -171,7 +167,7 @@ def df4(
                     ),
                 },
                 outputs={
-                    DEFAULT_OUTPUT_NAME: FunctionOutput(
+                    DEFAULT_OUTPUT_NAME: DataFunctionOutput(
                         data_format="DataFrame", schema_like="T"
                     )
                 },
@@ -181,15 +177,15 @@ def df4(
         ),
         (
             function_self,
-            FunctionInterface(
+            DataFunctionInterface(
                 inputs={
-                    "input": FunctionInput(
+                    "input": DataFunctionInput(
                         name="input",
                         input_type=InputType("DataBlock"),
                         schema_like="T",
                         required=True,
                     ),
-                    "previous": FunctionInput(
+                    "previous": DataFunctionInput(
                         name="previous",
                         input_type=InputType("SelfReference"),
                         schema_like="T",
@@ -197,7 +193,7 @@ def df4(
                     ),
                 },
                 outputs={
-                    DEFAULT_OUTPUT_NAME: FunctionOutput(
+                    DEFAULT_OUTPUT_NAME: DataFunctionOutput(
                         data_format="DataFrame", schema_like="T"
                     )
                 },
@@ -207,8 +203,10 @@ def df4(
         ),
     ],
 )
-def test_function_interface(function_like: FunctionLike, expected: FunctionInterface):
-    p = Function(function_like)
+def test_function_interface(
+    function_like: DataFunctionLike, expected: DataFunctionInterface
+):
+    p = datafunction(function_like)
     val = p.get_interface()
     assert set(val.inputs) == set(expected.inputs)
     assert val.outputs == expected.outputs
@@ -340,13 +338,13 @@ def test_inputs():
 
 
 def test_python_function():
-    p = Function(function_t1_sink)
+    p = datafunction(function_t1_sink)
     assert (
         p.name == function_t1_sink.__name__
     )  # TODO: do we really want this implicit name? As long as we error on duplicate should be ok
 
     k = "name1"
-    p = Function(function_t1_sink, name=k)
+    p = datafunction(function_t1_sink, name=k)
     assert p.name == k
     assert p.key == f"{DEFAULT_LOCAL_NAMESPACE}.{k}"
 
@@ -354,12 +352,12 @@ def test_python_function():
     assert pi is not None
 
 
-@Function("k1")
+@datafunction("k1")
 def df1():
     pass
 
 
-@Function("k1", required_storage_classes=["database"])
+@datafunction("k1", required_storage_classes=["database"])
 def df2():
     pass
 
@@ -367,7 +365,7 @@ def df2():
 def test_node_no_inputs():
     env = make_test_env()
     g = Graph(env)
-    df = Function(function_t1_source)
+    df = datafunction(function_t1_source)
     node1 = g.create_node(key="node1", function=df)
     assert {node1: node1}[node1] is node1  # Test hash
     pi = node1.get_interface()
@@ -379,9 +377,9 @@ def test_node_no_inputs():
 def test_node_inputs():
     env = make_test_env()
     g = Graph(env)
-    df = Function(function_t1_source)
+    df = datafunction(function_t1_source)
     node = g.create_node(key="node", function=df)
-    df = Function(function_t1_sink)
+    df = datafunction(function_t1_sink)
     node1 = g.create_node(key="node1", function=df, input=node)
     pi = node1.get_interface()
     assert len(pi.inputs) == 1
@@ -390,7 +388,7 @@ def test_node_inputs():
 
 
 def test_node_stream_inputs():
-    pi = Function(function_stream).get_interface()
+    pi = datafunction(function_stream).get_interface()
     assert len(pi.inputs) == 1
     assert pi.get_single_non_recursive_input().input_type == InputType("Stream")
 
@@ -400,7 +398,7 @@ def test_node_params():
     g = Graph(env)
     param_vals = []
 
-    def function_ctx(ctx: FunctionContext, test: str):
+    def function_ctx(ctx: DataFunctionContext, test: str):
         param_vals.append(test)
 
     n = g.create_node(key="ctx", function=function_ctx, params={"test": 1})
@@ -415,27 +413,27 @@ def test_any_schema_interface():
     def function_any(input: DataBlock) -> DataFrame:
         pass
 
-    df = Function(function_any)
+    df = datafunction(function_any)
     pi = df.get_interface()
     assert pi.get_single_non_recursive_input().schema_like == "Any"
     assert pi.get_default_output().schema_like == "Any"
 
 
 def test_api():
-    @Function(namespace="module1")
+    @datafunction(namespace="module1")
     def s1(ctx, i1, p1: str):
         pass
 
-    @Function("s1", namespace="module1")
-    def s2(ctx: FunctionContext, i1: DataBlock, p1: str = "default val"):
+    @datafunction("s1", namespace="module1")
+    def s2(ctx: DataFunctionContext, i1: DataBlock, p1: str = "default val"):
         pass
 
-    @Function("s1")
+    @datafunction("s1")
     def s3(ctx, i1: DataBlock[TestSchema1], p1: str):
         pass
 
-    # @Function(name="s1", params=[Parameter(name="p1", datatype="str")])
-    # def s4(ctx: FunctionContext, i1: DataBlock) -> Any:
+    # @datafunction(name="s1", params=[Parameter(name="p1", datatype="str")])
+    # def s4(ctx: DataFunctionContext, i1: DataBlock) -> Any:
     #     pass
 
     for snp in [s1, s2, s3]:  # , s4]:

@@ -8,16 +8,18 @@ from dcp.data_format.formats import (
     JsonLinesFileObjectFormat,
 )
 from dcp.data_format.formats.memory.records import RecordsFormat
-from snapflow.core.execution.execution import FunctionContext
-from snapflow.core.function import Function, Input, Output, Param
+from snapflow.core.execution.execution import DataFunctionContext
+from snapflow.core.function import Input, Output, Param, datafunction
 from snapflow.core.streams import Stream
 
 
-@Function(
+@datafunction(
     namespace="core",
     display_name="Import Records (List of dicts)",
 )
-def import_records(ctx: FunctionContext, records: str, schema: Optional[str] = None):
+def import_records(
+    ctx: DataFunctionContext, records: str, schema: Optional[str] = None
+):
     imported = ctx.get_state_value("imported")
     if imported:
         # Just emit once

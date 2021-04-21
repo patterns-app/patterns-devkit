@@ -12,11 +12,11 @@ from snapflow.core.component import ComponentLibrary, DictView
 
 if TYPE_CHECKING:
     from snapflow.core.function import (
-        FunctionLike,
-        _Function,
+        DataFunctionLike,
+        DataFunction,
         make_function,
     )
-    from snapflow.core.function_package import FunctionPackage
+    from snapflow.core.function_package import DataFunctionPackage
 
 DEFAULT_LOCAL_NAMESPACE = "_local"
 DEFAULT_NAMESPACE = DEFAULT_LOCAL_NAMESPACE
@@ -68,7 +68,7 @@ class SnapflowModule:
         #     self.add_test_case(t)
 
     def discover_functions(self):
-        from snapflow.core.function_package import FunctionPackage
+        from snapflow.core.function_package import DataFunctionPackage
 
         if not self.py_module_path:
             return
@@ -76,7 +76,7 @@ class SnapflowModule:
         for functions_path in self.function_paths:
             logger.debug(f"Discovering functions in {functions_path}")
             functions_root = Path(self.py_module_path).resolve() / functions_path
-            packages = FunctionPackage.all_from_root_path(
+            packages = DataFunctionPackage.all_from_root_path(
                 str(functions_root), namespace=self.namespace
             )
             for pkg in packages:
@@ -95,11 +95,11 @@ class SnapflowModule:
                         yml = f.read()
                         self.add_schema(yml)
 
-    def add_function_package(self, pkg: FunctionPackage):
+    def add_function_package(self, pkg: DataFunctionPackage):
         self.function_packages[pkg.name] = pkg
         self.add_function(pkg.function)
 
-    def add_function(self, function_like: Union[FunctionLike, str]) -> _Function:
+    def add_function(self, function_like: Union[DataFunctionLike, str]) -> DataFunction:
         p = self.process_function(function_like)
         self.validate_key(p)
         self.library.add_function(p)
@@ -112,31 +112,31 @@ class SnapflowModule:
         return schema
 
     def process_function(
-        self, function_like: Union[FunctionLike, str, ModuleType]
-    ) -> _Function:
+        self, function_like: Union[DataFunctionLike, str, ModuleType]
+    ) -> DataFunction:
         from snapflow.core.function import (
-            _Function,
+            DataFunction,
             make_function,
-            PythonCodeFunctionWrapper,
+            PythonCodeDataFunctionWrapper,
         )
         from snapflow.core.sql.sql_function import sql_function
-        from snapflow.core.function_package import FunctionPackage
+        from snapflow.core.function_package import DataFunctionPackage
 
-        if isinstance(function_like, _Function):
+        if isinstance(function_like, DataFunction):
             function = function_like
         else:
             if callable(function_like):
                 function = make_function(function_like, namespace=self.namespace)
             # elif isinstance(function_like, str):
             #     # Just a string, not a sql file, assume it is python? TODO
-            #     function = make_function(PythonCodeFunctionWrapper(function_like), namespaceself.name)
+            #     function = make_function(PythonCodeDataFunctionWrapper(function_like), namespaceself.name)
             elif isinstance(function_like, ModuleType):
                 # Module function (the new default)
-                pkg = FunctionPackage.from_module(function_like)
+                pkg = DataFunctionPackage.from_module(function_like)
                 self.add_function_package(pkg)
                 return pkg.function
                 # code = inspect.getsource(function_like)
-                # function = make_function(PythonCodeFunctionWrapper(code), namespaceself.name)
+                # function = make_function(PythonCodeDataFunctionWrapper(code), namespaceself.name)
             else:
                 raise TypeError(function_like)
         return function
@@ -155,10 +155,10 @@ class SnapflowModule:
             return schema_like
         return self.library.get_schema(schema_like)
 
-    def get_function(self, function_like: Union[_Function, str]) -> _Function:
-        from snapflow.core.function import _Function
+    def get_function(self, function_like: Union[DataFunction, str]) -> DataFunction:
+        from snapflow.core.function import DataFunction
 
-        if isinstance(function_like, _Function):
+        if isinstance(function_like, DataFunction):
             return function_like
         return self.library.get_function(function_like)
 
@@ -185,7 +185,7 @@ class SnapflowModule:
         return self.library.get_schemas_view()
 
     @property
-    def functions(self) -> DictView[str, _Function]:
+    def functions(self) -> DictView[str, DataFunction]:
         return self.library.get_functions_view()
 
     def validate_key(self, obj: Any):
@@ -198,7 +198,7 @@ class SnapflowModule:
                     f"Component {obj} namespace `{obj.namespace}` does not match module namespace `{self.namespace}` to which it was added"
                 )
 
-    def remove_function(self, function_like: Union[FunctionLike, str]):
+    def remove_function(self, function_like: Union[DataFunctionLike, str]):
         self.library.remove_function(function_like)
 
     def run_tests(self):

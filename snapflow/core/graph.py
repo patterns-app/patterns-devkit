@@ -18,7 +18,7 @@ import networkx as nx
 import strictyaml as yaml
 from dcp.utils.common import md5_hash, remove_dupes
 from loguru import logger
-from snapflow.core.function import FunctionLike
+from snapflow.core.function import DataFunctionLike
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DeclaredNode, Node, NodeConfiguration, NodeLike, node
 from sqlalchemy import Column, String
@@ -56,7 +56,7 @@ class DeclaredGraph:
 
     def node(
         self,
-        function: Union[FunctionLike, str],
+        function: Union[DataFunctionLike, str],
         key: Optional[str] = None,
         params: Dict[str, Any] = None,
         inputs: Dict[str, StreamLike] = None,
@@ -149,7 +149,7 @@ class Graph:
     # TODO: duplicated code
     def node(
         self,
-        function: Union[FunctionLike, str],
+        function: Union[DataFunctionLike, str],
         key: Optional[str] = None,
         params: Dict[str, Any] = None,
         inputs: Dict[str, StreamLike] = None,

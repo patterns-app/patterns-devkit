@@ -7,14 +7,14 @@ from dcp.data_format.formats import (
     DataFrameFormat,
     JsonLinesFileObjectFormat,
 )
-from snapflow.core.execution.execution import FunctionContext
-from snapflow.core.function import Function, Input, Output, Param
+from snapflow.core.execution.execution import DataFunctionContext
+from snapflow.core.function import Input, Output, Param, datafunction
 from snapflow.core.streams import Stream
 from snapflow.utils.typing import T
 
 
-@Function(namespace="core", display_name="Import local CSV")
-def import_local_csv(ctx: FunctionContext, path: str, schema: Optional[str] = None):
+@datafunction(namespace="core", display_name="Import local CSV")
+def import_local_csv(ctx: DataFunctionContext, path: str, schema: Optional[str] = None):
     imported = ctx.get_state_value("imported")
     if imported:
         return

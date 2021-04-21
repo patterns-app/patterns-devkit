@@ -16,10 +16,10 @@ from snapflow.core.data_block import (
     StoredDataBlockMetadata,
 )
 from snapflow.core.environment import Environment, EnvironmentConfiguration
-from snapflow.core.function import DEFAULT_OUTPUT_NAME, _Function
+from snapflow.core.function import DEFAULT_OUTPUT_NAME, DataFunction
 from snapflow.core.function_interface_manager import StreamInput
 from snapflow.core.graph import DeclaredGraph, NxAdjacencyList, graph_from_node_configs
-from snapflow.core.node import DeclaredNode, FunctionLog, Node, NodeConfiguration
+from snapflow.core.node import DataFunctionLog, DeclaredNode, Node, NodeConfiguration
 from sqlalchemy.sql.expression import select
 
 
@@ -102,7 +102,7 @@ class ExecutableConfiguration:
 @dataclass(frozen=True)
 class Executable:
     node: Node
-    function: _Function
+    function: DataFunction
     execution_context: ExecutionContext
     executable_config: ExecutableConfiguration = None
     # graph_adjacency: NxAdjacencyList # Graph is implied by node_key (nodes only belong to one graph)

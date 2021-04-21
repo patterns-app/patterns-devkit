@@ -5,11 +5,11 @@ from pathlib import Path
 from pprint import pprint
 
 from loguru import logger
-from snapflow import Function, _Function
+from snapflow import DataFunction, datafunction
 from snapflow.core.environment import Environment
-from snapflow.core.execution.execution import FunctionContext
-from snapflow.core.function_interface import FunctionInterface
-from snapflow.core.function_package import FunctionPackage
+from snapflow.core.execution.execution import DataFunctionContext
+from snapflow.core.function_interface import DataFunctionInterface
+from snapflow.core.function_package import DataFunctionPackage
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.modules import core
 
@@ -18,10 +18,10 @@ logger.enable("snapflow")
 
 def test_from_path():
     pth = Path(__file__).resolve().parents[0] / "_test_module/functions/test_function"
-    mffunction = FunctionPackage.from_path(str(pth))
+    mffunction = DataFunctionPackage.from_path(str(pth))
     function = mffunction.function
     assert function.name == mffunction.name
-    i: FunctionInterface = function.get_interface()
+    i: DataFunctionInterface = function.get_interface()
     assert not i.inputs
     assert i.uses_context
     readme = mffunction.load_readme()
@@ -31,16 +31,16 @@ def test_from_path():
 
 
 def test_from_function():
-    @Function
-    def function1(ctx: FunctionContext):
+    @datafunction
+    def function1(ctx: DataFunctionContext):
         pass
 
-    mffunction = FunctionPackage.from_function(function1)
+    mffunction = DataFunctionPackage.from_function(function1)
     assert mffunction.root_path == Path(__file__).resolve()
     assert function1.name == mffunction.name
     function = mffunction.function
     assert function.name == "function1"
-    i: FunctionInterface = function.get_interface()
+    i: DataFunctionInterface = function.get_interface()
     assert not i.inputs
     assert i.uses_context
 
@@ -49,10 +49,10 @@ def test_sql_function():
     pth = (
         Path(__file__).resolve().parents[0] / "_test_module/functions/test_sql_function"
     )
-    mffunction = FunctionPackage.from_path(str(pth))
+    mffunction = DataFunctionPackage.from_path(str(pth))
     function = mffunction.function
     assert function.name == mffunction.name
-    i: FunctionInterface = function.get_interface()
+    i: DataFunctionInterface = function.get_interface()
     assert len(i.inputs) == 1
     assert i.uses_context
     readme = mffunction.load_readme()
@@ -62,6 +62,6 @@ def test_sql_function():
 # def test_from_module():
 #     from . import _test_module
 
-# functions = FunctionPackage.all_from_root_module(_test_module)
+# functions = DataFunctionPackage.all_from_root_module(_test_module)
 # print(functions)
 # assert len(functions) == 2

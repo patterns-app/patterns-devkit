@@ -4,7 +4,7 @@ import logging
 
 from loguru import logger
 from snapflow.core.environment import Environment
-from snapflow.core.function import Function
+from snapflow.core.function import datafunction
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.modules.core import module as core
 
@@ -30,7 +30,7 @@ def test_core_module():
 def test_default_module():
     DEFAULT_LOCAL_MODULE.library.functions = {}
 
-    @Function
+    @datafunction
     def s1():
         pass
 

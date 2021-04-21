@@ -1,20 +1,20 @@
 # flake8: noqa F402
 import sys
 
-from snapflow import Environment, Function, SqlFunction, graph_from_yaml, run
+from snapflow import Environment, datafunction, graph_from_yaml, run, sql_datafunction
 from snapflow.core.module import DEFAULT_LOCAL_MODULE
 from snapflow_stripe import module as stripe
 
 sys.path.append(".")
 
 
-@Function
+@datafunction
 def customer_lifetime_sales(txs):
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
 
 
-@SqlFunction
+@sql_datafunction
 def customer_lifetime_sales_sql():
     return "select customer, sum(amount) as amount from txs group by customer"
     # Can use jinja templates too

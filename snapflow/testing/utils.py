@@ -14,11 +14,11 @@ from dcp.utils.common import rand_str
 from dcp.utils.data import read_csv, read_json, read_raw_string_csv
 from dcp.utils.pandas import assert_dataframes_are_almost_equal
 from pandas import DataFrame
-from snapflow import DataBlock, Environment, Graph, _Function
+from snapflow import DataBlock, DataFunction, Environment, Graph
 from snapflow.core.function import DEFAULT_OUTPUT_NAME
-from snapflow.core.function_package import FunctionPackage
+from snapflow.core.function_package import DataFunctionPackage
 from snapflow.core.module import SnapflowModule
-from snapflow.core.node import DataBlockLog, FunctionLog, Node
+from snapflow.core.node import DataBlockLog, DataFunctionLog, Node
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
 
@@ -35,7 +35,7 @@ def display_function_log(env: Environment):
 def str_as_dataframe(
     env: Environment,
     test_data: str,
-    package: Optional[FunctionPackage] = None,
+    package: Optional[DataFunctionPackage] = None,
     nominal_schema: Optional[Schema] = None,
 ) -> DataFrame:
     # TODO: add conform_dataframe_to_schema option
@@ -70,7 +70,7 @@ def str_as_dataframe(
 class DataInput:
     data: str
     schema: Optional[SchemaLike] = None
-    package: Optional[FunctionPackage] = None
+    package: Optional[DataFunctionPackage] = None
 
     def as_dataframe(self, env: Environment):
         schema = None
@@ -88,7 +88,9 @@ class DataInput:
         return self.schema.key
 
     @classmethod
-    def from_input(cls, input: Union[str, Dict], package: FunctionPackage) -> DataInput:
+    def from_input(
+        cls, input: Union[str, Dict], package: DataFunctionPackage
+    ) -> DataInput:
         data = None
         schema = None
         if isinstance(input, str):
@@ -106,10 +108,10 @@ class TestCase:
     name: str
     inputs: Dict[str, DataInput]
     outputs: Dict[str, DataInput]
-    package: Optional[FunctionPackage] = None
+    package: Optional[DataFunctionPackage] = None
 
     @classmethod
-    def from_test(cls, test: Dict, package: FunctionPackage) -> TestCase:
+    def from_test(cls, test: Dict, package: DataFunctionPackage) -> TestCase:
         inputs = {}
         for name, i in test.get("inputs", {}).items():
             inputs[name] = DataInput.from_input(i, package)
@@ -144,7 +146,7 @@ class TestFeatureNotImplementedError(Exception):
 
 @contextmanager
 def produce_function_output_for_static_input(
-    function: _Function,
+    function: DataFunction,
     params: Dict[str, Any] = None,
     input: Any = None,
     inputs: Any = None,

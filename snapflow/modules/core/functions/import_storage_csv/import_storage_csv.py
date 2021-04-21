@@ -8,15 +8,15 @@ from dcp.data_format.formats import (
     JsonLinesFileObjectFormat,
 )
 from dcp.storage.base import Storage
-from snapflow.core.execution.execution import FunctionContext
-from snapflow.core.function import Function, Input, Output, Param
+from snapflow.core.execution.execution import DataFunctionContext
+from snapflow.core.function import Input, Output, Param, datafunction
 from snapflow.core.streams import Stream
 from snapflow.utils.typing import T
 
 
-@Function(namespace="core", display_name="Import CSV from Storage")
+@datafunction(namespace="core", display_name="Import CSV from Storage")
 def import_storage_csv(
-    ctx: FunctionContext, name: str, storage_url: str, schema: Optional[str] = None
+    ctx: DataFunctionContext, name: str, storage_url: str, schema: Optional[str] = None
 ):
     imported = ctx.get_state_value("imported")
     if imported:

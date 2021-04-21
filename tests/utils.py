@@ -9,7 +9,7 @@ from dcp.utils.common import rand_str
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock
 from snapflow.core.environment import Environment, SnapflowSettings
-from snapflow.core.execution import ExecutionManager, FunctionContext
+from snapflow.core.execution import DataFunctionContext, ExecutionManager
 from snapflow.core.execution.executable import (
     ExecutableConfiguration,
     ExecutionConfiguration,
@@ -67,7 +67,7 @@ def make_test_execution_manager(**kwargs) -> ExecutionManager:
     return ExecutionManager(make_test_run_context(**kwargs))
 
 
-def function_t1_sink(ctx: FunctionContext, input: DataBlock[TestSchema1]):
+def function_t1_sink(ctx: DataFunctionContext, input: DataBlock[TestSchema1]):
     pass
 
 
@@ -79,7 +79,7 @@ def function_generic(input: DataBlock[T]) -> DataFrame[T]:
     pass
 
 
-def function_t1_source(ctx: FunctionContext) -> DataFrame[TestSchema1]:
+def function_t1_source(ctx: DataFunctionContext) -> DataFrame[TestSchema1]:
     pass
 
 

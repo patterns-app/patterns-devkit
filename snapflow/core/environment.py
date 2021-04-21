@@ -29,7 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
-    from snapflow.core.function import _Function
+    from snapflow.core.function import DataFunction
     from snapflow.core.node import Node, NodeLike
     from snapflow.core.data_block import DataBlock
     from snapflow.core.graph import Graph, DeclaredGraph, DEFAULT_GRAPH
@@ -206,13 +206,13 @@ class Environment:
     def all_schemas(self) -> List[Schema]:
         return self.library.all_schemas()
 
-    def get_function(self, function_like: str) -> _Function:
+    def get_function(self, function_like: str) -> DataFunction:
         return self.library.get_function(function_like)
 
-    def add_function(self, function: _Function):
+    def add_function(self, function: DataFunction):
         self.library.add_function(function)
 
-    def all_functions(self) -> List[_Function]:
+    def all_functions(self) -> List[DataFunction]:
         return self.library.all_functions()
 
     def add_module(self, *modules: Union[SnapflowModule, ModuleType, str]):

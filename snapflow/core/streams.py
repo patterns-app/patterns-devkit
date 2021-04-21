@@ -28,9 +28,9 @@ from snapflow.core.function_interface_manager import get_schema_translation
 from snapflow.core.graph import Graph
 from snapflow.core.node import (
     DataBlockLog,
+    DataFunctionLog,
     DeclaredNode,
     Direction,
-    FunctionLog,
     Node,
     NodeLike,
 )
@@ -207,17 +207,17 @@ class StreamBuilder:
             # Only exclude blocks processed as INPUT
             filter_clause = and_(
                 DataBlockLog.direction == Direction.INPUT,
-                FunctionLog.node_key == self._filters.unprocessed_by_node_key,
+                DataFunctionLog.node_key == self._filters.unprocessed_by_node_key,
             )
         else:
             # No block cycles allowed
             # Exclude blocks processed as INPUT and blocks outputted
             filter_clause = (
-                FunctionLog.node_key == self._filters.unprocessed_by_node_key
+                DataFunctionLog.node_key == self._filters.unprocessed_by_node_key
             )
         already_processed_drs = (
             Query(DataBlockLog.data_block_id)
-            .join(FunctionLog)
+            .join(DataFunctionLog)
             .filter(filter_clause)
             .filter(DataBlockLog.invalidated == False)  # noqa
             .distinct()
@@ -239,10 +239,10 @@ class StreamBuilder:
             return query
         eligible_input_drs = (
             Query(DataBlockLog.data_block_id)
-            .join(FunctionLog)
+            .join(DataFunctionLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
-                FunctionLog.node_key.in_(self._filters.node_keys),
+                DataFunctionLog.node_key.in_(self._filters.node_keys),
             )
             .filter(DataBlockLog.invalidated == False)  # noqa
             .distinct()

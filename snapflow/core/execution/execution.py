@@ -43,9 +43,9 @@ from snapflow.core.execution.executable import (
 )
 from snapflow.core.function import (
     DEFAULT_OUTPUT_NAME,
+    DataFunction,
     DataInterfaceType,
     InputExhaustedException,
-    _Function,
 )
 from snapflow.core.function_interface_manager import (
     BoundInterface,
@@ -53,7 +53,7 @@ from snapflow.core.function_interface_manager import (
     StreamInput,
 )
 from snapflow.core.metadata.api import MetadataApi
-from snapflow.core.node import DataBlockLog, Direction, FunctionLog, Node, get_state
+from snapflow.core.node import DataBlockLog, DataFunctionLog, Direction, Node, get_state
 from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.utils.output import cf, error_symbol, success_symbol
 from sqlalchemy.sql.expression import select
@@ -78,15 +78,15 @@ def validate_data_blocks(env: Environment):
 
 
 @dataclass(frozen=True)
-class FunctionContext:  # TODO: (Generic[C, S]):
+class DataFunctionContext:  # TODO: (Generic[C, S]):
     env: Environment
-    function: _Function
+    function: DataFunction
     node: Node
     executable: Executable
     metadata_api: MetadataApi
     inputs: List[StreamInput]
     bound_interface: BoundInterface
-    function_log: FunctionLog
+    function_log: DataFunctionLog
     execution_context: ExecutionContext
     input_blocks_processed: Dict[str, Set[DataBlockMetadata]] = field(
         default_factory=lambda: defaultdict(set)
@@ -428,7 +428,7 @@ class ExecutionManager:
             if not result.error:
                 self.logger.log(cf.success("Ok " + success_symbol + "\n"))  # type: ignore
             else:
-                error = result.error or "Function failed (unknown error)"
+                error = result.error or "DataFunction failed (unknown error)"
                 self.logger.log(cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n")  # type: ignore
                 if result.traceback:
                     self.logger.log(cf.dimmed(result.traceback), indent=2)  # type: ignore
@@ -468,7 +468,7 @@ class ExecutionManager:
     def emit_output_object(
         self,
         output_obj: DataInterfaceType,
-        function_ctx: FunctionContext,
+        function_ctx: DataFunctionContext,
     ):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):
@@ -484,7 +484,7 @@ class ExecutionManager:
     @contextmanager
     def start_function_run(
         self, node: Node, bound_interface: BoundInterface
-    ) -> Iterator[FunctionContext]:
+    ) -> Iterator[DataFunctionContext]:
         from snapflow.core.graph import GraphMetadata
 
         # assert self.current_runtime is not None, "Runtime not set"
@@ -503,7 +503,7 @@ class ExecutionManager:
             md.flush()  # [new_graph_meta])
             graph_meta = new_graph_meta
 
-        function_log = FunctionLog(  # type: ignore
+        function_log = DataFunctionLog(  # type: ignore
             graph_id=graph_meta.hash,
             node_key=node.key,
             node_start_state=node_state.copy(),  # {k: v for k, v in node_state.items()},
@@ -515,7 +515,7 @@ class ExecutionManager:
         )
         md.add(function_log)
         md.flush([function_log])
-        function_ctx = FunctionContext(
+        function_ctx = DataFunctionContext(
             env=self.env,
             function=self.exe.function,
             node=self.exe.node,

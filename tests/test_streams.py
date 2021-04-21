@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from snapflow.core.data_block import DataBlockMetadata
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, Direction, FunctionLog
+from snapflow.core.node import DataBlockLog, DataFunctionLog, Direction
 from snapflow.core.operators import filter, latest, operator
 from snapflow.core.streams import (
     DataBlockStream,
@@ -72,7 +72,7 @@ class TestStreams:
         assert s.get_query_result(self.env).scalar_one_or_none() is None
 
     def test_stream_unprocessed_eligible(self):
-        dfl = FunctionLog(
+        dfl = DataFunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
             function_key=self.node_source.function.key,
@@ -90,7 +90,7 @@ class TestStreams:
         assert s.get_query_result(self.env).scalar_one_or_none() == self.dr1t1
 
     def test_stream_unprocessed_ineligible_already_input(self):
-        dfl = FunctionLog(
+        dfl = DataFunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
             function_key=self.node_source.function.key,
@@ -101,7 +101,7 @@ class TestStreams:
             data_block=self.dr1t1,
             direction=Direction.OUTPUT,
         )
-        dfl2 = FunctionLog(
+        dfl2 = DataFunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node1.key,
             function_key=self.node1.function.key,
@@ -123,7 +123,7 @@ class TestStreams:
         By default we don't input a block that has already been output by a DF, _even if that block was never input_,
         UNLESS input is a self reference (`this`). This is to prevent infinite loops.
         """
-        dfl = FunctionLog(
+        dfl = DataFunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
             function_key=self.node_source.function.key,
@@ -134,7 +134,7 @@ class TestStreams:
             data_block=self.dr1t1,
             direction=Direction.OUTPUT,
         )
-        dfl2 = FunctionLog(
+        dfl2 = DataFunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node1.key,
             function_key=self.node1.function.key,
@@ -156,7 +156,7 @@ class TestStreams:
         assert s2.get_query_result(self.env).scalar_one_or_none() == self.dr1t1
 
     def test_stream_unprocessed_eligible_schema(self):
-        dfl = FunctionLog(
+        dfl = DataFunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
             function_key=self.node_source.function.key,
@@ -178,7 +178,7 @@ class TestStreams:
         assert s.get_query_result(self.env).scalar_one_or_none() is None
 
     def test_operators(self):
-        dfl = FunctionLog(
+        dfl = DataFunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
             function_key=self.node_source.function.key,
@@ -221,7 +221,7 @@ class TestStreams:
         assert self._cnt == 0
 
     def test_managed_stream(self):
-        dfl = FunctionLog(
+        dfl = DataFunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node_source.key,
             function_key=self.node_source.function.key,
@@ -232,7 +232,7 @@ class TestStreams:
             data_block=self.dr1t1,
             direction=Direction.OUTPUT,
         )
-        dfl2 = FunctionLog(
+        dfl2 = DataFunctionLog(
             graph_id=self.graph.hash,
             node_key=self.node1.key,
             function_key=self.node1.function.key,

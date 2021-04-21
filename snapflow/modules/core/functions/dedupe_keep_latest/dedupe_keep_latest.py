@@ -4,9 +4,8 @@ from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.pandas import assert_dataframes_are_almost_equal
 from pandas import DataFrame
 from snapflow import DataBlock
-from snapflow.core.function import Function
+from snapflow.core.function import datafunction
 from snapflow.core.node import DataBlockLog
-from snapflow.core.sql.sql_function import Sql, SqlFunction
 from snapflow.testing.utils import DataInput, produce_function_output_for_static_input
 from snapflow.utils.typing import T
 
@@ -14,7 +13,7 @@ from snapflow.utils.typing import T
 #  In general any deduping on non-indexed columns will be costly.
 
 
-@Function(
+@datafunction(
     namespace="core",
     display_name="Dedupe DataFrame (keep latest)",
 )

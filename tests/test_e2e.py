@@ -12,12 +12,13 @@ from dcp.data_format.formats.memory.records import Records, RecordsFormat
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from loguru import logger
 from pandas._testing import assert_almost_equal
-from snapflow import DataBlock, Function, Input, Output, Param, sql_function
+from snapflow import DataBlock, datafunction
 from snapflow.core.environment import Environment, produce
-from snapflow.core.execution import FunctionContext
+from snapflow.core.execution import DataFunctionContext
 from snapflow.core.function_interface import Consumable, Reference
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, FunctionLog, NodeState
+from snapflow.core.node import DataBlockLog, DataFunctionLog, NodeState
+from snapflow.core.sql.sql_function import sql_function_factory
 from snapflow.modules import core
 from sqlalchemy import select
 
@@ -29,7 +30,7 @@ Customer = create_quick_schema(
 Metric = create_quick_schema("Metric", [("metric", "Text"), ("value", "Decimal(12,2)")])
 
 
-@Function
+@datafunction
 def shape_metrics(i1: DataBlock) -> Records[Metric]:
     df = i1.as_dataframe()
     return [
@@ -38,7 +39,7 @@ def shape_metrics(i1: DataBlock) -> Records[Metric]:
     ]
 
 
-@Function
+@datafunction
 def aggregate_metrics(
     i1: DataBlock, this: Optional[DataBlock] = None
 ) -> Records[Metric]:
@@ -64,9 +65,9 @@ batch_size = 4
 chunk_size = 2
 
 
-@Function
+@datafunction
 def customer_source(
-    ctx: FunctionContext, batches: int, fail: bool = False
+    ctx: DataFunctionContext, batches: int, fail: bool = False
 ) -> Iterator[Records[Customer]]:
     n = ctx.get_state_value("records_imported", 0)
     N = batches * batch_size
@@ -92,7 +93,7 @@ def customer_source(
             return
 
 
-aggregate_metrics_sql = sql_function(
+aggregate_metrics_sql = sql_function_factory(
     "aggregate_metrics_sql",
     sql="""
     select -- :Metric
@@ -103,7 +104,7 @@ aggregate_metrics_sql = sql_function(
 )
 
 
-dataset_inputs_sql = sql_function(
+dataset_inputs_sql = sql_function_factory(
     "dataset_inputs_sql",
     sql="""
     select
@@ -119,7 +120,7 @@ dataset_inputs_sql = sql_function(
 )
 
 
-mixed_inputs_sql = sql_function(
+mixed_inputs_sql = sql_function_factory(
     "mixed_inputs_sql",
     sql="""
     select
@@ -231,9 +232,9 @@ def test_function_failure():
     records = blocks[0].as_records()
     assert len(records) == 2
     with env.md_api.begin():
-        assert env.md_api.count(select(FunctionLog)) == 1
+        assert env.md_api.count(select(DataFunctionLog)) == 1
         assert env.md_api.count(select(DataBlockLog)) == 1
-        pl = env.md_api.execute(select(FunctionLog)).scalar_one_or_none()
+        pl = env.md_api.execute(select(DataFunctionLog)).scalar_one_or_none()
         assert pl.node_key == source.key
         assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {}
@@ -254,11 +255,11 @@ def test_function_failure():
     records = blocks[0].as_records()
     assert len(records) == batch_size
     with env.md_api.begin():
-        assert env.md_api.count(select(FunctionLog)) == 2
+        assert env.md_api.count(select(DataFunctionLog)) == 2
         assert env.md_api.count(select(DataBlockLog)) == 2
         pl = (
             env.md_api.execute(
-                select(FunctionLog).order_by(FunctionLog.completed_at.desc())
+                select(DataFunctionLog).order_by(DataFunctionLog.completed_at.desc())
             )
             .scalars()
             .first()

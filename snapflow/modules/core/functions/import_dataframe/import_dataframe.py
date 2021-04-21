@@ -8,17 +8,17 @@ from dcp.data_format.formats import (
     JsonLinesFileObjectFormat,
 )
 from pandas.core.frame import DataFrame
-from snapflow.core.execution.execution import FunctionContext
-from snapflow.core.function import Function, Input, Output, Param
+from snapflow.core.execution.execution import DataFunctionContext
+from snapflow.core.function import Input, Output, Param, datafunction
 from snapflow.core.streams import Stream
 
 
-@Function(
+@datafunction(
     namespace="core",
     display_name="Import Pandas DataFrame",
 )
 def import_dataframe(
-    ctx: FunctionContext, dataframe: str, schema: Optional[str] = None
+    ctx: DataFunctionContext, dataframe: str, schema: Optional[str] = None
 ):
     """
     Import pandas DataFrame

@@ -12,7 +12,7 @@ from snapflow.core.execution import Executable, ExecutionManager
 from snapflow.core.function import Input
 from snapflow.core.function_interface import Reference
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, Direction, FunctionLog
+from snapflow.core.node import DataBlockLog, DataFunctionLog, Direction
 from snapflow.modules import core
 from sqlalchemy.sql.expression import select
 from tests.utils import (
@@ -47,8 +47,8 @@ def test_exe():
     result = ExecutionManager(exe).execute()
     with env.md_api.begin():
         assert not result.output_blocks
-        assert env.md_api.count(select(FunctionLog)) == 1
-        pl = env.md_api.execute(select(FunctionLog)).scalar_one_or_none()
+        assert env.md_api.count(select(DataFunctionLog)) == 1
+        pl = env.md_api.execute(select(DataFunctionLog)).scalar_one_or_none()
         assert pl.node_key == node.key
         assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {}

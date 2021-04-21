@@ -1,6 +1,6 @@
 [tool.poetry]
 authors = ["Ken Van Haren <kenvanharen@gmail.com>"]
-description = "Functional Data Pipelines"
+description = "DataFunctional Data Pipelines"
 license = "BSD-3-Clause"
 name = "snapflow"
 version = "0.5.2"

@@ -10,9 +10,9 @@ from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.function_interface import (  # merge_declared_interface_with_signature_interface,
-    FunctionInput,
-    FunctionInterface,
-    FunctionOutput,
+    DataFunctionInput,
+    DataFunctionInterface,
+    DataFunctionOutput,
     Parameter,
     function_interface_from_callable,
 )
@@ -25,20 +25,20 @@ from snapflow.core.module import (
 from snapflow.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
 
 if TYPE_CHECKING:
-    from snapflow.core.execution import FunctionContext
+    from snapflow.core.execution import DataFunctionContext
     from snapflow import Environment
-    from snapflow.core.function_package import FunctionPackage
+    from snapflow.core.function_package import DataFunctionPackage
 
 
-class FunctionException(Exception):
+class DataFunctionException(Exception):
     pass
 
 
-class InputExhaustedException(FunctionException):
+class InputExhaustedException(DataFunctionException):
     pass
 
 
-FunctionCallable = Callable[..., Any]
+DataFunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
     DataFrame,
@@ -62,7 +62,7 @@ def get_runtime_class(runtime: Optional[str]) -> Type[RuntimeClass]:
     return PythonRuntimeClass
 
 
-def make_function_name(function: Union[FunctionCallable, _Function, str]) -> str:
+def make_function_name(function: Union[DataFunctionCallable, DataFunction, str]) -> str:
     # TODO: something more principled / explicit?
     if isinstance(function, str):
         return function
@@ -76,8 +76,8 @@ def make_function_name(function: Union[FunctionCallable, _Function, str]) -> str
 
 
 @dataclass  # (frozen=True)
-class _Function:
-    # Underscored so the decorator API can use `Function`. TODO: Is there a better way / name?
+class DataFunction:
+    # Underscored so the decorator API can use `DataFunction`. TODO: Is there a better way / name?
     name: str
     namespace: str
     function_callable: Callable
@@ -86,13 +86,13 @@ class _Function:
     # compatible_runtime_classes: List[Type[RuntimeClass]]
     # params: List[Parameter] = field(default_factory=list)
     state_class: Optional[Type] = None
-    # declared_inputs: Optional[List[FunctionInput]] = None
-    # declared_output: Optional[FunctionOutput] = None
+    # declared_inputs: Optional[List[DataFunctionInput]] = None
+    # declared_output: Optional[DataFunctionOutput] = None
     ignore_signature: bool = (
         False  # Whether to ignore signature if there are any declared i/o
     )
     _original_object: Any = None
-    package: FunctionPackage = None
+    package: DataFunctionPackage = None
     display_name: Optional[str] = None
     description: Optional[str] = None
 
@@ -107,18 +107,18 @@ class _Function:
         return k
 
     def __call__(
-        self, *args: FunctionContext, **kwargs: DataInterfaceType
+        self, *args: DataFunctionContext, **kwargs: DataInterfaceType
     ) -> Optional[DataInterfaceType]:
         return self.function_callable(*args, **kwargs)
 
     def get_original_object(self) -> Any:
         return self._original_object or self.function_callable
 
-    def get_interface(self) -> FunctionInterface:
+    def get_interface(self) -> DataFunctionInterface:
         """"""
         found_signature_interface = self._get_function_interface()
         return found_signature_interface
-        # declared_interface = FunctionInterface(
+        # declared_interface = DataFunctionInterface(
         #     inputs=self.declared_inputs or [], output=self.declared_output
         # )
         # return merge_declared_interface_with_signature_interface(
@@ -134,23 +134,23 @@ class _Function:
     def get_param(self, name: str) -> Parameter:
         return self.get_interface().parameters[name]
 
-    def _get_function_interface(self) -> FunctionInterface:
+    def _get_function_interface(self) -> DataFunctionInterface:
         if hasattr(self.function_callable, "get_interface"):
             return self.function_callable.get_interface()  # type: ignore
         return function_interface_from_callable(self.function_callable)
 
     def source_code_language(self) -> str:
-        from snapflow.core.sql.sql_function import SqlFunctionWrapper
+        from snapflow.core.sql.sql_function import SqlDataFunctionWrapper
 
-        if isinstance(self.function_callable, SqlFunctionWrapper):
+        if isinstance(self.function_callable, SqlDataFunctionWrapper):
             return "sql"
         return "python"
 
     def get_source_code(self) -> Optional[str]:
-        from snapflow.core.sql.sql_function import SqlFunctionWrapper
+        from snapflow.core.sql.sql_function import SqlDataFunctionWrapper
 
         # TODO: more principled approach (can define a "get_source_code" otherwise we inspect?)
-        if isinstance(self.function_callable, SqlFunctionWrapper):
+        if isinstance(self.function_callable, SqlDataFunctionWrapper):
             return self.function_callable.sql
         if hasattr(self.function_callable, "_code"):
             return self.function_callable._code
@@ -161,19 +161,19 @@ class _Function:
             return ""
 
 
-FunctionLike = Union[FunctionCallable, _Function]
+DataFunctionLike = Union[DataFunctionCallable, DataFunction]
 
 
 def function_factory(
-    function_like: Union[FunctionCallable, _Function],
+    function_like: Union[DataFunctionCallable, DataFunction],
     name: str = None,
     namespace: Optional[Union[SnapflowModule, str]] = None,
     **kwargs: Any,
-) -> _Function:
+) -> DataFunction:
     if name is None:
         assert function_like is not None
         name = make_function_name(function_like)
-    if isinstance(function_like, _Function):
+    if isinstance(function_like, DataFunction):
         # TODO: this is dicey, merging an existing function ... which values take precedence?
         # old_attrs = asdict(function_like)
         if isinstance(namespace, SnapflowModule):
@@ -181,7 +181,7 @@ def function_factory(
         else:
             namespace = namespace
         # Because we default to local module if not specified, but allow chaining decorators
-        # (like Function(namespace="core")(Param(...)(Param.....))) we must undo adding to default local
+        # (like DataFunction(namespace="core")(Param(...)(Param.....))) we must undo adding to default local
         # module if we later run into a specified module.
         if (
             function_like.namespace
@@ -194,7 +194,7 @@ def function_factory(
         namespace = namespace or function_like.namespace
         if namespace is None:
             namespace = DEFAULT_LOCAL_NAMESPACE
-        function = _Function(
+        function = DataFunction(
             name=name,
             namespace=namespace,
             function_callable=function_like.function_callable,
@@ -220,7 +220,7 @@ def function_factory(
             namespace = namespace.namespace
         else:
             namespace = namespace
-        function = _Function(
+        function = DataFunction(
             name=name,
             namespace=namespace,
             function_callable=function_like,
@@ -233,13 +233,13 @@ def function_factory(
 
 
 def function_decorator(
-    function_or_name: Union[str, FunctionCallable, _Function] = None,
+    function_or_name: Union[str, DataFunctionCallable, DataFunction] = None,
     name: str = None,
     namespace: Optional[Union[SnapflowModule, str]] = None,
     # params: List[Parameter] = None,
     state_class: Optional[Type] = None,
     **kwargs,
-) -> Union[Callable, _Function]:
+) -> Union[Callable, DataFunction]:
     if isinstance(function_or_name, str) or function_or_name is None:
         return partial(
             function_decorator,
@@ -267,7 +267,7 @@ def function_decorator(
 #     from_self: bool = False,  # TODO: name
 #     stream: bool = False,
 # ):
-#     inpt = FunctionInput(
+#     inpt = DataFunctionInput(
 #         name=name,
 #         schema_like=schema or "Any",
 #         reference=reference,
@@ -276,10 +276,10 @@ def function_decorator(
 #         stream=stream,
 #     )
 
-#     def dec(function_like: Union[FunctionCallable, _Function]) -> _Function:
-#         if not isinstance(function_like, _Function):
+#     def dec(function_like: Union[DataFunctionCallable, DataFunction]) -> DataFunction:
+#         if not isinstance(function_like, DataFunction):
 #             function_like = function_factory(function_like)
-#         function: _Function = function_like
+#         function: DataFunction = function_like
 #         if function.declared_inputs is None:
 #             function.declared_inputs = [inpt]
 #         else:
@@ -296,7 +296,7 @@ def function_decorator(
 #     stream: bool = False,
 #     default: bool = True,
 # ):
-#     output = FunctionOutput(
+#     output = DataFunctionOutput(
 #         name=name,
 #         schema_like=schema or "Any",
 #         optional=optional,
@@ -304,10 +304,10 @@ def function_decorator(
 #         default=default,
 #     )
 
-#     def dec(function_like: Union[FunctionCallable, _Function]) -> _Function:
-#         if not isinstance(function_like, _Function):
+#     def dec(function_like: Union[DataFunctionCallable, DataFunction]) -> DataFunction:
+#         if not isinstance(function_like, DataFunction):
 #             function_like = function_factory(function_like)
-#         function: _Function = function_like
+#         function: DataFunction = function_like
 #         function.declared_output = output
 #         return function
 
@@ -325,10 +325,10 @@ def function_decorator(
 #         name=name, datatype=datatype, required=required, default=default, help=help,
 #     )
 
-#     def dec(function_like: Union[FunctionCallable, _Function]) -> _Function:
-#         if not isinstance(function_like, _Function):
+#     def dec(function_like: Union[DataFunctionCallable, DataFunction]) -> DataFunction:
+#         if not isinstance(function_like, DataFunction):
 #             function_like = function_factory(function_like)
-#         function: _Function = function_like
+#         function: DataFunction = function_like
 #         if function.params is None:
 #             function.params = [p]
 #         else:
@@ -338,45 +338,45 @@ def function_decorator(
 #     return dec
 
 
-def make_function(function_like: FunctionLike, **kwargs) -> _Function:
-    if isinstance(function_like, _Function):
+def make_function(function_like: DataFunctionLike, **kwargs) -> DataFunction:
+    if isinstance(function_like, DataFunction):
         return function_like
     return function_factory(function_like, **kwargs)
 
 
 def ensure_function(
-    env: Environment, function_like: Union[FunctionLike, str]
-) -> _Function:
-    if isinstance(function_like, _Function):
+    env: Environment, function_like: Union[DataFunctionLike, str]
+) -> DataFunction:
+    if isinstance(function_like, DataFunction):
         return function_like
     if isinstance(function_like, str):
         return env.get_function(function_like)
     return make_function(function_like)
 
 
-class PythonCodeFunctionWrapper:
+class PythonCodeDataFunctionWrapper:
     def __init__(self, code):
         self._code = code
 
-    def get_function(self) -> _Function:
+    def get_function(self) -> DataFunction:
         local_vars = locals()
         exec(self._code, globals(), local_vars)
         function = None
         for v in local_vars.values():
-            if isinstance(v, _Function):
+            if isinstance(v, DataFunction):
                 function = v
                 break
         else:
-            raise Exception("Function not found in code")
+            raise Exception("DataFunction not found in code")
         return function
 
-    def get_interface(self) -> FunctionInterface:
+    def get_interface(self) -> DataFunctionInterface:
         return self.get_function().get_interface()
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.get_function(), name)
 
-    def __call__(self, *args: FunctionContext, **inputs: DataInterfaceType) -> Any:
+    def __call__(self, *args: DataFunctionContext, **inputs: DataInterfaceType) -> Any:
         function = self.get_function()
         code = (
             self._code
@@ -398,3 +398,7 @@ Input = deprecated
 Output = deprecated
 Param = deprecated
 Function = function_decorator
+# function = function_decorator
+_Function = DataFunction
+datafunction = function_decorator
+# data_function = function_decorator

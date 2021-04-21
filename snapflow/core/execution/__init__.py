@@ -5,9 +5,9 @@ from .executable import (
     ExecutionResult,
 )
 from .execution import (
+    DataFunctionContext,
     Executable,
     ExecutionContext,
     ExecutionManager,
-    FunctionContext,
     execute_to_exhaustion,
 )

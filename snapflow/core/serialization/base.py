@@ -10,11 +10,11 @@ from snapflow.core.environment import (
     run_graph,
     run_node,
 )
-from snapflow.core.function import Function, Input, Output, Param, _Function
+from snapflow.core.function import DataFunction, Input, Output, Param
 from snapflow.core.graph import DeclaredGraph, Graph, graph
 from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DeclaredNode, Node, node
-from snapflow.core.sql.sql_function import Sql, SqlFunction, sql_function
+from snapflow.core.sql.sql_function import Sql, sql_function
 from snapflow.core.streams import DataBlockStream, StreamBuilder
 
 # TODO: use an existing lib for this:

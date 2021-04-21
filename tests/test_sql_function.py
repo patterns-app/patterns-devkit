@@ -7,10 +7,10 @@ from snapflow.core.sql.sql_function import (
     AnnotatedSqlTable,
     ParsedSqlStatement,
     Sql,
-    SqlFunction,
     extract_param_annotations,
     extract_table_annotations,
     extract_tables,
+    sql_datafunction,
     sql_function,
 )
 from tests.utils import make_test_env
@@ -165,7 +165,7 @@ def test_sql_function_interface_fn_no_autodetect():
 
 
 def test_sql_function_interface_fn_function():
-    @SqlFunction
+    @sql_datafunction
     def sfunction():
         sql = """select 1 from from t1:T1
             join t2:Any on t1.a = t2.b left join t3:T2
@@ -177,7 +177,7 @@ def test_sql_function_interface_fn_function():
 
     assert len(pi.inputs) == 3
 
-    @SqlFunction(autodetect_inputs=False, name="newname")
+    @sql_datafunction(autodetect_inputs=False, name="newname")
     def snp():
         sql = """select 1 from from t1:T1
             join t2 on t1.a = t2.b left join t3:T2

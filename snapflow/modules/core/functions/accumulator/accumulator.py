@@ -4,13 +4,13 @@ from typing import Optional
 
 from pandas import DataFrame, concat
 from snapflow.core.data_block import DataBlock
-from snapflow.core.function import Function, Input, Output
+from snapflow.core.function import Input, Output, datafunction
 from snapflow.core.function_interface import SelfReference
 from snapflow.core.streams import Stream
 from snapflow.utils.typing import T
 
 
-@Function(namespace="core", display_name="Accumulate DataFrames")
+@datafunction(namespace="core", display_name="Accumulate DataFrames")
 def accumulator(
     input: Stream[T],
     previous: SelfReference[T] = None,

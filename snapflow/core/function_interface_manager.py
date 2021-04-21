@@ -15,9 +15,9 @@ from snapflow.core.environment import Environment
 from snapflow.core.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.function_interface import (
     DEFAULT_OUTPUT,
-    FunctionInput,
-    FunctionInterface,
-    FunctionOutput,
+    DataFunctionInput,
+    DataFunctionInterface,
+    DataFunctionOutput,
     InputType,
 )
 from snapflow.core.schema import GenericSchemaException, is_generic
@@ -35,10 +35,10 @@ if TYPE_CHECKING:
 
 
 # def merge_declared_interface_with_signature_interface(
-#     declared: FunctionInterface,
-#     signature: FunctionInterface,
+#     declared: DataFunctionInterface,
+#     signature: DataFunctionInterface,
 #     ignore_signature: bool = False,
-# ) -> FunctionInterface:
+# ) -> DataFunctionInterface:
 #     # ctx can come from EITHER
 #     # Take union of inputs from both, with declared taking precedence
 #     # UNLESS ignore_signature, then only use signature if NO declared inputs
@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 #                     if sname == name:
 #                         inputs[sname] = i
 #     outputs = declared.outputs or signature.outputs or {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT} # TODO
-#     return FunctionInterface(
+#     return DataFunctionInterface(
 #         inputs=inputs, outputs=outputs, uses_context=declared.uses_context or signature.uses_context, parameters={}
 #     )
 
@@ -78,7 +78,7 @@ class DeclaredStreamInput:
 @dataclass(frozen=True)
 class NodeInput:
     name: str
-    declared_input: FunctionInput
+    declared_input: DataFunctionInput
     declared_schema_translation: Optional[Dict[str, str]] = None
     input_stream_builder: Optional[StreamBuilder] = None
 
@@ -86,11 +86,11 @@ class NodeInput:
 @dataclass(frozen=True)
 class ConnectedInterface:
     inputs: List[NodeInput]
-    interface: FunctionInterface
+    interface: DataFunctionInterface
 
     @classmethod
     def from_function_interface(
-        cls, fi: FunctionInterface, declared_inputs: Dict[str, DeclaredStreamInput]
+        cls, fi: DataFunctionInterface, declared_inputs: Dict[str, DeclaredStreamInput]
     ) -> ConnectedInterface:
         inputs = []
         for input in fi.inputs.values():
@@ -144,7 +144,7 @@ class ConnectedInterface:
 @dataclass(frozen=True)
 class StreamInput:
     name: str
-    declared_input: FunctionInput
+    declared_input: DataFunctionInput
     declared_schema_translation: Optional[Dict[str, str]] = None
     input_stream_builder: Optional[StreamBuilder] = None
     is_stream: bool = False
@@ -179,7 +179,7 @@ class StreamInput:
 @dataclass(frozen=True)
 class BoundInterface:
     inputs: List[StreamInput]
-    interface: FunctionInterface
+    interface: DataFunctionInterface
     # resolved_generics: Dict[str, SchemaKey] = field(default_factory=dict)
 
     def inputs_as_kwargs(self) -> Dict[str, Union[DataBlock, DataBlockStream]]:
@@ -223,7 +223,8 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation, from_schema_key=source_schema.key,
+            translation=declared_schema_translation,
+            from_schema_key=source_schema.key,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed
@@ -243,7 +244,7 @@ class NodeInterfaceManager:
 
         self.exe = exe
         self.node = exe.node
-        self.function_interface: FunctionInterface = self.node.get_interface()
+        self.function_interface: DataFunctionInterface = self.node.get_interface()
 
     def get_bound_interface(
         self, input_db_streams: Optional[InputStreams] = None
@@ -267,7 +268,7 @@ class NodeInterfaceManager:
         ci = ConnectedInterface.from_function_interface(self.function_interface, inputs)
         return ci
 
-    def is_input_required(self, input: FunctionInput) -> bool:
+    def is_input_required(self, input: DataFunctionInput) -> bool:
         # TODO: is there other logic we want here? why have method?
         if input.required:
             return True
@@ -287,7 +288,9 @@ class NodeInterfaceManager:
                 raise Exception(f"Missing required input {input.name}")
             logger.debug(f"Building stream for `{input.name}` from {stream_builder}")
             stream_builder = self._filter_stream(
-                stream_builder, input, self.exe.execution_context.storages,
+                stream_builder,
+                input,
+                self.exe.execution_context.storages,
             )
 
             """
@@ -303,7 +306,7 @@ class NodeInterfaceManager:
                 )
                 if input.declared_input.required:
                     raise InputExhaustedException(
-                        f"    Required input '{input.name}'={stream_builder} to _Function '{self.node.key}' is empty"
+                        f"    Required input '{input.name}'={stream_builder} to DataFunction '{self.node.key}' is empty"
                     )
             else:
                 declared_schema: Optional[Schema]

@@ -11,13 +11,13 @@ from loguru import logger
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
 from snapflow.core.function import (
-    FunctionLike,
-    _Function,
+    DataFunction,
+    DataFunctionLike,
     ensure_function,
     make_function,
     make_function_name,
 )
-from snapflow.core.function_interface import FunctionInterface
+from snapflow.core.function_interface import DataFunctionInterface
 from snapflow.core.function_interface_manager import DeclaredStreamInput
 from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
 from sqlalchemy.orm import Session, relationship
@@ -67,7 +67,7 @@ class DeclaredNode:
     yet. Only after a call to `instantiate_node` do we then do these things.
     """
 
-    function: Union[FunctionLike, str]
+    function: Union[DataFunctionLike, str]
     key: str
     params: Dict[str, Any] = field(default_factory=dict)
     inputs: Union[StreamLike, Dict[str, StreamLike]] = field(default_factory=dict)
@@ -137,7 +137,7 @@ class DeclaredNode:
 
 
 def node(
-    function: Union[FunctionLike, str],
+    function: Union[DataFunctionLike, str],
     key: Optional[str] = None,
     params: Dict[str, Any] = None,
     inputs: Dict[str, StreamLike] = None,
@@ -204,9 +204,9 @@ def make_default_output_alias(node: Node) -> str:
 class Node:
     graph: Graph
     key: str
-    function: _Function
+    function: DataFunction
     params: Dict[str, Any]
-    interface: FunctionInterface
+    interface: DataFunctionInterface
     declared_inputs: Dict[str, DeclaredStreamInput]
     output_alias: Optional[str] = None
     declared_schema_translation: Optional[Dict[str, Dict[str, str]]] = None
@@ -233,7 +233,7 @@ class Node:
             ident
         )  # TODO: this logic should be storage api specific! and then shared back?
 
-    def get_interface(self) -> FunctionInterface:
+    def get_interface(self) -> DataFunctionInterface:
         return self.interface
 
     def get_schema_translation_for_input(
@@ -251,10 +251,10 @@ class Node:
             env.md_api.execute(
                 select(DataBlockMetadata)
                 .join(DataBlockLog)
-                .join(FunctionLog)
+                .join(DataFunctionLog)
                 .filter(
                     DataBlockLog.direction == Direction.OUTPUT,
-                    FunctionLog.node_key == self.key,
+                    DataFunctionLog.node_key == self.key,
                 )
                 .order_by(DataBlockLog.created_at.desc())
             )
@@ -281,8 +281,8 @@ class Node:
             r
             for r in env.md_api.execute(
                 select(DataBlockLog.id)
-                .join(FunctionLog)
-                .filter(FunctionLog.node_key == self.key)
+                .join(DataFunctionLog)
+                .filter(DataFunctionLog.node_key == self.key)
             )
             .scalars()
             .all()
@@ -327,7 +327,7 @@ def get_state(env: Environment, node_key: str) -> Optional[Dict]:
     return None
 
 
-class FunctionLog(BaseModel):
+class DataFunctionLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     graph_id = Column(
         String(128),
@@ -404,7 +404,7 @@ class Direction(enum.Enum):
 
 class DataBlockLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    function_log_id = Column(Integer, ForeignKey(FunctionLog.id), nullable=False)
+    function_log_id = Column(Integer, ForeignKey(DataFunctionLog.id), nullable=False)
     data_block_id = Column(
         String(128),
         ForeignKey(f"{SNAPFLOW_METADATA_TABLE_PREFIX}data_block_metadata.id"),
@@ -416,7 +416,7 @@ class DataBlockLog(BaseModel):
     invalidated = Column(Boolean, default=False)
     # Hints
     data_block: "DataBlockMetadata"
-    function_log: FunctionLog
+    function_log: DataFunctionLog
 
     def __repr__(self):
         return self._repr(

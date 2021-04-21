@@ -20,12 +20,12 @@ from snapflow.core.data_block import (
     StoredDataBlockMetadata,
 )
 from snapflow.core.environment import Environment
-from snapflow.core.execution.execution import FunctionContext
+from snapflow.core.execution.execution import DataFunctionContext
 from snapflow.core.function import (
     DEFAULT_OUTPUT_NAME,
+    DataFunction,
     DataInterfaceType,
     Parameter,
-    _Function,
     function_factory,
 )
 from snapflow.core.function_interface import (
@@ -33,8 +33,8 @@ from snapflow.core.function_interface import (
     DEFAULT_OUTPUT,
     DEFAULT_OUTPUTS,
     BadAnnotationException,
-    FunctionInput,
-    FunctionInterface,
+    DataFunctionInput,
+    DataFunctionInterface,
     InputType,
     ParsedAnnotation,
     function_input_from_annotation,
@@ -97,7 +97,7 @@ class ParsedSqlStatement:
     found_params: Optional[Dict[str, AnnotatedParam]] = None
     output_annotation: Optional[str] = None
 
-    def as_interface(self) -> FunctionInterface:
+    def as_interface(self) -> DataFunctionInterface:
         inputs = {}
         outputs = {}
         params = {}
@@ -126,7 +126,7 @@ class ParsedSqlStatement:
                     ap.default,
                 )
 
-        return FunctionInterface(
+        return DataFunctionInterface(
             inputs=inputs, outputs=outputs, uses_context=True, parameters=params
         )
 
@@ -270,7 +270,7 @@ def parse_sql_statement(sql: str, autodetect_tables: bool = True) -> ParsedSqlSt
     )
 
 
-def params_as_sql(ctx: FunctionContext) -> Dict[str, Any]:
+def params_as_sql(ctx: DataFunctionContext) -> Dict[str, Any]:
     param_values = ctx.get_params()
     sql_params = {}
     for k, v in param_values.items():
@@ -310,13 +310,13 @@ def apply_schema_translation_as_sql(
     return table_stmt
 
 
-class SqlFunctionWrapper:
+class SqlDataFunctionWrapper:
     def __init__(self, sql: str, autodetect_inputs: bool = True):
         self.sql = sql
         self.autodetect_inputs = autodetect_inputs
 
-    def __call__(self, *args: FunctionContext, **inputs: DataInterfaceType):
-        ctx: FunctionContext = args[0]
+    def __call__(self, *args: DataFunctionContext, **inputs: DataInterfaceType):
+        ctx: DataFunctionContext = args[0]
         # if ctx.run_context.current_runtime is None:
         #     raise Exception("Current runtime not set")
 
@@ -368,7 +368,7 @@ class SqlFunctionWrapper:
 
     def get_input_table_stmts(
         self,
-        ctx: FunctionContext,
+        ctx: DataFunctionContext,
         storage: Storage,
         inputs: Dict[str, DataBlock] = None,
     ) -> Dict[str, str]:
@@ -382,7 +382,7 @@ class SqlFunctionWrapper:
 
     def get_compiled_sql(
         self,
-        ctx: FunctionContext,
+        ctx: DataFunctionContext,
         storage: Storage,
         inputs: Dict[str, DataBlock] = None,
     ):
@@ -407,7 +407,7 @@ class SqlFunctionWrapper:
     def get_parsed_statement(self) -> ParsedSqlStatement:
         return parse_sql_statement(self.sql, self.autodetect_inputs)
 
-    def get_interface(self) -> FunctionInterface:
+    def get_interface(self) -> DataFunctionInterface:
         stmt = self.get_parsed_statement()
         return stmt.as_interface()
 
@@ -416,7 +416,7 @@ def process_sql(sql: str, file_path: str = None) -> str:
     if sql.endswith(".sql"):
         if not file_path:
             raise Exception(
-                f"Must specify @SqlFunction(file=__file__) in order to load sql file {sql}"
+                f"Must specify @sql_datafunction(file=__file__) in order to load sql file {sql}"
             )
         dir_path = Path(file_path) / ".."
         sql = load_file(str(dir_path), sql)
@@ -429,10 +429,10 @@ def sql_function_factory(
     file: str = None,
     namespace: Optional[Union[SnapflowModule, str]] = None,
     required_storage_classes: List[str] = None,
-    wrapper_cls: type = SqlFunctionWrapper,
+    wrapper_cls: type = SqlDataFunctionWrapper,
     autodetect_inputs: bool = True,
     **kwargs,  # TODO: explicit options
-) -> _Function:
+) -> DataFunction:
     if not sql:
         raise ValueError("Must provide sql")
     sql = process_sql(sql, file)
@@ -451,27 +451,27 @@ sql_function = sql_function_factory
 
 
 def sql_function_decorator(
-    sql_fn_or_function: Union[_Function, Callable] = None,
+    sql_fn_or_function: Union[DataFunction, Callable] = None,
     file: str = None,
     autodetect_inputs: bool = True,
     **kwargs,
-) -> Union[Callable, _Function]:
+) -> Union[Callable, DataFunction]:
     if sql_fn_or_function is None:
-        # handle bare decorator @SqlFunction
+        # handle bare decorator @sql_datafunction
         return partial(
             sql_function_decorator,
             file=file,
             autodetect_inputs=autodetect_inputs,
             **kwargs,
         )
-    if isinstance(sql_fn_or_function, _Function):
+    if isinstance(sql_fn_or_function, DataFunction):
         sql = sql_fn_or_function.function_callable()
         sql = process_sql(sql, file)
-        sql_fn_or_function.function_callable = SqlFunctionWrapper(
+        sql_fn_or_function.function_callable = SqlDataFunctionWrapper(
             sql, autodetect_inputs=autodetect_inputs
         )
         # TODO / FIXME: this is dicey ... if we ever add / change args for function_factory
-        # will break this. (we're only taking a select few args from the exising Function)
+        # will break this. (we're only taking a select few args from the exising DataFunction)
         return function_factory(
             sql_fn_or_function,
             ignore_signature=True,
@@ -494,5 +494,9 @@ def sql_function_decorator(
     )
 
 
-SqlFunction = sql_function_decorator
+# SqlDataFunction = sql_function_decorator
 Sql = sql_function_decorator
+SqlFunction = sql_function_decorator
+# sql = sql_function_decorator
+# sql_function = sql_function_decorator
+sql_datafunction = sql_function_decorator

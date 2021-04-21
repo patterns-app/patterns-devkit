@@ -1,7 +1,7 @@
-"""Snap -> function
+"""Rename snap log -> function log
 
-Revision ID: 3cbdd93d0687
-Revises: fcfed9f36be4
+Revision ID: 20210418
+Revises: 3cbdd93d0687
 Create Date: 2021-04-18 13:35:05.061458
 
 """
@@ -18,8 +18,8 @@ depends_on = None
 
 
 def upgrade():
-    op.rename_table("_snapflow_snap_log", "_snapflow_function_log")
+    op.rename_table("_snapflow_snap_log", "_snapflow_data_function_log")
 
 
 def downgrade():
-    op.rename_table("_snapflow_function_log", "_snapflow_snap_log")
+    op.rename_table("_snapflow_data_function_log", "_snapflow_snap_log")

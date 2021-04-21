@@ -8,8 +8,8 @@ from dcp.utils.common import AttrDict
 
 if TYPE_CHECKING:
     from snapflow.core.function import (
-        FunctionLike,
-        _Function,
+        DataFunctionLike,
+        DataFunction,
     )
     from snapflow.core.module import SnapflowModule
 
@@ -21,7 +21,7 @@ class DictView(dict):
 
 
 class ComponentLibrary:
-    functions: Dict[str, _Function]
+    functions: Dict[str, DataFunction]
     schemas: Dict[str, Schema]
     module_lookup_names: List[str]
 
@@ -44,27 +44,27 @@ class ComponentLibrary:
             module = module.module
         self.merge(module.library)
 
-    def add_function(self, p: _Function):
+    def add_function(self, p: DataFunction):
         self.functions[p.key] = p
 
     def add_schema(self, schema: Schema):
         self.schemas[schema.key] = schema
 
-    def remove_function(self, function_like: Union[_Function, str]):
-        from snapflow.core.function import _Function
+    def remove_function(self, function_like: Union[DataFunction, str]):
+        from snapflow.core.function import DataFunction
 
-        if isinstance(function_like, _Function):
+        if isinstance(function_like, DataFunction):
             function_like = function_like.key
         if function_like not in self.functions:
             return
         del self.functions[function_like]
 
     def get_function(
-        self, function_like: Union[_Function, str], try_module_lookups=True
-    ) -> _Function:
-        from snapflow.core.function import _Function
+        self, function_like: Union[DataFunction, str], try_module_lookups=True
+    ) -> DataFunction:
+        from snapflow.core.function import DataFunction
 
-        if isinstance(function_like, _Function):
+        if isinstance(function_like, DataFunction):
             return function_like
         if not isinstance(function_like, str):
             raise TypeError(function_like)
@@ -100,7 +100,7 @@ class ComponentLibrary:
                 pass
         raise KeyError(f"`{k}` not found in modules {self.module_lookup_names}")
 
-    def all_functions(self) -> List[_Function]:
+    def all_functions(self) -> List[DataFunction]:
         return list(self.functions.values())
 
     def all_schemas(self) -> List[Schema]:
@@ -119,7 +119,7 @@ class ComponentLibrary:
             ad[k.split(".")[-1]] = p  # TODO: module precedence
         return ad
 
-    def get_functions_view(self) -> DictView[str, _Function]:
+    def get_functions_view(self) -> DictView[str, DataFunction]:
         return self.get_view(self.functions)
 
     def get_schemas_view(self) -> DictView[str, Schema]:

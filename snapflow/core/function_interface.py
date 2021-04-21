@@ -13,7 +13,7 @@ from snapflow.core.schema import is_generic
 if TYPE_CHECKING:
     from snapflow.core.function import (
         InputExhaustedException,
-        FunctionCallable,
+        DataFunctionCallable,
     )
     from snapflow.core.node import Node, Node, NodeLike
 
@@ -32,7 +32,7 @@ DEFAULT_OUTPUT_NAME = "default"
 
 
 # VALID_DATA_INTERFACE_TYPES = [
-#     # TODO: is this list just a list of formats? which ones are valid i/o to Functions?
+#     # TODO: is this list just a list of formats? which ones are valid i/o to DataFunctions?
 #     # TODO: do we even want this check?
 #     "Stream",
 #     "DataBlockStream",
@@ -97,12 +97,12 @@ def parse_input_annotation(a: str) -> ParsedAnnotation:
     parsed = ParsedAnnotation(original_annotation=a)
     m = re_input_type_hint.match(a)
     if m is None:
-        raise BadAnnotationException(f"Invalid Function annotation '{a}'")
+        raise BadAnnotationException(f"Invalid DataFunction annotation '{a}'")
     md = m.groupdict()
     if md.get("optional"):
         parsed.optional = True
     origin = md["origin"]
-    if origin == "FunctionContext":
+    if origin == "DataFunctionContext":
         parsed.is_context = True
     elif origin in [it.value for it in InputType]:
         parsed.input_type = InputType(origin)
@@ -120,7 +120,7 @@ def parse_output_annotation(a: str) -> ParsedAnnotation:
     parsed = ParsedAnnotation(original_annotation=a)
     m = re_output_type_hint.match(a)
     if m is None:
-        raise BadAnnotationException(f"Invalid Function annotation '{a}'")
+        raise BadAnnotationException(f"Invalid DataFunction annotation '{a}'")
     md = m.groupdict()
     if md.get("iterator"):
         parsed.iterator = True
@@ -145,7 +145,7 @@ class Parameter:
 
 
 @dataclass(frozen=True)
-class FunctionInput:
+class DataFunctionInput:
     name: str
     schema_like: SchemaLike
     input_type: InputType = InputType.DataBlock
@@ -170,7 +170,7 @@ class FunctionInput:
 
 
 @dataclass(frozen=True)
-class FunctionOutput:
+class DataFunctionOutput:
     schema_like: SchemaLike
     name: str = DEFAULT_OUTPUT_NAME
     data_format: Optional[Any] = None
@@ -187,17 +187,17 @@ class FunctionOutput:
 
 
 DEFAULT_INPUT_ANNOTATION = "DataBlock"
-DEFAULT_OUTPUT = FunctionOutput(
+DEFAULT_OUTPUT = DataFunctionOutput(
     schema_like="Any",
     name=DEFAULT_OUTPUT_NAME,
 )
 DEFAULT_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
-DEFAULT_STATE_OUTPUT = FunctionOutput(
+DEFAULT_STATE_OUTPUT = DataFunctionOutput(
     schema_like="core.State", name=DEFAULT_STATE_OUTPUT_NAME, is_default=False
 )
 DEFAULT_ERROR_OUTPUT_NAME = "error"
-DEFAULT_ERROR_OUTPUT = FunctionOutput(
+DEFAULT_ERROR_OUTPUT = DataFunctionOutput(
     schema_like="Any",  # TODO: probably same as default output (how to parameterize tho?)
     name=DEFAULT_ERROR_OUTPUT_NAME,
     is_default=False,
@@ -205,9 +205,9 @@ DEFAULT_ERROR_OUTPUT = FunctionOutput(
 
 
 @dataclass(frozen=True)
-class FunctionInterface:
-    inputs: Dict[str, FunctionInput]
-    outputs: Dict[str, FunctionOutput]
+class DataFunctionInterface:
+    inputs: Dict[str, DataFunctionInput]
+    outputs: Dict[str, DataFunctionOutput]
     parameters: Dict[str, Parameter]
     uses_context: bool = False
     uses_state: bool = False
@@ -216,19 +216,19 @@ class FunctionInterface:
         False  # When return explicitly set to None (for identifying exporters) #TODO
     )
 
-    def get_input(self, name: str) -> FunctionInput:
+    def get_input(self, name: str) -> DataFunctionInput:
         return self.inputs[name]
 
-    def get_single_input(self) -> FunctionInput:
+    def get_single_input(self) -> DataFunctionInput:
         assert len(self.inputs) == 1, self.inputs
         return self.inputs[list(self.inputs)[0]]
 
-    def get_single_non_recursive_input(self) -> FunctionInput:
+    def get_single_non_recursive_input(self) -> DataFunctionInput:
         inpts = self.get_non_recursive_inputs()
         assert len(inpts) == 1, inpts
         return inpts[list(inpts)[0]]
 
-    def get_non_recursive_inputs(self) -> Dict[str, FunctionInput]:
+    def get_non_recursive_inputs(self) -> Dict[str, DataFunctionInput]:
         return {
             n: i
             for n, i in self.inputs.items()
@@ -276,7 +276,7 @@ class FunctionInterface:
             return declared_schema_translation
         raise TypeError(declared_schema_translation)
 
-    def get_default_output(self) -> Optional[FunctionOutput]:
+    def get_default_output(self) -> Optional[DataFunctionOutput]:
         return self.outputs.get(DEFAULT_OUTPUT_NAME)
 
 
@@ -289,8 +289,8 @@ class NonStringAnnotationException(Exception):
 
 
 def function_interface_from_callable(
-    function: FunctionCallable,
-) -> FunctionInterface:
+    function: DataFunctionCallable,
+) -> DataFunctionInterface:
     signature = inspect.signature(function)
     outputs = {}
     inputs = {}
@@ -301,7 +301,7 @@ def function_interface_from_callable(
     ret = signature.return_annotation
     if ret is inspect.Signature.empty:
         """
-        By default, we assume every Function may return an output,
+        By default, we assume every DataFunction may return an output,
         unless specifically annotated with '-> None'.
         """
         default_output = DEFAULT_OUTPUT
@@ -326,7 +326,7 @@ def function_interface_from_callable(
                 # TODO: handle un-annotated parameters?
                 if unannotated_found:
                     raise Exception(
-                        "Cannot have more than one un-annotated input to a Function"
+                        "Cannot have more than one un-annotated input to a DataFunction"
                     )
                 unannotated_found = True
                 a = DEFAULT_INPUT_ANNOTATION
@@ -344,12 +344,12 @@ def function_interface_from_callable(
                 name=param.name,
             )
             inputs[i.name] = i
-    return FunctionInterface(
+    return DataFunctionInterface(
         inputs=inputs, outputs=outputs, parameters=params, uses_context=uses_context
     )
 
 
-def function_input_from_parameter(param: inspect.Parameter) -> FunctionInput:
+def function_input_from_parameter(param: inspect.Parameter) -> DataFunctionInput:
     a = param.annotation
     annotation_is_empty = a is inspect.Signature.empty
     if not annotation_is_empty and not isinstance(a, str):
@@ -357,7 +357,7 @@ def function_input_from_parameter(param: inspect.Parameter) -> FunctionInput:
     annotation = param.annotation
     if annotation is inspect.Signature.empty:
         if param.name in ("ctx", "context"):  # TODO: hack
-            annotation = "FunctionContext"
+            annotation = "DataFunctionContext"
         else:
             annotation = DEFAULT_INPUT_ANNOTATION
     # is_optional = param.default != inspect.Parameter.empty
@@ -370,8 +370,8 @@ def function_input_from_parameter(param: inspect.Parameter) -> FunctionInput:
 
 def function_input_from_annotation(
     parsed: ParsedAnnotation, name: str
-) -> FunctionInput:
-    return FunctionInput(
+) -> DataFunctionInput:
+    return DataFunctionInput(
         name=name,
         schema_like=parsed.schema or "Any",
         input_type=parsed.input_type or InputType.DataBlock,
@@ -382,14 +382,14 @@ def function_input_from_annotation(
 
 def function_output_from_annotation(
     annotation: Union[str, ParsedAnnotation]
-) -> Optional[FunctionOutput]:
+) -> Optional[DataFunctionOutput]:
     if isinstance(annotation, str):
         parsed = parse_output_annotation(annotation)
     else:
         parsed = annotation
     if parsed.is_none:
         return None
-    return FunctionOutput(
+    return DataFunctionOutput(
         schema_like=parsed.schema or "Any",
         data_format=parsed.output_type,
         is_iterator=parsed.iterator,
