@@ -258,7 +258,7 @@ class StoredDataBlockMetadata(BaseModel):
             # (not really a race condition here since alias is unique to node and node cannot
             #  run in parallel, for now at least)
             a = Alias(
-                alias=alias,
+                name=alias,
                 data_block_id=self.data_block_id,
                 stored_data_block_id=self.id,
             )
