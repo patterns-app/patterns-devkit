@@ -102,7 +102,7 @@ def parse_input_annotation(a: str) -> ParsedAnnotation:
     if md.get("optional"):
         parsed.optional = True
     origin = md["origin"]
-    if origin == "DataFunctionContext":
+    if origin in ("DataFunctionContext", "Context"):
         parsed.is_context = True
     elif origin in [it.value for it in InputType]:
         parsed.input_type = InputType(origin)
@@ -187,10 +187,7 @@ class DataFunctionOutput:
 
 
 DEFAULT_INPUT_ANNOTATION = "DataBlock"
-DEFAULT_OUTPUT = DataFunctionOutput(
-    schema_like="Any",
-    name=DEFAULT_OUTPUT_NAME,
-)
+DEFAULT_OUTPUT = DataFunctionOutput(schema_like="Any", name=DEFAULT_OUTPUT_NAME,)
 DEFAULT_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
 DEFAULT_STATE_OUTPUT = DataFunctionOutput(
@@ -339,10 +336,7 @@ def function_interface_from_callable(
             params[p.name] = p
         else:
             i = function_input_from_parameter(param)
-            i = function_input_from_annotation(
-                parsed,
-                name=param.name,
-            )
+            i = function_input_from_annotation(parsed, name=param.name,)
             inputs[i.name] = i
     return DataFunctionInterface(
         inputs=inputs, outputs=outputs, parameters=params, uses_context=uses_context
@@ -362,10 +356,7 @@ def function_input_from_parameter(param: inspect.Parameter) -> DataFunctionInput
             annotation = DEFAULT_INPUT_ANNOTATION
     # is_optional = param.default != inspect.Parameter.empty
     parsed = parse_input_annotation(annotation)
-    return function_input_from_annotation(
-        parsed,
-        name=param.name,
-    )
+    return function_input_from_annotation(parsed, name=param.name,)
 
 
 def function_input_from_annotation(
