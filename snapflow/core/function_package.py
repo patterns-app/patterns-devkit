@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 from dataclasses import asdict, dataclass, field
 from functools import partial
 from importlib import import_module
@@ -48,14 +49,17 @@ class DataFunctionPackage:
 
     @classmethod
     def from_path(
-        cls, abs_path: str, namespace: str = None, **overrides: Any
+        cls, abs_path: str, namespace: str = None, name: str = None, **overrides: Any
     ) -> DataFunctionPackage:
         pth = Path(abs_path)
         name = pth.parts[-1]
         # python_path = str(pth / (name + ".py"))
         # local_vars = load_python_file(python_path, __file__=python_path)
         m = load_module(pth / name)
-        function = getattr(m, name)
+        try:
+            function = getattr(m, name)
+        except AttributeError:
+            function = find_single_datafunction(m)
         # function = local_vars.get(name)
         # if function is None:
         #     functions = [v for v in local_vars.values() if isinstance(v, DataFunction)]
@@ -63,9 +67,11 @@ class DataFunctionPackage:
         #         raise NoDataFunctionFoundError
         #     assert len(functions) == 1, "One function per file"
         #     function = functions[0]
-        function = make_function(function)
+        function = make_function(function, **overrides)
         if namespace:
             function.namespace = namespace
+        if name:
+            function.name = name
         pkg = DataFunctionPackage(
             name=name,
             root_path=abs_path,
@@ -76,6 +82,18 @@ class DataFunctionPackage:
         pkg.find_files()
         pkg.find_tests()
         return pkg
+
+    @classmethod
+    def from_strings(
+        cls, name: str, python_code: str, namespace: str = None, **kwargs
+    ) -> DataFunctionPackage:
+        tmpdir = tempfile.mkdtemp()
+        root = Path(tmpdir) / name
+        python_path = root / (name + ".py")
+        os.makedirs(root)
+        with open(python_path, "w") as f:
+            f.write(python_code)
+        return cls.from_path(str(root), namespace=namespace, name=name, **kwargs)
 
     # @classmethod
     # def create_from_module(cls, root_module: ModuleType) -> DataFunctionPackage:
@@ -228,6 +246,14 @@ def load_functions_from_module(module: ModuleType) -> List[DataFunction]:
         for n in dir(module)
         if isinstance(getattr(module, n), DataFunction)
     ]
+
+
+def find_single_datafunction(module: ModuleType) -> DataFunction:
+    functions = load_functions_from_module(module)
+    assert (
+        len(functions) == 1
+    ), f"Module must define one and only one datafunction (found {len(functions)})"
+    return functions[0]
 
 
 def get_module_abs_path(obj: Any) -> Path:

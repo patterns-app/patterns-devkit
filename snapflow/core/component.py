@@ -36,6 +36,8 @@ class ComponentLibrary:
                 self.add_namespace(k)
 
     def add_namespace(self, k: str):
+        if "." in k:
+            k = k.split(".")[0]
         if k not in self.module_lookup_names:
             self.module_lookup_names.append(k)
 
@@ -44,10 +46,12 @@ class ComponentLibrary:
             module = module.module
         self.merge(module.library)
 
-    def add_function(self, p: DataFunction):
-        self.functions[p.key] = p
+    def add_function(self, f: DataFunction):
+        self.add_namespace(f.key)
+        self.functions[f.key] = f
 
     def add_schema(self, schema: Schema):
+        self.add_namespace(schema.key)
         self.schemas[schema.key] = schema
 
     def remove_function(self, function_like: Union[DataFunction, str]):
