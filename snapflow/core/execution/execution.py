@@ -456,7 +456,8 @@ class ExecutionManager:
                 # output_obj = local_vars[function.function_callable.__name__](
                 function_args, function_kwargs = function_ctx.get_function_args()
                 output_obj = function_ctx.function.function_callable(
-                    *function_args, **function_kwargs,
+                    *function_args,
+                    **function_kwargs,
                 )
                 if output_obj is not None:
                     self.emit_output_object(output_obj, function_ctx)
@@ -465,7 +466,9 @@ class ExecutionManager:
         return result
 
     def emit_output_object(
-        self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
+        self,
+        output_obj: DataInterfaceType,
+        function_ctx: DataFunctionContext,
     ):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):
@@ -493,7 +496,8 @@ class ExecutionManager:
             node_state = node_state_obj.state
         new_graph_meta = node.graph.get_metadata_obj()
         graph_meta = md.execute(
-            select(GraphMetadata).filter(GraphMetadata.hash == new_graph_meta.hash)
+            select(GraphMetadata).filter(GraphMetadata.hash == new_graph_meta.hash),
+            filter_env=False,
         ).scalar_one_or_none()
         if graph_meta is None:
             md.add(new_graph_meta)

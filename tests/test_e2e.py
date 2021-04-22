@@ -136,8 +136,10 @@ mixed_inputs_sql = sql_function_factory(
 )
 
 
-def get_env():
-    env = Environment(metadata_storage=get_tmp_sqlite_db_url())
+def get_env(key="_test", db_url=None):
+    if db_url is None:
+        db_url = get_tmp_sqlite_db_url()
+    env = Environment(key=key, metadata_storage=db_url)
     env.add_module(core)
     env.add_schema(Customer)
     env.add_schema(Metric)
@@ -351,3 +353,33 @@ def test_ref_input():
     assert output.output_blocks
     output = env.run_node(join, g, target_storage=s)
     assert not output.output_blocks  # Regular join has exhausted metrics
+
+
+def test_multi_env():
+    env1 = get_env(key="e1")
+    g = Graph(env1)
+    s = env1._local_python_storage
+    # Initial graph
+    batches = 2
+    source = g.create_node(customer_source, params={"batches": batches})
+    metrics = g.create_node(shape_metrics, input=source)
+    # Run first time
+    blocks = produce(metrics, graph=g, target_storage=s, env=env1)
+    assert len(blocks) == 1
+    with env1.md_api.begin():
+        assert env1.md_api.count(select(DataFunctionLog)) == 2
+        assert env1.md_api.count(select(DataBlockLog)) == 3
+
+    env2 = get_env(key="e2", db_url=env1.metadata_storage.url)
+    g = Graph(env2)
+    s = env2._local_python_storage
+    # Initial graph
+    batches = 2
+    source = g.create_node(customer_source, params={"batches": batches})
+    metrics = g.create_node(shape_metrics, input=source)
+    # Run first time
+    blocks = produce(metrics, graph=g, target_storage=s, env=env2)
+    assert len(blocks) == 1
+    with env2.md_api.begin():
+        assert env2.md_api.count(select(DataFunctionLog)) == 2
+        assert env2.md_api.count(select(DataBlockLog)) == 3

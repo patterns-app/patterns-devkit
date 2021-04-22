@@ -308,8 +308,11 @@ class Node:
 
 
 class NodeState(BaseModel):
-    node_key = Column(String(128), primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    node_key = Column(String(128))
     state = Column(JSON, nullable=True)
+
+    __table_args__ = (UniqueConstraint("env_id", "node_key"),)
 
     def __repr__(self):
         return self._repr(

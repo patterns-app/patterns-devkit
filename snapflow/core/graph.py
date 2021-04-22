@@ -22,7 +22,7 @@ from snapflow.core.function import DataFunctionLike
 from snapflow.core.metadata.orm import BaseModel
 from snapflow.core.node import DeclaredNode, Node, NodeConfiguration, NodeLike, node
 from sqlalchemy import Column, String
-from sqlalchemy.sql.sqltypes import JSON
+from sqlalchemy.sql.sqltypes import JSON, Integer
 
 if TYPE_CHECKING:
     from snapflow import Environment
@@ -34,7 +34,8 @@ class NodeDoesNotExist(KeyError):
 
 
 class GraphMetadata(BaseModel):
-    hash = Column(String(128), primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    hash = Column(String(128))
     adjacency = Column(JSON)
 
     def __repr__(self) -> str:
@@ -144,7 +145,9 @@ class Graph:
 
     def get_metadata_obj(self) -> GraphMetadata:
         adjacency = self.adjacency_list()
-        return GraphMetadata(hash=hash_adjacency(adjacency), adjacency=adjacency)
+        return GraphMetadata(
+            env_id=self.env.key, hash=hash_adjacency(adjacency), adjacency=adjacency
+        )
 
     # TODO: duplicated code
     def node(

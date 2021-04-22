@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from loguru import logger
+from snapflow.core.data_block import DataBlockMetadata
 from snapflow.core.environment import (
     Environment,
     EnvironmentConfiguration,
     SnapflowSettings,
 )
 from snapflow.core.graph import Graph
+from sqlalchemy.sql.expression import select
 
 logger.enable("snapflow")
 
@@ -51,3 +54,28 @@ def test_env_config():
     )
     env = Environment.from_config(cfg)
     env_init(env)
+
+
+def test_multi_env():
+    db_url = get_tmp_sqlite_db_url()
+    cfg = EnvironmentConfiguration(
+        f"_test_{rand_str()}",
+        metadata_storage_url=db_url,
+        settings=SnapflowSettings(add_core_module=False),
+    )
+    env1 = Environment.from_config(cfg)
+    with env1.md_api.begin():
+        env1.md_api.add(DataBlockMetadata(realized_schema_key="Any"))
+        env1.md_api.flush()
+        assert env1.md_api.count(select(DataBlockMetadata)) == 1
+    cfg = EnvironmentConfiguration(
+        f"_test_{rand_str()}",
+        metadata_storage_url=db_url,
+        settings=SnapflowSettings(add_core_module=False),
+    )
+    env2 = Environment.from_config(cfg)
+    with env2.md_api.begin():
+        assert env2.md_api.count(select(DataBlockMetadata)) == 0
+        env2.md_api.add(DataBlockMetadata(realized_schema_key="Any"))
+        env2.md_api.flush()
+        assert env2.md_api.count(select(DataBlockMetadata)) == 1

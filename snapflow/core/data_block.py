@@ -25,6 +25,7 @@ from snapflow.utils.registry import ClassBasedEnumSqlalchemyType
 from snapflow.utils.typing import T
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, select
 from sqlalchemy.orm import RelationshipProperty, Session, relationship
+from sqlalchemy.sql.schema import UniqueConstraint
 
 if TYPE_CHECKING:
     from snapflow.core.execution.executable import ExecutionContext
@@ -77,7 +78,9 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
+        self,
+        env: Environment,
+        schema_translation: Optional[SchemaTranslation] = None,
     ):
         mgr = DataBlockManager(env, self, schema_translation=schema_translation)
         return ManagedDataBlock(
@@ -275,7 +278,8 @@ class StoredDataBlockMetadata(BaseModel):
 
 
 class Alias(BaseModel):
-    name = Column(String(128), primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(128))
     data_block_id = Column(
         String(128), ForeignKey(DataBlockMetadata.id), nullable=False
     )
@@ -285,6 +289,8 @@ class Alias(BaseModel):
     # Hints
     data_block: "DataBlockMetadata"
     stored_data_block: "StoredDataBlockMetadata"
+
+    __table_args__ = (UniqueConstraint("env_id", "name"),)
 
     def update_alias(self, env: Environment, new_alias: str):
         self.stored_data_block.storage.get_api().create_alias(
