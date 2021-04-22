@@ -392,7 +392,7 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
             output_blocks[output_name] = {
                 "id": sdb.data_block_id,
                 "record_count": sdb.record_count(),
-                "alias": alias.alias if alias else None,
+                "alias": alias.name if alias else None,
             }
         return ExecutionResult(
             inputs_bound=list(self.bound_interface.inputs_as_kwargs().keys()),
@@ -456,8 +456,7 @@ class ExecutionManager:
                 # output_obj = local_vars[function.function_callable.__name__](
                 function_args, function_kwargs = function_ctx.get_function_args()
                 output_obj = function_ctx.function.function_callable(
-                    *function_args,
-                    **function_kwargs,
+                    *function_args, **function_kwargs,
                 )
                 if output_obj is not None:
                     self.emit_output_object(output_obj, function_ctx)
@@ -466,9 +465,7 @@ class ExecutionManager:
         return result
 
     def emit_output_object(
-        self,
-        output_obj: DataInterfaceType,
-        function_ctx: DataFunctionContext,
+        self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
     ):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):

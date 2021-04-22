@@ -77,9 +77,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self,
-        env: Environment,
-        schema_translation: Optional[SchemaTranslation] = None,
+        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
     ):
         mgr = DataBlockManager(env, self, schema_translation=schema_translation)
         return ManagedDataBlock(
@@ -245,7 +243,7 @@ class StoredDataBlockMetadata(BaseModel):
 
     def update_alias(self, env: Environment, new_alias: str):
         a: Alias = env.md_api.execute(
-            select(Alias).filter(Alias.alias == new_alias)
+            select(Alias).filter(Alias.name == new_alias)
         ).scalar_one_or_none()
         if a is None:
             raise Exception("No alias to update")
@@ -254,7 +252,7 @@ class StoredDataBlockMetadata(BaseModel):
     def create_alias(self, env: Environment, alias: str) -> Alias:
         # Create or update Alias
         a: Alias = env.md_api.execute(
-            select(Alias).filter(Alias.alias == alias)
+            select(Alias).filter(Alias.name == alias)
         ).scalar_one_or_none()
         if a is None:
             # (not really a race condition here since alias is unique to node and node cannot
@@ -277,7 +275,7 @@ class StoredDataBlockMetadata(BaseModel):
 
 
 class Alias(BaseModel):
-    alias = Column(String(128), primary_key=True)
+    name = Column(String(128), primary_key=True)
     data_block_id = Column(
         String(128), ForeignKey(DataBlockMetadata.id), nullable=False
     )
@@ -292,8 +290,8 @@ class Alias(BaseModel):
         self.stored_data_block.storage.get_api().create_alias(
             self.stored_data_block.get_name_for_storage(), new_alias
         )
-        self.stored_data_block.storage.get_api().remove_alias(self.alias)
-        self.alias = new_alias
+        self.stored_data_block.storage.get_api().remove_alias(self.name)
+        self.name = new_alias
         env.md_api.add(self)
 
 

@@ -55,7 +55,7 @@ class SnapflowSettings:
 
 @dataclass(frozen=True)
 class EnvironmentConfiguration:
-    name: str = "default"
+    key: str = "default"
     metadata_storage_url: Optional[str] = None
     # modules: List[SnapflowModule] = field(default_factory=list)
     namespaces: List[str] = field(default_factory=list)
@@ -70,7 +70,7 @@ class Environment:
 
     def __init__(
         self,
-        name: str = "default",
+        key: str = "default",
         metadata_storage: Union["Storage", str] = None,
         modules: List[Union[SnapflowModule, str]] = None,  # Defaults to `core` module
         storages: List[Union[Storage, str]] = None,
@@ -82,9 +82,9 @@ class Environment:
         from snapflow.modules import core
         from snapflow.core.runtime import ensure_runtime
 
-        self.name = name
-        # if self.name in environments:
-        #     raise NameError(f"Environment {self.name} already exists")
+        self.key = key
+        # if self.key in environments:
+        #     raise NameError(f"Environment {self.key} already exists")
         self.storages = [ensure_storage(s) for s in storages or []]
         self.runtimes = [ensure_runtime(s) for s in runtimes or []]
         self.settings = settings or SnapflowSettings()
@@ -95,7 +95,7 @@ class Environment:
                 f"No metadata storage specified, using default sqlite db `{DEFAULT_METADATA_STORAGE_URL}`"
             )
         self.metadata_storage = ensure_storage(metadata_storage)
-        self.metadata_api = MetadataApi(self.name, self.metadata_storage)
+        self.metadata_api = MetadataApi(self.key, self.metadata_storage)
         if self.settings.initialize_metadata_storage:
             self.metadata_api.initialize_metadata_database()
         # TODO: local module is yucky global state, also, we load these libraries and their
@@ -117,10 +117,10 @@ class Environment:
 
     @staticmethod
     def from_config(cfg: EnvironmentConfiguration):
-        # if cfg.name in environments:
-        #     return get_environment(cfg.name)
+        # if cfg.key in environments:
+        #     return get_environment(cfg.key)
         env = Environment(
-            name=cfg.name,
+            key=cfg.key,
             metadata_storage=cfg.metadata_storage_url,
             modules=cfg.namespaces,
             storages=cfg.storage_urls,
@@ -137,7 +137,7 @@ class Environment:
 
     def as_config(self) -> EnvironmentConfiguration:
         return EnvironmentConfiguration(
-            name=self.name,
+            key=self.key,
             metadata_storage_url=self.metadata_storage.url,
             namespaces=self.get_namespaces(),  # TODO: check if these are importable, raise if not
             default_storage_url=self.get_default_storage().url,

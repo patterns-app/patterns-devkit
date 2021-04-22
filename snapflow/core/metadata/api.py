@@ -18,12 +18,13 @@ from sqlalchemy.sql.selectable import Select
 
 
 class MetadataApi:
-    def __init__(self, env_id: str, storage: Storage):
+    def __init__(self, env_id: str, storage: Storage, initialize: bool = False):
         self.env_id = env_id
         self.storage = storage
         self.engine = self.storage.get_api().get_engine()
         self.Session = sessionmaker(self.engine)
-        self.initialize_metadata_database()
+        if initialize:
+            self.initialize_metadata_database()
         self.active_session = None
 
     @contextmanager

@@ -80,7 +80,7 @@ def test_exe_output():
         assert len(block.realized_schema.fields) == len(TestSchema4.fields)
         # Test alias was created correctly
         assert (
-            env.md_api.execute(select(Alias).filter(Alias.alias == output_alias))
+            env.md_api.execute(select(Alias).filter(Alias.name == output_alias))
             .scalar_one_or_none()
             .data_block_id
             == block.data_block_id
