@@ -23,3 +23,5 @@ from .core.module import SnapflowModule
 from .core.node import DeclaredNode, Node, node
 from .core.sql.sql_function import Sql, SqlFunction, sql_datafunction, sql_function
 from .core.streams import DataBlockStream, Stream, StreamBuilder
+
+Context = DataFunctionContext
