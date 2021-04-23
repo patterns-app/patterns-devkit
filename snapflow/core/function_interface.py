@@ -332,10 +332,12 @@ def function_interface_from_callable(
             uses_context = True
         elif parsed.input_type is None:
             assert parsed.parameter_type is not None
-            p = parameter_from_annotation(parsed, name=name, default=param.default)
+            default = None
+            if not param.default is inspect.Signature.empty:
+                default = param.default
+            p = parameter_from_annotation(parsed, name=name, default=default)
             params[p.name] = p
         else:
-            i = function_input_from_parameter(param)
             i = function_input_from_annotation(parsed, name=param.name,)
             inputs[i.name] = i
     return DataFunctionInterface(
