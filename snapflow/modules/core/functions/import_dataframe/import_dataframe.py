@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Optional
 
 from dcp.data_format.formats import (
-    CsvFileObjectFormat,
     DataFrameFormat,
     JsonLinesFileObjectFormat,
 )
@@ -14,8 +13,7 @@ from snapflow.core.streams import Stream
 
 
 @datafunction(
-    namespace="core",
-    display_name="Import Pandas DataFrame",
+    namespace="core", display_name="Import Pandas DataFrame",
 )
 def import_dataframe(
     ctx: DataFunctionContext, dataframe: str, schema: Optional[str] = None

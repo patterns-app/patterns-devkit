@@ -405,14 +405,14 @@ class Environment:
             raise TypeError
         if sr.url not in [s.url for s in self.storages]:
             self.storages.append(sr)
-        if add_runtime:
-            from snapflow.core.runtime import Runtime
+        # if add_runtime:
+        #     from snapflow.core.runtime import Runtime
 
-            try:
-                rt = Runtime.from_storage(sr)
-                self.add_runtime(rt)
-            except ValueError:
-                pass
+        #     try:
+        #         rt = Runtime.from_storage(sr)
+        #         self.add_runtime(rt)
+        #     except ValueError:
+        #         pass
         return sr
 
     def add_runtime(self, runtime_like: Union[Runtime, str]) -> Runtime:

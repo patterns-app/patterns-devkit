@@ -5,7 +5,7 @@ from collections import abc, defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import Enum
-from io import IOBase
+from io import BufferedIOBase, BytesIO, IOBase, RawIOBase
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -23,7 +23,7 @@ import sqlalchemy
 from commonmodel.base import Schema, SchemaLike
 from dcp.data_format.base import DataFormat, get_format_for_nickname
 from dcp.data_format.handler import get_handler_for_name, infer_format_for_name
-from dcp.storage.base import Storage
+from dcp.storage.base import FileSystemStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from snapflow.core.data_block import (
@@ -242,7 +242,7 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
             id=get_stored_datablock_id(),
             data_block_id=block.id,
             data_block=block,
-            storage_url=self.execution_context.local_storage.url,
+            storage_url=self.execution_context.target_storage.url,
             data_format=None,
         )
         return sdb
@@ -285,7 +285,6 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
         if nominal_output_schema is not None:
             nominal_output_schema = self.env.get_schema(nominal_output_schema)
         sdb = self.get_stored_datablock_for_output(output)
-        sdb.data_format = data_format
         db = sdb.data_block
         if db.nominal_schema_key and db.nominal_schema_key != nominal_output_schema.key:
             raise Exception(
@@ -293,18 +292,45 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
             )
         db.nominal_schema_key = nominal_output_schema.key
         if records_obj is not None:
-            name = "_tmp_obj_" + rand_str(10)
-            storage = self.execution_context.local_storage
-            storage.get_api().put(name, records_obj)
+            name, storage = self.handle_python_object(records_obj)
             if nominal_output_schema is not None:
                 # TODO: still unclear on when and why to do this cast
                 handler = get_handler_for_name(name, storage)
                 handler().cast_to_schema(name, storage, nominal_output_schema)
-        sdb.storage_url = storage.url
+        # sdb.storage_url = storage.url
         assert name is not None
         assert storage is not None
         self.append_records_to_stored_datablock(name, storage, sdb)
         return sdb
+
+    def handle_python_object(self, obj: Any) -> Tuple[str, Storage]:
+        name = "_tmp_obj_" + rand_str(10)
+        if isinstance(obj, IOBase):
+            # Handle file-like by writing to disk first
+            file_storages = [
+                s
+                for s in self.execution_context.storages
+                if s.storage_engine.storage_class == FileSystemStorageClass
+            ]
+            if not file_storages:
+                raise Exception(
+                    f"File-like object returned but no file storage provided."
+                    "Add a file storage to the environment: `env.add_storage('file:///....')`"
+                )
+            if self.execution_context.target_storage in file_storages:
+                storage = self.execution_context.target_storage
+            else:
+                storage = file_storages[0]
+            mode = "w"
+            if isinstance(obj, (RawIOBase, BufferedIOBase)):
+                mode = "wb"
+            with storage.get_api().open(name, mode) as f:
+                for s in obj:
+                    f.write(s)
+        else:
+            storage = self.execution_context.local_storage
+            storage.get_api().put(name, obj)
+        return name, storage
 
     def resolve_new_object_with_data_block(
         self, sdb: StoredDataBlockMetadata, name: str, storage: Storage
@@ -344,15 +370,31 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
     ):
         self.resolve_new_object_with_data_block(sdb, name, storage)
         if sdb.data_format is None:
-            fmt = infer_format_for_name(name, storage)
-            # if sdb.data_format and sdb.data_format != fmt:
-            #     raise Exception(f"Format mismatch {fmt} - {sdb.data_format}")
-            if fmt is None:
-                raise Exception(f"Could not infer format {name} on {storage}")
-            sdb.data_format = fmt
-        # TODO: to_format
+            sdb.data_format = (
+                self.execution_context.target_format
+                or sdb.storage.storage_engine.get_natural_format()
+            )
+            # fmt = infer_format_for_name(name, storage)
+            # # if sdb.data_format and sdb.data_format != fmt:
+            # #     raise Exception(f"Format mismatch {fmt} - {sdb.data_format}")
+            # if fmt is None:
+            #     raise Exception(f"Could not infer format {name} on {storage}")
+            # sdb.data_format = fmt
         # TODO: make sure this handles no-ops (empty object, same storage)
         # TODO: copy or alias? sometimes we are just moving temp obj to new name, dont need copy
+        # to_name = sdb.get_name_for_storage()
+        # if storage == sdb.storage:
+        #     # Same storage
+        #     if name == to_name:
+        #         # Nothing to do
+        #         logger.debug("Output already on storage with same name, nothing to do")
+        #         return
+        #     else:
+        #         # Same storage, just new name
+        #         # TODO: should be "rename" ideally (as it is if tmp gets deleted we lose it)
+        #         logger.debug("Output already on storage, creating alias")
+        #         storage.get_api().create_alias(name, to_name)
+        #         return
         result = dcp.copy(
             from_name=name,
             from_storage=storage,
@@ -421,6 +463,7 @@ class ExecutionManager:
         logger.debug(
             f"RUNNING NODE {self.node.key} {self.node.function.key} with params `{self.node.params}`"
         )
+        logger.debug(self.exe)
         self.logger.log(base_msg)
         with self.logger.indent():
             result = self._execute()
@@ -456,8 +499,7 @@ class ExecutionManager:
                 # output_obj = local_vars[function.function_callable.__name__](
                 function_args, function_kwargs = function_ctx.get_function_args()
                 output_obj = function_ctx.function.function_callable(
-                    *function_args,
-                    **function_kwargs,
+                    *function_args, **function_kwargs,
                 )
                 if output_obj is not None:
                     self.emit_output_object(output_obj, function_ctx)
@@ -466,9 +508,7 @@ class ExecutionManager:
         return result
 
     def emit_output_object(
-        self,
-        output_obj: DataInterfaceType,
-        function_ctx: DataFunctionContext,
+        self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
     ):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):

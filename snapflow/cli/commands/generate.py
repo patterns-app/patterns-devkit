@@ -63,7 +63,7 @@ class GenerateCommand(Command):
 
     def get_current_py_module_name(self) -> str:
         project_dir = self.get_current_dir()
-        py_module_name = project_dir.replace("-", "_")
+        py_module_name = project_dir.replace("-", "_")  # TODO
         return py_module_name
 
     def get_current_snapflow_module_name(self) -> str:

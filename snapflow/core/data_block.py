@@ -78,9 +78,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self,
-        env: Environment,
-        schema_translation: Optional[SchemaTranslation] = None,
+        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
     ):
         mgr = DataBlockManager(env, self, schema_translation=schema_translation)
         return ManagedDataBlock(
@@ -237,7 +235,10 @@ class StoredDataBlockMetadata(BaseModel):
     def record_count(self) -> Optional[int]:
         if self.data_block.record_count is not None:
             return self.data_block.record_count
-        return self.storage.get_api().record_count(self.get_name_for_storage())
+        self.data_block.record_count = self.storage.get_api().record_count(
+            self.get_name_for_storage()
+        )
+        return self.data_block.record_count
 
     def get_alias(self, env: Environment) -> Optional[Alias]:
         return env.md_api.execute(
