@@ -114,6 +114,9 @@ def ensure_data_block_on_storage(
     env.md_api.add(out_sdb)
     req.to_name = out_sdb.get_name_for_storage()
     copy_sdb(
-        env, request=req, in_sdb=in_sdb, out_sdb=out_sdb,
+        env,
+        request=req,
+        in_sdb=in_sdb,
+        out_sdb=out_sdb,
     )
     return out_sdb

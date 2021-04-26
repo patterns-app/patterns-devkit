@@ -9,7 +9,8 @@ from snapflow.core.streams import Stream
 
 
 @datafunction(
-    namespace="core", display_name="Import Records (List of dicts)",
+    namespace="core",
+    display_name="Import Records (List of dicts)",
 )
 def import_records(
     ctx: DataFunctionContext, records: str, schema: Optional[str] = None
