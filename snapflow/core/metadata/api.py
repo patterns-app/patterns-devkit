@@ -22,21 +22,23 @@ class MetadataApi:
         self.env_id = env_id
         self.storage = storage
         self.engine = self.storage.get_api().get_engine()
-        self.Session = sessionmaker(self.engine)
+        self.active_session = None
+        # self.Session = sessionmaker(self.engine)
         if initialize:
             self.initialize_metadata_database()
-        self.active_session = None
 
     @contextmanager
     def begin(self) -> Iterator[Session]:
-        if self.active_session is None:
-            with self.Session.begin() as sess:
-                self.active_session = sess
-                yield sess
-            self.active_session = None
-        else:
-            # TODO: handle nested tx
+        try:
+            if self.active_session is None:
+                self.active_session = Session(self.engine)
             yield self.active_session
+        finally:
+            self.active_session.commit()
+            # self.active_session.close()
+            # self.active_session = None
+
+    ensure_session = begin
 
     @contextmanager
     def begin_nested(self) -> Iterator[SessionTransaction]:
@@ -44,15 +46,15 @@ class MetadataApi:
         with self.active_session.begin_nested() as sess_tx:
             yield sess_tx
 
-    @contextmanager
-    def ensure_session(self) -> Iterator[Session]:
-        if self.active_session is None:
-            with self.Session.begin() as sess:
-                self.active_session = sess
-                yield sess
-            self.active_session = None
-        else:
-            yield self.active_session
+    # @contextmanager
+    # def ensure_session(self) -> Iterator[Session]:
+    #     if self.active_session is None:
+    #         with self.Session.begin() as sess:
+    #             self.active_session = sess
+    #             yield sess
+    #         self.active_session = None
+    #     else:
+    #         yield self.active_session
 
     def get_session(self) -> Session:
         if self.active_session is None:
