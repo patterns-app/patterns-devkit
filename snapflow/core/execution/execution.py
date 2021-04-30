@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime
 
 import traceback
 from collections import abc, defaultdict
@@ -94,6 +95,7 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
     output_blocks_emitted: Dict[str, StoredDataBlockMetadata] = field(
         default_factory=dict
     )
+    execution_start_time: Optional[datetime] = None
 
     @contextmanager
     def as_tmp_local_object(self, obj: Any) -> str:
@@ -297,7 +299,6 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
                 # TODO: still unclear on when and why to do this cast
                 handler = get_handler_for_name(name, storage)
                 handler().cast_to_schema(name, storage, nominal_output_schema)
-        # sdb.storage_url = storage.url
         assert name is not None
         assert storage is not None
         self.append_records_to_stored_datablock(name, storage, sdb)
@@ -419,9 +420,12 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
         Long running functions should check this function periodically
         to honor time limits.
         """
-        if not self.execution_context.execution_timelimit_seconds:
+        if (
+            not self.execution_context.execution_timelimit_seconds
+            or not self.execution_start_time
+        ):
             return True
-        seconds_elapsed = (utcnow() - self.function_log.started_at).total_seconds()
+        seconds_elapsed = (utcnow() - self.execution_start_time).total_seconds()
         return seconds_elapsed < self.execution_context.execution_timelimit_seconds
 
     def as_execution_result(self) -> ExecutionResult:
@@ -450,12 +454,17 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
         )
 
 
+# TODO: remove deprecated name
+FunctionContext = DataFunctionContext
+
+
 class ExecutionManager:
     def __init__(self, exe: Executable):
         self.exe = exe
         self.env = exe.execution_context.env
         self.logger = exe.execution_context.logger
         self.node = self.exe.node
+        self.start_time = utcnow()
 
     def execute(self) -> ExecutionResult:
         # Setup for run
@@ -499,8 +508,7 @@ class ExecutionManager:
                 # output_obj = local_vars[function.function_callable.__name__](
                 function_args, function_kwargs = function_ctx.get_function_args()
                 output_obj = function_ctx.function.function_callable(
-                    *function_args,
-                    **function_kwargs,
+                    *function_args, **function_kwargs,
                 )
                 if output_obj is not None:
                     self.emit_output_object(output_obj, function_ctx)
@@ -509,9 +517,7 @@ class ExecutionManager:
         return result
 
     def emit_output_object(
-        self,
-        output_obj: DataInterfaceType,
-        function_ctx: DataFunctionContext,
+        self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
     ):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):
@@ -569,6 +575,7 @@ class ExecutionManager:
             function_log=function_log,
             bound_interface=bound_interface,
             execution_context=self.exe.execution_context,
+            execution_start_time=self.start_time,
         )
         try:
             yield function_ctx
@@ -625,8 +632,8 @@ def execute_to_exhaustion(
     exe: Executable, to_exhaustion: bool = True
 ) -> Optional[CumulativeExecutionResult]:
     cum_result = CumulativeExecutionResult()
+    em = ExecutionManager(exe)
     while True:
-        em = ExecutionManager(exe)
         try:
             result = em.execute()
         except InputExhaustedException:

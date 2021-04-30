@@ -8,7 +8,7 @@ from .core.environment import (
     run_graph,
     run_node,
 )
-from .core.execution.execution import DataFunctionContext
+from .core.execution.execution import DataFunctionContext, FunctionContext
 from .core.function import (
     DataFunction,
     Function,
@@ -25,3 +25,4 @@ from .core.sql.sql_function import Sql, SqlFunction, sql_datafunction, sql_funct
 from .core.streams import DataBlockStream, Stream, StreamBuilder
 
 Context = DataFunctionContext
+# Deprecated names

@@ -73,7 +73,9 @@ def update_matching_field_definitions(
     if not modified:
         return schema
     schema_dict = asdict(schema)
-    schema_dict["name"] = f"{schema.name}_with_{update_with_schema.name}"
+    # Don't nest "withs"
+    with_name = update_with_schema.name.split("_with_")[-1]
+    schema_dict["name"] = f"{schema.name}_with_{with_name}"
     schema_dict["fields"] = fields
     updated = Schema.from_dict(schema_dict)
     env.add_new_generated_schema(updated)
