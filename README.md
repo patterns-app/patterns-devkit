@@ -15,16 +15,14 @@ These functions can be composed into simple or complex data
 pipelines that tackle every step of the data processing pipeline, from API ingestion to transformation
 to analysis and modeling.
 
-This functional reactive framework provides powerful benefits:
+This functional reactive framework provides several benefits:
 
-- **Simple declarative graphs** — The functional reactive nature of snapflow takes the tangled, stateful
-  messes of traditional ETLs and turns them into clean declarative flows of data. Complex mixes of rebuilds and
-  incremental updates become simple stateless operators.
+- **Declarative data flows** — Trade the tangled, stateful messes of traditional ETLs
+  for clean declarative flows of data. Mix full rebuilds and incremental updates
+  easily and safely.
 
-- **Reusable components** — Because they are self-contained with documented inputs and outputs,
-  functions can be easily plugged together, shared and
-  reused across projects, open-sourced, and catalogued in the snapflow repository (coming soon).
-  Some example snapflow modules and components:
+- **Reusable components** — `datafunctions` can be easily plugged together, shared and
+  reused across projects. Some examples:
 
   - [Stripe](https://github.com/kvh/snapflow-stripe.git)
     - Ingest Stripe Charge records (using the `StripeCharge` schema)
@@ -38,25 +36,19 @@ This functional reactive framework provides powerful benefits:
     - Ingest `Ticker`s and pipe them to `EodStockPrice` data
   - [FRED](https://github.com/kvh/snapflow-fred.git) (Federal Reserve Economic Data)
 
-- **Total reproducibility** — Every data record at every ETL step is preserved in snapflow,
-  along with the code and runtimes that produced it, so you can audit and reproduce
-  complex pipelines down to the byte, and configure how active snapflow is in discarding
-  stale and obsolete data.
+- **Total reproducibility** — Every data record at every pipeline step is preserved in snapflow,
+  along with the code that produced it and the inputs it used. Enables auditing, debugging, and reproducing pipelines.
 
-- **Portability** — With modular and testable functions, developing consistent
-  data operations across different database engines and storage systems is safe and efficient.
-  Snapflow supports any major database vendor (postgres, mysql, snowflake, bigquery, redshift),
-  file system (local, S3, etc), as well as any data format, whether it's csv, json, or apache arrow.
+- **Portability** — Modular and testable functions means it is easy and safe to
+  run the same data operation on many major database vendors (postgres, mysql, snowflake, bigquery, redshift),
+  and file systems (local, S3, etc), or data format, whether it's csv, json, or apache arrow.
 
 - **Testability** — DataFunctions provide explicit test
-  inputs and the expected output under various data scenarios — a **data ETL unit test**, bringing
-  the rigor and reliability of software to the world of data.
+  inputs and the expected output under various data scenarios — a **data pipeline unit test**.
 
-- **Zero cost abstractions and high performance** — Snapflow function operations and immutability
-  guarantees can be compiled down at execution time for high performance. Deterministic state
-  and immutable records give snapflow leverage in optimizing performance. This means developers and
-  analysts can work with clean mental models and strong guarantees while also getting superior
-  performance.
+- **High performance** — Datablock immutability means snapflow can
+  optimize data storage operations. It uses [dcp](https://github.com/kvh/dcp) under the hood
+  to handle transfer and conversion.
 
 Snapflow brings the best practices learned over the last 60 years in software to the world of data,
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
