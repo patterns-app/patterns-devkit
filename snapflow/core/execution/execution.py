@@ -336,31 +336,31 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
     def resolve_new_object_with_data_block(
         self, sdb: StoredDataBlockMetadata, name: str, storage: Storage
     ):
-        handler = get_handler_for_name(name, storage)
-        inferred_schema = handler().infer_schema(name, storage)
-        self.env.add_new_generated_schema(inferred_schema)
-        if sdb.data_block.realized_schema_key in (None, "Any"):
+        # TOO expensive to infer schema every time, so just do first time
+        if sdb.data_block.realized_schema_key in (None, "Any", "core.Any"):
+            handler = get_handler_for_name(name, storage)
+            inferred_schema = handler().infer_schema(name, storage)
+            logger.debug(
+                f"Inferred schema: {inferred_schema.key} {inferred_schema.fields_summary()}"
+            )
+            self.env.add_new_generated_schema(inferred_schema)
             # Cast to nominal if no existing realized schema
             realized_schema = cast_to_realized_schema(
                 self.env,
                 inferred_schema=inferred_schema,
                 nominal_schema=sdb.nominal_schema(self.env),
             )
-        else:
-            # If already a realized schema, conform new inferred schema to existing realized
-            realized_schema = cast_to_realized_schema(
-                self.env,
-                inferred_schema=inferred_schema,
-                nominal_schema=sdb.data_block.realized_schema(self.env),
+            logger.debug(
+                f"Realized schema: {realized_schema.key} {realized_schema.fields_summary()}"
             )
-        self.env.add_new_generated_schema(realized_schema)
-        sdb.data_block.realized_schema_key = realized_schema.key
-        logger.debug(
-            f"Inferred schema: {inferred_schema.key} {inferred_schema.fields_summary()}"
-        )
-        logger.debug(
-            f"Realized schema: {realized_schema.key} {realized_schema.fields_summary()}"
-        )
+            self.env.add_new_generated_schema(realized_schema)
+            sdb.data_block.realized_schema_key = realized_schema.key
+        #     # If already a realized schema, conform new inferred schema to existing realized
+        #     realized_schema = cast_to_realized_schema(
+        #         self.env,
+        #         inferred_schema=inferred_schema,
+        #         nominal_schema=sdb.data_block.realized_schema(self.env),
+        #     )
         if sdb.data_block.nominal_schema_key:
             logger.debug(
                 f"Nominal schema: {sdb.data_block.nominal_schema_key} {sdb.data_block.nominal_schema(self.env).fields_summary()}"
