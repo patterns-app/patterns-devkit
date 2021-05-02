@@ -22,7 +22,7 @@ import requests
 from loguru import logger
 from ratelimit import limits, sleep_and_retry
 from requests import Response
-from requests.models import Request
+from requests.models import HTTPError, Request
 from snapflow.utils.typing import T, V
 
 
@@ -138,6 +138,7 @@ class HttpApiConnection:
         raise_for_status: bool = True,
         ratelimit_calls_per_min: int = 1000,
         remove_none_params: bool = True,
+        ratelimit_params: Dict = None,
     ):
         self.default_params = default_params or {}
         self.default_headers = default_headers or {}
@@ -146,10 +147,14 @@ class HttpApiConnection:
         self.ratelimit_calls_per_min = ratelimit_calls_per_min
         self.g = self.add_rate_limiting(self.get)
         self.remove_none_params = remove_none_params
+        self.ratelimit_params = ratelimit_params
 
     def add_rate_limiting(self, f: Callable):
-        g = sleep_and_retry(f)
-        g = limits(calls=self.ratelimit_calls_per_min, period=60)(g)
+        if self.ratelimit_params:
+            g = limits(**self.ratelimit_params)(f)
+        else:
+            g = limits(calls=self.ratelimit_calls_per_min, period=60)(f)
+        g = sleep_and_retry(g)
         return g
 
     def get_default_params(self) -> Dict:
