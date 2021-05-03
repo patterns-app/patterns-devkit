@@ -145,9 +145,9 @@ class HttpApiConnection:
         self.date_format = date_format
         self.raise_for_status = raise_for_status
         self.ratelimit_calls_per_min = ratelimit_calls_per_min
+        self.ratelimit_params = ratelimit_params
         self.g = self.add_rate_limiting(self.get)
         self.remove_none_params = remove_none_params
-        self.ratelimit_params = ratelimit_params
 
     def add_rate_limiting(self, f: Callable):
         if self.ratelimit_params:
