@@ -138,13 +138,19 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
     #         self.create_alias(sdb)
 
     def log_all(self):
-        # Do this one last time (in case no output emitted, like an exporter):
+        # Log inputs one last time (in case no output emitted, like an exporter):
         self.log_processed_input_blocks()
         for input_name, blocks in self.input_blocks_processed.items():
             for block in blocks:
                 self.ensure_log(block, Direction.INPUT, input_name)
                 logger.debug(f"Input logged: {block}")
         for output_name, sdb in self.output_blocks_emitted.items():
+            if sdb.data_format is None:
+                # TODO: this means we didn't actually ever write an output
+                # object (usually because we hit an error during output handling)
+                # TODO: use a better check for this than None format
+                # TODO: did we really process the inputs then? this is more of a framework-level error
+                continue
             self.metadata_api.add(sdb.data_block)
             self.metadata_api.add(sdb)
             logger.debug(f"Output logged: {sdb.data_block}")
