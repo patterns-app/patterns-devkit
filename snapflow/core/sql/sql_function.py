@@ -158,9 +158,7 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=sql_with_jinja_vars,
-        found_params=params,
+        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
     )
 
 
@@ -204,7 +202,7 @@ def extract_tables(
 ) -> ParsedSqlStatement:
     """
     Extract tables that have no annotation.
-    Table aliases are NOT supported (the name is already an alias!).
+    Table aliases MUST use explicit `as`
     """
     found_tables = {}
     state = TableParseState()
@@ -248,10 +246,9 @@ def extract_tables(
                         new_sql.append(
                             "{{ inputs['%s'] }} as %s" % (table_ref, table_ref)
                         )
+    new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", "as \1", "".join(new_sql))
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars="".join(new_sql),
-        found_tables=found_tables,
+        original_sql=sql, sql_with_jinja_vars=new_sql_str, found_tables=found_tables,
     )
 
 
@@ -486,11 +483,7 @@ def sql_function_decorator(
     else:
         name = sql_fn_or_function.__name__
     return sql_function_factory(
-        name=name,
-        sql=sql,
-        file=file,
-        autodetect_inputs=autodetect_inputs,
-        **kwargs,
+        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
     )
 
 
