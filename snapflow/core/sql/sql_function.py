@@ -87,6 +87,7 @@ class AnnotatedParam:
 
 
 DFEAULT_PARAMETER_ANNOTATION = "Text"
+DEFAULT_SQL_INPUT_ANNOTATION = "Reference"
 
 
 @dataclass(frozen=True)
@@ -105,7 +106,7 @@ class ParsedSqlStatement:
             if table.annotation:
                 ann = parse_sql_annotation(table.annotation)
             else:
-                ann = parse_input_annotation(DEFAULT_INPUT_ANNOTATION)
+                ann = parse_input_annotation(DEFAULT_SQL_INPUT_ANNOTATION)
             inpt = function_input_from_annotation(ann, name=name)
             inputs[name] = inpt
         if self.output_annotation:
@@ -246,7 +247,8 @@ def extract_tables(
                         new_sql.append(
                             "{{ inputs['%s'] }} as %s" % (table_ref, table_ref)
                         )
-    new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", "as \1", "".join(new_sql))
+    new_sql_str = "".join(new_sql)
+    new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", r"as \1", new_sql_str)
     return ParsedSqlStatement(
         original_sql=sql, sql_with_jinja_vars=new_sql_str, found_tables=found_tables,
     )

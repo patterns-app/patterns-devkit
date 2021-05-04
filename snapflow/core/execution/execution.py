@@ -128,7 +128,9 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
         self.log_all()
         # TODO: multiple aliases support?
         sdb = self.output_blocks_emitted.get(DEFAULT_OUTPUT_NAME)
-        if sdb is not None:
+        if (
+            sdb is not None and sdb.data_format is not None
+        ):  # TODO: better check for logged
             self.create_alias(sdb)
         self.metadata_api.flush()
 
@@ -402,6 +404,9 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
         #         logger.debug("Output already on storage, creating alias")
         #         storage.get_api().create_alias(name, to_name)
         #         return
+        logger.debug(
+            f"Copying output from {name} {storage} to {sdb.get_name_for_storage()} {sdb.storage} ({sdb.data_format})"
+        )
         result = dcp.copy(
             from_name=name,
             from_storage=storage,
@@ -440,6 +445,9 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
             input_block_counts[input_name] = len(dbs)
         output_blocks = {}
         for output_name, sdb in self.output_blocks_emitted.items():
+            if sdb.data_format is None:
+                # TODO: better check
+                continue
             alias = sdb.get_alias(self.env)
             output_blocks[output_name] = {
                 "id": sdb.data_block_id,

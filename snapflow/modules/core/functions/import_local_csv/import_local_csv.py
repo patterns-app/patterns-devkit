@@ -17,5 +17,5 @@ def import_local_csv(ctx: DataFunctionContext, path: str, schema: Optional[str] 
         return
         # Static resource, if already emitted, return
     f = open(path)
-    ctx.emit_state_value("imported", True)
     ctx.emit(f, data_format=CsvFileFormat, schema=schema)
+    ctx.emit_state_value("imported", True)
