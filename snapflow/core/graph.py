@@ -14,6 +14,7 @@ from typing import (
     cast,
 )
 
+import pprint
 import networkx as nx
 import strictyaml as yaml
 from dcp.utils.common import md5_hash, remove_dupes
@@ -39,9 +40,7 @@ class GraphMetadata(BaseModel):
     adjacency = Column(JSON)
 
     def __repr__(self) -> str:
-        return self._repr(
-            hash=self.hash,
-        )
+        return self._repr(hash=self.hash,)
 
 
 class DeclaredGraph:
@@ -142,6 +141,9 @@ class Graph:
     def __str__(self):
         s = "Nodes:\n------\n" + "\n".join(self._nodes.keys())
         return s
+
+    def __repr__(self) -> str:
+        return pprint.pformat(self.adjacency_list())
 
     def get_metadata_obj(self) -> GraphMetadata:
         adjacency = self.adjacency_list()
