@@ -138,6 +138,7 @@ class HttpApiConnection:
         raise_for_status: bool = True,
         ratelimit_calls_per_min: int = 1000,
         remove_none_params: bool = True,
+        remove_empty_params: bool = True,
         ratelimit_params: Dict = None,
     ):
         self.default_params = default_params or {}
@@ -148,6 +149,7 @@ class HttpApiConnection:
         self.ratelimit_params = ratelimit_params
         self.get = self.add_rate_limiting(self.get)
         self.remove_none_params = remove_none_params
+        self.remove_empty_params = remove_empty_params
 
     def add_rate_limiting(self, f: Callable):
         if self.ratelimit_params:
@@ -167,6 +169,8 @@ class HttpApiConnection:
         formatted = {}
         for k, v in params.items():
             if self.remove_none_params and v is None:
+                continue
+            if self.remove_empty_params and isinstance(v, str) and not v.strip():
                 continue
             if isinstance(v, datetime) or isinstance(v, date):
                 v = v.strftime(self.date_format)
