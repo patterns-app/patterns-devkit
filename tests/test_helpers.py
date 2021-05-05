@@ -1,6 +1,19 @@
 from datetime import datetime, timedelta
+from time import time
+from snapflow.helpers.connectors.connection import HttpApiConnection
 
 from snapflow.helpers.connectors.mock_data_source import GenericJsonObjectDataSource
+
+
+def test_http_conn():
+    period = 1
+    conn = HttpApiConnection(ratelimit_params=dict(calls=1, period=period))
+    params = {"dt": datetime(2000, 1, 1)}
+    t = time()
+    conn.get("http://example.com", params)
+    conn.get("http://example.com", params)
+    dur = time() - t
+    assert dur > period
 
 
 def test_data_source():
