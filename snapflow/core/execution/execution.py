@@ -128,9 +128,7 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
         self.log_all()
         # TODO: multiple aliases support?
         sdb = self.output_blocks_emitted.get(DEFAULT_OUTPUT_NAME)
-        if (
-            sdb is not None and sdb.data_format is not None
-        ):  # TODO: better check for logged
+        if sdb is not None and sdb.data_is_written:
             self.create_alias(sdb)
         self.metadata_api.flush()
 
@@ -147,10 +145,9 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
                 self.ensure_log(block, Direction.INPUT, input_name)
                 logger.debug(f"Input logged: {block}")
         for output_name, sdb in self.output_blocks_emitted.items():
-            if sdb.data_format is None:
+            if not sdb.data_is_written:
                 # TODO: this means we didn't actually ever write an output
                 # object (usually because we hit an error during output handling)
-                # TODO: use a better check for this than None format
                 # TODO: did we really process the inputs then? this is more of a framework-level error
                 continue
             self.metadata_api.add(sdb.data_block)
@@ -310,6 +307,7 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
         assert name is not None
         assert storage is not None
         self.append_records_to_stored_datablock(name, storage, sdb)
+        sdb.data_is_written = True
         return sdb
 
     def handle_python_object(self, obj: Any) -> Tuple[str, Storage]:
@@ -445,8 +443,7 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
             input_block_counts[input_name] = len(dbs)
         output_blocks = {}
         for output_name, sdb in self.output_blocks_emitted.items():
-            if sdb.data_format is None:
-                # TODO: better check
+            if not sdb.data_is_written:
                 continue
             alias = sdb.get_alias(self.env)
             output_blocks[output_name] = {

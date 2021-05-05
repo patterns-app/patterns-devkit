@@ -78,9 +78,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self,
-        env: Environment,
-        schema_translation: Optional[SchemaTranslation] = None,
+        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
     ):
         mgr = DataBlockManager(env, self, schema_translation=schema_translation)
         return ManagedDataBlock(
@@ -188,6 +186,7 @@ class StoredDataBlockMetadata(BaseModel):
     # is_ephemeral = Column(Boolean, default=False) # TODO
     # Hints
     data_block: "DataBlockMetadata"
+    data_is_written: bool = False
 
     def __repr__(self):
         return self._repr(
