@@ -20,10 +20,11 @@ from typing import (
 
 import requests
 from loguru import logger
-from ratelimit import limits, sleep_and_retry
+from ratelimit import limits, sleep_and_retry, RateLimitException
 from requests import Response
 from requests.models import HTTPError, Request
 from snapflow.utils.typing import T, V
+from backoff import on_exception, expo
 
 
 """
@@ -137,6 +138,7 @@ class HttpApiConnection:
         date_format: str = "%F %T",
         raise_for_status: bool = True,
         ratelimit_calls_per_min: int = 1000,
+        backoff_timeout_seconds: int = 90,
         remove_none_params: bool = True,
         remove_empty_params: bool = True,
         ratelimit_params: Dict = None,
@@ -147,6 +149,7 @@ class HttpApiConnection:
         self.raise_for_status = raise_for_status
         self.ratelimit_calls_per_min = ratelimit_calls_per_min
         self.ratelimit_params = ratelimit_params
+        self.backoff_timeout_seconds = backoff_timeout_seconds
         self.get = self.add_rate_limiting(self.get)
         self.remove_none_params = remove_none_params
         self.remove_empty_params = remove_empty_params
@@ -157,6 +160,12 @@ class HttpApiConnection:
         else:
             g = limits(calls=self.ratelimit_calls_per_min, period=60)(f)
         g = sleep_and_retry(g)
+        g = on_exception(
+            expo,
+            (RateLimitException, HTTPError),
+            max_time=self.backoff_timeout_seconds,
+            factor=4,
+        )(g)
         return g
 
     def get_default_params(self) -> Dict:
