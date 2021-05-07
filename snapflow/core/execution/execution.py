@@ -453,7 +453,9 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
             }
         return ExecutionResult(
             inputs_bound=list(self.bound_interface.inputs_as_kwargs().keys()),
-            non_reference_inputs_bound=self.bound_interface.non_reference_bound_inputs(),
+            non_reference_inputs_bound=[
+                i.name for i in self.bound_interface.non_reference_bound_inputs()
+            ],
             input_block_counts=input_block_counts,
             output_blocks=output_blocks,
             error=self.function_log.error.get("error")

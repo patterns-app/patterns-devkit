@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pprint
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -14,7 +15,6 @@ from typing import (
     cast,
 )
 
-import pprint
 import networkx as nx
 import strictyaml as yaml
 from dcp.utils.common import md5_hash, remove_dupes
@@ -40,7 +40,9 @@ class GraphMetadata(BaseModel):
     adjacency = Column(JSON)
 
     def __repr__(self) -> str:
-        return self._repr(hash=self.hash,)
+        return self._repr(
+            hash=self.hash,
+        )
 
 
 class DeclaredGraph:

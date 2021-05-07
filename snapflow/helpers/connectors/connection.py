@@ -19,12 +19,12 @@ from typing import (
 )
 
 import requests
+from backoff import expo, on_exception
 from loguru import logger
-from ratelimit import limits, sleep_and_retry, RateLimitException
+from ratelimit import RateLimitException, limits, sleep_and_retry
 from requests import Response
 from requests.models import HTTPError, Request
 from snapflow.utils.typing import T, V
-from backoff import on_exception, expo
 
 
 """

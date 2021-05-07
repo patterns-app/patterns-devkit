@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from typing import Any
 
+import pydantic
 from commonmodel import Schema
 from dcp.data_format.base import DataFormat, DataFormatBase, get_format_for_nickname
 from dcp.utils.common import rand_str, title_to_snake_case, utcnow
@@ -10,6 +11,16 @@ from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm.exc import DetachedInstanceError
 
 SNAPFLOW_METADATA_TABLE_PREFIX = "_snapflow_"
+
+
+class PydanticBase(pydantic.BaseModel):
+    class Config:
+        extra = "forbid"
+
+
+class FrozenPydanticBase(PydanticBase):
+    class Config:
+        frozen = True
 
 
 class _BaseModel:

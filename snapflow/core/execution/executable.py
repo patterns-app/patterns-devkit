@@ -19,6 +19,7 @@ from snapflow.core.environment import Environment, EnvironmentConfiguration
 from snapflow.core.function import DEFAULT_OUTPUT_NAME, DataFunction
 from snapflow.core.function_interface_manager import StreamInput
 from snapflow.core.graph import DeclaredGraph, NxAdjacencyList, graph_from_node_configs
+from snapflow.core.metadata.orm import FrozenPydanticBase, PydanticBase
 from snapflow.core.node import DataFunctionLog, DeclaredNode, Node, NodeConfiguration
 from sqlalchemy.sql.expression import select
 
@@ -49,8 +50,7 @@ class ExecutionLogger:
         self.out(msg)
 
 
-@dataclass(frozen=True)
-class ExecutionConfiguration:
+class ExecutionConfiguration(FrozenPydanticBase):
     env_config: EnvironmentConfiguration
     local_storage_url: str
     target_storage_url: str
@@ -91,8 +91,7 @@ class ExecutionContext:
         )
 
 
-@dataclass
-class ExecutableConfiguration:
+class ExecutableConfiguration(FrozenPydanticBase):
     node_key: str
     function_key: str
     execution_config: ExecutionConfiguration
@@ -126,10 +125,9 @@ class Executable:
 #     alias: Optional[str] = None
 
 
-@dataclass
-class ExecutionResult:
+class ExecutionResult(PydanticBase):
     inputs_bound: List[str]
-    non_reference_inputs_bound: List[StreamInput]
+    non_reference_inputs_bound: List[str]
     input_block_counts: Dict[str, int]
     output_blocks: Optional[Dict[str, Dict]] = None
     error: Optional[str] = None
@@ -169,20 +167,17 @@ class ExecutionResult:
         return mds
 
 
-@dataclass
-class CumulativeExecutionResult:
-    input_block_counts: Dict[str, int] = field(default_factory=lambda: defaultdict(int))
-    output_blocks: Optional[Dict[str, List[Dict]]] = field(
-        default_factory=lambda: defaultdict(list)
-    )
+class CumulativeExecutionResult(PydanticBase):
+    input_block_counts: Dict[str, int] = {}
+    output_blocks: Optional[Dict[str, List[Dict]]] = {}
     error: Optional[str] = None
     traceback: Optional[str] = None
 
     def add_result(self, result: ExecutionResult):
         for i, c in result.input_block_counts.items():
-            self.input_block_counts[i] += c
+            self.input_block_counts[i] = self.input_block_counts.setdefault(i, 0) + c
         for i, dbs in result.output_blocks.items():
-            self.output_blocks[i].append(dbs)
+            self.output_blocks.setdefault(i, []).append(dbs)
         if result.error:
             self.error = result.error
             self.traceback = result.traceback

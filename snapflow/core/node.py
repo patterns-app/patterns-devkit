@@ -19,7 +19,11 @@ from snapflow.core.function import (
 )
 from snapflow.core.function_interface import DataFunctionInterface
 from snapflow.core.function_interface_manager import DeclaredStreamInput
-from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
+from snapflow.core.metadata.orm import (
+    SNAPFLOW_METADATA_TABLE_PREFIX,
+    BaseModel,
+    FrozenPydanticBase,
+)
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.expression import select, update
@@ -47,8 +51,7 @@ def ensure_stream(stream_like: StreamLike) -> StreamBuilder:
     raise TypeError(stream_like)
 
 
-@dataclass(frozen=True)
-class NodeConfiguration:
+class NodeConfiguration(FrozenPydanticBase):
     key: str
     function_key: str
     inputs: Dict[str, str]

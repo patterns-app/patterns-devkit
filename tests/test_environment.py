@@ -48,7 +48,7 @@ def test_env_init():
 
 def test_env_config():
     cfg = EnvironmentConfiguration(
-        f"_test_{rand_str()}",
+        key=f"_test_{rand_str()}",
         metadata_storage_url="sqlite://",
         settings=SnapflowSettings(add_core_module=False),
     )
@@ -59,7 +59,7 @@ def test_env_config():
 def test_multi_env():
     db_url = get_tmp_sqlite_db_url()
     cfg = EnvironmentConfiguration(
-        f"_test_{rand_str()}",
+        key=f"_test_{rand_str()}",
         metadata_storage_url=db_url,
         settings=SnapflowSettings(add_core_module=False),
     )
@@ -69,7 +69,7 @@ def test_multi_env():
         env1.md_api.flush()
         assert env1.md_api.count(select(DataBlockMetadata)) == 1
     cfg = EnvironmentConfiguration(
-        f"_test_{rand_str()}",
+        key=f"_test_{rand_str()}",
         metadata_storage_url=db_url,
         settings=SnapflowSettings(add_core_module=False),
     )

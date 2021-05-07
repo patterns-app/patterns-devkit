@@ -72,7 +72,7 @@ def update_matching_field_definitions(
         fields.append(new_f)
     if not modified:
         return schema
-    schema_dict = asdict(schema)
+    schema_dict = schema.dict()
     # Don't nest "withs"
     with_name = update_with_schema.name.split("_with_")[-1]
     schema_dict["name"] = f"{schema.name}_with_{with_name}"

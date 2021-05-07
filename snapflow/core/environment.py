@@ -18,7 +18,7 @@ from dcp.utils.common import AttrDict
 from loguru import logger
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.metadata.api import MetadataApi
-from snapflow.core.metadata.orm import BaseModel
+from snapflow.core.metadata.orm import FrozenPydanticBase
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
     DEFAULT_LOCAL_NAMESPACE,
@@ -43,8 +43,7 @@ DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
 Serializable = Union[str, int, float, bool]
 
 
-@dataclass(frozen=True)
-class SnapflowSettings:
+class SnapflowSettings(FrozenPydanticBase):
     initialize_metadata_storage: bool = True
     abort_on_function_error: bool = False
     execution_timelimit_seconds: Optional[int] = None
@@ -53,15 +52,14 @@ class SnapflowSettings:
     add_core_module: bool = True
 
 
-@dataclass(frozen=True)
-class EnvironmentConfiguration:
+class EnvironmentConfiguration(FrozenPydanticBase):
     key: str = "default"
     metadata_storage_url: Optional[str] = None
     # modules: List[SnapflowModule] = field(default_factory=list)
-    namespaces: List[str] = field(default_factory=list)
+    namespaces: List[str] = []
     default_storage_url: Optional[str] = None
-    storage_urls: List[str] = field(default_factory=list)
-    runtime_urls: List[str] = field(default_factory=list)
+    storage_urls: List[str] = []
+    runtime_urls: List[str] = []
     settings: Optional[SnapflowSettings] = None
 
 
@@ -198,7 +196,7 @@ class Environment:
         if schema.key in self.library.schemas:
             # Already exists
             return
-        got = GeneratedSchema(key=schema.key, definition=asdict(schema))
+        got = GeneratedSchema(key=schema.key, definition=schema.dict())
         self.md_api.add(got)
         self.md_api.flush([got])
         self.library.add_schema(schema)
