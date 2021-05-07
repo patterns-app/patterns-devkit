@@ -19,3 +19,5 @@ fields:
     type: Text
   f4:
     type: DateTime
+field_roles:
+  modification_ordering: f4

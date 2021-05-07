@@ -10,16 +10,17 @@ from snapflow.utils.typing import T
 
 
 @datafunction(
-    namespace="core",
-    display_name="Dedupe DataFrame (keep latest)",
+    namespace="core", display_name="Dedupe DataFrame (keep latest)",
 )
 def dedupe_keep_latest(input: DataBlock[T]) -> DataFrame[T]:
     if input.nominal_schema is None or not input.nominal_schema.unique_on:
         return input.as_dataframe()  # TODO: make this a no-op
     records = input.as_dataframe()
-    # TODO: what to sort by? bring this back? "modification ordering"
-    # if input.nominal_schema.updated_at_field_name:
-    #     records = records.sort_values(input.nominal_schema.updated_at_field_name)
+    # TODO: parameterize this too (so user can override)
+    if input.nominal_schema.field_roles.modification_ordering:
+        records = records.sort_values(
+            input.nominal_schema.field_roles.modification_ordering
+        )
     return records.drop_duplicates(input.nominal_schema.unique_on, keep="last")
 
 

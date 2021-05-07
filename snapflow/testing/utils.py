@@ -8,11 +8,13 @@ from typing import Any, Dict, Iterator, List, Optional, Union
 from commonmodel.base import Schema, SchemaLike
 from dcp.data_format.formats.memory.records import PythonRecordsHandler
 from dcp.data_format.handler import get_handler_for_name, infer_schema_for_name
-from dcp.storage.base import Storage
+from dcp.storage.base import Storage, get_engine_for_scheme
+from dcp.storage.database.api import DatabaseApi, DatabaseStorageApi
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from dcp.utils.data import read_csv, read_json, read_raw_string_csv
 from dcp.utils.pandas import assert_dataframes_are_almost_equal
+from loguru import logger
 from pandas import DataFrame
 from snapflow import DataBlock, DataFunction, Environment, Graph
 from snapflow.core.function import DEFAULT_OUTPUT_NAME
@@ -124,6 +126,7 @@ class TestCase:
 
 
 def run_test_case(case: TestCase, **kwargs):
+    logger.enable("dcp")
     with produce_function_output_for_static_input(
         function=case.package.function, inputs=case.inputs, **kwargs
     ) as blocks:
@@ -145,6 +148,27 @@ class TestFeatureNotImplementedError(Exception):
 
 
 @contextmanager
+def provide_test_storages(
+    function: DataFunction, target_storage: Storage
+) -> Iterator[Optional[Storage]]:
+    if target_storage:
+        yield target_storage  # TODO
+    elif function.required_storage_engines:
+        # TODO: multiple engines -- is it AND or OR?? each entry is AND and inside entry commas delim OR
+        eng = get_engine_for_scheme(function.required_storage_engines[0])
+        api_cls = eng.get_api_cls()
+        if issubclass(api_cls, DatabaseApi):
+            if not api_cls.dialect_is_supported():
+                raise TestFeatureNotImplementedError(eng)
+            with api_cls.temp_local_database() as url:
+                yield Storage(url)
+    elif "database" in function.required_storage_classes:
+        yield Storage(get_tmp_sqlite_db_url())
+    else:
+        yield None
+
+
+@contextmanager
 def produce_function_output_for_static_input(
     function: DataFunction,
     params: Dict[str, Any] = None,
@@ -161,44 +185,41 @@ def produce_function_output_for_static_input(
         env = Environment(metadata_storage=db)
     if module:
         env.add_module(module)
-    if not target_storage:
-        if "database" in function.required_storage_classes:
-            target_storage = Storage(get_tmp_sqlite_db_url())
-        if function.required_storage_engines:
-            raise TestFeatureNotImplementedError(
-                "No testing support for required storage engines yet"
+    with provide_test_storages(function, target_storage) as target_storage:
+        if target_storage:
+            target_storage = env.add_storage(target_storage)
+        with env.md_api.begin():
+            g = Graph(env)
+            input_datas = inputs
+            input_nodes: Dict[str, Node] = {}
+            pi = function.get_interface()
+            if not isinstance(inputs, dict):
+                assert len(pi.get_non_recursive_inputs()) == 1
+                input_datas = {pi.get_single_non_recursive_input().name: inputs}
+            for inpt in pi.inputs.values():
+                if inpt.is_self_reference:
+                    continue
+                assert inpt.name is not None
+                input_data = input_datas[inpt.name]
+                if isinstance(input_data, str):
+                    input_data = DataInput(data=input_data)
+                assert isinstance(input_data, DataInput)
+                n = g.create_node(
+                    key=f"_input_{inpt.name}",
+                    function="core.import_dataframe",
+                    params={
+                        "dataframe": input_data.as_dataframe(env),
+                        "schema": input_data.get_schema_key(),
+                    },
+                )
+                input_nodes[inpt.name] = n
+            test_node = g.create_node(
+                key=f"{function.name}",
+                function=function,
+                params=params,
+                inputs=input_nodes,
             )
-    if target_storage:
-        target_storage = env.add_storage(target_storage)
-    with env.md_api.begin():
-        g = Graph(env)
-        input_datas = inputs
-        input_nodes: Dict[str, Node] = {}
-        pi = function.get_interface()
-        if not isinstance(inputs, dict):
-            assert len(pi.get_non_recursive_inputs()) == 1
-            input_datas = {pi.get_single_non_recursive_input().name: inputs}
-        for inpt in pi.inputs.values():
-            if inpt.is_self_reference:
-                continue
-            assert inpt.name is not None
-            input_data = input_datas[inpt.name]
-            if isinstance(input_data, str):
-                input_data = DataInput(data=input_data)
-            assert isinstance(input_data, DataInput)
-            n = g.create_node(
-                key=f"_input_{inpt.name}",
-                function="core.import_dataframe",
-                params={
-                    "dataframe": input_data.as_dataframe(env),
-                    "schema": input_data.get_schema_key(),
-                },
+            blocks = env.produce(
+                test_node, to_exhaustion=False, target_storage=target_storage
             )
-            input_nodes[inpt.name] = n
-        test_node = g.create_node(
-            key=f"{function.name}", function=function, params=params, inputs=input_nodes
-        )
-        blocks = env.produce(
-            test_node, to_exhaustion=False, target_storage=target_storage
-        )
-        yield blocks
+            yield blocks

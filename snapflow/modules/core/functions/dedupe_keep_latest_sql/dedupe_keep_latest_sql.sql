@@ -16,10 +16,13 @@ select:T
     {% endfor %}
 
 from input:T
-{% if input_objects.input.nominal_schema.updated_at_field %}
+{% if input_objects.input.nominal_schema.field_roles.modification_ordering %}
 order by
     {% for col in input_objects.input.nominal_schema.unique_on %}
         "{{ col }}",
     {% endfor %}
-    "{{ input_objects.input.nominal_schema.updated_at_field.name }}" desc
+    {% for col in input_objects.input.nominal_schema.field_roles.modification_ordering %}
+    "{{ col }}" desc,
+    {% endfor %}
+    true
 {% endif %}
