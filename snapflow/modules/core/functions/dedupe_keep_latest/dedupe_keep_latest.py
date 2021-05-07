@@ -10,7 +10,8 @@ from snapflow.utils.typing import T
 
 
 @datafunction(
-    namespace="core", display_name="Dedupe DataFrame (keep latest)",
+    namespace="core",
+    display_name="Dedupe DataFrame (keep latest)",
 )
 def dedupe_keep_latest(input: DataBlock[T]) -> DataFrame[T]:
     if input.nominal_schema is None or not input.nominal_schema.unique_on:
