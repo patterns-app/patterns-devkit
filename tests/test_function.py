@@ -1,4 +1,11 @@
 from __future__ import annotations
+from snapflow.core.declarative.function import (
+    DEFAULT_OUTPUT_NAME,
+    DataFunctionInputCfg,
+    DataFunctionInterfaceCfg,
+    DataFunctionOutputCfg,
+    InputType,
+)
 
 from typing import Any, Callable
 
@@ -6,30 +13,17 @@ import pytest
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.execution import DataFunctionContext
-from snapflow.core.execution.executable import Executable, ExecutableConfiguration
-from snapflow.core.function import (
-    DEFAULT_OUTPUT_NAME,
-    DataFunction,
-    DataFunctionInterface,
-    DataFunctionLike,
-    datafunction,
-)
+from snapflow.core.function import DataFunctionLike, datafunction
 from snapflow.core.function_interface import (
     DEFAULT_OUTPUT,
     DEFAULT_OUTPUTS,
-    DataFunctionInput,
-    DataFunctionOutput,
-    InputType,
     ParsedAnnotation,
     parse_input_annotation,
 )
-from snapflow.core.function_interface_manager import (
-    NodeInterfaceManager,
-    get_schema_translation,
-)
+from snapflow.core.function_interface_manager import get_schema_translation
 from snapflow.core.graph import Graph, graph
+
 from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
-from snapflow.core.node import DeclaredNode, node
 from snapflow.core.streams import StreamBuilder, block_as_stream
 from snapflow.modules import core
 from snapflow.utils.typing import T, U
@@ -108,11 +102,7 @@ def function_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     pass
 
 
-def df4(
-    input: DataBlock[T],
-    dr2: DataBlock[U],
-    dr3: DataBlock[U],
-) -> DataFrame[T]:
+def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
     pass
 
 
@@ -121,12 +111,12 @@ def df4(
     [
         (
             function_t1_sink,
-            DataFunctionInterface(
+            DataFunctionInterfaceCfg(
                 inputs={
-                    "input": DataFunctionInput(
+                    "input": DataFunctionInputCfg(
                         name="input",
                         input_type=InputType("DataBlock"),
-                        schema_like="TestSchema1",
+                        schema_key="TestSchema1",
                         required=True,
                     ),
                 },
@@ -137,18 +127,18 @@ def df4(
         ),
         (
             function_t1_to_t2,
-            DataFunctionInterface(
+            DataFunctionInterfaceCfg(
                 inputs={
-                    "input": DataFunctionInput(
+                    "input": DataFunctionInputCfg(
                         name="input",
                         input_type=InputType("DataBlock"),
-                        schema_like="TestSchema1",
+                        schema_key="TestSchema1",
                         required=True,
                     ),
                 },
                 outputs={
-                    DEFAULT_OUTPUT_NAME: DataFunctionOutput(
-                        data_format="DataFrame", schema_like="TestSchema2"
+                    DEFAULT_OUTPUT_NAME: DataFunctionOutputCfg(
+                        data_format="DataFrame", schema_key="TestSchema2"
                     )
                 },
                 parameters={},
@@ -157,18 +147,18 @@ def df4(
         ),
         (
             function_generic,
-            DataFunctionInterface(
+            DataFunctionInterfaceCfg(
                 inputs={
-                    "input": DataFunctionInput(
+                    "input": DataFunctionInputCfg(
                         name="input",
                         input_type=InputType("DataBlock"),
-                        schema_like="T",
+                        schema_key="T",
                         required=True,
                     ),
                 },
                 outputs={
-                    DEFAULT_OUTPUT_NAME: DataFunctionOutput(
-                        data_format="DataFrame", schema_like="T"
+                    DEFAULT_OUTPUT_NAME: DataFunctionOutputCfg(
+                        data_format="DataFrame", schema_key="T"
                     )
                 },
                 parameters={},
@@ -177,24 +167,24 @@ def df4(
         ),
         (
             function_self,
-            DataFunctionInterface(
+            DataFunctionInterfaceCfg(
                 inputs={
-                    "input": DataFunctionInput(
+                    "input": DataFunctionInputCfg(
                         name="input",
                         input_type=InputType("DataBlock"),
-                        schema_like="T",
+                        schema_key="T",
                         required=True,
                     ),
-                    "previous": DataFunctionInput(
+                    "previous": DataFunctionInputCfg(
                         name="previous",
                         input_type=InputType("SelfReference"),
-                        schema_like="T",
+                        schema_key="T",
                         required=False,
                     ),
                 },
                 outputs={
-                    DEFAULT_OUTPUT_NAME: DataFunctionOutput(
-                        data_format="DataFrame", schema_like="T"
+                    DEFAULT_OUTPUT_NAME: DataFunctionOutputCfg(
+                        data_format="DataFrame", schema_key="T"
                     )
                 },
                 parameters={},
@@ -204,7 +194,7 @@ def df4(
     ],
 )
 def test_function_interface(
-    function_like: DataFunctionLike, expected: DataFunctionInterface
+    function_like: DataFunctionLike, expected: DataFunctionInterfaceCfg
 ):
     p = datafunction(function_like)
     val = p.get_interface()
@@ -223,7 +213,7 @@ def test_generic_schema_resolution():
     n1 = g.create_node(key="node1", function=function_generic, input="n0")
     # pi = n1.get_interface()
     with env.md_api.begin():
-        exe = Executable(node=n1, function=n1.function, execution_context=ec)
+        exe = ExecutableCfg(node=n1, function=n1.function, execution_context=ec)
         im = NodeInterfaceManager(exe)
         block = DataBlockMetadata(
             nominal_schema_key="_test.TestSchema1",
@@ -251,8 +241,7 @@ def test_declared_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
@@ -263,7 +252,7 @@ def test_declared_schema_translation():
             env,
             block.realized_schema(env),
             target_schema=env.get_schema(
-                pi.get_single_non_recursive_input().schema_like
+                pi.get_single_non_recursive_input().schema_key
             ),
             declared_schema_translation=translation,
         )
@@ -285,15 +274,14 @@ def test_natural_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     with env.md_api.begin():
         schema_translation = get_schema_translation(
             env,
             block.realized_schema(env),
             target_schema=env.get_schema(
-                pi.get_single_non_recursive_input().schema_like
+                pi.get_single_non_recursive_input().schema_key
             ),
             declared_schema_translation=translation,
         )
@@ -415,8 +403,8 @@ def test_any_schema_interface():
 
     df = datafunction(function_any)
     pi = df.get_interface()
-    assert pi.get_single_non_recursive_input().schema_like == "Any"
-    assert pi.get_default_output().schema_like == "Any"
+    assert pi.get_single_non_recursive_input().schema_key == "Any"
+    assert pi.get_default_output().schema_key == "Any"
 
 
 def test_api():

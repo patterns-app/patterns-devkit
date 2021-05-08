@@ -1,4 +1,7 @@
 from __future__ import annotations
+from snapflow.core.declarative.execution import ExecutionCfg
+from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
+from snapflow.core.environment import Environment
 
 from typing import Optional
 
@@ -8,15 +11,6 @@ from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock
-from snapflow.core.environment import Environment, SnapflowSettings
-from snapflow.core.execution import DataFunctionContext, ExecutionManager
-from snapflow.core.execution.executable import (
-    ExecutableConfiguration,
-    ExecutionConfiguration,
-    ExecutionContext,
-)
-from snapflow.core.function_interface import SelfReference
-from snapflow.core.graph import Graph
 from snapflow.core.module import SnapflowModule
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from snapflow.core.streams import DataBlockStream, Stream
@@ -38,29 +32,21 @@ def make_test_env(**kwargs) -> Environment:
         url = get_tmp_sqlite_db_url()
         metadata_storage = Storage.from_url(url)
         kwargs["metadata_storage"] = metadata_storage
-    env = Environment(settings=SnapflowSettings(abort_on_function_error=True), **kwargs)
-    test_module = SnapflowModule(
-        "_test",
-    )
+    ds = DataspaceCfg(snapflow=SnapflowCfg(abort_on_function_error=True))
+    env = Environment(dataspace=ds, **kwargs)
+    test_module = SnapflowModule("_test",)
     for schema in [TestSchema1, TestSchema2, TestSchema3, TestSchema4]:
         env.add_schema(schema)
     env.add_module(test_module)
     return env
 
 
-def make_test_run_context(**kwargs) -> ExecutionContext:
-    s = Storage.from_url(
-        url=f"python://_test_default_{rand_str(6)}",
-    )
+def make_test_run_context(**kwargs) -> ExecutionCfg:
+    s = (f"python://_test_default_{rand_str(6)}",)
     env = make_test_env()
-    args = dict(
-        env=env,
-        local_storage=s,
-        target_storage=s,
-        storages=[s],
-    )
+    args = dict(env=env, local_storage=s, target_storage=s, storages=[s],)
     args.update(**kwargs)
-    return ExecutionContext(**args)
+    return ExecutionCfg(**args)
 
 
 def make_test_execution_manager(**kwargs) -> ExecutionManager:

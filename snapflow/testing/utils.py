@@ -1,4 +1,7 @@
 from __future__ import annotations
+from snapflow.core.declarative.dataspace import DataspaceCfg
+from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
+from snapflow.core.state import DataBlockLog
 
 import tempfile
 from contextlib import contextmanager
@@ -17,10 +20,8 @@ from dcp.utils.pandas import assert_dataframes_are_almost_equal
 from loguru import logger
 from pandas import DataFrame
 from snapflow import DataBlock, DataFunction, Environment, Graph
-from snapflow.core.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.function_package import DataFunctionPackage
 from snapflow.core.module import SnapflowModule
-from snapflow.core.node import DataBlockLog, DataFunctionLog, Node
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
 from sqlalchemy.exc import OperationalError
@@ -184,14 +185,14 @@ def produce_function_output_for_static_input(
     upstream: Any = None,  # TODO: DEPRECATED
 ) -> Iterator[List[DataBlock]]:
     inputs = input or inputs or upstream
-    if env is None:
-        db = get_tmp_sqlite_db_url()
-        env = Environment(metadata_storage=db)
-    if module:
-        env.add_module(module)
+
     with provide_test_storages(function, target_storage) as target_storage:
-        if target_storage:
-            target_storage = env.add_storage(target_storage)
+        if env is None:
+            db = get_tmp_sqlite_db_url()
+            ds = DataspaceCfg(metdata_storage=db, storages=[target_storage.url])
+            env = Environment(dataspace=ds)
+        if module:
+            env.add_module(module)
         with env.md_api.begin():
             g = Graph(env)
             input_datas = inputs

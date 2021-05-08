@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Iterator, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any, Generic, Iterator, Optional, Tuple, Type, Union
 
 from commonmodel.base import Schema, SchemaKey, SchemaTranslation
 from dcp.data_copy.graph import StorageFormat
@@ -78,9 +78,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self,
-        env: Environment,
-        schema_translation: Optional[SchemaTranslation] = None,
+        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
     ):
         mgr = DataBlockManager(env, self, schema_translation=schema_translation)
         return ManagedDataBlock(
@@ -468,6 +466,12 @@ class DataBlockManager:
     #     )
     #     return convert_sdb(self.ctx.env, in_sdb, conversion_path,
     #     storage)
+
+
+# Type aliases
+SelfReference = Union[DataBlock, None]
+Reference = DataBlock
+Consumable = DataBlock
 
 
 # def create_data_block_from_records(

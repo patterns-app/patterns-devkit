@@ -5,6 +5,11 @@ from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from functools import partial
 from pathlib import Path
+from snapflow.core.declarative.function import (
+    DEFAULT_OUTPUT_NAME,
+    DataFunctionInterfaceCfg,
+    InputType,
+)
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from snapflow.core.sql.parser import parse_interface_from_sql, render_sql
 
@@ -22,21 +27,9 @@ from snapflow.core.data_block import (
 )
 from snapflow.core.environment import Environment
 from snapflow.core.execution.execution import DataFunctionContext
-from snapflow.core.function import (
-    DEFAULT_OUTPUT_NAME,
-    DataFunction,
-    DataInterfaceType,
-    Parameter,
-    function_factory,
-)
+from snapflow.core.function import DataFunction, DataInterfaceType, function_factory
 from snapflow.core.function_interface import (
-    DEFAULT_INPUT_ANNOTATION,
-    DEFAULT_OUTPUT,
     DEFAULT_OUTPUTS,
-    BadAnnotationException,
-    DataFunctionInput,
-    DataFunctionInterface,
-    InputType,
     ParsedAnnotation,
     function_input_from_annotation,
     function_output_from_annotation,
@@ -45,9 +38,6 @@ from snapflow.core.function_interface import (
 )
 from snapflow.core.function_package import load_file
 from snapflow.core.module import SnapflowModule
-from snapflow.core.node import DataBlockLog
-from snapflow.core.runtime import DatabaseRuntimeClass, RuntimeClass
-from snapflow.core.streams import DataBlockStream, ManagedDataBlockStream
 from sqlparse import tokens
 
 
@@ -99,7 +89,7 @@ class ParsedSqlStatement:
     found_params: Optional[Dict[str, AnnotatedParam]] = None
     output_annotation: Optional[str] = None
 
-    def as_interface(self) -> DataFunctionInterface:
+    def as_interface(self) -> DataFunctionInterfaceCfg:
         inputs = {}
         outputs = {}
         params = {}
@@ -128,7 +118,7 @@ class ParsedSqlStatement:
                     ap.default,
                 )
 
-        return DataFunctionInterface(
+        return DataFunctionInterfaceCfg(
             inputs=inputs, outputs=outputs, uses_context=True, parameters=params
         )
 
@@ -354,10 +344,11 @@ class SqlDataFunctionWrapper:
         #         assert db.has_format(DatabaseTableFormat)
 
         # TODO: way to specify more granular storage requirements (engine, engine version, etc)
-        storage = ctx.execution_context.target_storage
+        storage = ctx.execution_config.get_target_storage()
         for storage in [
-            ctx.execution_context.target_storage
-        ] + ctx.execution_context.storages:
+            ctx.execution_config.target_storage
+        ] + ctx.execution_config.storages:
+            storage = Storage(storage)
             if storage.storage_engine.storage_class == DatabaseStorageClass:
                 break
         else:
@@ -367,7 +358,7 @@ class SqlDataFunctionWrapper:
 
         db_api = storage.get_api()
         logger.debug(
-            f"Resolved in sql function {ctx.bound_interface.resolve_nominal_output_schema( ctx.env)}"
+            f"Resolved in sql function {ctx.bound_interface.resolve_nominal_output_schema()}"
         )
         tmp_name = f"_tmp_{rand_str(10)}".lower()
         sql = db_api.clean_sub_sql(sql)
@@ -435,7 +426,7 @@ class SqlDataFunctionWrapper:
     def is_new_style_jinja(self) -> bool:
         return "{% input " in self.sql or "{% param " in self.sql
 
-    def get_interface(self) -> DataFunctionInterface:
+    def get_interface(self) -> DataFunctionInterfaceCfg:
         if self.is_new_style_jinja():
             return parse_interface_from_sql(self.sql)
         stmt = self.get_parsed_statement()

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import os
-import sys
 import pkgutil
+import sys
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, List, Optional, Union
@@ -10,13 +10,12 @@ from typing import TYPE_CHECKING, Any, List, Optional, Union
 from commonmodel.base import Schema, SchemaLike, schema_from_yaml
 from loguru import logger
 from snapflow.core.component import (
+    DEFAULT_LOCAL_NAMESPACE,
+    DEFAULT_NAMESPACE,
     ComponentLibrary,
     DictView,
     global_library,
-    DEFAULT_NAMESPACE,
-    DEFAULT_LOCAL_NAMESPACE,
 )
-
 
 if TYPE_CHECKING:
     from snapflow.core.function import (
@@ -58,7 +57,7 @@ class SnapflowModule:
             py_module_path = os.path.dirname(py_module_path)
         self.py_module_path = py_module_path
         # self.py_module_name = py_module_name
-        self.library = ComponentLibrary(namespace_lookup_keys=[self.namespace])
+        self.library = ComponentLibrary(namespace_precedence=[self.namespace])
         self.function_paths = function_paths
         self.schema_paths = schema_paths
         self.flow_paths = flow_paths
@@ -72,6 +71,7 @@ class SnapflowModule:
             self.add_dependency(d)
         # for t in tests or []:
         #     self.add_test_case(t)
+        global_library.add_namespace(namespace)
         global_library.add_module(self)
 
     def discover_functions(self):
@@ -178,7 +178,7 @@ class SnapflowModule:
         #     raise Exception("Cannot export module, no namespace set")
         # mod = sys.modules[
         #     self.py_module_name
-        # ]  # = self  # type: ignore  # sys.module_lookup_names wants a modulefinder.Module type and it's not gonna get it
+        # ]  # = self  # type: ignore  # sys.namespace_precedence wants a modulefinder.Module type and it's not gonna get it
         # setattr(mod, "__getattr__", self.__getattribute__)
 
     # Add to dir:

@@ -3,8 +3,12 @@ from functools import partial
 from typing import Any, Callable, Dict, Optional, Union
 
 from snapflow.core.data_block import DataBlock
-from snapflow.core.node import ensure_stream
-from snapflow.core.streams import DataBlockStream, StreamBuilder, StreamLike
+from snapflow.core.streams import (
+    DataBlockStream,
+    StreamBuilder,
+    StreamLike,
+    ensure_stream,
+)
 
 OpCallable = Callable[[DataBlockStream], DataBlockStream]
 
