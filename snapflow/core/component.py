@@ -4,7 +4,6 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, List, Union
 
 from commonmodel import Schema
-from dcp.utils.common import AttrDict
 
 if TYPE_CHECKING:
     from snapflow.core.function import (
@@ -12,6 +11,10 @@ if TYPE_CHECKING:
         DataFunction,
     )
     from snapflow.core.module import SnapflowModule
+
+
+DEFAULT_LOCAL_NAMESPACE = "_local"
+DEFAULT_NAMESPACE = DEFAULT_LOCAL_NAMESPACE
 
 
 class DictView(dict):
@@ -26,8 +29,6 @@ class ComponentLibrary:
     module_lookup_names: List[str]
 
     def __init__(self, namespace_lookup_keys: List[str] = None):
-        from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
-
         self.functions = {}
         self.schemas = {}
         self.module_lookup_names = [DEFAULT_LOCAL_NAMESPACE]
@@ -128,3 +129,6 @@ class ComponentLibrary:
 
     def get_schemas_view(self) -> DictView[str, Schema]:
         return self.get_view(self.schemas)
+
+
+global_library = ComponentLibrary()
