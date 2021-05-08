@@ -16,7 +16,7 @@ from dcp.storage.base import MemoryStorageClass, ensure_storage
 from dcp.storage.memory.engines.python import new_local_python_storage
 from dcp.utils.common import AttrDict
 from loguru import logger
-from snapflow.core.component import ComponentLibrary
+from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.metadata.api import MetadataApi
 from snapflow.core.metadata.orm import FrozenPydanticBase
 from snapflow.core.module import (
@@ -49,7 +49,7 @@ class SnapflowSettings(FrozenPydanticBase):
     execution_timelimit_seconds: Optional[int] = None
     fail_on_downcast: bool = False
     warn_on_downcast: bool = True
-    add_core_module: bool = True
+    use_global_library: bool = True
 
 
 class EnvironmentConfiguration(FrozenPydanticBase):
@@ -76,6 +76,7 @@ class Environment:
         runtimes: List[Union[Runtime, str]] = None,
         settings: SnapflowSettings = None,
         config: Optional[EnvironmentConfiguration] = None,
+        library: Optional[ComponentLibrary] = global_library,
     ):
         from snapflow.modules import core
         from snapflow.core.runtime import ensure_runtime
@@ -102,10 +103,11 @@ class Environment:
         self._local_module = DEFAULT_LOCAL_MODULE
         self.default_storage = ensure_storage(default_storage)
         # TODO: load library from config
-        self.library = ComponentLibrary()
+        if library is None or not self.settings.use_global_library:
+            self.library = ComponentLibrary()
+        else:
+            self.library = library
         self.add_module(self._local_module)
-        if self.settings.add_core_module:
-            self.add_module(core)
         for m in modules or []:
             self.add_module(m)
 
