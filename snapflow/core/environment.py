@@ -1,10 +1,9 @@
 from __future__ import annotations
+from importlib import import_module
 
 import logging
 import os
-from contextlib import contextmanager
-from dataclasses import asdict, dataclass, field
-from importlib import import_module
+
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -18,7 +17,6 @@ from dcp.utils.common import AttrDict
 from loguru import logger
 from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.metadata.api import MetadataApi
-from snapflow.core.metadata.orm import FrozenPydanticBase
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
     DEFAULT_LOCAL_NAMESPACE,
@@ -30,12 +28,11 @@ from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
     from snapflow.core.function import DataFunction
-    from snapflow.core.node import Node, NodeLike
     from snapflow.core.data_block import DataBlock
-    from snapflow.core.graph import Graph, DeclaredGraph, DEFAULT_GRAPH
-    from snapflow.core.runtime import Runtime, LocalPythonRuntimeEngine
-    from snapflow.core.execution import ExecutionResult, Executable, ExecutionContext
-    from snapflow.core.execution.executable import CumulativeExecutionResult
+    from snapflow.core.declarative.graph import GraphCfg
+    from snapflow.core.declarative.execution import ExecutableCfg, ExecutionCfg
+    from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
+    from snapflow.core.declarative.execution import CumulativeExecutionResult
 
 DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
 
@@ -43,51 +40,27 @@ DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
 Serializable = Union[str, int, float, bool]
 
 
-class SnapflowSettings(FrozenPydanticBase):
-    initialize_metadata_storage: bool = True
-    abort_on_function_error: bool = False
-    execution_timelimit_seconds: Optional[int] = None
-    fail_on_downcast: bool = False
-    warn_on_downcast: bool = True
-    use_global_library: bool = True
-
-
-class EnvironmentConfiguration(FrozenPydanticBase):
-    key: str = "default"
-    metadata_storage_url: Optional[str] = None
-    # modules: List[SnapflowModule] = field(default_factory=list)
-    namespaces: List[str] = []
-    default_storage_url: Optional[str] = None
-    storage_urls: List[str] = []
-    runtime_urls: List[str] = []
-    settings: Optional[SnapflowSettings] = None
-
-
 class Environment:
+    key: str
+    dataspace: DataspaceCfg
     library: ComponentLibrary
+    settings: SnapflowCfg
+    metadata_storage: Storage
+    metadata_api: MetadataApi
 
     def __init__(
         self,
-        key: str = "default",
-        metadata_storage: Union["Storage", str] = None,
-        modules: List[Union[SnapflowModule, str]] = None,  # Defaults to `core` module
-        storages: List[Union[Storage, str]] = None,
-        default_storage: Union[Storage, str] = None,
-        runtimes: List[Union[Runtime, str]] = None,
-        settings: SnapflowSettings = None,
-        config: Optional[EnvironmentConfiguration] = None,
+        dataspace: Optional[DataspaceCfg] = None,
         library: Optional[ComponentLibrary] = global_library,
+        namespaces: List[str] = None,
     ):
         from snapflow.modules import core
         from snapflow.core.runtime import ensure_runtime
 
-        self.key = key
-        # if self.key in environments:
-        #     raise NameError(f"Environment {self.key} already exists")
-        self.storages = [ensure_storage(s) for s in storages or []]
-        self.runtimes = [ensure_runtime(s) for s in runtimes or []]
-        self.settings = settings or SnapflowSettings()
-        self.config = config
+        self.key = self.dataspace.key or "default"
+        self.settings = self.dataspace.snapflow or SnapflowCfg()
+        self.dataspace = dataspace or DataspaceCfg()
+        metadata_storage = self.dataspace.metadata_storage
         if metadata_storage is None:
             metadata_storage = DEFAULT_METADATA_STORAGE_URL
             logger.warning(
@@ -101,53 +74,20 @@ class Environment:
         #       components once, but the libraries are mutable and someone could add components
         #       to them later, which would not be picked up by the env library. (prob fine)
         self._local_module = DEFAULT_LOCAL_MODULE
-        self.default_storage = ensure_storage(default_storage)
         # TODO: load library from config
         if library is None or not self.settings.use_global_library:
             self.library = ComponentLibrary()
         else:
             self.library = library
         self.add_module(self._local_module)
-        for m in modules or []:
-            self.add_module(m)
-
         self._local_python_storage = new_local_python_storage()
         self.add_storage(self._local_python_storage)
-        # get_environment(self)
-
-    @staticmethod
-    def from_config(cfg: EnvironmentConfiguration):
-        # if cfg.key in environments:
-        #     return get_environment(cfg.key)
-        env = Environment(
-            key=cfg.key,
-            metadata_storage=cfg.metadata_storage_url,
-            modules=cfg.namespaces,
-            storages=cfg.storage_urls,
-            default_storage=cfg.default_storage_url,
-            runtimes=cfg.runtime_urls,
-            settings=cfg.settings,
-            config=cfg,
-        )
-        return env
-        # return get_environment(env)
 
     def get_metadata_api(self) -> MetadataApi:
         return self.metadata_api
 
-    def as_config(self) -> EnvironmentConfiguration:
-        return EnvironmentConfiguration(
-            key=self.key,
-            metadata_storage_url=self.metadata_storage.url,
-            namespaces=self.get_namespaces(),  # TODO: check if these are importable, raise if not
-            default_storage_url=self.get_default_storage().url,
-            storage_urls=[s.url for s in self.storages],
-            runtime_urls=[s.url for s in self.runtimes],
-            settings=self.settings,
-        )
-
     def get_namespaces(self) -> List[str]:
-        return self.library.module_lookup_names
+        return self.library.namespace_precedence
 
     # Shortcut
     @property
@@ -161,7 +101,7 @@ class Environment:
         return self._local_module
 
     def get_module_order(self) -> List[str]:
-        return self.library.module_lookup_names
+        return self.library.namespace_precedence
 
     def get_schema(self, schema_like: SchemaLike) -> Schema:
         if is_generic(schema_like):
@@ -231,23 +171,22 @@ class Environment:
             self.library.add_module(module)
 
     def get_default_storage(self) -> Storage:
-        if self.default_storage is not None:
-            return self.default_storage
-        if len(self.storages) == 1:
-            return self.storages[0]
-        for s in self.storages:
+        if self.dataspace.default_storage is not None:
+            return ensure_storage(self.dataspace.default_storage)
+        if len(self.dataspace.storages) == 1:
+            return ensure_storage(self.dataspace.storages[0])
+        for s in self.dataspace.storages:
+            s = ensure_storage(s)
             if s.url == self.metadata_storage.url:
                 continue
             if s.storage_engine.storage_class == MemoryStorageClass:
                 continue
             return s
-        return self.storages[0]
+        return ensure_storage(self.dataspace.storages[0])
 
-    def get_execution_context(
+    def get_execution_config(
         self, target_storage: Storage = None, **kwargs
-    ) -> ExecutionContext:
-        from snapflow.core.execution import ExecutionContext, ExecutionConfiguration
-
+    ) -> ExecutionCfg:
         if target_storage is None:
             target_storage = self.get_default_storage()
         target_storage = self.add_storage(target_storage)
@@ -258,14 +197,14 @@ class Environment:
                 "be persisted. Add a database or file storage to persist results."
             )
         args = dict(
-            env=self,
-            local_storage=self._local_python_storage,
-            target_storage=target_storage,
-            storages=self.storages,
-            abort_on_function_error=self.settings.abort_on_function_error,
+            dataspace=self.dataspace,
+            local_storage=self._local_python_storage.url,
+            target_storage=target_storage.url,
+            storages=self.dataspace.storages
+            # abort_on_function_error=self.settings.abort_on_function_error,
         )
         args.update(**kwargs)
-        return ExecutionContext(**args)
+        return ExecutionCfg(**args)
 
     # @contextmanager
     # def run(
@@ -287,54 +226,56 @@ class Environment:
     #         pass
 
     def get_executable(
-        self, node: Node, target_storage: Storage = None, **kwargs
-    ) -> Executable:
-        from snapflow.core.execution import Executable
+        self, graph: GraphCfg, node: GraphCfg, target_storage: Storage = None, **kwargs
+    ) -> ExecutableCfg:
+        assert graph.is_flattened()
 
-        return Executable(
-            node=node,
-            function=node.function,
-            execution_context=self.get_execution_context(
+        return ExecutableCfg(
+            node_key=node.key,
+            graph=graph,
+            execution_config=self.get_execution_config(
                 target_storage=target_storage, **kwargs
             ),
         )
 
-    def _get_graph_and_node(
-        self,
-        node_like: Optional[NodeLike] = None,
-        graph: Optional[Union[Graph, DeclaredGraph]] = None,
-    ) -> Tuple[Optional[Node], Graph]:
-        from snapflow.core.graph import DEFAULT_GRAPH, DeclaredGraph, Graph
-        from snapflow.core.node import Node, DeclaredNode
+    # def _get_graph_and_node(
+    #     self,
+    #     node_like: Optional[NodeLike] = None,
+    #     graph: Optional[Union[Graph, DeclaredGraph]] = None,
+    # ) -> Tuple[Optional[Node], Graph]:
+    #     from snapflow.core.graph import DEFAULT_GRAPH, DeclaredGraph, Graph
+    #     from snapflow.core.node import Node, DeclaredNode
 
-        node = None
-        if graph is None:
-            if hasattr(node_like, "graph"):
-                graph = node_like.graph
-            else:
-                graph = DEFAULT_GRAPH
-        if isinstance(graph, DeclaredGraph):
-            graph = graph.instantiate(self)
-        if node_like is not None:
-            node = node_like
-            if isinstance(node, str):
-                node = graph.get_node(node_like)
-            if isinstance(node, DeclaredNode):
-                node = node.instantiate(self, graph)
-            assert isinstance(node, Node), node
-        assert isinstance(graph, Graph)
-        return node, graph
+    #     node = None
+    #     if graph is None:
+    #         if hasattr(node_like, "graph"):
+    #             graph = node_like.graph
+    #         else:
+    #             graph = DEFAULT_GRAPH
+    #     if isinstance(graph, DeclaredGraph):
+    #         graph = graph.instantiate(self)
+    #     if node_like is not None:
+    #         node = node_like
+    #         if isinstance(node, str):
+    #             node = graph.get_node(node_like)
+    #         if isinstance(node, DeclaredNode):
+    #             node = node.instantiate(self, graph)
+    #         assert isinstance(node, Node), node
+    #     assert isinstance(graph, Graph)
+    #     return node, graph
 
     def produce(
         self,
-        node_like: Optional[NodeLike] = None,
-        graph: Union[Graph, DeclaredGraph] = None,
+        graph: GraphCfg,
+        node: GraphCfg = None,
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> List[DataBlock]:
         from snapflow.core.execution import execute_to_exhaustion
 
-        node, graph = self._get_graph_and_node(node_like, graph)
+        graph = graph.resolve_and_flatten(self.library)
+        assert node.is_function_node()
+
         if node is not None:
             dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
         else:
@@ -342,6 +283,7 @@ class Environment:
         result = None
         for dep in dependencies:
             result = execute_to_exhaustion(
+                self,
                 self.get_executable(dep, **execution_kwargs),
                 to_exhaustion=to_exhaustion,
             )
@@ -352,81 +294,79 @@ class Environment:
 
     def run_node(
         self,
-        node_like: Optional[NodeLike] = None,
-        graph: Union[Graph, DeclaredGraph] = None,
+        node: Union[GraphCfg, str],
+        graph: GraphCfg,
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> Optional[CumulativeExecutionResult]:
         from snapflow.core.execution import execute_to_exhaustion
 
-        node, graph = self._get_graph_and_node(node_like, graph)
-        assert node is not None
-
-        logger.debug(f"Running: {node_like}")
+        logger.debug(f"Running: {node}")
+        node = graph.get_node(node)
         result = execute_to_exhaustion(
-            self.get_executable(node, **execution_kwargs), to_exhaustion=to_exhaustion
+            self,
+            self.get_executable(node, **execution_kwargs),
+            to_exhaustion=to_exhaustion,
         )
         return result
 
     def run_graph(
-        self,
-        graph: Union[Graph, DeclaredGraph],
-        to_exhaustion: bool = True,
-        **execution_kwargs: Any,
+        self, graph: GraphCfg, to_exhaustion: bool = True, **execution_kwargs: Any,
     ):
         from snapflow.core.execution import execute_to_exhaustion
-        from snapflow.core.graph import DeclaredGraph
 
-        if isinstance(graph, DeclaredGraph):
-            graph = graph.instantiate(self)
+        graph = graph.resolve(self.library)
+        graph = graph.flatten()
+
         nodes = graph.get_all_nodes_in_execution_order()
         for node in nodes:
             execute_to_exhaustion(
-                self.get_executable(node, **execution_kwargs),
+                self,
+                self.get_executable(graph, node, **execution_kwargs),
                 to_exhaustion=to_exhaustion,
             )
 
-    def get_latest_output(
-        self, node: NodeLike, graph: Union[Graph, DeclaredGraph] = None
-    ) -> Optional[DataBlock]:
-        with self.metadata_api.begin():
-            n, graph = self._get_graph_and_node(node, graph)
-            return n.latest_output(self)
+    # def get_latest_output(
+    #     self, node: NodeLike, graph: Union[Graph, DeclaredGraph] = None
+    # ) -> Optional[DataBlock]:
+    #     with self.metadata_api.begin():
+    #         n, graph = self._get_graph_and_node(node, graph)
+    #         return n.latest_output(self)
 
-    def add_storage(
-        self, storage_like: Union[Storage, str], add_runtime: bool = True
-    ) -> Storage:
+    # def add_storage(
+    #     self, storage_like: Union[Storage, str], add_runtime: bool = True
+    # ) -> Storage:
 
-        if isinstance(storage_like, str):
-            sr = Storage.from_url(storage_like)
-        elif isinstance(storage_like, Storage):
-            sr = storage_like
-        else:
-            raise TypeError
-        if sr.url not in [s.url for s in self.storages]:
-            self.storages.append(sr)
-        # if add_runtime:
-        #     from snapflow.core.runtime import Runtime
+    #     if isinstance(storage_like, str):
+    #         sr = Storage.from_url(storage_like)
+    #     elif isinstance(storage_like, Storage):
+    #         sr = storage_like
+    #     else:
+    #         raise TypeError
+    #     if sr.url not in [s.url for s in self.storages]:
+    #         self.storages.append(sr)
+    #     # if add_runtime:
+    #     #     from snapflow.core.runtime import Runtime
 
-        #     try:
-        #         rt = Runtime.from_storage(sr)
-        #         self.add_runtime(rt)
-        #     except ValueError:
-        #         pass
-        return sr
+    #     #     try:
+    #     #         rt = Runtime.from_storage(sr)
+    #     #         self.add_runtime(rt)
+    #     #     except ValueError:
+    #     #         pass
+    #     return sr
 
-    def add_runtime(self, runtime_like: Union[Runtime, str]) -> Runtime:
-        from snapflow.core.runtime import Runtime
+    # def add_runtime(self, runtime_like: Union[Runtime, str]) -> Runtime:
+    #     from snapflow.core.runtime import Runtime
 
-        if isinstance(runtime_like, str):
-            sr = Runtime.from_url(runtime_like)
-        elif isinstance(runtime_like, Runtime):
-            sr = runtime_like
-        else:
-            raise TypeError
-        if sr.url not in [s.url for s in self.runtimes]:
-            self.runtimes.append(sr)
-        return sr
+    #     if isinstance(runtime_like, str):
+    #         sr = Runtime.from_url(runtime_like)
+    #     elif isinstance(runtime_like, Runtime):
+    #         sr = runtime_like
+    #     else:
+    #         raise TypeError
+    #     if sr.url not in [s.url for s in self.runtimes]:
+    #         self.runtimes.append(sr)
+    #     return sr
 
     # def serialize_run_node(
     #     self,
@@ -525,13 +465,12 @@ def run_graph(
 
 
 def run(
-    node_or_graph: Union[NodeLike, DeclaredGraph, Graph], *args, **kwargs
+    node_or_graph: GraphCfg, *args, **kwargs
 ) -> Optional[CumulativeExecutionResult]:
-    from snapflow.core.graph import Graph, DeclaredGraph
 
-    if isinstance(node_or_graph, Graph) or isinstance(node_or_graph, DeclaredGraph):
-        return run_graph(node_or_graph, *args, **kwargs)
-    return run_node(node_or_graph, *args, **kwargs)
+    if node_or_graph.is_function_node():
+        return run_node(node_or_graph, *args, **kwargs)
+    return run_graph(node_or_graph, *args, **kwargs)
 
 
 ### Environments are singletons!

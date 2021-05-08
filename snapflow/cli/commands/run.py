@@ -5,42 +5,28 @@ from pathlib import Path
 
 from cleo import Command
 from snapflow.templates.generator import generate_template
+import yaml
 
 
-def strip_snapflow(s: str) -> str:
-    if s.startswith("snapflow_"):
-        return s[9:]
-    return s
-
-
-class GenerateCommand(Command):
+class RunCommand(Command):
     """
-    Generate new snapflow component
+    Run a dataspace or node
 
-    new
-        {type : Type of component to generate (module, dataspace, function, schema, or flow)}
-        {name : name of the component }
-        {--s|namespace : namespace of the component, defaults to current module namespace }
+    run
+        {dataspace : path to dataspace configuration yaml }
+        {node? : name of node to run (runs entire dataspace if not specified) }
+        {--t|timelimit : per-node execution time limit, in seconds }
+        {--s|storage : target storage for execution output }
     """
 
     def handle(self):
-        type_ = self.argument("type")
-        name = self.argument("name")
-        namespace = self.option("namespace")
-        if type_ in ("module", "dataspace"):
-            self.handle_module(name, namespace)
-        elif type_ == "function":
-            self.handle_function(name, namespace)
-        elif type_ == "schema":
-            raise NotImplementedError
-            self.handle_schema(name, namespace)
-        elif type_ == "flow":
-            raise NotImplementedError
-            self.flow_schema(name, namespace)
-        else:
-            raise ValueError(
-                f"Invalid type {type_}, must be one of (module, function, schema)"
-            )
+        dataspace_file = self.argument("dataspace")
+        node_key = self.argument("node")
+        timelimit = self.option("timelimit")
+
+    def load_dataspace_cfg(self, file_name: str) -> DataspaceCfg:
+        yml = yaml.load(file_name, Loader=yaml.Loader)
+        return DataspaceCfg(**yml)
 
     def handle_module(self, name: str, namespace: str):
         py_module_name = name

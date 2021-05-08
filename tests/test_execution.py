@@ -10,8 +10,8 @@ from pandas import DataFrame
 from snapflow.core.data_block import Alias, DataBlock, DataBlockMetadata
 from snapflow.core.execution import Executable, ExecutionManager
 from snapflow.core.function import Input
-from snapflow.core.function_interface import Reference
 from snapflow.core.graph import Graph
+from snapflow.core.models.configuration import Reference
 from snapflow.core.node import DataBlockLog, DataFunctionLog, Direction
 from snapflow.modules import core
 from sqlalchemy.sql.expression import select

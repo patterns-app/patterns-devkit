@@ -15,9 +15,7 @@ from pandas._testing import assert_almost_equal
 from snapflow import DataBlock, datafunction
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import DataFunctionContext
-from snapflow.core.function_interface import Consumable, Reference
 from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, DataFunctionLog, NodeState
 from snapflow.core.sql.sql_function import sql_function_factory
 from snapflow.modules import core
 from sqlalchemy import select

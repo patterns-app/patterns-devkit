@@ -13,16 +13,6 @@ from sqlalchemy.orm.exc import DetachedInstanceError
 SNAPFLOW_METADATA_TABLE_PREFIX = "_snapflow_"
 
 
-class PydanticBase(pydantic.BaseModel):
-    class Config:
-        extra = "forbid"
-
-
-class FrozenPydanticBase(PydanticBase):
-    class Config:
-        frozen = True
-
-
 class _BaseModel:
     @declared_attr
     def __tablename__(cls):

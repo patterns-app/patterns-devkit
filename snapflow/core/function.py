@@ -3,6 +3,9 @@ from __future__ import annotations
 import inspect
 from dataclasses import asdict, dataclass, field
 from functools import partial
+from snapflow.core.component import DEFAULT_LOCAL_NAMESPACE, DEFAULT_NAMESPACE
+from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
+from snapflow.core.declarative.function import DataFunctionCfg, DataFunctionInterfaceCfg
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
 from commonmodel.base import SchemaLike
@@ -10,18 +13,10 @@ from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.function_interface import (  # merge_declared_interface_with_signature_interface,
-    DataFunctionInput,
-    DataFunctionInterface,
-    DataFunctionOutput,
     Parameter,
     function_interface_from_callable,
 )
-from snapflow.core.module import (
-    DEFAULT_LOCAL_MODULE,
-    DEFAULT_LOCAL_NAMESPACE,
-    DEFAULT_NAMESPACE,
-    SnapflowModule,
-)
+
 from snapflow.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
 
 if TYPE_CHECKING:
@@ -41,25 +36,8 @@ class InputExhaustedException(DataFunctionException):
 DataFunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    DataBlockMetadata,
-    DataBlock,
+    DataFrame, Records, DataBlockMetadata, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
-
-DEFAULT_OUTPUT_NAME = "default"
-
-
-def get_runtime_class(runtime: Optional[str]) -> Type[RuntimeClass]:
-    if runtime is None:
-        return PythonRuntimeClass
-    if (
-        "ql" in runtime.lower()
-        or "database" in runtime.lower()
-        or "postgre" in runtime.lower()
-    ):
-        return DatabaseRuntimeClass
-    return PythonRuntimeClass
 
 
 def make_function_name(function: Union[DataFunctionCallable, DataFunction, str]) -> str:
@@ -75,7 +53,7 @@ def make_function_name(function: Union[DataFunctionCallable, DataFunction, str])
     raise Exception(f"Cannot make name for function-like {function}")
 
 
-@dataclass  # (frozen=True)
+@dataclass
 class DataFunction:
     # Underscored so the decorator API can use `DataFunction`. TODO: Is there a better way / name?
     name: str
@@ -114,7 +92,7 @@ class DataFunction:
     def get_original_object(self) -> Any:
         return self._original_object or self.function_callable
 
-    def get_interface(self) -> DataFunctionInterface:
+    def get_interface(self) -> DataFunctionInterfaceCfg:
         """"""
         found_signature_interface = self._get_function_interface()
         return found_signature_interface
@@ -127,6 +105,17 @@ class DataFunction:
         #     ignore_signature=self.ignore_signature,
         # )
 
+    def to_config(self) -> DataFunctionCfg:
+        return DataFunctionCfg(
+            name=self.name,
+            namespace=self.namespace,
+            # interface=self.get_interface().to_config(), # TODO
+            required_storage_classes=self.required_storage_classes,
+            required_storage_engines=self.required_storage_engines,
+            ignore_signature=self.ignore_signature,
+            # TODO: rest
+        )
+
     @property
     def params(self) -> Dict[str, Parameter]:
         return self.get_interface().parameters
@@ -134,7 +123,7 @@ class DataFunction:
     def get_param(self, name: str) -> Parameter:
         return self.get_interface().parameters[name]
 
-    def _get_function_interface(self) -> DataFunctionInterface:
+    def _get_function_interface(self) -> DataFunctionInterfaceCfg:
         if hasattr(self.function_callable, "get_interface"):
             return self.function_callable.get_interface()  # type: ignore
         return function_interface_from_callable(self.function_callable)
@@ -221,10 +210,7 @@ def function_factory(
         else:
             namespace = namespace
         function = DataFunction(
-            name=name,
-            namespace=namespace,
-            function_callable=function_like,
-            **kwargs,
+            name=name, namespace=namespace, function_callable=function_like, **kwargs,
         )
     if namespace == DEFAULT_NAMESPACE:
         # Add to default module
@@ -370,7 +356,7 @@ class PythonCodeDataFunctionWrapper:
             raise Exception("DataFunction not found in code")
         return function
 
-    def get_interface(self) -> DataFunctionInterface:
+    def get_interface(self) -> DataFunctionInterfaceCfg:
         return self.get_function().get_interface()
 
     def __getattr__(self, name: str) -> Any:

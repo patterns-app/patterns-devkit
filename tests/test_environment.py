@@ -41,7 +41,7 @@ def test_env_init():
     env = Environment(
         f"_test_{rand_str()}",
         metadata_storage="sqlite://",
-        settings=SnapflowSettings(add_core_module=False),
+        settings=SnapflowSettings(use_global_library=False),
     )
     env_init(env)
 
@@ -50,7 +50,7 @@ def test_env_config():
     cfg = EnvironmentConfiguration(
         key=f"_test_{rand_str()}",
         metadata_storage_url="sqlite://",
-        settings=SnapflowSettings(add_core_module=False),
+        settings=SnapflowSettings(use_global_library=False),
     )
     env = Environment.from_config(cfg)
     env_init(env)
@@ -61,7 +61,7 @@ def test_multi_env():
     cfg = EnvironmentConfiguration(
         key=f"_test_{rand_str()}",
         metadata_storage_url=db_url,
-        settings=SnapflowSettings(add_core_module=False),
+        settings=SnapflowSettings(use_global_library=False),
     )
     env1 = Environment.from_config(cfg)
     with env1.md_api.begin():
@@ -71,7 +71,7 @@ def test_multi_env():
     cfg = EnvironmentConfiguration(
         key=f"_test_{rand_str()}",
         metadata_storage_url=db_url,
-        settings=SnapflowSettings(add_core_module=False),
+        settings=SnapflowSettings(use_global_library=False),
     )
     env2 = Environment.from_config(cfg)
     with env2.md_api.begin():

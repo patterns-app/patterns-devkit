@@ -4,7 +4,7 @@
 <p align="center">
   <img width="500" src="assets/snapflow.svg">
 </p>
-<h3 align="center">Composable data functions</h3>
+<h3 align="center">Composable data functions in SQL and Python</h3>
 <p>&nbsp;</p>
 
 **Snapflow** is a framework for building **functional reactive data pipelines** from modular
@@ -56,72 +56,57 @@ scale from laptop to AWS cluster.
 
 > 🚨️ &nbsp; snapflow is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️
 
-## Quick example
+## Quick start
 
 Install core library and the Stripe module:
 
-`pip install snapflow snapflow-stripe`
+`pip install snapflow snapflow-stripe` or `poetry add snapflow snapflow-stripe`
 
-Define a data function:
+Start a new `dataspace`:
+
+`snapflow new dataspace quickstart`
+
+Create our own custom data function:
+
+`snapflow new function customer_lifetime_sales`
+
+Edit `quickstart/functions/customer_lifetime_sales/customer_lifetime_sales.py`:
 
 ```python
 from snapflow import datafunction
 
 @datafunction
-def customer_lifetime_sales(txs):
+def customer_lifetime_sales(txs: DataBlock[Transaction]) -> DataFrame:
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
 ```
 
-We could define this function in equivalent sql too:
-
-```python
-from snapflow import sql_datafunction
-
-@sql_datafunction
-def customer_lifetime_sales_sql():
-  return "select customer, sum(amount) as amount from txs group by customer"
-  # Or from a separate file:
-  # return "sql/customer_lifetime_sales.sql"
-```
-
-We can connect functions as nodes in a graph. Note, we leverage the existing
+Next, we specify our graph, leveraging the existing
 `import_charges` function of the `snapflow-stripe` module.
 
-```python
-from snapflow import run, graph_from_yaml
+Edit `quickstart/dataspace.yml`:
 
-g = graph_from_yaml(
-"""
+```yaml
+storages:
+  - sqlite://snapflow_demo.db
 nodes:
   - key: stripe_charges
     function: stripe.import_charges
     params:
       api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
-  - key: accumulated_stripe_charges
-    function: core.accumulator
-    input: stripe_charges
+    accumulate: true
   - key: stripe_customer_lifetime_sales
     function: customer_lifetime_sales
-    input: accumulated_stripe_charges
-""")
-
-print(g)
+    input: stripe_charges.accumulated
 ```
 
-Then we run the graph once (time-limited for demo) and print out the final output:
+Now run the dataspace, with a node time-limit of 5 seconds:
 
-```python
-from snapflow import Environment
-from snapflow_stripe import module as stripe
+`snapflow run dataspace.yml --timelimit=5`
 
-env = Environment(modules=[stripe])
-run(g, env=env, execution_timelimit_seconds=5)
+And preview the output:
 
-# Get the final output block
-datablock = env.get_latest_output("stripe_customer_lifetime_sales", g)
-print(datablock.as_dataframe())
-```
+`snapflow output dataspace.yml stripe_customer_lifetime_sales`
 
 ## Architecture overview
 
@@ -171,7 +156,7 @@ def customer_lifetime_sales(
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")[metric].sum().reset_index()
 
-@SqlDataFunction
+@sql_datafunction
 def customer_lifetime_sales_sql():
   return """
       select
