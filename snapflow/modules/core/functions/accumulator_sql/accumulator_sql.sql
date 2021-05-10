@@ -4,7 +4,7 @@
 {% if input_objects.previous.bound_block %}
 select:T
     *
-from previous:Consumable[T]
+from previous:SelfReference[T]
 union all
 {% endif %}
 {% for block in input_objects.new.bound_stream %}

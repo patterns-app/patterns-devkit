@@ -227,6 +227,12 @@ def extract_tables(
             # Skip jinja stmt if present
             if skip_jinja(t, state):
                 continue
+            if t == "(":
+                # Handle subquery
+                if state.table_identifier_stmt:
+                    state.table_identifier_required_next = False
+                    state.table_identifier_stmt = False
+                    continue
             if token.is_keyword:
                 if t == "with":
                     state.with_identifier_required_next = True

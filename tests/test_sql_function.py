@@ -54,6 +54,32 @@ def test_sql_parse_params():
     assert not parsed.found_params
 
 
+def test_sql_parse_tables_complex():
+    sql = """
+        {% if input_objects.previous.bound_block %}
+        select:T
+            *
+        from previous:SelfReference[T]
+        union all
+        {% endif %}
+        {% for block in input_objects.new.bound_stream %}
+        select
+            *
+        -- from new:Stream[T]   <-- REQUIRED mock annotation for interface detection
+        from {{ block.as_sql_from_stmt(storage) }}
+        {% if not loop.last %}
+        union all
+        {% endif %}
+        {% endfor %}
+        """
+    parsed = extract_table_annotations(sql)
+    expected_tables = {
+        "previous": AnnotatedSqlTable(name="previous", annotation="SelfReference[T]"),
+        "new": AnnotatedSqlTable(name="new", annotation="Stream[T]"),
+    }
+    assert parsed.found_tables == expected_tables
+
+
 def test_sql_parse_tables():
     sql = """select 1 from from t1:Schema1
         join t2:Schema2
@@ -92,6 +118,28 @@ def test_sql_find_tables():
     expected_tables = {
         "t1": AnnotatedSqlTable(name="t1"),
         "t2": AnnotatedSqlTable(name="t2"),
+    }
+    assert parsed == ParsedSqlStatement(
+        original_sql=sql,
+        sql_with_jinja_vars=expected_sql,
+        found_tables=expected_tables,
+    )
+
+
+def test_sql_find_tables_subquery():
+    sql = """select 1 from t1
+        join (select 1) as b
+        -- unrelated comment with a colon: in it
+        where :param1:dtype1
+        """
+    parsed = extract_tables(sql)
+    expected_sql = """select 1 from {{ inputs['t1'] }} as t1
+        join (select 1) as b
+        -- unrelated comment with a colon: in it
+        where :param1:dtype1
+        """
+    expected_tables = {
+        "t1": AnnotatedSqlTable(name="t1"),
     }
     assert parsed == ParsedSqlStatement(
         original_sql=sql,
