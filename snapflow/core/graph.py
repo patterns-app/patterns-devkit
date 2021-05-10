@@ -271,7 +271,7 @@ def load_graph_from_dict(raw_graph: Dict[str, Any]) -> DeclaredGraph:
     g = DeclaredGraph()
     for r in raw_nodes:
         inputs = r.pop("inputs", None)
-        inpt = r.pop("inpt", None)
+        inpt = r.pop("input", None)
         if inputs and inpt:
             raise ValueError("Can't specify both `inputs` and `input`")
         elif inputs:
