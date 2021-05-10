@@ -78,13 +78,13 @@ def test_sql_parse_tables():
 
 
 def test_sql_find_tables():
-    sql = """select 1 from from t1
+    sql = """select 1 from t1
         join t2
         -- unrelated comment with a colon: in it
         where :param1:dtype1
         """
     parsed = extract_tables(sql)
-    expected_sql = """select 1 from from {{ inputs['t1'] }} as t1
+    expected_sql = """select 1 from {{ inputs['t1'] }} as t1
         join {{ inputs['t2'] }} as t2
         -- unrelated comment with a colon: in it
         where :param1:dtype1
@@ -100,8 +100,35 @@ def test_sql_find_tables():
     )
 
 
+def test_sql_find_tables_with_statement():
+    # WITH statement
+    sql = """
+        with t1 as (select 1)
+        select 1 from t1
+        join t2
+        -- unrelated comment with a colon: in it
+        where :param1:dtype1
+        """
+    parsed = extract_tables(sql)
+    expected_sql = """
+        with t1 as (select 1)
+        select 1 from t1
+        join {{ inputs['t2'] }} as t2
+        -- unrelated comment with a colon: in it
+        where :param1:dtype1
+        """
+    expected_tables = {
+        "t2": AnnotatedSqlTable(name="t2"),
+    }
+    assert parsed == ParsedSqlStatement(
+        original_sql=sql,
+        sql_with_jinja_vars=expected_sql,
+        found_tables=expected_tables,
+    )
+
+
 def test_sql_function_interface():
-    sql = """select 1 from from t1:T1
+    sql = """select 1 from t1:T1
         join t2:Any on t1.a = t2.b left join t3:T2
         on"""
     df = sql_function("s1", sql)

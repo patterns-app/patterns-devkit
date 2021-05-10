@@ -159,9 +159,7 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=sql_with_jinja_vars,
-        found_params=params,
+        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
     )
 
 
@@ -197,6 +195,7 @@ class TableParseState:
     prev_token: Optional[str] = None
     table_identifier_stmt: bool = False
     table_identifier_required_next: bool = False
+    with_identifier_required_next: bool = False
     jinja_context_cnt: int = 0
 
 
@@ -208,6 +207,7 @@ def extract_tables(
     Table aliases MUST use explicit `as`
     """
     found_tables = {}
+    with_aliases = set()
     state = TableParseState()
     new_sql: List[str] = []
     for stmt in sqlparse.parse(sql):
@@ -228,6 +228,11 @@ def extract_tables(
             if skip_jinja(t, state):
                 continue
             if token.is_keyword:
+                if t == "with":
+                    state.with_identifier_required_next = True
+                    continue
+                else:
+                    state.with_identifier_required_next = False
                 if "join" in t or "from" in t:
                     state.table_identifier_stmt = True
                     state.table_identifier_required_next = True
@@ -240,21 +245,26 @@ def extract_tables(
                         # table name mistaken for keyword
                         token.ttype = tokens.Name
             if token.ttype in tokens.Name:
+                if state.with_identifier_required_next:
+                    with_alias = str(token)
+                    with_aliases.add(with_alias)
+                    state.with_identifier_required_next = False
+                    continue
                 if state.table_identifier_stmt:
                     table_ref = str(token)
-                    found_tables[table_ref] = AnnotatedSqlTable(name=table_ref)
+                    if table_ref not in with_aliases:
+                        # Only if it's not a with alias
+                        found_tables[table_ref] = AnnotatedSqlTable(name=table_ref)
+                        if replace_with_inputs_jinja:
+                            new_sql.pop()
+                            new_sql.append(
+                                "{{ inputs['%s'] }} as %s" % (table_ref, table_ref)
+                            )
                     state.table_identifier_required_next = False
-                    if replace_with_inputs_jinja:
-                        new_sql.pop()
-                        new_sql.append(
-                            "{{ inputs['%s'] }} as %s" % (table_ref, table_ref)
-                        )
     new_sql_str = "".join(new_sql)
     new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", r"as \1", new_sql_str)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=new_sql_str,
-        found_tables=found_tables,
+        original_sql=sql, sql_with_jinja_vars=new_sql_str, found_tables=found_tables,
     )
 
 
@@ -489,11 +499,7 @@ def sql_function_decorator(
     else:
         name = sql_fn_or_function.__name__
     return sql_function_factory(
-        name=name,
-        sql=sql,
-        file=file,
-        autodetect_inputs=autodetect_inputs,
-        **kwargs,
+        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
     )
 
 
