@@ -76,6 +76,10 @@ class ParameterType(Enum):
     List = "List"
 
 
+def normalize_parameter_type(pt: str) -> str:
+    return dict(text="str", boolean="bool", number="float", integer="int",).get(pt, pt)
+
+
 @dataclass
 class ParsedAnnotation:
     input_type: Optional[InputType] = None
@@ -107,8 +111,8 @@ def parse_input_annotation(a: str) -> ParsedAnnotation:
     elif origin in [it.value for it in InputType]:
         parsed.input_type = InputType(origin)
         parsed.schema = md.get("arg")
-    elif origin in [pt.value for pt in ParameterType]:
-        parsed.parameter_type = ParameterType(origin)
+    elif normalize_parameter_type(origin) in [pt.value for pt in ParameterType]:
+        parsed.parameter_type = ParameterType(normalize_parameter_type(origin))
     else:
         raise BadAnnotationException(
             f"{origin} is not an accepted input or parameter type"
@@ -187,10 +191,7 @@ class DataFunctionOutput:
 
 
 DEFAULT_INPUT_ANNOTATION = "DataBlock"
-DEFAULT_OUTPUT = DataFunctionOutput(
-    schema_like="Any",
-    name=DEFAULT_OUTPUT_NAME,
-)
+DEFAULT_OUTPUT = DataFunctionOutput(schema_like="Any", name=DEFAULT_OUTPUT_NAME,)
 DEFAULT_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
 DEFAULT_STATE_OUTPUT = DataFunctionOutput(
@@ -341,10 +342,7 @@ def function_interface_from_callable(
             p = parameter_from_annotation(parsed, name=name, default=default)
             params[p.name] = p
         else:
-            i = function_input_from_annotation(
-                parsed,
-                name=param.name,
-            )
+            i = function_input_from_annotation(parsed, name=param.name,)
             inputs[i.name] = i
     return DataFunctionInterface(
         inputs=inputs, outputs=outputs, parameters=params, uses_context=uses_context
@@ -364,10 +362,7 @@ def function_input_from_parameter(param: inspect.Parameter) -> DataFunctionInput
             annotation = DEFAULT_INPUT_ANNOTATION
     # is_optional = param.default != inspect.Parameter.empty
     parsed = parse_input_annotation(annotation)
-    return function_input_from_annotation(
-        parsed,
-        name=param.name,
-    )
+    return function_input_from_annotation(parsed, name=param.name,)
 
 
 def function_input_from_annotation(
@@ -399,7 +394,7 @@ def function_output_from_annotation(
 
 
 def parameter_from_annotation(
-    parsed: ParsedAnnotation, name: str, default: Any
+    parsed: ParsedAnnotation, name: str, default: Any, help: str = None
 ) -> Parameter:
     return Parameter(
         name=name,
@@ -408,4 +403,5 @@ def parameter_from_annotation(
         ).value,  # TODO: standardize param datatype to enum
         required=(not parsed.optional),
         default=default,
+        help=help or "",
     )
