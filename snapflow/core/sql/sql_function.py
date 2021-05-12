@@ -6,6 +6,7 @@ from datetime import date, datetime
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from snapflow.core.sql.parser import parse_interface_from_sql, render_sql
 
 import sqlparse
 from commonmodel.base import SchemaTranslation
@@ -405,12 +406,10 @@ class SqlDataFunctionWrapper:
         storage: Storage,
         inputs: Dict[str, DataBlock] = None,
     ):
-
-        parsed = self.get_parsed_statement()
         input_sql = self.get_input_table_stmts(ctx, storage, inputs)
         sql_ctx = dict(
             ctx=ctx,
-            inputs=input_sql,
+            inputs=input_sql,  # TODO: change this
             input_objects={i.name: i for i in ctx.inputs},
             params=params_as_sql(ctx),
             storage=storage,
@@ -420,13 +419,22 @@ class SqlDataFunctionWrapper:
             #     ctx.worker.env
             # ),
         )
-        sql = compile_jinja_sql(parsed.sql_with_jinja_vars, sql_ctx)
-        return sql
+        if self.is_new_style_jinja():
+            return render_sql(self.sql, input_sql, params_as_sql(ctx), sql_ctx)
+        else:
+            parsed = self.get_parsed_statement()
+            sql = compile_jinja_sql(parsed.sql_with_jinja_vars, sql_ctx)
+            return sql
 
     def get_parsed_statement(self) -> ParsedSqlStatement:
         return parse_sql_statement(self.sql, self.autodetect_inputs)
 
+    def is_new_style_jinja(self) -> bool:
+        return "{% input " in self.sql or "{% param " in self.sql
+
     def get_interface(self) -> DataFunctionInterface:
+        if self.is_new_style_jinja():
+            return parse_interface_from_sql(self.sql)
         stmt = self.get_parsed_statement()
         return stmt.as_interface()
 

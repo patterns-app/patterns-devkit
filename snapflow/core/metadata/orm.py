@@ -87,6 +87,7 @@ def timestamp_increment_key(prefix: str = "", max_length: int = 28) -> str:
 
 class DataFormatType(types.TypeDecorator):
     impl = types.Unicode
+    cache_ok = True
 
     def __init__(self, length: int = 128):
         super().__init__(length)
