@@ -23,6 +23,7 @@ from snapflow.core.module import SnapflowModule
 from snapflow.core.node import DataBlockLog, DataFunctionLog, Node
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
+from sqlalchemy.exc import OperationalError
 
 
 def display_function_log(env: Environment):
@@ -160,8 +161,12 @@ def provide_test_storages(
         if issubclass(api_cls, DatabaseApi):
             if not api_cls.dialect_is_supported():
                 raise TestFeatureNotImplementedError(eng)
-            with api_cls.temp_local_database() as url:
-                yield Storage(url)
+            try:
+                with api_cls.temp_local_database() as url:
+                    yield Storage(url)
+            except OperationalError:  # TODO: might catch a lot of real errors?
+                raise TestFeatureNotImplementedError(eng)
+
     elif "database" in function.required_storage_classes:
         yield Storage(get_tmp_sqlite_db_url())
     else:
