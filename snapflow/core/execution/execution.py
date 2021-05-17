@@ -435,7 +435,12 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
         ):
             return True
         seconds_elapsed = (utcnow() - self.execution_start_time).total_seconds()
-        return seconds_elapsed < self.execution_context.execution_timelimit_seconds
+        should = seconds_elapsed < self.execution_context.execution_timelimit_seconds
+        if not should:
+            logger.debug(
+                f"Execution timed out after {self.execution_context.execution_timelimit_seconds} seconds"
+            )
+        return should
 
     def as_execution_result(self) -> ExecutionResult:
         input_block_counts = {}
@@ -521,8 +526,7 @@ class ExecutionManager:
                 # output_obj = local_vars[function.function_callable.__name__](
                 function_args, function_kwargs = function_ctx.get_function_args()
                 output_obj = function_ctx.function.function_callable(
-                    *function_args,
-                    **function_kwargs,
+                    *function_args, **function_kwargs,
                 )
                 if output_obj is not None:
                     self.emit_output_object(output_obj, function_ctx)
@@ -531,9 +535,7 @@ class ExecutionManager:
         return result
 
     def emit_output_object(
-        self,
-        output_obj: DataInterfaceType,
-        function_ctx: DataFunctionContext,
+        self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
     ):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):

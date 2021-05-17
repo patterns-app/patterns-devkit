@@ -8,7 +8,7 @@ from snapflow.core.function import datafunction
 from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.modules.core import module as core
 
-logger.enable("snapflow")
+# logger.enable("snapflow")
 
 
 def test_module_init():

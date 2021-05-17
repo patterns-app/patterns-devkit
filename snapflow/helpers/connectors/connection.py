@@ -23,7 +23,8 @@ from backoff import expo, on_exception
 from loguru import logger
 from ratelimit import RateLimitException, limits, sleep_and_retry
 from requests import Response
-from requests.models import HTTPError, Request
+from requests.models import Request
+from requests.exceptions import RequestException
 from snapflow.utils.typing import T, V
 
 
@@ -162,7 +163,7 @@ class HttpApiConnection:
         g = sleep_and_retry(g)
         g = on_exception(
             expo,
-            (RateLimitException, HTTPError),
+            (RateLimitException, RequestException),
             max_time=self.backoff_timeout_seconds,
             factor=4,
         )(g)

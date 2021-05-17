@@ -26,7 +26,7 @@ from tests.utils import (
     make_test_run_context,
 )
 
-logger.enable("snapflow")
+# logger.enable("snapflow")
 
 mock_dl_output = [{"f1": "2"}, {"f2": 3}]
 

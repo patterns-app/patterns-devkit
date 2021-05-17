@@ -12,7 +12,7 @@ from snapflow.core.environment import (
 from snapflow.core.graph import Graph
 from sqlalchemy.sql.expression import select
 
-logger.enable("snapflow")
+# logger.enable("snapflow")
 
 
 def env_init(env: Environment):

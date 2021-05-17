@@ -127,7 +127,7 @@ class TestCase:
 
 
 def run_test_case(case: TestCase, **kwargs):
-    logger.enable("dcp")
+    # logger.enable("dcp")
     with produce_function_output_for_static_input(
         function=case.package.function, inputs=case.inputs, **kwargs
     ) as blocks:
@@ -142,6 +142,7 @@ def run_test_case(case: TestCase, **kwargs):
                 expected.as_dataframe(output.manager.env),
                 schema=output.nominal_schema,
             )
+    # logger.disable("dcp")
 
 
 class TestFeatureNotImplementedError(Exception):

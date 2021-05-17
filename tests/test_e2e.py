@@ -22,7 +22,7 @@ from snapflow.core.sql.sql_function import sql_function_factory
 from snapflow.modules import core
 from sqlalchemy import select
 
-logger.enable("snapflow")
+# logger.enable("snapflow")
 
 Customer = create_quick_schema(
     "Customer", [("name", "Text"), ("joined", "DateTime"), ("metadata", "Json")]
