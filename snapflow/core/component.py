@@ -11,7 +11,7 @@ if TYPE_CHECKING:
         DataFunction,
     )
     from snapflow.core.module import SnapflowModule
-    from snapflow.core.models.configuration import FlowCfg
+    from snapflow.core.declarative.flow import FlowCfg
 
 
 DEFAULT_LOCAL_NAMESPACE = "_local"
@@ -105,7 +105,7 @@ class ComponentLibrary:
     def get_flow(
         self, flow_like: Union[FlowCfg, str], try_module_lookups=True
     ) -> FlowCfg:
-        from snapflow.core.models.configuration import FlowCfg
+        from snapflow.core.declarative.flow import FlowCfg
 
         if isinstance(flow_like, FlowCfg):
             return flow_like

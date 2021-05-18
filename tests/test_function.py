@@ -1,4 +1,13 @@
 from __future__ import annotations
+
+from typing import Any, Callable
+
+import pytest
+from pandas import DataFrame
+from snapflow.core.component import global_library
+from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.declarative.base import update
+from snapflow.core.declarative.execution import ExecutableCfg
 from snapflow.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     DataFunctionInputCfg,
@@ -6,12 +15,7 @@ from snapflow.core.declarative.function import (
     DataFunctionOutputCfg,
     InputType,
 )
-
-from typing import Any, Callable
-
-import pytest
-from pandas import DataFrame
-from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.execution import DataFunctionContext
 from snapflow.core.function import DataFunctionLike, datafunction
 from snapflow.core.function_interface import (
@@ -20,9 +24,11 @@ from snapflow.core.function_interface import (
     ParsedAnnotation,
     parse_input_annotation,
 )
-from snapflow.core.function_interface_manager import get_schema_translation
-from snapflow.core.graph import Graph, graph
-
+from snapflow.core.function_interface_manager import (
+    BoundInput,
+    BoundInterface,
+    get_schema_translation,
+)
 from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
 from snapflow.core.streams import StreamBuilder, block_as_stream
 from snapflow.modules import core
@@ -102,7 +108,11 @@ def function_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     pass
 
 
-def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
+def df4(
+    input: DataBlock[T],
+    dr2: DataBlock[U],
+    dr3: DataBlock[U],
+) -> DataFrame[T]:
     pass
 
 
@@ -200,48 +210,51 @@ def test_function_interface(
     val = p.get_interface()
     assert set(val.inputs) == set(expected.inputs)
     assert val.outputs == expected.outputs
-    # node = DeclaredNode(key="_test", function=function, inputs={"input": "mock"}).instantiate(
+    # node = DeclaredNode(key="_test", function="function" inputs={"input": "mock"}).instantiate(
     #     env
     # )
     # assert node.get_interface() == expected
 
 
 def test_generic_schema_resolution():
-    ec = make_test_run_context()
-    env = ec.env
-    g = Graph(env)
-    n1 = g.create_node(key="node1", function=function_generic, input="n0")
+    env = make_test_env()
+    ec = make_test_run_context(env)
+    n0 = GraphCfg(key="n0", function="function_t1_source").resolve()
+    n1 = GraphCfg(key="node1", function="function_generic", input="n0").resolve()
+    g = GraphCfg(nodes=[n0, n1])
+    g = g.resolve(env.library)
     # pi = n1.get_interface()
     with env.md_api.begin():
-        exe = ExecutableCfg(node=n1, function=n1.function, execution_context=ec)
-        im = NodeInterfaceManager(exe)
         block = DataBlockMetadata(
             nominal_schema_key="_test.TestSchema1",
             realized_schema_key="_test.TestSchema2",
         )
         env.md_api.add(block)
         env.md_api.flush([block])
-        stream = block_as_stream(block, ec)
-        bi = im.get_bound_interface({"input": stream})
+        stream = block_as_stream(block, env, ec)
+        inputs = n1.get_node_inputs(g)
+        inputs["input"] = inputs["input"].as_bound_input(bound_stream=stream)
+        bi = BoundInterface(inputs=inputs, interface=n1.get_interface())
+        next(stream)  # Must emit block to count
         assert len(bi.inputs) == 1
-        assert bi.resolve_nominal_output_schema(env) is TestSchema1
+        assert bi.resolve_nominal_output_schema() == TestSchema1.key
 
 
 def test_declared_schema_translation():
-    ec = make_test_run_context()
-    env = ec.env
-    g = Graph(env)
+    env = make_test_env()
+
     translation = {"f1": "mapped_f1"}
-    n1 = g.create_node(
+    n1 = GraphCfg(
         key="node1",
-        function=function_t1_to_t2,
+        function="function_t1_to_t2",
         input="n0",
         schema_translation=translation,
     )
-    pi = n1.get_interface()
+    pi = n1.resolve(global_library).get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
@@ -252,7 +265,7 @@ def test_declared_schema_translation():
             env,
             block.realized_schema(env),
             target_schema=env.get_schema(
-                pi.get_single_non_recursive_input().schema_key
+                pi.get_single_non_reference_input().schema_key
             ),
             declared_schema_translation=translation,
         )
@@ -260,28 +273,27 @@ def test_declared_schema_translation():
 
 
 def test_natural_schema_translation():
-    # TODO
-    ec = make_test_run_context()
-    env = ec.env
-    g = Graph(env)
+    env = make_test_env()
+
     translation = {"f1": "mapped_f1"}
-    n1 = g.create_node(
+    n1 = GraphCfg(
         key="node1",
-        function=function_t1_to_t2,
+        function="function_t1_to_t2",
         input="n0",
         schema_translation=translation,
-    )
+    ).resolve(global_library)
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
     )
     with env.md_api.begin():
         schema_translation = get_schema_translation(
             env,
             block.realized_schema(env),
             target_schema=env.get_schema(
-                pi.get_single_non_recursive_input().schema_key
+                pi.get_single_non_reference_input().schema_key
             ),
             declared_schema_translation=translation,
         )
@@ -294,34 +306,18 @@ def test_natural_schema_translation():
 
 
 def test_inputs():
-    ec = make_test_run_context()
-    env = ec.env
-    g = graph()
-    n1 = g.create_node(function=function_t1_source)
-    n2 = g.create_node(function=function_t1_to_t2, inputs={"input": n1})
-    pi = n2.instantiate(env).get_interface()
-    assert pi is not None
-    n4 = g.create_node(function=function_multiple_input)
-    n4.set_inputs({"input": n1})
-    pi = n4.instantiate(env).get_interface()
+    env = make_test_env()
+    ec = make_test_run_context(env)
+    n1 = GraphCfg(key="n1", function="function_t1_source").resolve()
+    n2 = GraphCfg(function="function_t1_to_t2", inputs={"input": "n1"}).resolve()
+    g = GraphCfg(nodes=[n1, n2])
+    pi = n2.get_interface()
     assert pi is not None
 
     # ec.graph = g.instantiate(env)
-    n1 = n1.instantiate(env)
-    n4 = n4.instantiate(env)
     with env.md_api.begin():
-        exe = Executable(node=n1, function=n1.function, execution_context=ec)
-        im = NodeInterfaceManager(exe)
-        bi = im.get_bound_interface()
-        assert bi is not None
-        exe = Executable(node=n4, function=n4.function, execution_context=ec)
-        im = NodeInterfaceManager(exe)
-        db = DataBlockMetadata(
-            nominal_schema_key="_test.TestSchema1",
-            realized_schema_key="_test.TestSchema1",
-        )
-        env.md_api.add(db)
-        bi = im.get_bound_interface({"input": StreamBuilder().as_managed_stream(ec)})
+        exe = ExecutableCfg(node_key=n1.key, graph=g, execution_config=ec)
+        bi = exe.get_bound_interface(env)
         assert bi is not None
 
 
@@ -351,45 +347,41 @@ def df2():
 
 
 def test_node_no_inputs():
-    env = make_test_env()
-    g = Graph(env)
-    df = datafunction(function_t1_source)
-    node1 = g.create_node(key="node1", function=df)
-    assert {node1: node1}[node1] is node1  # Test hash
+    node1 = GraphCfg(key="node1", function="function_t1_source").resolve()
+    # assert {node1: node1}[node1] is node1  # Test hash
     pi = node1.get_interface()
     assert pi.inputs == {}
     assert pi.outputs != {}
-    assert node1.declared_inputs == {}
+    assert node1.inputs == {}
 
 
 def test_node_inputs():
-    env = make_test_env()
-    g = Graph(env)
-    df = datafunction(function_t1_source)
-    node = g.create_node(key="node", function=df)
-    df = datafunction(function_t1_sink)
-    node1 = g.create_node(key="node1", function=df, input=node)
-    pi = node1.get_interface()
+    node = GraphCfg(key="node", function="function_t1_source")
+    node1 = GraphCfg(key="node1", function="function_t1_sink", input=node.key)
+    pi = node1.resolve().get_interface()
     assert len(pi.inputs) == 1
     assert pi.outputs == DEFAULT_OUTPUTS
-    assert list(node1.declared_inputs.keys()) == ["input"]
+    assert list(node1.get_inputs().keys()) == ["stdin"]
 
 
 def test_node_stream_inputs():
     pi = datafunction(function_stream).get_interface()
     assert len(pi.inputs) == 1
-    assert pi.get_single_non_recursive_input().input_type == InputType("Stream")
+    assert pi.get_single_non_reference_input().input_type == InputType("Stream")
 
 
 def test_node_params():
     env = make_test_env()
-    g = Graph(env)
     param_vals = []
 
+    @datafunction
     def function_ctx(ctx: DataFunctionContext, test: str):
         param_vals.append(test)
 
-    n = g.create_node(key="ctx", function=function_ctx, params={"test": 1})
+    env.add_function(function_ctx)
+
+    n = GraphCfg(key="ctx", function="function_ctx", params={"test": 1})
+    g = GraphCfg(nodes=[n]).resolve()
     env.run_node(n, g)
     assert param_vals == [1]
 
@@ -398,12 +390,12 @@ def test_any_schema_interface():
     env = make_test_env()
     env.add_module(core)
 
+    @datafunction
     def function_any(input: DataBlock) -> DataFrame:
         pass
 
-    df = datafunction(function_any)
-    pi = df.get_interface()
-    assert pi.get_single_non_recursive_input().schema_key == "Any"
+    pi = function_any.get_interface()
+    assert pi.get_single_non_reference_input().schema_key == "Any"
     assert pi.get_default_output().schema_key == "Any"
 
 

@@ -5,11 +5,6 @@ from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from functools import partial
 from pathlib import Path
-from snapflow.core.declarative.function import (
-    DEFAULT_OUTPUT_NAME,
-    DataFunctionInterfaceCfg,
-    InputType,
-)
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 from snapflow.core.sql.parser import parse_interface_from_sql, render_sql
 
@@ -25,8 +20,13 @@ from snapflow.core.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
 )
+from snapflow.core.declarative.function import (
+    DEFAULT_OUTPUT_NAME,
+    DataFunctionInterfaceCfg,
+    InputType,
+)
 from snapflow.core.environment import Environment
-from snapflow.core.execution.execution import DataFunctionContext
+from snapflow.core.execution import DataFunctionContext
 from snapflow.core.function import DataFunction, DataInterfaceType, function_factory
 from snapflow.core.function_interface import (
     DEFAULT_OUTPUTS,
@@ -151,7 +151,9 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
+        original_sql=sql,
+        sql_with_jinja_vars=sql_with_jinja_vars,
+        found_params=params,
     )
 
 
@@ -264,7 +266,9 @@ def extract_tables(
     new_sql_str = "".join(new_sql)
     new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", r"as \1", new_sql_str, flags=re.I)
     return ParsedSqlStatement(
-        original_sql=sql, sql_with_jinja_vars=new_sql_str, found_tables=found_tables,
+        original_sql=sql,
+        sql_with_jinja_vars=new_sql_str,
+        found_tables=found_tables,
     )
 
 
@@ -403,8 +407,8 @@ class SqlDataFunctionWrapper:
         input_sql = self.get_input_table_stmts(ctx, storage, inputs)
         sql_ctx = dict(
             ctx=ctx,
-            inputs=input_sql,  # TODO: change this
-            input_objects={i.name: i for i in ctx.inputs},
+            inputs=input_sql,  # TODO: change this (??)
+            input_objects={i.name: i for i in ctx.inputs.values()},
             params=params_as_sql(ctx),
             storage=storage,
             # TODO: we haven't logged the input blocks yet (in the case of a stream) so we can't
@@ -507,7 +511,11 @@ def sql_function_decorator(
     else:
         name = sql_fn_or_function.__name__
     return sql_function_factory(
-        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
+        name=name,
+        sql=sql,
+        file=file,
+        autodetect_inputs=autodetect_inputs,
+        **kwargs,
     )
 
 

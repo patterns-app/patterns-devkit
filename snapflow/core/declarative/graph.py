@@ -1,32 +1,37 @@
 from __future__ import annotations
 
-from snapflow.core.declarative.base import FrozenPydanticBase
-from snapflow.core.declarative.function import (
-    DataFunctionCfg,
-    DataFunctionInputCfg,
-    DataFunctionInterfaceCfg,
-)
 from typing import (
-    Set,
     TYPE_CHECKING,
     Any,
     Dict,
     Iterator,
     List,
     Optional,
+    Set,
     Tuple,
     TypeVar,
     Union,
 )
-from dcp.utils.common import as_identifier, remove_dupes
+
 import networkx as nx
+from attr import validate
 from commonmodel import Schema
+from dcp.utils.common import as_identifier, remove_dupes
+from pydantic import validator
 from snapflow.core.component import ComponentLibrary, global_library
+from snapflow.core.declarative.base import FrozenPydanticBase
+from snapflow.core.declarative.function import (
+    DataFunctionCfg,
+    DataFunctionInputCfg,
+    DataFunctionInterfaceCfg,
+)
 
 if TYPE_CHECKING:
     from snapflow.core.data_block import DataBlock
     from snapflow.core.streams import StreamBuilder, DataBlockStream
     from snapflow.core.declarative.flow import FlowCfg
+    from snapflow.core.declarative.execution import NodeInputCfg
+
 
 NxNode = Tuple[str, Dict[str, Dict]]
 NxAdjacencyList = List[NxNode]
@@ -49,9 +54,16 @@ class GraphCfg(FrozenPydanticBase):
     schema_translation: Optional[Dict[str, str]] = None
     schema_translations: Dict[str, Dict[str, str]] = {}
 
-    def resolve(self, lib: ComponentLibrary) -> GraphCfg:
+    @validator("nodes")
+    def unique_nodes(cls, nodes: List[GraphCfg]):
+        assert len(nodes) == len(set(n.key for n in nodes)), "Node keys must be unique"
+        return nodes
+
+    def resolve(self, lib: Optional[ComponentLibrary] = None) -> GraphCfg:
         if self.is_resolved():
             return self
+        if lib is None:
+            lib = global_library
         d = self.dict()
         nodes = self.nodes
         if self.flow:
@@ -208,6 +220,8 @@ class GraphCfg(FrozenPydanticBase):
         return self.function_cfg.interface
 
     def get_node_inputs(self, graph: GraphCfg) -> Dict[str, NodeInputCfg]:
+        from snapflow.core.declarative.execution import NodeInputCfg
+
         assert self.is_function_node()  # TODO: can actually support for graph too!
         assert self.is_resolved()
         declared_inputs = self.assign_inputs()
@@ -221,7 +235,7 @@ class GraphCfg(FrozenPydanticBase):
                 name=inpt.name,
                 input=inpt,
                 input_node=input_node,
-                schema_translation=self.get_schema_translations.get(
+                schema_translation=self.get_schema_translations().get(
                     inpt.name
                 ),  # TODO: doesn't handle stdin
             )
@@ -269,38 +283,3 @@ class GraphCfg(FrozenPydanticBase):
 
 
 GraphCfg.update_forward_refs()
-
-
-class NodeInputCfg(FrozenPydanticBase):
-    name: str
-    input: DataFunctionInputCfg
-    input_node: GraphCfg
-    schema_translation: Optional[Dict[str, str]] = None
-    bound_stream: Optional[DataBlockStream] = None
-    bound_block: Optional[DataBlock] = None
-
-    def as_stream_builder(self) -> StreamBuilder:
-        from snapflow.core.streams import StreamBuilder
-
-        return StreamBuilder().filter_inputs([self.input_node.key])
-
-    def is_bound(self) -> bool:
-        return self.bound_stream is not None or self.bound_block is not None
-
-    def get_bound_block_property(self, prop: str):
-        if self.bound_block:
-            return getattr(self.bound_block, prop)
-        if self.bound_stream:
-            emitted = self.bound_stream.get_emitted_managed_blocks()
-            if not emitted:
-                # if self.bound_stream.count():
-                #     logger.warning("No blocks emitted yet from non-empty stream")
-                return None
-            return getattr(emitted[0], prop)
-        return None
-
-    def get_bound_nominal_schema(self) -> Optional[Schema]:
-        return self.get_bound_block_property("nominal_schema")
-
-    def get_bound_realized_schema(self) -> Optional[Schema]:
-        return self.get_bound_block_property("nominal_schema")

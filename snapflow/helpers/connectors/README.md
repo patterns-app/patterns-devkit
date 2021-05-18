@@ -120,7 +120,9 @@ these tradeoffs.
   - response_has_retryable_error
   - response_has_error
 
-## Records generation behavior
+## Records generation and response handling
+
+Scenarios:
 
 - paginated records response
   - page based
@@ -131,9 +133,13 @@ these tradeoffs.
 - per-record request and response
 - bulk download (csv, gz, etc)
 
-- get records obj from response
+- get records obj from req response
+- get next request from req response and records
+- records exhausted from req response records
 
 ## Refresh behavior
+
+Modes:
 
 - Get all every time (no state)
   - least efficient but sometimes only option
@@ -153,9 +159,37 @@ Refresh variables:
 - modified_at_is_filterable_and_sortable
 - curing window
 - minimum refresh time (source won't update more frequently than this?)
+- update params with filter and sort
 - get latest created at from records ()
 - set latest created at
 - get latest modified at from records ()
 - set latest modified at
 - get state
 - update state
+
+StripeApiConnection:
+baseurl: ...
+...
+
+StripeChargesConnection:
+baseurl:...
+endpoint: charges
+
+StripePaginatedJsonHandler(PaginatedJsonHandler)
+pagination method = "page"
+
+    def get records obj ()
+
+    get next request():
+        has more
+
+StripeImportAll(ImportAll)
+...
+
+StripeImportNewlyCreated(ImportNewlyCreated)
+created_at_field = created
+
+    def add filters and sorts (params, latest created at)
+        pass
+
+    def get latest created at from records

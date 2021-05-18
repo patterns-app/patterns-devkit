@@ -1,21 +1,13 @@
 from __future__ import annotations
 
 from enum import Enum
-from snapflow.core.declarative.function import DataFunctionCfg
-from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.declarative.base import FrozenPydanticBase
-from typing import (
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import Dict, Iterator, List, Optional, Tuple, TypeVar, Union
+
 from commonmodel import Schema
 from snapflow.core.component import ComponentLibrary, global_library
-
+from snapflow.core.declarative.base import FrozenPydanticBase
+from snapflow.core.declarative.function import DataFunctionCfg
+from snapflow.core.declarative.graph import GraphCfg
 
 NxNode = Tuple[str, Dict[str, Dict]]
 NxAdjacencyList = List[NxNode]
@@ -37,10 +29,12 @@ class DataspaceCfg(FrozenPydanticBase):
     metadata_storage: Optional[str] = None
     default_storage: Optional[str] = None
     storages: List[str] = []
-    snapflow: Optional[SnapflowCfg] = None
-    graph: GraphCfg
+    snapflow: SnapflowCfg = SnapflowCfg()
+    graph: GraphCfg = GraphCfg()
 
-    def resolve(self, lib: ComponentLibrary) -> DataspaceCfg:
+    def resolve(self, lib: ComponentLibrary = None) -> DataspaceCfg:
+        if lib is None:
+            lib = global_library
         d = self.dict()
         d["graph"] = self.graph.resolve(lib)
         # d["library"] = lib.to_config() # TODO: too big to serialize? And for what reason?

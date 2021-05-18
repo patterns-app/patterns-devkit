@@ -1,13 +1,13 @@
 from __future__ import annotations
+from snapflow.core.function_interface_manager import BoundInput, BoundInterface
 from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction, get_state
-from snapflow.core.declarative.graph import GraphCfg, NodeInputCfg
-from snapflow.core.declarative.base import FrozenPydanticBase
+from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.declarative.execution import (
-    BoundInterfaceCfg,
     CumulativeExecutionResult,
     ExecutableCfg,
     ExecutionCfg,
     ExecutionResult,
+    NodeInputCfg,
 )
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.dataspace import DataspaceCfg
@@ -41,6 +41,7 @@ from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from snapflow.core.data_block import (
     Alias,
+    DataBlock,
     DataBlockMetadata,
     ManagedDataBlock,
     StoredDataBlockMetadata,
@@ -117,8 +118,8 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
     node: GraphCfg
     executable: ExecutableCfg
     metadata_api: MetadataApi
-    inputs: Dict[str, NodeInputCfg]
-    bound_interface: BoundInterfaceCfg
+    inputs: Dict[str, BoundInput]
+    bound_interface: BoundInterface
     function_log: DataFunctionLog
     execution_config: ExecutionCfg
     input_blocks_processed: Dict[str, Set[DataBlockMetadata]] = field(
@@ -409,10 +410,12 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
     ):
         self.resolve_new_object_with_data_block(sdb, name, storage)
         if sdb.data_format is None:
-            sdb.data_format = (
-                self.execution_config.get_target_storage()
-                or sdb.storage.storage_engine.get_natural_format()
-            )
+            if self.execution_config.target_data_format:
+                sdb.data_format = get_format_for_nickname(
+                    self.execution_config.target_data_format
+                )
+            else:
+                sdb.data_format = sdb.storage.storage_engine.get_natural_format()
             # fmt = infer_format_for_name(name, storage)
             # # if sdb.data_format and sdb.data_format != fmt:
             # #     raise Exception(f"Format mismatch {fmt} - {sdb.data_format}")
@@ -582,9 +585,8 @@ class ExecutionManager:
 
     @contextmanager
     def start_function_run(
-        self, node: GraphCfg, bound_interface: BoundInterfaceCfg
+        self, node: GraphCfg, bound_interface: BoundInterface
     ) -> Iterator[DataFunctionContext]:
-        from snapflow.core.graph import GraphMetadata
 
         # assert self.current_runtime is not None, "Runtime not set"
         md = self.env.get_metadata_api()
@@ -689,3 +691,26 @@ def execute_to_exhaustion(
         if cum_result.error:
             break
     return cum_result
+
+
+def get_latest_output(env: Environment, node: GraphCfg) -> Optional[DataBlock]:
+    from snapflow.core.data_block import DataBlockMetadata
+
+    with env.metadata_api.begin():
+        block: DataBlockMetadata = (
+            env.md_api.execute(
+                select(DataBlockMetadata)
+                .join(DataBlockLog)
+                .join(DataFunctionLog)
+                .filter(
+                    DataBlockLog.direction == Direction.OUTPUT,
+                    DataFunctionLog.node_key == node.key,
+                )
+                .order_by(DataBlockLog.created_at.desc())
+            )
+            .scalars()
+            .first()
+        )
+        if block is None:
+            return None
+    return block.as_managed_data_block(env)

@@ -1,33 +1,28 @@
 from __future__ import annotations
 
-from enum import Enum
-from snapflow.core.function_interface_manager import bind_inputs
-from snapflow.core.environment import Environment
 import traceback
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
 
 from commonmodel.base import Schema
+from dcp.storage.base import Storage
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
+from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     DataFunctionInputCfg,
     DataFunctionInterfaceCfg,
 )
-
-from dcp.storage.base import Storage
-from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
-from snapflow.core.declarative.dataspace import DataspaceCfg
-from snapflow.core.declarative.graph import GraphCfg, NodeInputCfg
-from typing import (
-    Dict,
-    Set,
-    TYPE_CHECKING,
-    List,
-    Optional,
-    Union,
-)
+from snapflow.core.declarative.graph import GraphCfg
+from snapflow.core.environment import Environment
+from sqlalchemy.sql.expression import select
 
 if TYPE_CHECKING:
     from snapflow.core.streams import DataBlockStream, StreamBuilder
+    from snapflow.core.function_interface_manager import (
+        BoundInput,
+        BoundInterface,
+    )
 
 
 class ExecutionCfg(FrozenPydanticBase):
@@ -61,48 +56,41 @@ class ExecutableCfg(FrozenPydanticBase):
     def node(self) -> GraphCfg:
         return self.graph.get_node(self.node_key)
 
-    def get_bound_interface(self, env: Environment) -> BoundInterfaceCfg:
+    def get_bound_interface(self, env: Environment) -> BoundInterface:
+        from snapflow.core.function_interface_manager import BoundInterface, bind_inputs
+
         node_inputs = self.node.get_node_inputs(self.graph)
         bound_inputs = bind_inputs(env, self, node_inputs)
-        return BoundInterfaceCfg(
-            inputs=bound_inputs, interface=self.node.get_interface(),
+        return BoundInterface(
+            inputs=bound_inputs,
+            interface=self.node.get_interface(),
         )
 
 
-class BoundInterfaceCfg(FrozenPydanticBase):
-    inputs: Dict[str, NodeInputCfg]
-    interface: DataFunctionInterfaceCfg
+class NodeInputCfg(FrozenPydanticBase):
+    name: str
+    input: DataFunctionInputCfg
+    input_node: Optional[GraphCfg] = None
+    schema_translation: Optional[Dict[str, str]] = None
 
-    def inputs_as_kwargs(self) -> Dict[str, Union[DataBlock, DataBlockStream]]:
-        assert all([i.is_bound() for i in self.inputs.values()])
-        return {
-            i.name: i.bound_stream if i.is_stream else i.bound_block
-            for i in self.inputs.values()
-        }
+    def as_stream_builder(self) -> StreamBuilder:
+        from snapflow.core.streams import StreamBuilder
 
-    def non_reference_bound_inputs(self) -> List[NodeInputCfg]:
-        return [
-            i
-            for i in self.inputs.values()
-            if i.bound_stream is not None and not i.input.is_reference
-        ]
+        return StreamBuilder().filter_inputs([self.input_node.key])
 
-    def resolve_nominal_output_schema(self) -> Optional[str]:
-        output = self.interface.get_default_output()
-        if not output:
-            return None
-        if not output.is_generic:
-            return output.schema_key
-        output_generic = output.schema_key
-        for node_input in self.inputs.values():
-            if not node_input.input.is_generic:
-                continue
-            if node_input.input.schema_key == output_generic:
-                schema = node_input.get_bound_nominal_schema()
-                # We check if None -- there may be more than one input with same generic, we'll take any that are resolvable
-                if schema is not None:
-                    return schema.key
-        raise Exception(f"Unable to resolve generic '{output_generic}'")
+    def as_bound_input(
+        self, bound_block: DataBlock = None, bound_stream: DataBlockStream = None
+    ) -> BoundInput:
+        from snapflow.core.function_interface_manager import BoundInput
+
+        return BoundInput(
+            name=self.name,
+            input=self.input,
+            input_node=self.input_node,
+            schema_translation=self.schema_translation,
+            bound_block=bound_block,
+            bound_stream=bound_stream,
+        )
 
 
 class ExecutionResult(PydanticBase):
@@ -116,7 +104,9 @@ class ExecutionResult(PydanticBase):
     @classmethod
     def empty(cls) -> ExecutionResult:
         return ExecutionResult(
-            inputs_bound=[], non_reference_inputs_bound=[], input_block_counts={},
+            inputs_bound=[],
+            non_reference_inputs_bound=[],
+            input_block_counts={},
         )
 
     def set_error(self, e: Exception):
@@ -175,4 +165,3 @@ class CumulativeExecutionResult(PydanticBase):
             mds = block.as_managed_data_block(env)
             blocks.append(mds)
         return blocks
-

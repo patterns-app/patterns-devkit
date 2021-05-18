@@ -4,9 +4,9 @@ from pathlib import Path
 
 from loguru import logger
 from snapflow import datafunction
-from snapflow.core.execution.execution import DataFunctionContext
+from snapflow.core.declarative.function import DataFunctionInterfaceCfg
+from snapflow.core.execution import DataFunctionContext
 from snapflow.core.function_package import DataFunctionPackage
-from snapflow.core.models.configuration import DataFunctionInterfaceCfg
 
 logger.enable("snapflow")
 
@@ -52,11 +52,3 @@ def test_sql_function():
     assert i.uses_context
     readme = mffunction.load_readme()
     assert len(readme) > 5
-
-
-# def test_from_module():
-#     from . import _test_module
-
-# functions = DataFunctionPackage.all_from_root_module(_test_module)
-# print(functions)
-# assert len(functions) == 2

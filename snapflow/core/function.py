@@ -3,20 +3,19 @@ from __future__ import annotations
 import inspect
 from dataclasses import asdict, dataclass, field
 from functools import partial
-from snapflow.core.component import DEFAULT_LOCAL_NAMESPACE, DEFAULT_NAMESPACE
-from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
-from snapflow.core.declarative.function import DataFunctionCfg, DataFunctionInterfaceCfg
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
 from commonmodel.base import SchemaLike
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
+from snapflow.core.component import DEFAULT_LOCAL_NAMESPACE, DEFAULT_NAMESPACE
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.declarative.function import DataFunctionCfg, DataFunctionInterfaceCfg
 from snapflow.core.function_interface import (  # merge_declared_interface_with_signature_interface,
     Parameter,
     function_interface_from_callable,
 )
-
+from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
 
 if TYPE_CHECKING:
@@ -36,7 +35,10 @@ class InputExhaustedException(DataFunctionException):
 DataFunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame, Records, DataBlockMetadata, DataBlock,
+    DataFrame,
+    Records,
+    DataBlockMetadata,
+    DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -109,7 +111,7 @@ class DataFunction:
         return DataFunctionCfg(
             name=self.name,
             namespace=self.namespace,
-            # interface=self.get_interface().to_config(), # TODO
+            interface=self.get_interface(),
             required_storage_classes=self.required_storage_classes,
             required_storage_engines=self.required_storage_engines,
             ignore_signature=self.ignore_signature,
@@ -210,7 +212,10 @@ def function_factory(
         else:
             namespace = namespace
         function = DataFunction(
-            name=name, namespace=namespace, function_callable=function_like, **kwargs,
+            name=name,
+            namespace=namespace,
+            function_callable=function_like,
+            **kwargs,
         )
     if namespace == DEFAULT_NAMESPACE:
         # Add to default module
