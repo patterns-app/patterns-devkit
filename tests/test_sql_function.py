@@ -409,7 +409,7 @@ def test_sql_function_interface_complex_jinja():
     pi = df.get_interface()
     assert pi is not None
     assert len(pi.inputs) == 1
-    assert pi.get_single_non_recursive_input().is_generic
-    assert pi.get_single_non_recursive_input().schema_key == "T"
+    assert pi.get_single_non_reference_input().is_generic
+    assert pi.get_single_non_reference_input().schema_key == "T"
     assert pi.get_default_output().is_generic
     assert pi.get_default_output() is not None

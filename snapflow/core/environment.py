@@ -1,9 +1,8 @@
 from __future__ import annotations
-from importlib import import_module
 
 import logging
 import os
-
+from importlib import import_module
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
 
@@ -56,10 +55,11 @@ class Environment:
     ):
         from snapflow.modules import core
         from snapflow.core.runtime import ensure_runtime
+        from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
 
+        self.dataspace = dataspace or DataspaceCfg()
         self.key = self.dataspace.key or "default"
         self.settings = self.dataspace.snapflow or SnapflowCfg()
-        self.dataspace = dataspace or DataspaceCfg()
         metadata_storage = self.dataspace.metadata_storage
         if metadata_storage is None:
             metadata_storage = DEFAULT_METADATA_STORAGE_URL
@@ -81,7 +81,7 @@ class Environment:
             self.library = library
         self.add_module(self._local_module)
         self._local_python_storage = new_local_python_storage()
-        self.add_storage(self._local_python_storage)
+        # self.add_storage(self._local_python_storage)
 
     def get_metadata_api(self) -> MetadataApi:
         return self.metadata_api
@@ -175,6 +175,8 @@ class Environment:
             return ensure_storage(self.dataspace.default_storage)
         if len(self.dataspace.storages) == 1:
             return ensure_storage(self.dataspace.storages[0])
+        if not self.dataspace.storages:
+            return self._local_python_storage
         for s in self.dataspace.storages:
             s = ensure_storage(s)
             if s.url == self.metadata_storage.url:
@@ -187,9 +189,11 @@ class Environment:
     def get_execution_config(
         self, target_storage: Storage = None, **kwargs
     ) -> ExecutionCfg:
+        from snapflow.core.declarative.execution import ExecutionCfg
+
         if target_storage is None:
             target_storage = self.get_default_storage()
-        target_storage = self.add_storage(target_storage)
+        # target_storage = self.add_storage(target_storage)
         if issubclass(target_storage.storage_engine.storage_class, MemoryStorageClass):
             # TODO: handle multiple targets better
             logging.warning(
@@ -200,11 +204,16 @@ class Environment:
             dataspace=self.dataspace,
             local_storage=self._local_python_storage.url,
             target_storage=target_storage.url,
-            storages=self.dataspace.storages
+            storages=[s.url for s in self.get_storages()] + [target_storage.url]
             # abort_on_function_error=self.settings.abort_on_function_error,
         )
         args.update(**kwargs)
         return ExecutionCfg(**args)
+
+    def get_storages(self) -> List[Storage]:
+        return [Storage(s) for s in self.dataspace.storages] + [
+            self._local_python_storage
+        ]
 
     # @contextmanager
     # def run(
@@ -228,7 +237,9 @@ class Environment:
     def get_executable(
         self, graph: GraphCfg, node: GraphCfg, target_storage: Storage = None, **kwargs
     ) -> ExecutableCfg:
-        assert graph.is_flattened()
+        from snapflow.core.declarative.execution import ExecutableCfg
+
+        graph = graph.resolve_and_flatten(self.library)
 
         return ExecutableCfg(
             node_key=node.key,
@@ -238,42 +249,18 @@ class Environment:
             ),
         )
 
-    # def _get_graph_and_node(
-    #     self,
-    #     node_like: Optional[NodeLike] = None,
-    #     graph: Optional[Union[Graph, DeclaredGraph]] = None,
-    # ) -> Tuple[Optional[Node], Graph]:
-    #     from snapflow.core.graph import DEFAULT_GRAPH, DeclaredGraph, Graph
-    #     from snapflow.core.node import Node, DeclaredNode
-
-    #     node = None
-    #     if graph is None:
-    #         if hasattr(node_like, "graph"):
-    #             graph = node_like.graph
-    #         else:
-    #             graph = DEFAULT_GRAPH
-    #     if isinstance(graph, DeclaredGraph):
-    #         graph = graph.instantiate(self)
-    #     if node_like is not None:
-    #         node = node_like
-    #         if isinstance(node, str):
-    #             node = graph.get_node(node_like)
-    #         if isinstance(node, DeclaredNode):
-    #             node = node.instantiate(self, graph)
-    #         assert isinstance(node, Node), node
-    #     assert isinstance(graph, Graph)
-    #     return node, graph
-
     def produce(
         self,
         graph: GraphCfg,
-        node: GraphCfg = None,
+        node: Union[GraphCfg, str] = None,
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> List[DataBlock]:
         from snapflow.core.execution import execute_to_exhaustion
 
         graph = graph.resolve_and_flatten(self.library)
+        if isinstance(node, str):
+            node = graph.get_node(node)
         assert node.is_function_node()
 
         if node is not None:
@@ -284,7 +271,7 @@ class Environment:
         for dep in dependencies:
             result = execute_to_exhaustion(
                 self,
-                self.get_executable(dep, **execution_kwargs),
+                self.get_executable(graph, dep, **execution_kwargs),
                 to_exhaustion=to_exhaustion,
             )
         if result:
@@ -303,15 +290,20 @@ class Environment:
 
         logger.debug(f"Running: {node}")
         node = graph.get_node(node)
+        node.resolve(self.library)
+        graph.resolve(self.library)
         result = execute_to_exhaustion(
             self,
-            self.get_executable(node, **execution_kwargs),
+            self.get_executable(graph, node, **execution_kwargs),
             to_exhaustion=to_exhaustion,
         )
         return result
 
     def run_graph(
-        self, graph: GraphCfg, to_exhaustion: bool = True, **execution_kwargs: Any,
+        self,
+        graph: GraphCfg,
+        to_exhaustion: bool = True,
+        **execution_kwargs: Any,
     ):
         from snapflow.core.execution import execute_to_exhaustion
 
@@ -326,99 +318,10 @@ class Environment:
                 to_exhaustion=to_exhaustion,
             )
 
-    # def get_latest_output(
-    #     self, node: NodeLike, graph: Union[Graph, DeclaredGraph] = None
-    # ) -> Optional[DataBlock]:
-    #     with self.metadata_api.begin():
-    #         n, graph = self._get_graph_and_node(node, graph)
-    #         return n.latest_output(self)
+    def get_latest_output(self, node: GraphCfg) -> Optional[DataBlock]:
+        from snapflow.core.execution import get_latest_output
 
-    # def add_storage(
-    #     self, storage_like: Union[Storage, str], add_runtime: bool = True
-    # ) -> Storage:
-
-    #     if isinstance(storage_like, str):
-    #         sr = Storage.from_url(storage_like)
-    #     elif isinstance(storage_like, Storage):
-    #         sr = storage_like
-    #     else:
-    #         raise TypeError
-    #     if sr.url not in [s.url for s in self.storages]:
-    #         self.storages.append(sr)
-    #     # if add_runtime:
-    #     #     from snapflow.core.runtime import Runtime
-
-    #     #     try:
-    #     #         rt = Runtime.from_storage(sr)
-    #     #         self.add_runtime(rt)
-    #     #     except ValueError:
-    #     #         pass
-    #     return sr
-
-    # def add_runtime(self, runtime_like: Union[Runtime, str]) -> Runtime:
-    #     from snapflow.core.runtime import Runtime
-
-    #     if isinstance(runtime_like, str):
-    #         sr = Runtime.from_url(runtime_like)
-    #     elif isinstance(runtime_like, Runtime):
-    #         sr = runtime_like
-    #     else:
-    #         raise TypeError
-    #     if sr.url not in [s.url for s in self.runtimes]:
-    #         self.runtimes.append(sr)
-    #     return sr
-
-    # def serialize_run_node(
-    #     self,
-    #     node_like: Optional[NodeLike] = None,
-    #     graph: Union[Graph, DeclaredGraph] = None,
-    #     to_exhaustion: bool = True,
-    #     **execution_kwargs: Any,
-    # ) -> Optional[DataBlock]:
-    #     node, graph = self._get_graph_and_node(node_like, graph)
-    #     assert node is not None
-
-    #     logger.debug(f"Running: {node_like}")
-    #     sess = self._get_new_metadata_session()  # hanging session
-    #     with self.run(graph, **execution_kwargs) as em:
-    #         return em.execute(node, to_exhaustion=to_exhaustion, output_session=sess)
-
-    # TODO
-    # def validate_and_clean_data_blocks(
-    #     self, delete_memory=True, delete_intermediate=False, force: bool = False
-    # ):
-    #     from snapflow.core.data_block import (
-    #         DataBlockMetadata,
-    #         StoredDataBlockMetadata,
-    #     )
-
-    #     if delete_memory:
-    #         deleted = (
-    #             self.session.query(StoredDataBlockMetadata)
-    #             .filter(StoredDataBlockMetadata.storage_url.startswith("memory:"))
-    #             .delete(False)
-    #         )
-    #         print(f"{deleted} Memory StoredDataBlocks deleted")
-
-    #     for block in self.session.query(DataBlockMetadata).filter(
-    #         ~DataBlockMetadata.stored_data_blocks.any()
-    #     ):
-    #         print(f"#{block.id} {block.nominal_schema_key} is orphaned! SAD")
-    #     if delete_intermediate:
-    #         # TODO: does no checking if they are unprocessed or not...
-    #         if not force:
-    #             d = input(
-    #                 "Are you sure you want to delete ALL intermediate DataBlocks? There is no undoing this operation. y/N?"
-    #             )
-    #             if not d or d.lower()[0] != "y":
-    #                 return
-    #         # Delete blocks with no DataSet
-    #         cnt = (
-    #             self.session.query(DataBlockMetadata)
-    #             .filter(~DataBlockMetadata.data_sets.any(),)
-    #             .update({DataBlockMetadata.deleted: True}, synchronize_session=False)
-    #         )
-    #         print(f"{cnt} intermediate DataBlocks deleted")
+        return get_latest_output(self, node)
 
 
 # Shortcuts

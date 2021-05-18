@@ -1,26 +1,27 @@
 from __future__ import annotations
 
 from enum import Enum
-from snapflow.core.data_block import Reference
-from snapflow.core.declarative.base import FrozenPydanticBase
 from typing import (
-    Set,
     TYPE_CHECKING,
     Any,
     Dict,
     Iterator,
     List,
     Optional,
+    Set,
     Tuple,
     TypeVar,
     Union,
 )
-from dcp.utils.common import remove_dupes
+
 import networkx as nx
 from commonmodel import Schema
+from dcp.utils.common import remove_dupes
 from loguru import logger
 from pydantic import Field
 from snapflow.core.component import ComponentLibrary, global_library
+from snapflow.core.data_block import Reference
+from snapflow.core.declarative.base import FrozenPydanticBase
 from snapflow.core.schema import is_generic
 
 if TYPE_CHECKING:
@@ -146,9 +147,11 @@ class DataFunctionInterfaceCfg(FrozenPydanticBase):
     def get_stdin_name(self) -> Optional[str]:
         if self.stdin:
             return self.stdin
-        nonref = self.get_single_non_reference_input()
-        if nonref:
+        try:
+            nonref = self.get_single_non_reference_input()
             return nonref.name
+        except AssertionError:
+            pass
         inp = self.get_single_input()
         if inp:
             return inp.name
@@ -202,3 +205,14 @@ class DataFunctionCfg(FrozenPydanticBase):
             d["interface"] = self.interface.resolve(lib)
         return DataFunctionCfg(**d)
 
+
+class DataFunctionPackageCfg(FrozenPydanticBase):
+    root_path: str
+    function: DataFunctionCfg
+    # local_vars: Dict = None
+    # root_module: ModuleType
+    tests: List[Dict] = []
+    function_python_name: Optional[str] = None
+    readme_name: str = "README.md"
+    # python_requirements_path: str = None
+    # docker_file_path: str = None

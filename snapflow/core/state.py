@@ -6,10 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.environment import Environment
-from snapflow.core.metadata.orm import (
-    SNAPFLOW_METADATA_TABLE_PREFIX,
-    BaseModel,
-)
+from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.expression import select, update
@@ -26,13 +23,60 @@ class NodeState(BaseModel):
     __table_args__ = (UniqueConstraint("env_id", "node_key"),)
 
     def __repr__(self):
-        return self._repr(node_key=self.node_key, state=self.state,)
+        return self._repr(
+            node_key=self.node_key,
+            state=self.state,
+        )
 
 
 def get_state(env: Environment, node_key: str) -> Optional[NodeState]:
     return env.md_api.execute(
         select(NodeState).filter(NodeState.node_key == node_key)
     ).scalar_one_or_none()
+
+
+def _reset_state(env: Environment, node_key: str):
+    """
+    Resets the node's state only.
+    This is usually not something you want to do by itself, but
+    instead as part of a full reset.
+    """
+    state = get_state(env, node_key)
+    if state is not None:
+        env.md_api.delete(state)
+
+
+def _invalidate_datablocks(env: Environment, node_key: str):
+    """"""
+    dbl_ids = [
+        r
+        for r in env.md_api.execute(
+            select(DataBlockLog.id)
+            .join(DataFunctionLog)
+            .filter(DataFunctionLog.node_key == node_key)
+        )
+        .scalars()
+        .all()
+    ]
+    env.md_api.execute(
+        update(DataBlockLog)
+        .filter(DataBlockLog.id.in_(dbl_ids))
+        .values({"invalidated": True})
+        .execution_options(synchronize_session="fetch")  # TODO: or false?
+    )
+
+
+def reset(env: Environment, node_key: str):
+    """
+    Resets the node, meaning all state is cleared, and all OUTPUT and INPUT datablock
+    logs are invalidated. Output datablocks are NOT deleted.
+    NB: If downstream nodes have already processed an output datablock,
+    this will have no effect on them.
+    TODO: consider "cascading reset" for downstream recursive functions (which will still have
+    accumulated output from this node)
+    """
+    _reset_state(env, node_key)
+    _invalidate_datablocks(env, node_key)
 
 
 class DataFunctionLog(BaseModel):
@@ -54,7 +98,6 @@ class DataFunctionLog(BaseModel):
     def __repr__(self):
         return self._repr(
             id=self.id,
-            graph_id=self.graph_id,
             node_key=self.node_key,
             function_key=self.function_key,
             runtime_url=self.runtime_url,
@@ -139,4 +182,3 @@ class DataBlockLog(BaseModel):
             s += f"{dbl.direction.value:9}{str(dbl.data_block.updated_at):22}"
             s += f"{dbl.data_block.nominal_schema_key:20}{dbl.data_block.realized_schema_key:20}\n"
         return s
-

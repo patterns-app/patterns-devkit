@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: 4dc990565caf
+Revision ID: 7d5638b5d74d
 Revises:
-Create Date: 2021-04-21 21:31:07.318403
+Create Date: 2021-05-17 20:55:42.613348
 
 """
 import snapflow
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "4dc990565caf"
+revision = "7d5638b5d74d"
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -33,6 +33,24 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(
+        "_snapflow_data_function_log",
+        sa.Column("env_id", sa.String(length=64), nullable=True),
+        sa.Column("created_at", sa.DateTime(), nullable=True),
+        sa.Column("updated_at", sa.DateTime(), nullable=True),
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("node_key", sa.String(length=128), nullable=False),
+        sa.Column("node_start_state", sa.JSON(), nullable=True),
+        sa.Column("node_end_state", sa.JSON(), nullable=True),
+        sa.Column("function_key", sa.String(length=128), nullable=False),
+        sa.Column("function_params", sa.JSON(), nullable=True),
+        sa.Column("runtime_url", sa.String(length=128), nullable=True),
+        sa.Column("queued_at", sa.DateTime(), nullable=True),
+        sa.Column("started_at", sa.DateTime(), nullable=True),
+        sa.Column("completed_at", sa.DateTime(), nullable=True),
+        sa.Column("error", sa.JSON(), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_table(
         "_snapflow_generated_schema",
         sa.Column("env_id", sa.String(length=64), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=True),
@@ -40,16 +58,6 @@ def upgrade():
         sa.Column("key", sa.String(length=128), nullable=False),
         sa.Column("definition", sa.JSON(), nullable=True),
         sa.PrimaryKeyConstraint("key"),
-    )
-    op.create_table(
-        "_snapflow_graph_metadata",
-        sa.Column("env_id", sa.String(length=64), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=True),
-        sa.Column("updated_at", sa.DateTime(), nullable=True),
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("hash", sa.String(length=128), nullable=True),
-        sa.Column("adjacency", sa.JSON(), nullable=True),
-        sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(
         "_snapflow_node_state",
@@ -63,25 +71,28 @@ def upgrade():
         sa.UniqueConstraint("env_id", "node_key"),
     )
     op.create_table(
-        "_snapflow_data_function_log",
+        "_snapflow_data_block_log",
         sa.Column("env_id", sa.String(length=64), nullable=True),
         sa.Column("created_at", sa.DateTime(), nullable=True),
         sa.Column("updated_at", sa.DateTime(), nullable=True),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("graph_id", sa.String(length=128), nullable=False),
-        sa.Column("node_key", sa.String(length=128), nullable=False),
-        sa.Column("node_start_state", sa.JSON(), nullable=True),
-        sa.Column("node_end_state", sa.JSON(), nullable=True),
-        sa.Column("function_key", sa.String(length=128), nullable=False),
-        sa.Column("function_params", sa.JSON(), nullable=True),
-        sa.Column("runtime_url", sa.String(length=128), nullable=True),
-        sa.Column("queued_at", sa.DateTime(), nullable=True),
-        sa.Column("started_at", sa.DateTime(), nullable=True),
-        sa.Column("completed_at", sa.DateTime(), nullable=True),
-        sa.Column("error", sa.JSON(), nullable=True),
+        sa.Column("function_log_id", sa.Integer(), nullable=False),
+        sa.Column("data_block_id", sa.String(length=128), nullable=False),
+        sa.Column("stream_name", sa.String(length=128), nullable=True),
+        sa.Column(
+            "direction",
+            sa.Enum("INPUT", "OUTPUT", name="direction", native_enum=False),
+            nullable=False,
+        ),
+        sa.Column("processed_at", sa.DateTime(), nullable=False),
+        sa.Column("invalidated", sa.Boolean(), nullable=True),
         sa.ForeignKeyConstraint(
-            ["graph_id"],
-            ["_snapflow_graph_metadata.hash"],
+            ["data_block_id"],
+            ["_snapflow_data_block_metadata.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["function_log_id"],
+            ["_snapflow_data_function_log.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -125,43 +136,16 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("env_id", "name"),
     )
-    op.create_table(
-        "_snapflow_data_block_log",
-        sa.Column("env_id", sa.String(length=64), nullable=True),
-        sa.Column("created_at", sa.DateTime(), nullable=True),
-        sa.Column("updated_at", sa.DateTime(), nullable=True),
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column("function_log_id", sa.Integer(), nullable=False),
-        sa.Column("data_block_id", sa.String(length=128), nullable=False),
-        sa.Column("stream_name", sa.String(length=128), nullable=True),
-        sa.Column(
-            "direction",
-            sa.Enum("INPUT", "OUTPUT", name="direction", native_enum=False),
-            nullable=False,
-        ),
-        sa.Column("processed_at", sa.DateTime(), nullable=False),
-        sa.Column("invalidated", sa.Boolean(), nullable=True),
-        sa.ForeignKeyConstraint(
-            ["data_block_id"],
-            ["_snapflow_data_block_metadata.id"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["function_log_id"],
-            ["_snapflow_data_function_log.id"],
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
     # ### end Alembic commands ###
 
 
 def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_table("_snapflow_data_block_log")
     op.drop_table("_snapflow_alias")
     op.drop_table("_snapflow_stored_data_block_metadata")
-    op.drop_table("_snapflow_data_function_log")
+    op.drop_table("_snapflow_data_block_log")
     op.drop_table("_snapflow_node_state")
-    op.drop_table("_snapflow_graph_metadata")
     op.drop_table("_snapflow_generated_schema")
+    op.drop_table("_snapflow_data_function_log")
     op.drop_table("_snapflow_data_block_metadata")
     # ### end Alembic commands ###

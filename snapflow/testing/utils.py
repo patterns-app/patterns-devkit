@@ -1,7 +1,4 @@
 from __future__ import annotations
-from snapflow.core.declarative.dataspace import DataspaceCfg
-from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
-from snapflow.core.state import DataBlockLog
 
 import tempfile
 from contextlib import contextmanager
@@ -19,9 +16,13 @@ from dcp.utils.data import read_csv, read_json, read_raw_string_csv
 from dcp.utils.pandas import assert_dataframes_are_almost_equal
 from loguru import logger
 from pandas import DataFrame
-from snapflow import DataBlock, DataFunction, Environment, Graph
+from snapflow import DataBlock, DataFunction, Environment
+from snapflow.core.declarative.dataspace import DataspaceCfg
+from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
+from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.function_package import DataFunctionPackage
 from snapflow.core.module import SnapflowModule
+from snapflow.core.state import DataBlockLog
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
 from sqlalchemy.exc import OperationalError
@@ -191,18 +192,20 @@ def produce_function_output_for_static_input(
     with provide_test_storages(function, target_storage) as target_storage:
         if env is None:
             db = get_tmp_sqlite_db_url()
-            ds = DataspaceCfg(metdata_storage=db, storages=[target_storage.url])
+            ds = DataspaceCfg(
+                metadata_storage=db,
+                storages=[target_storage.url] if target_storage else [],
+            )
             env = Environment(dataspace=ds)
         if module:
             env.add_module(module)
         with env.md_api.begin():
-            g = Graph(env)
             input_datas = inputs
-            input_nodes: Dict[str, Node] = {}
+            input_nodes: Dict[str, GraphCfg] = {}
             pi = function.get_interface()
             if not isinstance(inputs, dict):
-                assert len(pi.get_non_recursive_inputs()) == 1
-                input_datas = {pi.get_single_non_recursive_input().name: inputs}
+                # assert len(pi.get_non_reference_inputs()) == 1
+                input_datas = {pi.get_single_input().name: inputs}
             for inpt in pi.inputs.values():
                 if inpt.is_self_reference:
                     continue
@@ -211,7 +214,7 @@ def produce_function_output_for_static_input(
                 if isinstance(input_data, str):
                     input_data = DataInput(data=input_data)
                 assert isinstance(input_data, DataInput)
-                n = g.create_node(
+                n = GraphCfg(
                     key=f"_input_{inpt.name}",
                     function="core.import_dataframe",
                     params={
@@ -220,13 +223,17 @@ def produce_function_output_for_static_input(
                     },
                 )
                 input_nodes[inpt.name] = n
-            test_node = g.create_node(
+            test_node = GraphCfg(
                 key=f"{function.name}",
-                function=function,
-                params=params,
-                inputs=input_nodes,
+                function=function.key,
+                params=params or {},
+                inputs={k: i.key for k, i in input_nodes.items()},
             )
+            graph = GraphCfg(nodes=[test_node] + list(input_nodes.values()))
             blocks = env.produce(
-                test_node, to_exhaustion=False, target_storage=target_storage
+                graph=graph,
+                node=test_node,
+                to_exhaustion=False,
+                target_storage=target_storage,
             )
             yield blocks

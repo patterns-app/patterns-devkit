@@ -1,5 +1,7 @@
 from typing import Dict
-from snapflow.core.models.configuration import GraphCfg, update
+
+from snapflow.core.declarative.base import update
+from snapflow.core.declarative.graph import GraphCfg
 
 
 def flatten_sub_node(cfg: GraphCfg, parent_key: str) -> GraphCfg:
@@ -48,7 +50,6 @@ def flatten_graph_config(config: GraphCfg) -> GraphCfg:
             if not parent.nodes:
                 continue
             for input_name, input_node_key in parent.get_inputs().items():
-                print("finding", parent.key, input_name)
                 if input_name == "stdin":
                     assert (
                         parent.stdin_key is not None
@@ -58,7 +59,6 @@ def flatten_graph_config(config: GraphCfg) -> GraphCfg:
                 # input_name_path = ".".join(input_name.split(".")[1:]) or "stdin"
                 sub_input_name = parent.key + "." + input_name
                 for key, sub_node in flattened_nodes.items():
-                    print("\t", sub_input_name, key)
                     if sub_input_name.startswith(key):
                         sub_node = update_sub_node_inputs(
                             sub_node, parent.key, input_name, input_node_key

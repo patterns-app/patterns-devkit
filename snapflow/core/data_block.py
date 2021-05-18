@@ -78,7 +78,9 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
+        self,
+        env: Environment,
+        schema_translation: Optional[SchemaTranslation] = None,
     ):
         mgr = DataBlockManager(env, self, schema_translation=schema_translation)
         return ManagedDataBlock(
@@ -317,7 +319,7 @@ class DataBlockManager:
         self.schema_translation = schema_translation
 
     def __str__(self):
-        return f"DRM: {self.data_block}, Local: {self.env._local_python_storage}, rest: {self.env.storages}"
+        return f"DRM: {self.data_block}, Local: {self.env._local_python_storage}, rest: {self.env.get_storages()}"
 
     # def get_runtime_storage(self) -> Optional[Storage]:
     #     if self.ctx.current_runtime is None:
@@ -367,7 +369,7 @@ class DataBlockManager:
             block=self.data_block,
             storage=target_storage,
             fmt=fmt,
-            eligible_storages=self.env.storages,
+            eligible_storages=self.env.get_storages(),
         )
         return sdb
 
