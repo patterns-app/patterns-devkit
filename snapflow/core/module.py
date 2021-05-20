@@ -113,12 +113,14 @@ class SnapflowModule:
         p = self.process_function(function_like)
         self.validate_key(p)
         self.library.add_function(p)
+        global_library.add_function(p)
         return p
 
     def add_schema(self, schema_like: SchemaLike) -> Schema:
         schema = self.process_schema(schema_like)
         self.validate_key(schema)
         self.library.add_schema(schema)
+        global_library.add_schema(schema)
         return schema
 
     def process_function(

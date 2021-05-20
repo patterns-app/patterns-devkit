@@ -35,7 +35,12 @@ re_output_type_hint = re.compile(
 
 
 def normalize_parameter_type(pt: str) -> str:
-    return dict(text="str", boolean="bool", number="float", integer="int",).get(pt, pt)
+    return dict(
+        text="str",
+        boolean="bool",
+        number="float",
+        integer="int",
+    ).get(pt, pt)
 
 
 @dataclass

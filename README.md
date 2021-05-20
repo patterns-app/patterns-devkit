@@ -8,7 +8,7 @@
 <p>&nbsp;</p>
 
 **Snapflow** is a framework for building **functional reactive data pipelines** from modular
-components. It lets developers write gradually-typed pure `datafunctions` in **Python or SQL**
+components. It lets developers write gradually-typed pure `data functions` in **Python or SQL**
 that operate reactively on `datablocks`, immutable sets of data records whose
 structure and semantics are described by flexible `schemas`.
 These functions can be composed into simple or complex data
@@ -21,7 +21,7 @@ This functional reactive framework provides several benefits:
   for clean declarative flows of data. Mix full rebuilds and incremental updates
   easily and safely.
 
-- **Reusable components** — `datafunctions` can be easily plugged together, shared and
+- **Reusable components** — `datafunctions` and `flows` -- pre-built cloneable graphs -- can be easily plugged together, shared and
   reused across projects. Some examples:
 
   - [Stripe](https://github.com/kvh/snapflow-stripe.git)
@@ -43,7 +43,7 @@ This functional reactive framework provides several benefits:
   run the same data operation on many major database vendors (postgres, mysql, snowflake, bigquery, redshift),
   and file systems (local, S3, etc), or data format, whether it's csv, json, or apache arrow.
 
-- **Testability** — DataFunctions provide explicit test
+- **Testability** — Data functions provide explicit test
   inputs and the expected output under various data scenarios — a **data pipeline unit test**.
 
 - **High performance** — Datablock immutability means snapflow can
@@ -62,7 +62,7 @@ Install core library and the Stripe module:
 
 `pip install snapflow snapflow-stripe` or `poetry add snapflow snapflow-stripe`
 
-Start a new `dataspace`:
+Start a new `dataspace` named `quickstart`:
 
 `snapflow new dataspace quickstart`
 
@@ -73,7 +73,10 @@ Create our own custom data function:
 Edit `quickstart/functions/customer_lifetime_sales/customer_lifetime_sales.py`:
 
 ```python
-from snapflow import datafunction
+from __future__ import annotations
+from pandas import DataFrame
+from snapflow import datafunction, DataBlock
+
 
 @datafunction
 def customer_lifetime_sales(txs: DataBlock[Transaction]) -> DataFrame:
@@ -84,29 +87,29 @@ def customer_lifetime_sales(txs: DataBlock[Transaction]) -> DataFrame:
 Next, we specify our graph, leveraging the existing
 `import_charges` function of the `snapflow-stripe` module.
 
-Edit `quickstart/dataspace.yml`:
+Edit `snapflow.yml`:
 
 ```yaml
 storages:
   - sqlite://snapflow_demo.db
-nodes:
-  - key: stripe_charges
-    function: stripe.import_charges
-    params:
-      api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
-    accumulate: true
-  - key: stripe_customer_lifetime_sales
-    function: customer_lifetime_sales
-    input: stripe_charges.accumulated
+graph:
+  nodes:
+    - key: stripe_charges
+      function: stripe.import_charges
+      params:
+        api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
+    - key: stripe_customer_lifetime_sales
+      function: customer_lifetime_sales
+      input: stripe_charges
 ```
 
 Now run the dataspace, with a node time-limit of 5 seconds:
 
-`snapflow run dataspace.yml --timelimit=5`
+`snapflow run --timelimit=5`
 
 And preview the output:
 
-`snapflow output dataspace.yml stripe_customer_lifetime_sales`
+`snapflow output stripe_customer_lifetime_sales`
 
 ## Architecture overview
 
@@ -268,41 +271,6 @@ no annotated `schemas`. Snapflow `schemas` are a powerful mechanism for producin
 components and building maintainable large-scale data projects and ecosystems. They are always
 optional though, and should be used when the utility they provide out-weighs any friction.
 
-### Streams
-
-Datablock `streams` connect nodes in the function graph. By default every node's output is a simple
-stream of datablocks, consumed by one or more other downstream nodes. Stream **operators** allow
-you to manipulate these streams:
-
-```python
-from snapflow import node
-from snapflow.operators import merge, filter
-
-n1 = node(source1)
-n2 = node(source2)
- # Merge two or more streams into one
-combined = merge(n1, n2)
-# Filter a stream
-big_blocks_only = filter(combined, function=lambda block: block.count() > 1000)
-# Set the stream as an input
-n3 = node(do_something, input=big_blocks_only)
-```
-
-Common operators include `latest`, `merge`, `filter`. It's simple to create your own:
-
-```python
-@operator
-def sample(stream: Stream, sample_rate: float = .5) -> Stream:
-    for block in stream:
-        if random.random() < sample_rate:
-            yield block
-```
-
-#### Operators vs functions
-
-It's important to note that streams, unlike functions, never _create_ new datablocks nor have any
-effect on what is stored on disk. They only alter _which_ datablocks end up as input to a node.
-
 ## Other concepts
 
 ### Consistency and Immutability
@@ -361,35 +329,18 @@ makes it simple for anyone to reuse your components by installing via pip/poetry
 
 ### Creating a snapflow module
 
-Start by creating a new python project
-
-`poetry new snapflow-mymodule`
-
-`cd snapflow-mymodule`
-
-`poetry add snapflow`
-
-Then you may need to remove the folder poetry created:
-
-`rm -r snapflow_mymodule`
-
-Now we can create our snapflow module:
-
 `snapflow new module snapflow_mymodule`
 
 This will create the following structure:
 
 ```
-snapflow-mymodule/
-  pyproject.toml
-  README.rst
-  snapflow_mymodule/
-    __init__.py
-    functions/
-      __init__.py
-    schemas/
-  tests/
-    test_mymodule.py
+snapflow_mymodule/
+  __init__.py
+  functions/
+  schemas/
+  flows/
+tests/
+  test_mymodule.py
 ```
 
 ### Creating a new data function
@@ -401,7 +352,7 @@ Now that you have a snapflow module, you can create your own functions:
 Which results in this file structure:
 
 ```
-snapflow-mymodule/snapflow_mymodule/functions/
+snapflow_mymodule/functions/
   __init__.py
   my_function/
     __init__.py

@@ -1,16 +1,4 @@
 from __future__ import annotations
-from snapflow.core.function_interface_manager import BoundInput, BoundInterface
-from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction, get_state
-from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.declarative.execution import (
-    CumulativeExecutionResult,
-    ExecutableCfg,
-    ExecutionCfg,
-    ExecutionResult,
-    NodeInputCfg,
-)
-from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
-from snapflow.core.declarative.dataspace import DataspaceCfg
 
 import traceback
 from collections import abc, defaultdict
@@ -48,15 +36,25 @@ from snapflow.core.data_block import (
     get_datablock_id,
     get_stored_datablock_id,
 )
+from snapflow.core.declarative.dataspace import DataspaceCfg
+from snapflow.core.declarative.execution import (
+    CumulativeExecutionResult,
+    ExecutableCfg,
+    ExecutionCfg,
+    ExecutionResult,
+    NodeInputCfg,
+)
+from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
+from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 from snapflow.core.function import (
     DataFunction,
     DataInterfaceType,
     InputExhaustedException,
 )
-
+from snapflow.core.function_interface_manager import BoundInput, BoundInterface
 from snapflow.core.metadata.api import MetadataApi
-
+from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction, get_state
 from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.utils.output import cf, error_symbol, success_symbol
 from sqlalchemy.sql.expression import select
@@ -561,7 +559,8 @@ class ExecutionManager:
                 # output_obj = local_vars[function.function_callable.__name__](
                 function_args, function_kwargs = function_ctx.get_function_args()
                 output_obj = function_ctx.function.function_callable(
-                    *function_args, **function_kwargs,
+                    *function_args,
+                    **function_kwargs,
                 )
                 if output_obj is not None:
                     self.emit_output_object(output_obj, function_ctx)
@@ -570,7 +569,9 @@ class ExecutionManager:
         return result
 
     def emit_output_object(
-        self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
+        self,
+        output_obj: DataInterfaceType,
+        function_ctx: DataFunctionContext,
     ):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):

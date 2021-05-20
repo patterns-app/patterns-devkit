@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from snapflow.api import Input
-from snapflow.core.function_interface import (
-    DEFAULT_OUTPUTS,
-    DataFunctionInput,
-    DataFunctionInterface,
-    InputType,
-    Parameter,
+from snapflow.core.declarative.function import (
+    DataFunctionInputCfg,
+    DataFunctionInterfaceCfg,
 )
+from snapflow.core.function_interface import DEFAULT_OUTPUTS, InputType, Parameter
 from snapflow.core.sql.parser import parse_interface_from_sql, render_sql
 from snapflow.core.sql.sql_function import (
     AnnotatedParam,
@@ -117,18 +115,22 @@ def test_sql_parse_new_style_jinja():
     where col = {% param p1 text 0 %}
     """
     dfi = parse_interface_from_sql(sql)
-    assert dfi == DataFunctionInterface(
+    assert dfi == DataFunctionInterfaceCfg(
         inputs={
-            "orders": DataFunctionInput(
-                name="orders", schema_like="TestSchema", input_type=InputType.Stream,
+            "orders": DataFunctionInputCfg(
+                name="orders",
+                schema_key="TestSchema",
+                input_type=InputType.Stream,
             ),
-            "customers": DataFunctionInput(
-                name="customers", schema_like="Any", input_type=InputType.Reference,
+            "customers": DataFunctionInputCfg(
+                name="customers",
+                schema_key="Any",
+                input_type=InputType.Reference,
             ),
         },
         outputs=DEFAULT_OUTPUTS,
         parameters={
-            "p1": Parameter("p1", "str", default=0, required=True)
+            "p1": Parameter(name="p1", datatype="str", default=0, required=True)
         },  # TODO: required ... with default?
         uses_context=True,
     )
@@ -139,7 +141,11 @@ def test_sql_render_new_style_jinja():
     select * from {% input orders %}
     where col = {% param p1 text 0 %}
     """
-    rendered = render_sql(sql, dict(orders="orders_table"), dict(p1="'val1'"),)
+    rendered = render_sql(
+        sql,
+        dict(orders="orders_table"),
+        dict(p1="'val1'"),
+    )
     expected = """
     select * from orders_table
     where col = 'val1'

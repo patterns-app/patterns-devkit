@@ -113,7 +113,9 @@ class Environment:
         except KeyError:
             schema = self.get_generated_schema(schema_like)
             if schema is None:
-                raise KeyError(schema_like)
+                raise KeyError(
+                    f"Schema '{schema_like}' not found (available namespaces: {self.library.namespace_precedence})"
+                )
             return schema
 
     def add_schema(self, schema: Schema):
@@ -326,7 +328,8 @@ class Environment:
 
 # Shortcuts
 def produce(
-    *args,
+    graph: GraphCfg,
+    node: Union[str, GraphCfg],
     env: Optional[Environment] = None,
     modules: Optional[List[SnapflowModule]] = None,
     **kwargs: Any,
@@ -336,11 +339,12 @@ def produce(
     if modules is not None:
         for module in modules:
             env.add_module(module)
-    return env.produce(*args, **kwargs)
+    return env.produce(graph, node, **kwargs)
 
 
 def run_node(
-    *args,
+    node: Union[str, GraphCfg],
+    graph: GraphCfg,
     env: Optional[Environment] = None,
     modules: Optional[List[SnapflowModule]] = None,
     **kwargs: Any,
@@ -350,11 +354,11 @@ def run_node(
     if modules is not None:
         for module in modules:
             env.add_module(module)
-    return env.run_node(*args, **kwargs)
+    return env.run_node(node, graph, **kwargs)
 
 
 def run_graph(
-    *args,
+    graph: GraphCfg,
     env: Optional[Environment] = None,
     modules: Optional[List[SnapflowModule]] = None,
     **kwargs: Any,
@@ -364,7 +368,7 @@ def run_graph(
     if modules is not None:
         for module in modules:
             env.add_module(module)
-    return env.run_graph(*args, **kwargs)
+    return env.run_graph(graph, **kwargs)
 
 
 def run(

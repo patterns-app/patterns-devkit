@@ -23,8 +23,8 @@ from backoff import expo, on_exception
 from loguru import logger
 from ratelimit import RateLimitException, limits, sleep_and_retry
 from requests import Response
-from requests.models import Request
 from requests.exceptions import RequestException
+from requests.models import Request
 from snapflow.utils.typing import T, V
 
 

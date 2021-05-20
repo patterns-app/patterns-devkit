@@ -8,7 +8,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Uni
 from commonmodel.base import SchemaLike
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
-from snapflow.core.component import DEFAULT_LOCAL_NAMESPACE, DEFAULT_NAMESPACE
+from snapflow.core.component import (
+    DEFAULT_LOCAL_NAMESPACE,
+    DEFAULT_NAMESPACE,
+    global_library,
+)
 from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.declarative.function import DataFunctionCfg, DataFunctionInterfaceCfg
 from snapflow.core.function_interface import (  # merge_declared_interface_with_signature_interface,
@@ -35,10 +39,7 @@ class InputExhaustedException(DataFunctionException):
 DataFunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    DataBlockMetadata,
-    DataBlock,
+    DataFrame, Records, DataBlockMetadata, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -78,6 +79,8 @@ class DataFunction:
 
     # TODO: runtime engine eg "mysql>=8.0", "python==3.7.4"  ???
     # TODO: runtime dependencies
+    def _post_init(self, *args, **kwargs):
+        global_library.add_function(self)
 
     @property
     def key(self) -> str:
@@ -212,10 +215,7 @@ def function_factory(
         else:
             namespace = namespace
         function = DataFunction(
-            name=name,
-            namespace=namespace,
-            function_callable=function_like,
-            **kwargs,
+            name=name, namespace=namespace, function_callable=function_like, **kwargs,
         )
     if namespace == DEFAULT_NAMESPACE:
         # Add to default module
