@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Iterator, Optional, Tuple, Type
+from typing import TYPE_CHECKING, Any, Generic, Iterator, Optional, Tuple, Type, Union
 
 from commonmodel.base import Schema, SchemaKey, SchemaTranslation
 from dcp.data_copy.graph import StorageFormat
@@ -319,7 +319,7 @@ class DataBlockManager:
         self.schema_translation = schema_translation
 
     def __str__(self):
-        return f"DRM: {self.data_block}, Local: {self.env._local_python_storage}, rest: {self.env.storages}"
+        return f"DRM: {self.data_block}, Local: {self.env._local_python_storage}, rest: {self.env.get_storages()}"
 
     # def get_runtime_storage(self) -> Optional[Storage]:
     #     if self.ctx.current_runtime is None:
@@ -369,7 +369,7 @@ class DataBlockManager:
             block=self.data_block,
             storage=target_storage,
             fmt=fmt,
-            eligible_storages=self.env.storages,
+            eligible_storages=self.env.get_storages(),
         )
         return sdb
 
@@ -468,6 +468,12 @@ class DataBlockManager:
     #     )
     #     return convert_sdb(self.ctx.env, in_sdb, conversion_path,
     #     storage)
+
+
+# Type aliases
+SelfReference = Union[DataBlock, None]
+Reference = DataBlock
+Consumable = DataBlock
 
 
 # def create_data_block_from_records(

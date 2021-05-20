@@ -23,17 +23,9 @@ from snapflow.core.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
 )
+from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
-from snapflow.core.function_interface_manager import get_schema_translation
-from snapflow.core.graph import Graph
-from snapflow.core.node import (
-    DataBlockLog,
-    DataFunctionLog,
-    DeclaredNode,
-    Direction,
-    Node,
-    NodeLike,
-)
+from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction
 from sqlalchemy import and_, not_
 from sqlalchemy.engine import Result
 from sqlalchemy.orm import Query
@@ -41,8 +33,9 @@ from sqlalchemy.sql.expression import select
 from sqlalchemy.sql.selectable import Select
 
 if TYPE_CHECKING:
-    from snapflow.core.execution.executable import ExecutionContext
     from snapflow.core.operators import Operator, BoundOperator
+    from snapflow.core.declarative.execution import ExecutionCfg
+    from snapflow.core.function_interface_manager import get_schema_translation
 
 
 def ensure_data_block_id(
@@ -68,8 +61,9 @@ def ensure_schema_key(schema: SchemaLike) -> str:
     return schema
 
 
-def ensure_node_key(node: NodeLike) -> str:
-    if isinstance(node, Node) or isinstance(node, DeclaredNode):
+def ensure_node_key(node: Union[GraphCfg, str]) -> str:
+    if isinstance(node, GraphCfg):
+        assert node.key
         return node.key
     return node
 
@@ -95,12 +89,12 @@ class StreamBuilderConfiguration:
 
 
 def to_stream_builder(
-    nodes: Union[NodeLike, List[NodeLike]] = None,
+    nodes: List[str] = None,
     schemas: List[SchemaLike] = None,
     storages: List[Storage] = None,
     schema: SchemaLike = None,
     storage: Storage = None,
-    unprocessed_by: Node = None,
+    unprocessed_by: str = None,
     data_block: Union[DataBlockMetadata, DataBlock, str] = None,
     allow_cycle: bool = False,
     operators: List[BoundOperator] = None,
@@ -131,6 +125,9 @@ stream = to_stream_builder
 
 class StreamBuilder:
     """"""
+
+    # TODO: refactor this? unnecessarily brittle,
+    # can just attach functions that modify queryset, don't need all these specific methods?
 
     def __init__(
         self,
@@ -189,10 +186,10 @@ class StreamBuilder:
         return self._filters.node_keys
 
     def filter_unprocessed(
-        self, unprocessed_by: Node, allow_cycle=False
+        self, unprocessed_by: str, allow_cycle=False
     ) -> StreamBuilder:
         return self.clone(
-            unprocessed_by_node_key=unprocessed_by.key,
+            unprocessed_by_node_key=unprocessed_by,
             allow_cycle=allow_cycle,
         )
 
@@ -203,18 +200,18 @@ class StreamBuilder:
     ) -> Select:
         if not self._filters.unprocessed_by_node_key:
             return query
-        if self._filters.allow_cycle:
-            # Only exclude blocks processed as INPUT
-            filter_clause = and_(
-                DataBlockLog.direction == Direction.INPUT,
-                DataFunctionLog.node_key == self._filters.unprocessed_by_node_key,
-            )
-        else:
-            # No block cycles allowed
-            # Exclude blocks processed as INPUT and blocks outputted
-            filter_clause = (
-                DataFunctionLog.node_key == self._filters.unprocessed_by_node_key
-            )
+        # if self._filters.allow_cycle:
+        # Only exclude blocks processed as INPUT
+        filter_clause = and_(
+            DataBlockLog.direction == Direction.INPUT,
+            DataFunctionLog.node_key == self._filters.unprocessed_by_node_key,
+        )
+        # else:
+        #     # No block cycles allowed
+        #     # Exclude blocks processed as INPUT and blocks outputted
+        #     filter_clause = (
+        #         DataFunctionLog.node_key == self._filters.unprocessed_by_node_key
+        #     )
         already_processed_drs = (
             Query(DataBlockLog.data_block_id)
             .join(DataFunctionLog)
@@ -224,10 +221,10 @@ class StreamBuilder:
         )
         return query.filter(not_(DataBlockMetadata.id.in_(already_processed_drs)))
 
-    def get_inputs(self, g: Graph) -> List[Node]:
-        return [g.get_node(c) for c in self._filters.node_keys]
+    # def get_inputs(self, g: Graph) -> List[Node]:
+    #     return [g.get_node(c) for c in self._filters.node_keys]
 
-    def filter_inputs(self, inputs: Union[NodeLike, List[NodeLike]]) -> StreamBuilder:
+    def filter_inputs(self, inputs: Union[str, List[str]]) -> StreamBuilder:
         return self.clone(node_keys=[ensure_node_key(n) for n in ensure_list(inputs)])
 
     def _filter_inputs(
@@ -242,6 +239,7 @@ class StreamBuilder:
             .join(DataFunctionLog)
             .filter(
                 DataBlockLog.direction == Direction.OUTPUT,
+                # DataBlockLog.stream_name == stream_name,
                 DataFunctionLog.node_key.in_(self._filters.node_keys),
             )
             .filter(DataBlockLog.invalidated == False)  # noqa
@@ -267,8 +265,8 @@ class StreamBuilder:
     def filter_schema(self, schema: SchemaLike) -> StreamBuilder:
         return self.filter_schemas(ensure_list(schema))
 
-    def filter_storages(self, storages: List[Storage]) -> StreamBuilder:
-        return self.clone(storage_urls=[s.url for s in storages])
+    def filter_storages(self, storages: List[str]) -> StreamBuilder:
+        return self.clone(storage_urls=storages)
 
     def _filter_storages(self, env: Environment, query: Select) -> Select:
         if not self._filters.storage_urls:
@@ -300,7 +298,7 @@ class StreamBuilder:
         self,
         env: Environment,
         block: DataBlockMetadata,
-        node: Node,
+        node: str,
     ) -> bool:
         blocks = self.filter_unprocessed(node)
         q = blocks.get_query(env)
@@ -315,12 +313,14 @@ class StreamBuilder:
 
     def as_managed_stream(
         self,
-        ctx: ExecutionContext,
+        env: Environment,
+        cfg: ExecutionCfg,
         declared_schema: Optional[Schema] = None,
         declared_schema_translation: Optional[Dict[str, str]] = None,
     ) -> ManagedDataBlockStream:
         return ManagedDataBlockStream(
-            ctx,
+            env,
+            cfg,
             self,
             declared_schema=declared_schema,
             declared_schema_translation=declared_schema_translation,
@@ -335,23 +335,28 @@ def block_as_stream_builder(data_block: DataBlockMetadata) -> StreamBuilder:
 
 def block_as_stream(
     data_block: DataBlockMetadata,
-    ctx: ExecutionContext,
+    env: Environment,
+    cfg: ExecutionCfg,
     declared_schema: Optional[Schema] = None,
     declared_schema_translation: Optional[Dict[str, str]] = None,
 ) -> DataBlockStream:
     stream = block_as_stream_builder(data_block)
-    return stream.as_managed_stream(ctx, declared_schema, declared_schema_translation)
+    return stream.as_managed_stream(
+        env, cfg, declared_schema, declared_schema_translation
+    )
 
 
 class ManagedDataBlockStream:
     def __init__(
         self,
-        ctx: ExecutionContext,
+        env: Environment,
+        cfg: ExecutionCfg,
         stream_builder: StreamBuilder,
         declared_schema: Optional[Schema] = None,
         declared_schema_translation: Optional[Dict[str, str]] = None,
     ):
-        self.ctx = ctx
+        self.cfg = cfg
+        self.env = env
 
         self.declared_schema = declared_schema
         self.declared_schema_translation = declared_schema_translation
@@ -361,7 +366,7 @@ class ManagedDataBlockStream:
         self._emitted_managed_blocks: List[DataBlock] = []
 
     def _build_stream(self, stream_builder: StreamBuilder) -> Iterator[DataBlock]:
-        result = stream_builder.get_query_result(self.ctx.env).scalars()
+        result = stream_builder.get_query_result(self.env).scalars()
         stream = (b for b in result)
         stream = self.as_managed_block(stream)
         for op in stream_builder.get_operators():
@@ -377,18 +382,20 @@ class ManagedDataBlockStream:
     def as_managed_block(
         self, stream: Iterator[DataBlockMetadata]
     ) -> Iterator[DataBlock]:
+        from snapflow.core.function_interface_manager import get_schema_translation
+
         for db in stream:
             if db.nominal_schema_key:
                 schema_translation = get_schema_translation(
-                    self.ctx.env,
-                    source_schema=db.nominal_schema(self.ctx.env),
+                    self.env,
+                    source_schema=db.nominal_schema(self.env),
                     target_schema=self.declared_schema,
                     declared_schema_translation=self.declared_schema_translation,
                 )
             else:
                 schema_translation = None
             mdb = db.as_managed_data_block(
-                self.ctx.env, schema_translation=schema_translation
+                self.env, schema_translation=schema_translation
             )
             yield mdb
 
@@ -415,7 +422,19 @@ class ManagedDataBlockStream:
 DataBlockStream = Iterator[DataBlock]
 Stream = DataBlockStream
 
-StreamLike = Union[StreamBuilder, NodeLike]
-DataBlockStreamable = Union[StreamBuilder, Node]
-InputStreams = Dict[str, DataBlockStream]
-InputBlocks = Dict[str, DataBlockMetadata]
+StreamLike = Union[StreamBuilder, GraphCfg, str]
+# DataBlockStreamable = Union[StreamBuilder, Node]
+# InputStreams = Dict[str, DataBlockStream]
+# InputBlocks = Dict[str, DataBlockMetadata]
+
+
+def ensure_stream(stream_like: StreamLike) -> StreamBuilder:
+    from snapflow.core.streams import StreamBuilder, StreamLike
+
+    if isinstance(stream_like, StreamBuilder):
+        return stream_like
+    if isinstance(stream_like, GraphCfg):
+        return stream_like.as_stream_builder()
+    if isinstance(stream_like, str):
+        return StreamBuilder().filter_inputs([stream_like])
+    raise TypeError(stream_like)

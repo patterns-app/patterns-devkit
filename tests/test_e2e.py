@@ -13,12 +13,20 @@ from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from loguru import logger
 from pandas._testing import assert_almost_equal
 from snapflow import DataBlock, datafunction
+from snapflow.core.data_block import Consumable, Reference
+from snapflow.core.declarative.dataspace import DataspaceCfg
+from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import DataFunctionContext
-from snapflow.core.function_interface import Consumable, Reference
-from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, DataFunctionLog, NodeState
 from snapflow.core.sql.sql_function import sql_function_factory
+from snapflow.core.state import (
+    DataBlockLog,
+    DataFunctionLog,
+    NodeState,
+    _reset_state,
+    get_state,
+    reset,
+)
 from snapflow.modules import core
 from sqlalchemy import select
 
@@ -139,7 +147,7 @@ mixed_inputs_sql = sql_function_factory(
 def get_env(key="_test", db_url=None):
     if db_url is None:
         db_url = get_tmp_sqlite_db_url()
-    env = Environment(key=key, metadata_storage=db_url)
+    env = Environment(DataspaceCfg(key=key, metadata_storage=db_url))
     env.add_module(core)
     env.add_schema(Customer)
     env.add_schema(Metric)
@@ -148,26 +156,27 @@ def get_env(key="_test", db_url=None):
 
 def test_simple_import():
     dburl = get_tmp_sqlite_db_url()
-    env = Environment(metadata_storage=dburl)
-    g = Graph(env)
+    env = Environment(DataspaceCfg(metadata_storage=dburl))
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
-    g.create_node(key="n1", function="import_dataframe", params={"dataframe": df})
-    blocks = env.produce("n1", g)
+    n = GraphCfg(key="n1", function="import_dataframe", params={"dataframe": df})
+    blocks = env.produce(GraphCfg(nodes=[n]), "n1")
     assert_almost_equal(blocks[0].as_dataframe(), df, check_dtype=False)
 
 
 def test_repeated_runs():
     env = get_env()
-    g = Graph(env)
     s = env._local_python_storage
     # Initial graph
     batches = 2
     N = batches * batch_size
-    g.create_node(key="source", function=customer_source, params={"batches": batches})
-    metrics = g.create_node(key="metrics", function=shape_metrics, input="source")
+    source = GraphCfg(
+        key="source", function=customer_source.key, params={"batches": batches}
+    )
+    metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
+    g = GraphCfg(nodes=[source, metrics])
     # Run first time
-    blocks = env.produce("metrics", g, target_storage=s)
+    blocks = env.produce(g, "metrics", target_storage=s)
     assert blocks[0].nominal_schema_key.endswith("Metric")
     records = blocks[0].as_records()
     expected_records = [
@@ -176,7 +185,7 @@ def test_repeated_runs():
     ]
     assert records == expected_records
     # Run again, should get next batch
-    blocks = env.produce("metrics", g, target_storage=s)
+    blocks = env.produce(g, "metrics", target_storage=s)
     records = blocks[0].as_records()
     assert records == expected_records
     # Test latest_output
@@ -184,32 +193,37 @@ def test_repeated_runs():
     records = block.as_records()
     assert records == expected_records
     # Run again, should be exhausted
-    blocks = env.produce("metrics", g, target_storage=s)
+    blocks = env.produce(g, "metrics", target_storage=s)
     assert len(blocks) == 0
     # Run again, should still be exhausted
-    blocks = env.produce("metrics", g, target_storage=s)
+    blocks = env.produce(g, "metrics", target_storage=s)
     assert len(blocks) == 0
 
     # now add new node and process all at once
-    g.create_node(key="new_accumulator", function="core.accumulator", input="source")
-    blocks = env.produce("new_accumulator", g, target_storage=s)
+    newnode = GraphCfg(
+        key="new_accumulator", function="core.accumulator", input="source"
+    )
+    g = GraphCfg(nodes=g.nodes + [newnode])
+    blocks = env.produce(g, "new_accumulator", target_storage=s)
     assert len(blocks) == 1
     records = blocks[0].as_records()
     assert len(records) == N
-    blocks = env.produce("new_accumulator", g, target_storage=s)
+    blocks = env.produce(g, "new_accumulator", target_storage=s)
     assert len(blocks) == 0
 
 
 def test_alternate_apis():
     env = get_env()
-    g = Graph(env)
     s = env._local_python_storage
     # Initial graph
     batches = 2
-    source = g.create_node(customer_source, params={"batches": batches})
-    metrics = g.create_node(shape_metrics, input=source)
+    source = GraphCfg(
+        key="source", function=customer_source.key, params={"batches": batches}
+    )
+    metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
+    g = GraphCfg(nodes=[source, metrics])
     # Run first time
-    blocks = produce(metrics, graph=g, target_storage=s, env=env)
+    blocks = produce(node=metrics, graph=g, target_storage=s, env=env)
     assert len(blocks) == 1
     output = blocks[0]
     assert output.nominal_schema_key.endswith("Metric")
@@ -223,13 +237,13 @@ def test_alternate_apis():
 
 def test_function_failure():
     env = get_env()
-    g = Graph(env)
     s = env._local_python_storage
     # Initial graph
     batches = 2
     cfg = {"batches": batches, "fail": True}
-    source = g.create_node(customer_source, params=cfg)
-    blocks = produce(source, graph=g, target_storage=s, env=env)
+    source = GraphCfg(key="source", function=customer_source.key, params=cfg)
+    g = GraphCfg(nodes=[source])
+    blocks = produce(graph=g, node=source, target_storage=s, env=env)
     assert len(blocks) == 1
     records = blocks[0].as_records()
     assert len(records) == 2
@@ -238,10 +252,9 @@ def test_function_failure():
         assert env.md_api.count(select(DataBlockLog)) == 1
         pl = env.md_api.execute(select(DataFunctionLog)).scalar_one_or_none()
         assert pl.node_key == source.key
-        assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {}
         assert pl.node_end_state == {"records_imported": chunk_size}
-        assert pl.function_key == source.function.key
+        assert pl.function_key == source.function
         assert pl.function_params == cfg
         assert pl.error is not None
         assert FAIL_MSG in pl.error["error"]
@@ -252,7 +265,7 @@ def test_function_failure():
 
     # Run again without failing, should see different result
     source.params["fail"] = False
-    blocks = produce(source, graph=g, target_storage=s, env=env)
+    blocks = produce(graph=g, node=source, target_storage=s, env=env)
     assert len(blocks) == 1
     records = blocks[0].as_records()
     assert len(records) == batch_size
@@ -267,11 +280,10 @@ def test_function_failure():
             .first()
         )
         assert pl.node_key == source.key
-        assert pl.graph_id == g.get_metadata_obj().hash
         assert pl.node_start_state == {"records_imported": chunk_size}
         assert pl.node_end_state == {"records_imported": chunk_size + batch_size}
-        assert pl.function_key == source.function.key
-        assert pl.function_params == cfg
+        assert pl.function_key == source.function
+        assert pl.function_params == {"batches": batches, "fail": False}
         assert pl.error is None
         ns = env.md_api.execute(
             select(NodeState).filter(NodeState.node_key == pl.node_key)
@@ -281,26 +293,26 @@ def test_function_failure():
 
 def test_node_reset():
     env = get_env()
-    g = Graph(env)
     s = env._local_python_storage
     # Initial graph
     batches = 2
     cfg = {"batches": batches}
-    source = g.create_node(customer_source, params=cfg)
-    accum = g.create_node("core.accumulator", input=source)
-    metrics = g.create_node(shape_metrics, input=accum)
+    source = GraphCfg(key="source", function=customer_source.key, params=cfg)
+    accum = GraphCfg(key="accum", function="core.accumulator", input="source")
+    metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
+    g = GraphCfg(nodes=[source, accum, metrics])
     # Run first time
-    produce(source, graph=g, target_storage=s, env=env)
+    produce(node=source, graph=g, target_storage=s, env=env)
 
     # Now reset node
     with env.md_api.begin():
-        state = source.get_state(env)
+        state = get_state(env, "source")
         assert state.state is not None
-        source.reset(env)
-        state = source.get_state(env)
+        reset(env, "source")
+        state = get_state(env, "source")
         assert state is None
 
-    blocks = produce(metrics, graph=g, target_storage=s, env=env)
+    blocks = produce(node=metrics, graph=g, target_storage=s, env=env)
     assert len(blocks) == 1
     records = blocks[0].as_records()
     expected_records = [
@@ -310,12 +322,14 @@ def test_node_reset():
     assert records == expected_records
 
 
+@datafunction
 def with_latest_metrics_no_ref(metrics: DataBlock[Metric], cust: DataBlock[Customer]):
     m = metrics.as_dataframe()
     c = cust.as_dataframe()
     return pd.concat([m, c])
 
 
+@datafunction
 def with_latest_metrics(cust: Consumable[Customer], metrics: Reference[Metric]):
     m = metrics.as_dataframe()
     c = cust.as_dataframe()
@@ -324,22 +338,28 @@ def with_latest_metrics(cust: Consumable[Customer], metrics: Reference[Metric]):
 
 def test_ref_input():
     env = get_env()
-    g = Graph(env)
+    env.add_function(with_latest_metrics)
+    env.add_function(with_latest_metrics_no_ref)
     s = env._local_python_storage
     # Initial graph
     batches = 2
     cfg = {"batches": batches}
-    source = g.create_node(customer_source, params=cfg)
-    accum = g.create_node("core.accumulator", input=source)
-    metrics = g.create_node(shape_metrics, input=accum)
-    join_ref = g.create_node(
-        with_latest_metrics, inputs={"metrics": metrics, "cust": source}
+    source = GraphCfg(key="source", function=customer_source.key, params=cfg)
+    accum = GraphCfg(key="accum", function="core.accumulator", input="source")
+    metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
+    join_ref = GraphCfg(
+        key="join_ref",
+        function=with_latest_metrics.key,
+        inputs={"metrics": "metrics", "cust": "source"},
     )
-    join = g.create_node(
-        with_latest_metrics_no_ref, inputs={"metrics": metrics, "cust": source}
+    join = GraphCfg(
+        key="join",
+        function=with_latest_metrics_no_ref.key,
+        inputs={"metrics": "metrics", "cust": "source"},
     )
+    g = GraphCfg(nodes=[source, accum, metrics, join, join_ref])
     # Run once, for one metrics output
-    output = produce(metrics, graph=g, target_storage=s, env=env)
+    output = produce(node=metrics, graph=g, target_storage=s, env=env)
 
     # Both joins work
     output = env.run_node(join_ref, g, target_storage=s)
@@ -357,28 +377,27 @@ def test_ref_input():
 
 def test_multi_env():
     env1 = get_env(key="e1")
-    g = Graph(env1)
     s = env1._local_python_storage
     # Initial graph
     batches = 2
-    source = g.create_node(customer_source, params={"batches": batches})
-    metrics = g.create_node(shape_metrics, input=source)
+    source = GraphCfg(
+        key="source", function=customer_source.key, params={"batches": batches}
+    )
+    metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
+    g = GraphCfg(nodes=[source, metrics])
     # Run first time
-    blocks = produce(metrics, graph=g, target_storage=s, env=env1)
+    blocks = env1.produce(node=metrics, graph=g, target_storage=s)
     assert len(blocks) == 1
     with env1.md_api.begin():
         assert env1.md_api.count(select(DataFunctionLog)) == 2
         assert env1.md_api.count(select(DataBlockLog)) == 3
 
     env2 = get_env(key="e2", db_url=env1.metadata_storage.url)
-    g = Graph(env2)
     s = env2._local_python_storage
     # Initial graph
     batches = 2
-    source = g.create_node(customer_source, params={"batches": batches})
-    metrics = g.create_node(shape_metrics, input=source)
     # Run first time
-    blocks = produce(metrics, graph=g, target_storage=s, env=env2)
+    blocks = env2.produce(node=metrics, graph=g, target_storage=s)
     assert len(blocks) == 1
     with env2.md_api.begin():
         assert env2.md_api.count(select(DataFunctionLog)) == 2

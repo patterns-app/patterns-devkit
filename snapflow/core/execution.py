@@ -29,35 +29,40 @@ from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from snapflow.core.data_block import (
     Alias,
+    DataBlock,
     DataBlockMetadata,
     ManagedDataBlock,
     StoredDataBlockMetadata,
     get_datablock_id,
     get_stored_datablock_id,
 )
-from snapflow.core.environment import Environment
-from snapflow.core.execution.executable import (
+from snapflow.core.declarative.dataspace import DataspaceCfg
+from snapflow.core.declarative.execution import (
     CumulativeExecutionResult,
-    Executable,
-    ExecutionContext,
+    ExecutableCfg,
+    ExecutionCfg,
     ExecutionResult,
+    NodeInputCfg,
 )
+from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
+from snapflow.core.declarative.graph import GraphCfg
+from snapflow.core.environment import Environment
 from snapflow.core.function import (
-    DEFAULT_OUTPUT_NAME,
     DataFunction,
     DataInterfaceType,
     InputExhaustedException,
 )
-from snapflow.core.function_interface_manager import (
-    BoundInterface,
-    NodeInterfaceManager,
-    StreamInput,
-)
+from snapflow.core.function_interface_manager import BoundInput, BoundInterface
 from snapflow.core.metadata.api import MetadataApi
-from snapflow.core.node import DataBlockLog, DataFunctionLog, Direction, Node, get_state
+from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction, get_state
 from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.utils.output import cf, error_symbol, success_symbol
 from sqlalchemy.sql.expression import select
+
+
+def run_dataspace(ds: DataspaceCfg):
+    env = Environment(ds)
+    env.run_graph(ds.graph)
 
 
 class ImproperlyStoredDataBlockException(Exception):
@@ -78,17 +83,43 @@ def validate_data_blocks(env: Environment):
                     )
 
 
+class ExecutionLogger:
+    def __init__(self, out: Callable = lambda x: print(x, end="")):
+        self.out = out
+        self.curr_indent = 0
+        self.indent_size = 4
+
+    @contextmanager
+    def indent(self, n=1):
+        self.curr_indent += n * self.indent_size
+        yield
+        self.curr_indent = max(self.curr_indent - n * self.indent_size, 0)
+
+    def log(self, msg: str, prefix="", suffix="", indent: int = 0):
+        total_indent = self.curr_indent + indent * self.indent_size
+        lines = msg.strip("\n").split("\n")
+        full_prefix = total_indent * " " + prefix
+        sep = suffix + "\n" + full_prefix
+        message = full_prefix + sep.join(lines) + suffix
+        self.out(message)
+        if msg.endswith("\n"):
+            self.out("\n")
+
+    def log_token(self, msg: str):
+        self.out(msg)
+
+
 @dataclass(frozen=True)
 class DataFunctionContext:  # TODO: (Generic[C, S]):
     env: Environment
     function: DataFunction
-    node: Node
-    executable: Executable
+    node: GraphCfg
+    executable: ExecutableCfg
     metadata_api: MetadataApi
-    inputs: List[StreamInput]
+    inputs: Dict[str, BoundInput]
     bound_interface: BoundInterface
     function_log: DataFunctionLog
-    execution_context: ExecutionContext
+    execution_config: ExecutionCfg
     input_blocks_processed: Dict[str, Set[DataBlockMetadata]] = field(
         default_factory=lambda: defaultdict(set)
     )
@@ -100,9 +131,9 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
     @contextmanager
     def as_tmp_local_object(self, obj: Any) -> str:
         tmp_name = "_tmp_obj_" + rand_str()
-        self.execution_context.local_storage.get_api().put(tmp_name, obj)
+        self.execution_config.get_local_storage().get_api().put(tmp_name, obj)
         yield tmp_name
-        self.execution_context.local_storage.get_api().remove(tmp_name)
+        self.execution_config.get_local_storage.get_api().remove(tmp_name)
 
     def ensure_log(self, block: DataBlockMetadata, direction: Direction, name: str):
         if self.metadata_api.execute(
@@ -249,7 +280,7 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
             id=get_stored_datablock_id(),
             data_block_id=block.id,
             data_block=block,
-            storage_url=self.execution_context.target_storage.url,
+            storage_url=self.execution_config.target_storage,
             data_format=None,
         )
         return sdb
@@ -286,8 +317,8 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
             raise NotImplementedError
         nominal_output_schema = schema
         if nominal_output_schema is None:
-            nominal_output_schema = self.bound_interface.resolve_nominal_output_schema(
-                self.env
+            nominal_output_schema = (
+                self.bound_interface.resolve_nominal_output_schema()
             )  # TODO: could check output to see if it is LocalRecords with a schema too?
         if nominal_output_schema is not None:
             nominal_output_schema = self.env.get_schema(nominal_output_schema)
@@ -316,7 +347,7 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
             # Handle file-like by writing to disk first
             file_storages = [
                 s
-                for s in self.execution_context.storages
+                for s in self.execution_config.get_storages()
                 if s.storage_engine.storage_class == FileSystemStorageClass
             ]
             if not file_storages:
@@ -324,8 +355,8 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
                     "File-like object returned but no file storage provided."
                     "Add a file storage to the environment: `env.add_storage('file:///....')`"
                 )
-            if self.execution_context.target_storage in file_storages:
-                storage = self.execution_context.target_storage
+            if self.execution_config.get_target_storage() in file_storages:
+                storage = self.execution_config.get_target_storage()
             else:
                 storage = file_storages[0]
             mode = "w"
@@ -335,7 +366,7 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
                 for s in obj:
                     f.write(s)
         else:
-            storage = self.execution_context.local_storage
+            storage = self.execution_config.get_local_storage()
             storage.get_api().put(name, obj)
         return name, storage
 
@@ -377,10 +408,12 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
     ):
         self.resolve_new_object_with_data_block(sdb, name, storage)
         if sdb.data_format is None:
-            sdb.data_format = (
-                self.execution_context.target_format
-                or sdb.storage.storage_engine.get_natural_format()
-            )
+            if self.execution_config.target_data_format:
+                sdb.data_format = get_format_for_nickname(
+                    self.execution_config.target_data_format
+                )
+            else:
+                sdb.data_format = sdb.storage.storage_engine.get_natural_format()
             # fmt = infer_format_for_name(name, storage)
             # # if sdb.data_format and sdb.data_format != fmt:
             # #     raise Exception(f"Format mismatch {fmt} - {sdb.data_format}")
@@ -411,7 +444,7 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
             to_name=sdb.get_name_for_storage(),
             to_storage=sdb.storage,
             to_format=sdb.data_format,
-            available_storages=self.execution_context.storages,
+            available_storages=self.execution_config.get_storages(),
             if_exists="append",
         )
         logger.debug(f"Copied {result}")
@@ -419,10 +452,10 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
         storage.get_api().remove(name)
 
     def log_processed_input_blocks(self):
-        for input in self.bound_interface.inputs:
-            if input.bound_stream is not None:
-                for db in input.bound_stream.get_emitted_blocks():
-                    self.input_blocks_processed[input.name].add(db)
+        for node_input in self.bound_interface.inputs.values():
+            if node_input.bound_stream is not None:
+                for db in node_input.bound_stream.get_emitted_blocks():
+                    self.input_blocks_processed[node_input.name].add(db)
 
     def should_continue(self) -> bool:
         """
@@ -430,15 +463,15 @@ class DataFunctionContext:  # TODO: (Generic[C, S]):
         to honor time limits.
         """
         if (
-            not self.execution_context.execution_timelimit_seconds
+            not self.execution_config.execution_timelimit_seconds
             or not self.execution_start_time
         ):
             return True
         seconds_elapsed = (utcnow() - self.execution_start_time).total_seconds()
-        should = seconds_elapsed < self.execution_context.execution_timelimit_seconds
+        should = seconds_elapsed < self.execution_config.execution_timelimit_seconds
         if not should:
             logger.debug(
-                f"Execution timed out after {self.execution_context.execution_timelimit_seconds} seconds"
+                f"Execution timed out after {self.execution_config.execution_timelimit_seconds} seconds"
             )
         return should
 
@@ -477,18 +510,21 @@ FunctionContext = DataFunctionContext
 
 
 class ExecutionManager:
-    def __init__(self, exe: Executable):
+    def __init__(self, env: Environment, exe: ExecutableCfg):
         self.exe = exe
-        self.env = exe.execution_context.env
-        self.logger = exe.execution_context.logger
+        self.env = env
+        self.logger = ExecutionLogger()
         self.node = self.exe.node
+        self.function = env.get_function(self.exe.node.function)
         self.start_time = utcnow()
 
     def execute(self) -> ExecutionResult:
         # Setup for run
-        base_msg = f"Running node {cf.bold(self.node.key)} {cf.dimmed(self.node.function.key)}\n"
+        base_msg = (
+            f"Running node {cf.bold(self.node.key)} {cf.dimmed(self.function.key)}\n"
+        )
         logger.debug(
-            f"RUNNING NODE {self.node.key} {self.node.function.key} with params `{self.node.params}`"
+            f"RUNNING NODE {self.node.key} {self.function.key} with params `{self.node.params}`"
         )
         logger.debug(self.exe)
         self.logger.log(base_msg)
@@ -503,16 +539,13 @@ class ExecutionManager:
                 if result.traceback:
                     self.logger.log(cf.dimmed(result.traceback), indent=2)  # type: ignore
             logger.debug(f"Execution result: {result}")
-            logger.debug(
-                f"*DONE* RUNNING NODE {self.node.key} {self.node.function.key}"
-            )
+            logger.debug(f"*DONE* RUNNING NODE {self.node.key} {self.function.key}")
         return result
 
     def _execute(self) -> ExecutionResult:
         with self.env.md_api.begin():
-            interface_mgr = NodeInterfaceManager(self.exe)
             try:
-                bound_interface = interface_mgr.get_bound_interface()
+                bound_interface = self.exe.get_bound_interface(self.env)
             except InputExhaustedException as e:
                 logger.debug(f"Inputs exhausted {e}")
                 raise e
@@ -526,7 +559,8 @@ class ExecutionManager:
                 # output_obj = local_vars[function.function_callable.__name__](
                 function_args, function_kwargs = function_ctx.get_function_args()
                 output_obj = function_ctx.function.function_callable(
-                    *function_args, **function_kwargs,
+                    *function_args,
+                    **function_kwargs,
                 )
                 if output_obj is not None:
                     self.emit_output_object(output_obj, function_ctx)
@@ -535,7 +569,9 @@ class ExecutionManager:
         return result
 
     def emit_output_object(
-        self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
+        self,
+        output_obj: DataInterfaceType,
+        function_ctx: DataFunctionContext,
     ):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):
@@ -550,33 +586,22 @@ class ExecutionManager:
 
     @contextmanager
     def start_function_run(
-        self, node: Node, bound_interface: BoundInterface
+        self, node: GraphCfg, bound_interface: BoundInterface
     ) -> Iterator[DataFunctionContext]:
-        from snapflow.core.graph import GraphMetadata
 
         # assert self.current_runtime is not None, "Runtime not set"
         md = self.env.get_metadata_api()
-        node_state_obj = node.get_state(self.env)
+        node_state_obj = get_state(self.env, node.key)
         if node_state_obj is None:
             node_state = {}
         else:
             node_state = node_state_obj.state
-        new_graph_meta = node.graph.get_metadata_obj()
-        graph_meta = md.execute(
-            select(GraphMetadata).filter(GraphMetadata.hash == new_graph_meta.hash),
-            filter_env=False,
-        ).scalar_one_or_none()
-        if graph_meta is None:
-            md.add(new_graph_meta)
-            md.flush()  # [new_graph_meta])
-            graph_meta = new_graph_meta
 
         function_log = DataFunctionLog(  # type: ignore
-            graph_id=graph_meta.hash,
             node_key=node.key,
             node_start_state=node_state.copy(),  # {k: v for k, v in node_state.items()},
             node_end_state=node_state,
-            function_key=node.function.key,
+            function_key=node.function,
             function_params=node.params,
             # runtime_url=self.current_runtime.url,
             started_at=utcnow(),
@@ -585,14 +610,14 @@ class ExecutionManager:
         md.flush([function_log])
         function_ctx = DataFunctionContext(
             env=self.env,
-            function=self.exe.function,
-            node=self.exe.node,
+            function=self.function,
+            node=self.node,
             executable=self.exe,
             metadata_api=self.env.md_api,
             inputs=bound_interface.inputs,
             function_log=function_log,
             bound_interface=bound_interface,
-            execution_context=self.exe.execution_context,
+            execution_config=self.exe.execution_config,
             execution_start_time=self.start_time,
         )
         try:
@@ -609,7 +634,9 @@ class ExecutionManager:
                 # TODO: should clean this up so transaction surrounds things that you DO
                 #       want to rollback, obviously
                 # md.commit()  # MUST commit here since the re-raised exception will issue a rollback
-                if self.exe.execution_context.abort_on_function_error:
+                if (
+                    self.exe.execution_config.dataspace.snapflow.abort_on_function_error
+                ):  # TODO: from call or env
                     raise e
         finally:
             function_ctx.finish_execution()
@@ -647,10 +674,10 @@ class ExecutionManager:
 
 
 def execute_to_exhaustion(
-    exe: Executable, to_exhaustion: bool = True
+    env: Environment, exe: ExecutableCfg, to_exhaustion: bool = True
 ) -> Optional[CumulativeExecutionResult]:
     cum_result = CumulativeExecutionResult()
-    em = ExecutionManager(exe)
+    em = ExecutionManager(env, exe)
     while True:
         try:
             result = em.execute()
@@ -663,3 +690,26 @@ def execute_to_exhaustion(
             # (they are responsible for creating their own generators)
             break
     return cum_result
+
+
+def get_latest_output(env: Environment, node: GraphCfg) -> Optional[DataBlock]:
+    from snapflow.core.data_block import DataBlockMetadata
+
+    with env.metadata_api.begin():
+        block: DataBlockMetadata = (
+            env.md_api.execute(
+                select(DataBlockMetadata)
+                .join(DataBlockLog)
+                .join(DataFunctionLog)
+                .filter(
+                    DataBlockLog.direction == Direction.OUTPUT,
+                    DataFunctionLog.node_key == node.key,
+                )
+                .order_by(DataBlockLog.created_at.desc())
+            )
+            .scalars()
+            .first()
+        )
+        if block is None:
+            return None
+    return block.as_managed_data_block(env)

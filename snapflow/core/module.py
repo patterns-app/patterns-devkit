@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import pkgutil
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -8,7 +9,13 @@ from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 from commonmodel.base import Schema, SchemaLike, schema_from_yaml
 from loguru import logger
-from snapflow.core.component import ComponentLibrary, DictView
+from snapflow.core.component import (
+    DEFAULT_LOCAL_NAMESPACE,
+    DEFAULT_NAMESPACE,
+    ComponentLibrary,
+    DictView,
+    global_library,
+)
 
 if TYPE_CHECKING:
     from snapflow.core.function import (
@@ -18,19 +25,15 @@ if TYPE_CHECKING:
     )
     from snapflow.core.function_package import DataFunctionPackage
 
-DEFAULT_LOCAL_NAMESPACE = "_local"
-DEFAULT_NAMESPACE = DEFAULT_LOCAL_NAMESPACE
-
 
 class ModuleException(Exception):
     pass
 
 
 class SnapflowModule:
-    name: Optional[str]
     namespace: str
     py_module_path: Optional[str]
-    py_module_name: Optional[str]
+    # py_module_name: Optional[str]
     function_paths: List[str] = ["components/functions"]
     schema_paths: List[str] = ["components/schemas"]
     library: ComponentLibrary
@@ -39,33 +42,37 @@ class SnapflowModule:
     def __init__(
         self,
         namespace: str,
-        name: Optional[str] = None,
         py_module_path: Optional[str] = None,
         py_module_name: Optional[str] = None,
         function_paths: List[str] = ["functions"],
         schema_paths: List[str] = ["schemas"],
+        flow_paths: List[str] = ["flows"],
         dependencies: List[
             SnapflowModule
         ] = None,  # TODO: support str references to external deps (will need repo hooks...)
+        **kwargs: Any,
     ):
-        self.name = name or py_module_name
         self.namespace = namespace
         if py_module_path:
             py_module_path = os.path.dirname(py_module_path)
         self.py_module_path = py_module_path
-        self.py_module_name = py_module_name
-        self.library = ComponentLibrary(namespace_lookup_keys=[self.namespace])
+        # self.py_module_name = py_module_name
+        self.library = ComponentLibrary(namespace_precedence=[self.namespace])
         self.function_paths = function_paths
         self.schema_paths = schema_paths
+        self.flow_paths = flow_paths
         self.dependencies = []
         self.function_packages = {}
         if self.py_module_path:
             self.discover_schemas()
             self.discover_functions()
+            # self.discover_flows() # TODO
         for d in dependencies or []:
             self.add_dependency(d)
         # for t in tests or []:
         #     self.add_test_case(t)
+        global_library.add_namespace(namespace)
+        global_library.add_module(self)
 
     def discover_functions(self):
         from snapflow.core.function_package import DataFunctionPackage
@@ -74,8 +81,11 @@ class SnapflowModule:
             return
 
         for functions_path in self.function_paths:
-            logger.debug(f"Discovering functions in {functions_path}")
             functions_root = Path(self.py_module_path).resolve() / functions_path
+            logger.debug(f"Discovering functions in {functions_path}")
+            # for loader, module_name, is_pkg in pkgutil.walk_packages(functions_root):
+            #     _module = loader.find_module(module_name).load_module(module_name)
+
             packages = DataFunctionPackage.all_from_root_path(
                 str(functions_root), namespace=self.namespace
             )
@@ -103,12 +113,14 @@ class SnapflowModule:
         p = self.process_function(function_like)
         self.validate_key(p)
         self.library.add_function(p)
+        global_library.add_function(p)
         return p
 
     def add_schema(self, schema_like: SchemaLike) -> Schema:
         schema = self.process_schema(schema_like)
         self.validate_key(schema)
         self.library.add_schema(schema)
+        global_library.add_schema(schema)
         return schema
 
     def process_function(
@@ -168,7 +180,7 @@ class SnapflowModule:
         #     raise Exception("Cannot export module, no namespace set")
         # mod = sys.modules[
         #     self.py_module_name
-        # ]  # = self  # type: ignore  # sys.module_lookup_names wants a modulefinder.Module type and it's not gonna get it
+        # ]  # = self  # type: ignore  # sys.namespace_precedence wants a modulefinder.Module type and it's not gonna get it
         # setattr(mod, "__getattr__", self.__getattribute__)
 
     # Add to dir:

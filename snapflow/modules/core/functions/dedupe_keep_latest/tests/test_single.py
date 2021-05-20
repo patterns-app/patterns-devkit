@@ -13,7 +13,7 @@ inputs = dict(
 )
 
 outputs = dict(
-    default=dict(
+    stdout=dict(
         data="""
             k1,k2,f1,f2,f3,f4
             1,2,def,1.1,{"1":2},2012-01-02

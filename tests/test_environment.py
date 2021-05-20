@@ -4,12 +4,8 @@ from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from loguru import logger
 from snapflow.core.data_block import DataBlockMetadata
-from snapflow.core.environment import (
-    Environment,
-    EnvironmentConfiguration,
-    SnapflowSettings,
-)
-from snapflow.core.graph import Graph
+from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
+from snapflow.core.environment import Environment
 from sqlalchemy.sql.expression import select
 
 # logger.enable("snapflow")
@@ -32,48 +28,40 @@ def env_init(env: Environment):
             is _test_module.functions.test_sql_function
         )
         # Test runtime / storage
-        env.add_storage("postgresql://test")
-        assert len(env.storages) == 2  # added plus default local memory
+        # env.add_storage("postgresql://test")
+        # assert len(env.storages) == 2  # added plus default local memory
         # assert len(env.runtimes) == 2  # added plus default local python
 
 
 def test_env_init():
     env = Environment(
-        f"_test_{rand_str()}",
-        metadata_storage="sqlite://",
-        settings=SnapflowSettings(add_core_module=False),
+        dataspace=DataspaceCfg(
+            key=f"_test_{rand_str()}",
+            metadata_storage="sqlite://",
+            snapflow=SnapflowCfg(use_global_library=False),
+        )
     )
-    env_init(env)
-
-
-def test_env_config():
-    cfg = EnvironmentConfiguration(
-        key=f"_test_{rand_str()}",
-        metadata_storage_url="sqlite://",
-        settings=SnapflowSettings(add_core_module=False),
-    )
-    env = Environment.from_config(cfg)
     env_init(env)
 
 
 def test_multi_env():
     db_url = get_tmp_sqlite_db_url()
-    cfg = EnvironmentConfiguration(
+    cfg = DataspaceCfg(
         key=f"_test_{rand_str()}",
-        metadata_storage_url=db_url,
-        settings=SnapflowSettings(add_core_module=False),
+        metadata_storage=db_url,
+        snapflow=SnapflowCfg(use_global_library=False),
     )
-    env1 = Environment.from_config(cfg)
+    env1 = Environment(dataspace=cfg)
     with env1.md_api.begin():
         env1.md_api.add(DataBlockMetadata(realized_schema_key="Any"))
         env1.md_api.flush()
         assert env1.md_api.count(select(DataBlockMetadata)) == 1
-    cfg = EnvironmentConfiguration(
+    cfg = DataspaceCfg(
         key=f"_test_{rand_str()}",
-        metadata_storage_url=db_url,
-        settings=SnapflowSettings(add_core_module=False),
+        metadata_storage=db_url,
+        snapflow=SnapflowCfg(use_global_library=False),
     )
-    env2 = Environment.from_config(cfg)
+    env2 = Environment(dataspace=cfg)
     with env2.md_api.begin():
         assert env2.md_api.count(select(DataBlockMetadata)) == 0
         env2.md_api.add(DataBlockMetadata(realized_schema_key="Any"))

@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from snapflow.api import Input
-from snapflow.core.function_interface import (
-    DEFAULT_OUTPUTS,
-    DataFunctionInput,
-    DataFunctionInterface,
-    InputType,
-    Parameter,
+from snapflow.core.declarative.function import (
+    DataFunctionInputCfg,
+    DataFunctionInterfaceCfg,
 )
+from snapflow.core.function_interface import DEFAULT_OUTPUTS, InputType, Parameter
 from snapflow.core.sql.parser import parse_interface_from_sql, render_sql
 from snapflow.core.sql.sql_function import (
     AnnotatedParam,
@@ -117,18 +115,22 @@ def test_sql_parse_new_style_jinja():
     where col = {% param p1 text 0 %}
     """
     dfi = parse_interface_from_sql(sql)
-    assert dfi == DataFunctionInterface(
+    assert dfi == DataFunctionInterfaceCfg(
         inputs={
-            "orders": DataFunctionInput(
-                name="orders", schema_like="TestSchema", input_type=InputType.Stream,
+            "orders": DataFunctionInputCfg(
+                name="orders",
+                schema_key="TestSchema",
+                input_type=InputType.Stream,
             ),
-            "customers": DataFunctionInput(
-                name="customers", schema_like="Any", input_type=InputType.Reference,
+            "customers": DataFunctionInputCfg(
+                name="customers",
+                schema_key="Any",
+                input_type=InputType.Reference,
             ),
         },
         outputs=DEFAULT_OUTPUTS,
         parameters={
-            "p1": Parameter("p1", "str", default=0, required=True)
+            "p1": Parameter(name="p1", datatype="str", default=0, required=True)
         },  # TODO: required ... with default?
         uses_context=True,
     )
@@ -139,7 +141,11 @@ def test_sql_render_new_style_jinja():
     select * from {% input orders %}
     where col = {% param p1 text 0 %}
     """
-    rendered = render_sql(sql, dict(orders="orders_table"), dict(p1="'val1'"),)
+    rendered = render_sql(
+        sql,
+        dict(orders="orders_table"),
+        dict(p1="'val1'"),
+    )
     expected = """
     select * from orders_table
     where col = 'val1'
@@ -231,12 +237,12 @@ def test_sql_function_interface():
     t1 = pi.get_input("t1")
     t2 = pi.get_input("t2")
     t3 = pi.get_input("t3")
-    assert t1.schema_like == "T1"
+    assert t1.schema_key == "T1"
     assert t1.name == "t1"
     assert t1.input_type == InputType("DataBlock")
-    assert t2.schema_like == "Any"
+    assert t2.schema_key == "Any"
     assert t2.name == "t2"
-    assert t3.schema_like == "T2"
+    assert t3.schema_key == "T2"
     assert t3.name == "t3"
     assert t3.input_type == InputType("DataBlock")
     assert pi.get_default_output() is not None
@@ -257,12 +263,12 @@ def test_sql_function_interface_fn():
     t1 = pi.get_input("t1")
     t2 = pi.get_input("t2")
     t3 = pi.get_input("t3")
-    assert t1.schema_like == "T1"
+    assert t1.schema_key == "T1"
     assert t1.name == "t1"
     assert t1.input_type == InputType("DataBlock")
-    assert t2.schema_like == "Any"
+    assert t2.schema_key == "Any"
     assert t2.name == "t2"
-    assert t3.schema_like == "T2"
+    assert t3.schema_key == "T2"
     assert t3.name == "t3"
     assert t3.input_type == InputType("DataBlock")
     assert pi.get_default_output() is not None
@@ -321,7 +327,7 @@ def test_sql_function_interface_output():
     assert pi is not None
     assert len(pi.inputs) == 2
     assert pi.get_default_output() is not None
-    assert pi.get_default_output().schema_like == "T"
+    assert pi.get_default_output().schema_key == "T"
     assert (
         pi.get_default_output().data_format is None
     )  # TODO: is this what we want? or is it "Any" by default?
@@ -340,7 +346,7 @@ def test_sql_function_interface_output():
 #     assert pi is not None
 #     assert len(pi.inputs) == 2
 #     assert pi.get_default_output() is not None
-#     assert pi.get_default_output().schema_like == "T"
+#     assert pi.get_default_output().schema_key == "T"
 #     assert pi.get_default_output().data_format == "DataBlock"
 
 
@@ -409,7 +415,7 @@ def test_sql_function_interface_complex_jinja():
     pi = df.get_interface()
     assert pi is not None
     assert len(pi.inputs) == 1
-    assert pi.get_single_non_recursive_input().is_generic
-    assert pi.get_single_non_recursive_input().schema_like == "T"
+    assert pi.get_single_non_reference_input().is_generic
+    assert pi.get_single_non_reference_input().schema_key == "T"
     assert pi.get_default_output().is_generic
     assert pi.get_default_output() is not None

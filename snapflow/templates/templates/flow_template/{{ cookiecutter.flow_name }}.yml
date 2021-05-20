@@ -1,0 +1,25 @@
+name: { { cookiecutter.flow_name } }
+namespace: { { cookiecutter.namespace } }
+version: 0.1.0
+description: |
+  Description of {{ cookiecutter.flow_name }} flow.
+# graph:
+#   parameter_groups:
+#     stripe_params: &stripe_params
+#       api_key: ....
+#   nodes:
+#     - key: stripe_charges
+#       function: stripe.import_charges
+#       params: *stripe_params
+#   stdout: stripe_charges
+#   stderr: stripe_charges.stderr
+
+documentation:
+  flow: |
+    # {{ cookiecutter.flow_name }} flow
+
+    Documentation of {{ cookiecutter.flow_name }} flow.
+
+  # parameter_groups:
+  #   stripe_params: |
+  #     Documentation of stripe parameters

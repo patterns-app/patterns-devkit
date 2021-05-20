@@ -4,7 +4,6 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, List, Union
 
 from commonmodel import Schema
-from dcp.utils.common import AttrDict
 
 if TYPE_CHECKING:
     from snapflow.core.function import (
@@ -12,6 +11,11 @@ if TYPE_CHECKING:
         DataFunction,
     )
     from snapflow.core.module import SnapflowModule
+    from snapflow.core.declarative.flow import FlowCfg
+
+
+DEFAULT_LOCAL_NAMESPACE = "_local"
+DEFAULT_NAMESPACE = DEFAULT_LOCAL_NAMESPACE
 
 
 class DictView(dict):
@@ -23,26 +27,26 @@ class DictView(dict):
 class ComponentLibrary:
     functions: Dict[str, DataFunction]
     schemas: Dict[str, Schema]
-    module_lookup_names: List[str]
+    flows: Dict[str, FlowCfg]
+    namespace_precedence: List[str]
 
-    def __init__(self, namespace_lookup_keys: List[str] = None):
-        from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
-
+    def __init__(self, namespace_precedence: List[str] = None):
         self.functions = {}
         self.schemas = {}
-        self.module_lookup_names = [DEFAULT_LOCAL_NAMESPACE]
-        if namespace_lookup_keys:
-            for k in namespace_lookup_keys:
+        self.flows = {}
+        self.namespace_precedence = [DEFAULT_LOCAL_NAMESPACE]
+        if namespace_precedence:
+            for k in namespace_precedence:
                 self.add_namespace(k)
 
     def add_namespace(self, k: str):
-        if "." in k:
-            k = k.split(".")[0]
-        if k not in self.module_lookup_names:
-            self.module_lookup_names.append(k)
+        k = k.split(".")[0]
+        if k not in self.namespace_precedence:
+            self.namespace_precedence.append(k)
 
     def add_module(self, module: Union[SnapflowModule, ModuleType]):
         if isinstance(module, ModuleType):
+            # TODO: hack?
             module = module.module
         self.merge(module.library)
 
@@ -53,6 +57,10 @@ class ComponentLibrary:
     def add_schema(self, schema: Schema):
         self.add_namespace(schema.key)
         self.schemas[schema.key] = schema
+
+    def add_flow(self, f: FlowCfg):
+        self.add_namespace(f.key)
+        self.flows[f.key] = f
 
     def remove_function(self, function_like: Union[DataFunction, str]):
         from snapflow.core.function import DataFunction
@@ -94,15 +102,31 @@ class ComponentLibrary:
                 return self.namespace_lookup(self.schemas, schema_like)
             raise e
 
+    def get_flow(
+        self, flow_like: Union[FlowCfg, str], try_module_lookups=True
+    ) -> FlowCfg:
+        from snapflow.core.declarative.flow import FlowCfg
+
+        if isinstance(flow_like, FlowCfg):
+            return flow_like
+        if not isinstance(flow_like, str):
+            raise TypeError(flow_like)
+        try:
+            return self.flows[flow_like]
+        except KeyError as e:
+            if try_module_lookups:
+                return self.namespace_lookup(self.flows, flow_like)
+            raise e
+
     def namespace_lookup(self, d: Dict[str, Any], k: str) -> Any:
         if "." in k:
             raise KeyError(k)
-        for m in self.module_lookup_names:
+        for m in self.namespace_precedence:
             try:
                 return d[m + "." + k]
             except KeyError:
                 pass
-        raise KeyError(f"`{k}` not found in modules {self.module_lookup_names}")
+        raise KeyError(f"`{k}` not found in modules {self.namespace_precedence}")
 
     def all_functions(self) -> List[DataFunction]:
         return list(self.functions.values())
@@ -113,7 +137,8 @@ class ComponentLibrary:
     def merge(self, other: ComponentLibrary):
         self.functions.update(other.functions)
         self.schemas.update(other.schemas)
-        for k in other.module_lookup_names:
+        self.flows.update(other.flows)
+        for k in other.namespace_precedence:
             self.add_namespace(k)
 
     def get_view(self, d: Dict) -> DictView[str, Any]:
@@ -128,3 +153,6 @@ class ComponentLibrary:
 
     def get_schemas_view(self) -> DictView[str, Schema]:
         return self.get_view(self.schemas)
+
+
+global_library = ComponentLibrary()
