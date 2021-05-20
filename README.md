@@ -91,7 +91,7 @@ Edit `snapflow.yml`:
 
 ```yaml
 storages:
-  - sqlite://snapflow_demo.db
+  - sqlite:///.snapflow_demo.db
 graph:
   nodes:
     - key: stripe_charges
