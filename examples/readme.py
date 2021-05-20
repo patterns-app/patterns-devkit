@@ -37,7 +37,7 @@ from snapflow import datafunction, DataBlock
 
 
 @datafunction
-def customer_lifetime_sales(txs: DataBlock[Transaction]) -> DataFrame:
+def customer_lifetime_sales(txs: DataBlock) -> DataFrame:
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
 """
