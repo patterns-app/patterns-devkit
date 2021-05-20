@@ -4,11 +4,11 @@
 <p align="center">
   <img width="500" src="assets/snapflow.svg">
 </p>
-<h3 align="center">Composable data functions in SQL and Python</h3>
+<h3 align="center">Composable data functions</h3>
 <p>&nbsp;</p>
 
 **Snapflow** is a framework for building **functional reactive data pipelines** from modular
-components. It lets developers write gradually-typed pure `data functions` in **Python or SQL**
+components. It lets developers write gradually-typed pure `datafunctions` in **Python or SQL**
 that operate reactively on `datablocks`, immutable sets of data records whose
 structure and semantics are described by flexible `schemas`.
 These functions can be composed into simple or complex data
@@ -62,7 +62,7 @@ Install core library and the Stripe module:
 
 `pip install snapflow snapflow-stripe` or `poetry add snapflow snapflow-stripe`
 
-Start a new `dataspace` named `quickstart`:
+Start a new dataspace named 'quickstart':
 
 `snapflow new dataspace quickstart`
 
@@ -103,7 +103,7 @@ graph:
       input: stripe_charges
 ```
 
-Now run the dataspace, with a node time-limit of 5 seconds:
+Now run the dataspace (give a run time limit of 5 seconds for demo purposes):
 
 `snapflow run --timelimit=5`
 
@@ -150,6 +150,7 @@ no annotations provided on a data function, defaults are assumed). We do this fo
 sql:
 
 ```python
+@datafunction
 def customer_lifetime_sales(
   ctx: DataFunctionContext,  # Inject a context object
   txs: DataBlock[Transaction],  # Require an input stream conforming to schema "Transaction"
