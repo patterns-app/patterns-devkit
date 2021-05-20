@@ -33,4 +33,7 @@ def load_yaml(yml: str) -> Dict:
         from yaml import CLoader as Loader, CDumper as Dumper
     except ImportError:
         from yaml import Loader, Dumper
+    if "\n" not in yml and (yml.endswith(".yml") or yml.endswith(".yaml")):
+        with open(yml) as f:
+            yml = f.read()
     return yaml.load(yml, Loader=Loader)

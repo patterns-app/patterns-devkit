@@ -1,3 +1,5 @@
+key: { { cookiecutter.module_name } }
+namespace: { { cookiecutter.namespace } }
 snapflow:
   # initialize_metadata_storage: true
   # abort_on_function_error: false

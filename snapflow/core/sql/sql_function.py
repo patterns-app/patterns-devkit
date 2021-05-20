@@ -6,7 +6,6 @@ from datetime import date, datetime
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from snapflow.core.sql.parser import parse_interface_from_sql, render_sql
 
 import sqlparse
 from commonmodel.base import SchemaTranslation
@@ -38,6 +37,7 @@ from snapflow.core.function_interface import (
 )
 from snapflow.core.function_package import load_file
 from snapflow.core.module import SnapflowModule
+from snapflow.core.sql.parser import parse_interface_from_sql, render_sql
 from sqlparse import tokens
 
 
@@ -195,7 +195,7 @@ class TableParseState:
     jinja_context_cnt: int = 0
 
 
-def extract_tables(
+def extract_tables(  # noqa: C901
     sql: str, replace_with_inputs_jinja: bool = True
 ) -> ParsedSqlStatement:
     """

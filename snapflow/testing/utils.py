@@ -23,9 +23,9 @@ from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.function_package import DataFunctionPackage
 from snapflow.core.module import SnapflowModule
 from snapflow.core.state import DataBlockLog
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
-from sqlalchemy.exc import OperationalError
 
 
 def display_function_log(env: Environment):
