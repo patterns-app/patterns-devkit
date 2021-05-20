@@ -44,9 +44,10 @@ def customer_lifetime_sales(txs: DataBlock[Transaction]) -> DataFrame:
 with open(pth, "w") as f:
     f.write(fn)
 
-ds = """
+ds = (
+    """
 storages:
-  - sqlite://snapflow_demo.db
+  - sqlite:///%s/.snapflow.db
 graph:
   nodes:
     - key: stripe_charges
@@ -57,6 +58,8 @@ graph:
       function: customer_lifetime_sales
       input: stripe_charges
 """
+    % dirpath
+)
 with open(Path(dirpath) / "snapflow.yml", "w") as f:
     f.write(ds)
 
