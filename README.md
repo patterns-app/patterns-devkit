@@ -2,7 +2,7 @@
 
 <p>&nbsp;</p>
 <p align="center">
-  <img width="500" src="assets/snapflow.svg">
+  <img width="650" src="assets/snapflow.svg">
 </p>
 <h3 align="center">Composable data functions</h3>
 <p>&nbsp;</p>
