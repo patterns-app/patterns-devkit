@@ -135,7 +135,8 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         - output is annoatated on the select keyword: `select:Transaction`
     """
     param_re = re.compile(
-        r"(?P<whitespace>^|\s):(?P<name>\w+)(:(?P<datatype>\w+))?(=(?P<default>[A-z0-9_.]+))?"
+        r"(?P<whitespace>^|\s):(?P<name>\w+)(:(?P<datatype>\w+))?(=(?P<default>[A-z0-9_.]+))?",
+        flags=re.I,
     )
     params = {}
     sql_with_jinja_vars = sql
@@ -157,7 +158,9 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
 
 
 def extract_table_annotations(sql: str) -> ParsedSqlStatement:
-    table_re = re.compile(r"(^|\s)(?P<name>[A-z0-9_.]+):(?P<schema>[A-z0-9_\[\].]+)")
+    table_re = re.compile(
+        r"(^|\s)(?P<name>[A-z0-9_.]+):(?P<schema>[A-z0-9_\[\].]+)", flags=re.I
+    )
     tables = {}
     output_annotation = None
     sql_with_jinja_vars = sql
@@ -261,7 +264,7 @@ def extract_tables(  # noqa: C901
                             )
                     state.table_identifier_required_next = False
     new_sql_str = "".join(new_sql)
-    new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", r"as \1", new_sql_str)
+    new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", r"as \1", new_sql_str, flags=re.I)
     return ParsedSqlStatement(
         original_sql=sql,
         sql_with_jinja_vars=new_sql_str,

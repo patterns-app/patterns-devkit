@@ -178,13 +178,13 @@ def test_sql_find_tables():
 
 def test_sql_find_tables_subquery():
     sql = """select 1 from t1
-        join (select 1) as b
+        JOIN (select 1) AS b
         -- unrelated comment with a colon: in it
         where :param1:dtype1
         """
     parsed = extract_tables(sql)
     expected_sql = """select 1 from {{ inputs['t1'] }} as t1
-        join (select 1) as b
+        JOIN (select 1) AS b
         -- unrelated comment with a colon: in it
         where :param1:dtype1
         """
