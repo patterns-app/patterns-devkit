@@ -114,16 +114,14 @@ class TestCase:
     package: Optional[DataFunctionPackage] = None
 
     @classmethod
-    def from_test(cls, test: Dict, package: DataFunctionPackage) -> TestCase:
+    def from_test(cls, name: str, test: Dict, package: DataFunctionPackage) -> TestCase:
         inputs = {}
-        for name, i in test.get("inputs", {}).items():
-            inputs[name] = DataInput.from_input(i, package)
+        for input_name, i in test.get("inputs", {}).items():
+            inputs[input_name] = DataInput.from_input(i, package)
         outputs = {}
-        for name, i in test.get("outputs", {}).items():
-            outputs[name] = DataInput.from_input(i, package)
-        return TestCase(
-            name=test.get("__name__"), inputs=inputs, outputs=outputs, package=package
-        )
+        for output_name, i in test.get("outputs", {}).items():
+            outputs[output_name] = DataInput.from_input(i, package)
+        return TestCase(name=name, inputs=inputs, outputs=outputs, package=package)
 
 
 def run_test_case(case: TestCase, **kwargs):

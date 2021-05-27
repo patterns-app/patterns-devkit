@@ -662,4 +662,6 @@ def execute_to_exhaustion(
         ):  # TODO: We just run no-input DFs (sources) once no matter what
             # (they are responsible for creating their own generators)
             break
+        if cum_result.error:
+            break
     return cum_result
