@@ -22,7 +22,7 @@ def test_from_path():
     readme = mffunction.load_readme()
     assert len(readme) > 5
     assert len(mffunction.tests) == 2
-    assert len(mffunction.tests[0]["inputs"]) == 1
+    assert len(mffunction.tests["test_1"]["inputs"]) == 1
 
 
 def test_from_function():
