@@ -36,7 +36,7 @@ class DataFunctionPackage:
     # local_vars: Dict = None
     # root_module: ModuleType
     namespace: str = None
-    tests: List[Dict] = field(default_factory=list)
+    tests: Dict[str, Dict] = field(default_factory=dict)
     function_python_name: str = None
     readme_name: str = "README.md"
     # python_requirements_path: str = None
@@ -131,19 +131,19 @@ class DataFunctionPackage:
         tests_path = self.abs_path("tests")
         if not os.path.exists(tests_path):
             return
-        tests = []
+        tests = {}
         for fname in os.listdir(tests_path):
             if fname.startswith("test") and fname.endswith(".py"):
                 py_objects = load_python_file(str(Path(tests_path) / fname))
-                tests.append(py_objects)
+                tests[fname[:-3]] = py_objects
         self.tests = tests
 
     def get_test_cases(self) -> List[TestCase]:
         from snapflow.testing.utils import TestCase
 
         cases = []
-        for test in self.tests:
-            cases.append(TestCase.from_test(test, self))
+        for name, test in self.tests.items():
+            cases.append(TestCase.from_test(name, test, self))
         return cases
 
     @classmethod
