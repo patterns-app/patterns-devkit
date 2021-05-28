@@ -1,16 +1,18 @@
 from __future__ import annotations
-from snapflow.core.execution.execution import DataFunctionContext
 
+from snapflow.core.data_block import SelfReference
+from snapflow.core.execution import DataFunctionContext
 from snapflow.core.function import Input, Output, datafunction
 from snapflow.core.sql.sql_function import SqlDataFunctionWrapper, sql_datafunction
-from snapflow.core.function_interface import SelfReference
 from snapflow.core.streams import Stream
 from snapflow.utils.typing import T
 
 
 @datafunction(namespace="core", display_name="Accumulate sql tables")
 def accumulator_sql(
-    ctx: DataFunctionContext, input: Stream[T], previous: SelfReference[T] = None,
+    ctx: DataFunctionContext,
+    input: Stream[T],
+    previous: SelfReference[T] = None,
 ) -> T:
     # TODO: right way: merge Schemas FIRST, then translate schema to column list (requires storage / dialect to quote)
     cols = []
@@ -32,10 +34,9 @@ def accumulator_sql(
             "select "
             + ",\n".join(col_sql)
             + " from "
-            + block.as_sql_from_stmt(ctx.execution_context.target_storage)
+            + block.as_sql_from_stmt(ctx.execution_config.get_target_storage())
         )
     sql = " union all ".join(select_stmts)
-    print(sql)
     sdf = SqlDataFunctionWrapper(sql)
 
     def noop(*args, **kwargs):
@@ -43,4 +44,3 @@ def accumulator_sql(
 
     sdf.get_compiled_sql = noop
     return sdf(ctx, input=input, previous=previous)
-

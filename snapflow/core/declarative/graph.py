@@ -231,6 +231,8 @@ class GraphCfg(FrozenPydanticBase):
             input_node = None
             if declared_input:
                 input_node = graph.get_node(declared_input)
+            if input_node is None and inpt.is_self_reference:
+                input_node = self
             node_inputs[inpt.name] = NodeInputCfg(
                 name=inpt.name,
                 input=inpt,

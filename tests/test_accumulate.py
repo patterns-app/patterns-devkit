@@ -13,11 +13,10 @@ from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from loguru import logger
 from pandas._testing import assert_almost_equal
 from snapflow import DataBlock, datafunction
+from snapflow.core.declarative.dataspace import DataspaceCfg
+from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment, produce
 from snapflow.core.execution import DataFunctionContext
-from snapflow.core.function_interface import Consumable, Reference
-from snapflow.core.graph import Graph
-from snapflow.core.node import DataBlockLog, DataFunctionLog, NodeState
 from snapflow.core.sql.sql_function import sql_function_factory
 from snapflow.modules import core
 from sqlalchemy import select
@@ -74,7 +73,10 @@ def funky_source(
     if runs > 3:
         # missing field
         records = [
-            {"joined": datetime(2000, 1, n + 1), "metadata": {"idx": n},}
+            {
+                "joined": datetime(2000, 1, n + 1),
+                "metadata": {"idx": n},
+            }
             for n in range(10)
         ]
     ctx.emit_state_value("run_number", runs + 1)
@@ -84,7 +86,11 @@ def funky_source(
 def get_env(key="_test", db_url=None):
     if db_url is None:
         db_url = get_tmp_sqlite_db_url()
-    env = Environment(key=key, metadata_storage=db_url)
+    env = Environment(
+        DataspaceCfg(
+            key=key, metadata_storage=db_url, storages=[get_tmp_sqlite_db_url()]
+        )
+    )
     env.add_module(core)
     env.add_schema(Customer)
     return env
@@ -92,81 +98,57 @@ def get_env(key="_test", db_url=None):
 
 def test_source():
     env = get_env()
-    g = Graph(env)
     s = env._local_python_storage
-    g.create_node(key="source", function=funky_source)
+    source = GraphCfg(key="source", function=funky_source.key)
+    g = GraphCfg(nodes=[source])
     # Run first time
-    blocks = env.produce("source", g, target_storage=s)
+    blocks = env.produce(g, "source", target_storage=s)
     assert blocks[0].nominal_schema_key == "Customer"
     assert len(blocks[0].realized_schema.fields) == 3
     records = blocks[0].as_records()
     assert len(records) == 10
     assert len(records[0]) == 3
     # RUn again
-    blocks = env.produce("source", g, target_storage=s)
+    blocks = env.produce(g, "source", target_storage=s)
     assert blocks[0].nominal_schema_key == "Customer"
     assert len(blocks[0].realized_schema.fields) == 4
 
 
 def test_accumulate():
+    source = GraphCfg(key="source", function=funky_source.key)
+    accumulate = GraphCfg(key="accumulate", function="core.accumulator", input="source")
+    accumulate_sql = GraphCfg(
+        key="accumulate", function="core.accumulator_sql", input="source"
+    )
+
+    def run_accumulate(env, g, s):
+        blocks = env.produce(g, "accumulate", target_storage=s)
+        assert len(blocks) == 1
+        records = blocks[0].as_records()
+        assert len(records) == 10
+        assert len(records[0]) == 3
+        # Run second time
+        blocks = env.produce(g, "accumulate", target_storage=s)
+        assert len(blocks) == 1
+        records = blocks[0].as_records()
+        assert len(records) == 20
+        assert len(records[0]) == 4
+        # Run third time
+        blocks = env.produce(g, "accumulate", target_storage=s)
+        assert len(blocks) == 1
+        records = blocks[0].as_records()
+        assert len(records) == 30
+        assert len(records[0]) == 4
+        # Run fourth time
+        blocks = env.produce(g, "accumulate", target_storage=s)
+        assert len(blocks) == 1
+        records = blocks[0].as_records()
+        assert len(records) == 40
+        assert len(records[0]) == 4
+
     env = get_env()
-    g = Graph(env)
     s = env._local_python_storage
-    g.create_node(key="source", function=funky_source)
-    g.create_node(key="accumulate", function="core.accumulator", input="source")
-    # Run first time
-    blocks = env.produce("accumulate", g, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
-    assert len(records) == 10
-    assert len(records[0]) == 3
-    # Run second time
-    blocks = env.produce("accumulate", g, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
-    assert len(records) == 20
-    assert len(records[0]) == 4
-    # Run third time
-    blocks = env.produce("accumulate", g, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
-    assert len(records) == 30
-    assert len(records[0]) == 4
-    # Run fourth time
-    blocks = env.produce("accumulate", g, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
-    assert len(records) == 40
-    assert len(records[0]) == 4
-
-
-def test_accumulate_sql():
+    run_accumulate(env, GraphCfg(nodes=[source, accumulate]), s)
     env = get_env()
-    g = Graph(env)
-    s = get_tmp_sqlite_db_url()
-    g.create_node(key="source", function=funky_source)
-    g.create_node(key="accumulate", function="core.accumulator_sql", input="source")
-    # Run first time
-    blocks = env.produce("accumulate", g, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
-    assert len(records) == 10
-    assert len(records[0]) == 3
-    # Run second time
-    blocks = env.produce("accumulate", g, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
-    assert len(records) == 20
-    assert len(records[0]) == 4
-    # Run third time
-    blocks = env.produce("accumulate", g, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
-    assert len(records) == 30
-    assert len(records[0]) == 4
-    # Run fourth time
-    blocks = env.produce("accumulate", g, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
-    assert len(records) == 40
-    assert len(records[0]) == 4
+    dbs = env.get_storages()[0]
+    run_accumulate(env, GraphCfg(nodes=[source, accumulate_sql]), dbs)

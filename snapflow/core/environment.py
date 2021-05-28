@@ -189,12 +189,13 @@ class Environment:
         return ensure_storage(self.dataspace.storages[0])
 
     def get_execution_config(
-        self, target_storage: Storage = None, **kwargs
+        self, target_storage: Union[Storage, str] = None, **kwargs
     ) -> ExecutionCfg:
         from snapflow.core.declarative.execution import ExecutionCfg
 
         if target_storage is None:
             target_storage = self.get_default_storage()
+        target_storage = ensure_storage(target_storage)
         # target_storage = self.add_storage(target_storage)
         if issubclass(target_storage.storage_engine.storage_class, MemoryStorageClass):
             # TODO: handle multiple targets better
@@ -237,7 +238,11 @@ class Environment:
     #         pass
 
     def get_executable(
-        self, graph: GraphCfg, node: GraphCfg, target_storage: Storage = None, **kwargs
+        self,
+        graph: GraphCfg,
+        node: GraphCfg,
+        target_storage: Union[Storage, str] = None,
+        **kwargs,
     ) -> ExecutableCfg:
         from snapflow.core.declarative.execution import ExecutableCfg
 
