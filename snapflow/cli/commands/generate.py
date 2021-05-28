@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from snapflow.cli.commands.base import SnapflowCommandBase
 import sys
 from contextlib import contextmanager
 from importlib import import_module
@@ -10,6 +9,7 @@ from types import ModuleType
 from typing import List, Pattern
 
 from cleo import Command
+from snapflow.cli.commands.base import SnapflowCommandBase
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.templates.generator import generate_template, insert_into_file
 
@@ -45,14 +45,17 @@ class GenerateCommand(SnapflowCommandBase, Command):
     def handle_module(self, name: str, namespace: str):
         namespace = namespace or name
         generate_template(
-            "module", namespace=namespace, name=name,
+            "module",
+            namespace=namespace,
+            name=name,
         )
         # generate_template("tests", py_module_name=py_module_name, module_name=name)
 
     def handle_dataspace(self, name: str, namespace: str):
         name = namespace or name
         generate_template(
-            "dataspace", name=name,
+            "dataspace",
+            name=name,
         )
         # Move single file back down to root (cookiecutter doesn't support)
         os.rename(f"{name}/snapflow.yml", "snapflow.yml")
