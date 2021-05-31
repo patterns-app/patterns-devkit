@@ -73,10 +73,7 @@ def funky_source(
     if runs > 3:
         # missing field
         records = [
-            {
-                "joined": datetime(2000, 1, n + 1),
-                "metadata": {"idx": n},
-            }
+            {"joined": datetime(2000, 1, n + 1), "metadata": {"idx": n},}
             for n in range(10)
         ]
     ctx.emit_state_value("run_number", runs + 1)
@@ -102,14 +99,14 @@ def test_source():
     source = GraphCfg(key="source", function=funky_source.key)
     g = GraphCfg(nodes=[source])
     # Run first time
-    blocks = env.produce(g, "source", target_storage=s)
+    blocks = env.produce("source", graph=g, target_storage=s)
     assert blocks[0].nominal_schema_key == "Customer"
     assert len(blocks[0].realized_schema.fields) == 3
     records = blocks[0].as_records()
     assert len(records) == 10
     assert len(records[0]) == 3
     # RUn again
-    blocks = env.produce(g, "source", target_storage=s)
+    blocks = env.produce("source", graph=g, target_storage=s)
     assert blocks[0].nominal_schema_key == "Customer"
     assert len(blocks[0].realized_schema.fields) == 4
 
@@ -122,25 +119,25 @@ def test_accumulate():
     )
 
     def run_accumulate(env, g, s):
-        blocks = env.produce(g, "accumulate", target_storage=s)
+        blocks = env.produce("accumulate", graph=g, target_storage=s)
         assert len(blocks) == 1
         records = blocks[0].as_records()
         assert len(records) == 10
         assert len(records[0]) == 3
         # Run second time
-        blocks = env.produce(g, "accumulate", target_storage=s)
+        blocks = env.produce("accumulate", graph=g, target_storage=s)
         assert len(blocks) == 1
         records = blocks[0].as_records()
         assert len(records) == 20
         assert len(records[0]) == 4
         # Run third time
-        blocks = env.produce(g, "accumulate", target_storage=s)
+        blocks = env.produce("accumulate", graph=g, target_storage=s)
         assert len(blocks) == 1
         records = blocks[0].as_records()
         assert len(records) == 30
         assert len(records[0]) == 4
         # Run fourth time
-        blocks = env.produce(g, "accumulate", target_storage=s)
+        blocks = env.produce("accumulate", graph=g, target_storage=s)
         assert len(blocks) == 1
         records = blocks[0].as_records()
         assert len(records) == 40
