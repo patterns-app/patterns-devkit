@@ -39,10 +39,7 @@ class InputExhaustedException(DataFunctionException):
 DataFunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    DataBlockMetadata,
-    DataBlock,
+    DataFrame, Records, DataBlockMetadata, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -218,10 +215,7 @@ def function_factory(
         else:
             namespace = namespace
         function = DataFunction(
-            name=name,
-            namespace=namespace,
-            function_callable=function_like,
-            **kwargs,
+            name=name, namespace=namespace, function_callable=function_like, **kwargs,
         )
     if namespace == DEFAULT_NAMESPACE:
         # Add to default module
@@ -254,85 +248,6 @@ def function_decorator(
         state_class=state_class,
         **kwargs,
     )
-
-
-# def add_declared_input_decorator(
-#     name: str,
-#     schema: Optional[SchemaLike] = None,
-#     reference: bool = False,
-#     required: bool = True,
-#     from_self: bool = False,  # TODO: name
-#     stream: bool = False,
-# ):
-#     inpt = DataFunctionInput(
-#         name=name,
-#         schema_like=schema or "Any",
-#         reference=reference,
-#         _required=required,
-#         from_self=from_self,
-#         stream=stream,
-#     )
-
-#     def dec(function_like: Union[DataFunctionCallable, DataFunction]) -> DataFunction:
-#         if not isinstance(function_like, DataFunction):
-#             function_like = function_factory(function_like)
-#         function: DataFunction = function_like
-#         if function.declared_inputs is None:
-#             function.declared_inputs = [inpt]
-#         else:
-#             function.declared_inputs.append(inpt)
-#         return function
-
-#     return dec
-
-
-# def add_declared_output_decorator(
-#     schema: Optional[SchemaLike] = None,
-#     optional: bool = False,
-#     name: Optional[str] = None,
-#     stream: bool = False,
-#     default: bool = True,
-# ):
-#     output = DataFunctionOutput(
-#         name=name,
-#         schema_like=schema or "Any",
-#         optional=optional,
-#         stream=stream,
-#         default=default,
-#     )
-
-#     def dec(function_like: Union[DataFunctionCallable, DataFunction]) -> DataFunction:
-#         if not isinstance(function_like, DataFunction):
-#             function_like = function_factory(function_like)
-#         function: DataFunction = function_like
-#         function.declared_output = output
-#         return function
-
-#     return dec
-
-
-# def add_param_decorator(
-#     name: str,
-#     datatype: str,
-#     required: bool = False,
-#     default: Any = None,
-#     help: str = "",
-# ):
-#     p = Parameter(
-#         name=name, datatype=datatype, required=required, default=default, help=help,
-#     )
-
-#     def dec(function_like: Union[DataFunctionCallable, DataFunction]) -> DataFunction:
-#         if not isinstance(function_like, DataFunction):
-#             function_like = function_factory(function_like)
-#         function: DataFunction = function_like
-#         if function.params is None:
-#             function.params = [p]
-#         else:
-#             function.params.append(p)
-#         return function
-
-#     return dec
 
 
 def make_function(function_like: DataFunctionLike, **kwargs) -> DataFunction:

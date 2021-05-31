@@ -18,8 +18,8 @@ from sqlalchemy.sql.selectable import Select
 
 
 class MetadataApi:
-    def __init__(self, env_id: str, storage: Storage, initialize: bool = False):
-        self.env_id = env_id
+    def __init__(self, dataspace_key: str, storage: Storage, initialize: bool = False):
+        self.dataspace_key = dataspace_key
         self.storage = storage
         self.engine = self.storage.get_api().get_engine()
         self.active_session = None
@@ -67,7 +67,7 @@ class MetadataApi:
         self, stmt: Union[Select, Update, Delete], filter_env: bool = True
     ) -> Select:
         if filter_env:
-            stmt = stmt.filter_by(env_id=self.env_id)
+            stmt = stmt.filter_by(dataspace_key=self.dataspace_key)
         return stmt
 
     def execute(
@@ -81,14 +81,14 @@ class MetadataApi:
         return self.execute(stmt).scalar_one()
 
     def add(self, obj: Any, set_env: bool = True):
-        if obj.env_id is None and set_env:
-            obj.env_id = self.env_id
+        if obj.dataspace_key is None and set_env:
+            obj.dataspace_key = self.dataspace_key
         self.get_session().add(obj)
 
     def add_all(self, objects: Iterable, set_env: bool = True):
         for obj in objects:
-            if obj.env_id is None and set_env:
-                obj.env_id = self.env_id
+            if obj.dataspace_key is None and set_env:
+                obj.dataspace_key = self.dataspace_key
         self.get_session().add_all(objects)
 
     def flush(self, objects=None):
