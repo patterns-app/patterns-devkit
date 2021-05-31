@@ -160,7 +160,7 @@ def test_simple_import():
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
     n = GraphCfg(key="n1", function="import_dataframe", params={"dataframe": df})
-    blocks = env.produce(GraphCfg(nodes=[n]), "n1")
+    blocks = env.produce("n1", graph=GraphCfg(nodes=[n]))
     assert_almost_equal(blocks[0].as_dataframe(), df, check_dtype=False)
 
 
@@ -176,7 +176,7 @@ def test_repeated_runs():
     metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
     g = GraphCfg(nodes=[source, metrics])
     # Run first time
-    blocks = env.produce(g, "metrics", target_storage=s)
+    blocks = env.produce("metrics", graph=g, target_storage=s)
     assert blocks[0].nominal_schema_key.endswith("Metric")
     records = blocks[0].as_records()
     expected_records = [
@@ -185,7 +185,7 @@ def test_repeated_runs():
     ]
     assert records == expected_records
     # Run again, should get next batch
-    blocks = env.produce(g, "metrics", target_storage=s)
+    blocks = env.produce("metrics", graph=g, target_storage=s)
     records = blocks[0].as_records()
     assert records == expected_records
     # Test latest_output
@@ -193,10 +193,10 @@ def test_repeated_runs():
     records = block.as_records()
     assert records == expected_records
     # Run again, should be exhausted
-    blocks = env.produce(g, "metrics", target_storage=s)
+    blocks = env.produce("metrics", graph=g, target_storage=s)
     assert len(blocks) == 0
     # Run again, should still be exhausted
-    blocks = env.produce(g, "metrics", target_storage=s)
+    blocks = env.produce("metrics", graph=g, target_storage=s)
     assert len(blocks) == 0
 
     # now add new node and process all at once
@@ -204,11 +204,11 @@ def test_repeated_runs():
         key="new_accumulator", function="core.accumulator", input="source"
     )
     g = GraphCfg(nodes=g.nodes + [newnode])
-    blocks = env.produce(g, "new_accumulator", target_storage=s)
+    blocks = env.produce("new_accumulator", graph=g, target_storage=s)
     assert len(blocks) == 1
     records = blocks[0].as_records()
     assert len(records) == N
-    blocks = env.produce(g, "new_accumulator", target_storage=s)
+    blocks = env.produce("new_accumulator", graph=g, target_storage=s)
     assert len(blocks) == 0
 
 
@@ -362,16 +362,16 @@ def test_ref_input():
     output = produce(node=metrics, graph=g, target_storage=s, env=env)
 
     # Both joins work
-    output = env.run_node(join_ref, g, target_storage=s)
+    output = env.run_node(join_ref, graph=g, target_storage=s)
     assert output.output_blocks
-    output = env.run_node(join, g, target_storage=s)
+    output = env.run_node(join, graph=g, target_storage=s)
     assert output.output_blocks
     # Run source to create new customers, but NOT new metrics
-    output = env.run_node(source, g, target_storage=s)
+    output = env.run_node(source, graph=g, target_storage=s)
     # This time only ref will still have a metrics input
-    output = env.run_node(join_ref, g, target_storage=s)
+    output = env.run_node(join_ref, graph=g, target_storage=s)
     assert output.output_blocks
-    output = env.run_node(join, g, target_storage=s)
+    output = env.run_node(join, graph=g, target_storage=s)
     assert not output.output_blocks  # Regular join has exhausted metrics
 
 

@@ -229,8 +229,8 @@ def produce_function_output_for_static_input(
             )
             graph = GraphCfg(nodes=[test_node] + list(input_nodes.values()))
             blocks = env.produce(
-                graph=graph,
                 node=test_node,
+                graph=graph,
                 to_exhaustion=False,
                 target_storage=target_storage,
             )

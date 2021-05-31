@@ -41,7 +41,7 @@ class RunCommand(SnapflowCommandBase, Command):
         if node_key:
             run_node(
                 node_key,
-                ds.graph,
+                graph=ds.graph,
                 execution_timelimit_seconds=timelimit,
                 target_storage=storage,
                 env=Environment(dataspace=ds),

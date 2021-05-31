@@ -237,17 +237,22 @@ class Environment:
     #         # self.validate_and_clean_data_blocks(delete_intermediate=True)
     #         pass
 
+    def prepare_graph(self, graph: Optional[GraphCfg] = None) -> GraphCfg:
+        if graph is None:
+            graph = self.dataspace.graph
+        graph = graph.resolve_and_flatten(self.library)
+        return graph
+
     def get_executable(
         self,
-        graph: GraphCfg,
         node: GraphCfg,
+        graph: Optional[GraphCfg] = None,
         target_storage: Union[Storage, str] = None,
         **kwargs,
     ) -> ExecutableCfg:
         from snapflow.core.declarative.execution import ExecutableCfg
 
-        graph = graph.resolve_and_flatten(self.library)
-
+        graph = self.prepare_graph(graph)
         return ExecutableCfg(
             node_key=node.key,
             graph=graph,
@@ -258,14 +263,14 @@ class Environment:
 
     def produce(
         self,
-        graph: GraphCfg,
         node: Union[GraphCfg, str] = None,
+        graph: Optional[GraphCfg] = None,
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> List[DataBlock]:
         from snapflow.core.execution import execute_to_exhaustion
 
-        graph = graph.resolve_and_flatten(self.library)
+        graph = self.prepare_graph(graph)
         if isinstance(node, str):
             node = graph.get_node(node)
         assert node.is_function_node()
@@ -278,7 +283,7 @@ class Environment:
         for dep in dependencies:
             result = execute_to_exhaustion(
                 self,
-                self.get_executable(graph, dep, **execution_kwargs),
+                self.get_executable(dep, graph=graph, **execution_kwargs),
                 to_exhaustion=to_exhaustion,
             )
         if result:
@@ -289,39 +294,37 @@ class Environment:
     def run_node(
         self,
         node: Union[GraphCfg, str],
-        graph: GraphCfg,
+        graph: Optional[GraphCfg] = None,
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> Optional[CumulativeExecutionResult]:
         from snapflow.core.execution import execute_to_exhaustion
 
+        graph = self.prepare_graph(graph)
         logger.debug(f"Running: {node}")
         node = graph.get_node(node)
         node.resolve(self.library)
-        graph.resolve(self.library)
         result = execute_to_exhaustion(
             self,
-            self.get_executable(graph, node, **execution_kwargs),
+            self.get_executable(node, graph=graph, **execution_kwargs),
             to_exhaustion=to_exhaustion,
         )
         return result
 
     def run_graph(
         self,
-        graph: GraphCfg,
+        graph: Optional[GraphCfg] = None,
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ):
         from snapflow.core.execution import execute_to_exhaustion
 
-        graph = graph.resolve(self.library)
-        graph = graph.flatten()
-
+        graph = self.prepare_graph(graph)
         nodes = graph.get_all_nodes_in_execution_order()
         for node in nodes:
             execute_to_exhaustion(
                 self,
-                self.get_executable(graph, node, **execution_kwargs),
+                self.get_executable(node, graph=graph, **execution_kwargs),
                 to_exhaustion=to_exhaustion,
             )
 
@@ -333,8 +336,8 @@ class Environment:
 
 # Shortcuts
 def produce(
-    graph: GraphCfg,
     node: Union[str, GraphCfg],
+    graph: Optional[GraphCfg] = None,
     env: Optional[Environment] = None,
     modules: Optional[List[SnapflowModule]] = None,
     **kwargs: Any,
@@ -344,12 +347,12 @@ def produce(
     if modules is not None:
         for module in modules:
             env.add_module(module)
-    return env.produce(graph, node, **kwargs)
+    return env.produce(node, graph=graph, **kwargs)
 
 
 def run_node(
     node: Union[str, GraphCfg],
-    graph: GraphCfg,
+    graph: Optional[GraphCfg] = None,
     env: Optional[Environment] = None,
     modules: Optional[List[SnapflowModule]] = None,
     **kwargs: Any,
@@ -359,7 +362,7 @@ def run_node(
     if modules is not None:
         for module in modules:
             env.add_module(module)
-    return env.run_node(node, graph, **kwargs)
+    return env.run_node(node, graph=graph, **kwargs)
 
 
 def run_graph(
@@ -374,15 +377,6 @@ def run_graph(
         for module in modules:
             env.add_module(module)
     return env.run_graph(graph, **kwargs)
-
-
-def run(
-    node_or_graph: GraphCfg, *args, **kwargs
-) -> Optional[CumulativeExecutionResult]:
-
-    if node_or_graph.is_function_node():
-        return run_node(node_or_graph, *args, **kwargs)
-    return run_graph(node_or_graph, *args, **kwargs)
 
 
 ### Environments are singletons!
