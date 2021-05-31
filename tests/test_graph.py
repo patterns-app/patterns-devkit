@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic.error_wrappers import ValidationError
 from snapflow.core.component import global_library
-from snapflow.core.declarative.base import load_yaml
+from snapflow.core.declarative.base import dump_yaml, load_yaml, update
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.flow import FlowCfg
 from snapflow.core.declarative.graph import GraphCfg
@@ -18,6 +18,7 @@ from tests.utils import (
     function_t1_to_t2,
     make_test_env,
 )
+from pprint import pprint
 
 
 def make_graph() -> GraphCfg:
@@ -82,21 +83,9 @@ def test_make_graph():
     assert len(g.get_all_nodes_in_execution_order()) == len(nodes)
     execution_order = [n.key for n in g.get_all_nodes_in_execution_order()]
     expected_orderings = [
-        [
-            "node2",
-            "node4",
-            "node5",
-        ],
-        [
-            "node2",
-            "node4",
-            "node6",
-        ],
-        [
-            "node1",
-            "node3",
-            "node7",
-        ],
+        ["node2", "node4", "node5",],
+        ["node2", "node4", "node6",],
+        ["node1", "node3", "node7",],
     ]
     # TODO: graph sort not stable!
     for ordering in expected_orderings:
@@ -132,26 +121,7 @@ def test_graph_from_yaml():
     }
 
 
-def test_resolve_and_flatten():
-    # TODO: more complex nested scenarios (see whiteboard snapshot)
-    ad = """
-  name: accumulate_and_dedupe_sql
-  namespace: core
-  graph:
-    nodes:
-      - key: accumulate
-        function: core.accumulator_sql
-      - key: dedupe
-        function: core.dedupe_keep_latest_sql
-        input: accumulate
-    stdout_key: dedupe
-    stdin_key: accumulate
-    """
-    d = load_yaml(ad)
-    ad = FlowCfg(**d)
-    global_library.add_flow(ad)
-
-    g = """
+basic_graph = """
 snapflow:
   initialize_metadata_storage: false
 metadata_storage: sqlite://.snapflow.db
@@ -178,7 +148,30 @@ graph:
     #     to_email: snapflow-errors@snapflow.ai
     #     max_records: 100
     """
-    d = load_yaml(g)
+
+accum_flow = """
+  name: accumulate_and_dedupe_sql
+  namespace: core
+  graph:
+    nodes:
+      - key: accumulate
+        function: core.accumulator_sql
+      - key: dedupe
+        function: core.dedupe_keep_latest_sql
+        input: accumulate
+    stdout_key: dedupe
+    stdin_key: accumulate
+    """
+
+
+def test_resolve_and_flatten():
+    # TODO: more complex nested scenarios (see whiteboard snapshot)
+
+    d = load_yaml(accum_flow)
+    ad = FlowCfg(**d)
+    global_library.add_flow(ad)
+
+    d = load_yaml(basic_graph)
     ds = DataspaceCfg(**d)
 
     assert set([n.key for n in ds.graph.nodes]) == {"import_csv", "stripe_charges"}
@@ -200,3 +193,125 @@ graph:
     assert flat.get_node("stripe_charges.dedupe").get_inputs() == {
         "stdin": "stripe_charges.accumulate"
     }
+
+
+def test_augmentations():
+    # TODO: more complex nested scenarios (see whiteboard snapshot)
+    ad = """
+        name: myflow
+        namespace: core
+        graph:
+          nodes:
+            - key: step1
+              function: core.accumulator_sql
+              accumulate: true
+              dedupe: true
+            - key: step2
+              function: core.dedupe_keep_latest_sql
+              input: step1
+          stdin_key: step1
+          stdout_key: step2
+    """
+    d = load_yaml(ad)
+    ad = FlowCfg(**d)
+    global_library.add_flow(ad)
+
+    g = """
+        snapflow:
+          initialize_metadata_storage: false
+        metadata_storage: sqlite://.snapflow.db
+        storages:
+          - postgres://localhost:5432/snapflow
+        namespaces:
+          - stripe
+        graph:
+          nodes:
+            - key: import_csv
+              function: core.import_local_csv
+              params:
+                path: "*****"
+              accumulate: true
+              dedupe: true
+            - key: stripe_charges
+              flow: myflow
+              input: import_csv
+              params:
+                dedupe: KeepLatestRecord # Default
+    """
+    d = load_yaml(g)
+    ds = DataspaceCfg(**d)
+
+    assert set([n.key for n in ds.graph.nodes]) == {"import_csv", "stripe_charges"}
+    assert ds.graph.get_node("import_csv").function_cfg is None
+    assert not ds.graph.get_node("stripe_charges").nodes
+    resolved = ds.resolve()
+    assert resolved.graph.get_node("import_csv").function_cfg is not None
+    assert len(resolved.graph.get_node("stripe_charges").nodes) == 2
+
+    flat = flatten_graph_config(resolved.graph)
+    # print(dump_yaml(flat.dict()))
+    # Test flattening
+    assert set([n.key for n in flat.nodes]) == {
+        "import_csv.dedupe",
+        "import_csv.accumulate",
+        "stripe_charges.step1.source",
+        "stripe_charges.step2",
+        "stripe_charges.step1.dedupe",
+        "stripe_charges.step1.accumulate",
+        "import_csv.source",
+    }
+    # Test input key modifications
+    assert flat.get_node("stripe_charges.step1.source").get_inputs() == {
+        "stdin": "import_csv.dedupe"
+    }
+    assert flat.get_node("stripe_charges.step2").get_inputs() == {
+        "stdin": "stripe_charges.step1.dedupe"
+    }
+    assert flat.get_node("stripe_charges.step1.accumulate").get_inputs() == {
+        "stdin": "stripe_charges.step1.source"
+    }
+    # Test alias on flattened nodes
+    assert flat.get_node("stripe_charges.step1.accumulate").get_inputs() == {
+        "stdin": "stripe_charges.step1.source"
+    }
+    expected = """
+key: default
+nodes:
+- key: import_csv.source
+  function: core.import_local_csv
+  params:
+    path: '*****'
+- key: import_csv.accumulate
+  function: core.accumulate
+  inputs:
+    stdin: import_csv.source
+- key: import_csv.dedupe
+  function: core.dedupe_keep_latest
+  inputs:
+    stdin: import_csv.accumulate
+  alias: import_csv
+- key: stripe_charges.step1.source
+  function: core.accumulator_sql
+  inputs:
+    stdin: import_csv.dedupe
+- key: stripe_charges.step1.accumulate
+  function: core.accumulate
+  inputs:
+    stdin: stripe_charges.step1.source
+- key: stripe_charges.step1.dedupe
+  function: core.dedupe_keep_latest
+  inputs:
+    stdin: stripe_charges.step1.accumulate
+  alias: stripe_charges.step1
+- key: stripe_charges.step2
+  function: core.dedupe_keep_latest_sql
+  inputs:
+    stdin: stripe_charges.step1.dedupe
+  alias: stripe_charges
+"""
+    exp = GraphCfg(**load_yaml(expected))
+    assert flat.key == exp.key
+    for n in flat.nodes:
+        n = update(n, function_cfg=None)
+        assert n == exp.get_node(n.key), n.key
+

@@ -1,6 +1,8 @@
 from __future__ import annotations
+from enum import Enum
 
 from typing import (
+    Iterable,
     TYPE_CHECKING,
     Any,
     Dict,
@@ -18,6 +20,7 @@ from attr import validate
 from commonmodel import Schema
 from dcp.utils.common import as_identifier, remove_dupes
 from pydantic import validator
+from pydantic.class_validators import root_validator
 from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.declarative.base import FrozenPydanticBase
 from snapflow.core.declarative.function import (
@@ -37,27 +40,86 @@ NxNode = Tuple[str, Dict[str, Dict]]
 NxAdjacencyList = List[NxNode]
 
 
+def startswith_any(s: str, others: Iterable[str]) -> bool:
+    for o in others:
+        if not o:
+            continue
+        if s.startswith(o):
+            return True
+    return False
+
+
+class DedupeBehavior(str, Enum):
+    NONE = "None"
+    LATEST_RECORD = "KeepLatestRecord"
+    FIRST_NON_NULL_VALUES = "FirstNonNullValues"
+    LATEST_NON_NULL_VALUES = "LatestNonNullValues"
+
+
 class GraphCfg(FrozenPydanticBase):
     key: str = "default"
     nodes: List[GraphCfg] = []
     function: Optional[str] = None
     function_cfg: Optional[DataFunctionCfg] = None
     flow: Optional[str] = None
+    params: Dict[str, Any] = {}  # TODO: acceptable param types?
     stdin_key: Optional[str] = None
     stdout_key: Optional[str] = None
     stderr_key: Optional[str] = None
     input: Optional[str] = None
     inputs: Dict[str, str] = {}
-    params: Dict[str, Any] = {}  # TODO: acceptable param types?
     alias: Optional[str] = None
     aliases: Dict[str, str] = {}
+    accumulate: Optional[bool] = False
+    dedupe: Optional[Union[bool, DedupeBehavior]] = False
+    conform_to_schema: Optional[str] = None
     schema_translation: Optional[Dict[str, str]] = None
     schema_translations: Dict[str, Dict[str, str]] = {}
 
     @validator("nodes")
-    def unique_nodes(cls, nodes: List[GraphCfg]):
+    def check_unique_nodes(cls, nodes: List[GraphCfg]) -> List[GraphCfg]:
         assert len(nodes) == len(set(n.key for n in nodes)), "Node keys must be unique"
         return nodes
+
+    @root_validator
+    def check_node_keys(cls, values: Dict) -> Dict:
+        nodes = values.get("nodes", [])
+        node_keys = [n.key for n in nodes if n.key]
+        key = values.get("key")
+        stdin = values.get("stdin_key")
+        stdout = values.get("stdout_key")
+        if not nodes:
+            assert not stdin or startswith_any(
+                stdin, [key or "_NONE_", "stdin"]
+            ), f"stdin_key '{stdin}' does not exist"
+            assert not stdout or startswith_any(
+                stdout, [key or "_NONE_", "stdout"]
+            ), f"stdout_key '{stdout}' does not exist"
+        else:
+            assert not stdin or startswith_any(
+                stdin, [key or "_NONE_", "stdin"] + node_keys
+            ), f"stdin_key '{stdin}' does not exist"
+            assert not stdout or startswith_any(
+                stdout, [key or "_NONE_", "stdout"] + node_keys
+            ), f"stdout_key '{stdout}' does not exist"
+        for n in nodes:
+            for inpt_node in n.get_inputs().values():
+                assert inpt_node == "stdout" or startswith_any(
+                    inpt_node, node_keys
+                ), f"input node key '{inpt_node}' does not exist"
+        return values
+
+    @root_validator
+    def check_single_purpose(cls, values: Dict) -> Dict:
+        vals = [
+            p
+            for p in [values.get("function"), values.get("flow"), values.get("nodes")]
+            if p
+        ]
+        assert 1 >= len(
+            vals
+        ), f"Every graph config is at most one of: single function, flow definition, or sub-graph: {vals}"
+        return values
 
     def resolve(self, lib: Optional[ComponentLibrary] = None) -> GraphCfg:
         if self.is_resolved():
@@ -74,6 +136,7 @@ class GraphCfg(FrozenPydanticBase):
             # Update flow defaults with this graphs settings
             flow_dict = fg.dict()
             flow_dict.update({k: v for k, v in d.items() if v is not None})
+            flow_dict["flow"] = None  # Flow has been resolved, remove
             d = flow_dict
         d["nodes"] = [n.resolve(lib) for n in nodes]
         if self.function:
@@ -95,11 +158,22 @@ class GraphCfg(FrozenPydanticBase):
             and not self.flow
         )
 
+    def has_augmentations(self) -> bool:
+        if self.accumulate:
+            return True
+        if self.dedupe:
+            return True
+        if self.conform_to_schema:
+            return True
+        return False
+
     def is_flattened(self) -> bool:
+        if self.has_augmentations():
+            return False
         if not self.nodes:
             return True
         for n in self.nodes:
-            if n.nodes:
+            if n.nodes or n.has_augmentations():
                 return False
         return True
 
