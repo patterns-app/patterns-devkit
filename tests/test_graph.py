@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pprint import pprint
+
 import pytest
 from pydantic.error_wrappers import ValidationError
 from snapflow.core.component import global_library
@@ -18,7 +20,6 @@ from tests.utils import (
     function_t1_to_t2,
     make_test_env,
 )
-from pprint import pprint
 
 
 def make_graph() -> GraphCfg:
@@ -83,9 +84,21 @@ def test_make_graph():
     assert len(g.get_all_nodes_in_execution_order()) == len(nodes)
     execution_order = [n.key for n in g.get_all_nodes_in_execution_order()]
     expected_orderings = [
-        ["node2", "node4", "node5",],
-        ["node2", "node4", "node6",],
-        ["node1", "node3", "node7",],
+        [
+            "node2",
+            "node4",
+            "node5",
+        ],
+        [
+            "node2",
+            "node4",
+            "node6",
+        ],
+        [
+            "node1",
+            "node3",
+            "node7",
+        ],
     ]
     # TODO: graph sort not stable!
     for ordering in expected_orderings:
@@ -314,4 +327,3 @@ nodes:
     for n in flat.nodes:
         n = update(n, function_cfg=None)
         assert n == exp.get_node(n.key), n.key
-
