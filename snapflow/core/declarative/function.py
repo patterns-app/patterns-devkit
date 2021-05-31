@@ -34,7 +34,7 @@ DEFAULT_ERROR_NAME = "stderr"
 DEFAULT_STATE_NAME = "state"
 
 
-class InputType(Enum):
+class InputType(str, Enum):
     DataBlock = "DataBlock"
     Reference = "Reference"
     Stream = "Stream"
@@ -42,7 +42,7 @@ class InputType(Enum):
     Consumable = "Consumable"
 
 
-class ParameterType(Enum):
+class ParameterType(str, Enum):
     Text = "str"
     Boolean = "bool"
     Integer = "int"
