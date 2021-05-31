@@ -21,7 +21,7 @@ def test_module_init():
 
 def test_core_module():
     # These are times two because we have an entry for both `name` and `namespace.name`
-    assert len(core.functions) == 8
+    assert len(core.functions) == 9
     assert len(core.schemas) == 2
 
     core.run_tests()

@@ -78,9 +78,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self,
-        env: Environment,
-        schema_translation: Optional[SchemaTranslation] = None,
+        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
     ):
         mgr = DataBlockManager(env, self, schema_translation=schema_translation)
         return ManagedDataBlock(
@@ -294,7 +292,7 @@ class Alias(BaseModel):
     data_block: "DataBlockMetadata"
     stored_data_block: "StoredDataBlockMetadata"
 
-    __table_args__ = (UniqueConstraint("env_id", "name"),)
+    __table_args__ = (UniqueConstraint("dataspace_key", "name"),)
 
     def update_alias(self, env: Environment, new_alias: str):
         self.stored_data_block.storage.get_api().create_alias(
