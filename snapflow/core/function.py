@@ -236,7 +236,7 @@ def function_decorator(
     # params: List[Parameter] = None,
     state_class: Optional[Type] = None,
     **kwargs,
-) -> Union[Callable, DataFunction]:
+) -> Callable:
     if isinstance(function_or_name, str) or function_or_name is None:
         return partial(
             function_decorator,

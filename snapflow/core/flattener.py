@@ -58,7 +58,10 @@ def handle_augmentations(n: GraphCfg) -> GraphCfg:
         return n
     nodes = []
     source_node = GraphCfg(
-        key="source", function=n.function, function_cfg=n.function_cfg, params=n.params,
+        key="source",
+        function=n.function,
+        function_cfg=n.function_cfg,
+        params=n.params,
     )
     nodes.append(source_node)
     leaf_key = source_node.key

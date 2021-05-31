@@ -1,11 +1,11 @@
 from __future__ import annotations
-from enum import Enum
 
+from enum import Enum
 from typing import (
-    Iterable,
     TYPE_CHECKING,
     Any,
     Dict,
+    Iterable,
     Iterator,
     List,
     Optional,

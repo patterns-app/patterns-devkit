@@ -23,7 +23,10 @@ class NodeState(BaseModel):
     __table_args__ = (UniqueConstraint("env_id", "node_key"),)
 
     def __repr__(self):
-        return self._repr(node_key=self.node_key, state=self.state,)
+        return self._repr(
+            node_key=self.node_key,
+            state=self.state,
+        )
 
 
 def get_state(env: Environment, node_key: str) -> Optional[NodeState]:
