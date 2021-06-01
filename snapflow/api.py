@@ -4,13 +4,7 @@ from snapflow.core.declarative.graph import GraphCfg
 
 from .core import operators
 from .core.data_block import Consumable, DataBlock, Reference, SelfReference
-from .core.environment import (
-    Environment,
-    current_env,
-    produce,
-    run_graph,
-    run_node,
-)
+from .core.environment import Environment, current_env, produce, run_graph, run_node
 from .core.execution import DataFunctionContext, FunctionContext
 from .core.function import (
     DataFunction,

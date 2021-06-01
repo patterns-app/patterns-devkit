@@ -73,7 +73,10 @@ def funky_source(
     if runs > 3:
         # missing field
         records = [
-            {"joined": datetime(2000, 1, n + 1), "metadata": {"idx": n},}
+            {
+                "joined": datetime(2000, 1, n + 1),
+                "metadata": {"idx": n},
+            }
             for n in range(10)
         ]
     ctx.emit_state_value("run_number", runs + 1)
