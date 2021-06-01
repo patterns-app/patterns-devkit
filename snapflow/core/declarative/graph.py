@@ -51,7 +51,7 @@ def startswith_any(s: str, others: Iterable[str]) -> bool:
 
 class DedupeBehavior(str, Enum):
     NONE = "None"
-    LATEST_RECORD = "KeepLatestRecord"
+    LATEST_RECORD = "LatestRecord"
     FIRST_NON_NULL_VALUES = "FirstNonNullValues"
     LATEST_NON_NULL_VALUES = "LatestNonNullValues"
 

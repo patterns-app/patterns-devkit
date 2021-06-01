@@ -71,6 +71,7 @@ def reset(env: Environment, node_key: str):
     this will have no effect on them.
     TODO: consider "cascading reset" for downstream recursive functions (which will still have
     accumulated output from this node)
+    TODO: especially augmentation nodes! (accum, dedupe)
     """
     _reset_state(env, node_key)
     _invalidate_datablocks(env, node_key)
