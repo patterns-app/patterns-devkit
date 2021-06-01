@@ -39,7 +39,10 @@ class InputExhaustedException(DataFunctionException):
 DataFunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame, Records, DataBlockMetadata, DataBlock,
+    DataFrame,
+    Records,
+    DataBlockMetadata,
+    DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -215,7 +218,10 @@ def function_factory(
         else:
             namespace = namespace
         function = DataFunction(
-            name=name, namespace=namespace, function_callable=function_like, **kwargs,
+            name=name,
+            namespace=namespace,
+            function_callable=function_like,
+            **kwargs,
         )
     if namespace == DEFAULT_NAMESPACE:
         # Add to default module
