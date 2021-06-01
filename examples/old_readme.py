@@ -1,7 +1,8 @@
 # flake8: noqa F402
 import sys
 
-from snapflow import Environment, datafunction, run, sql_datafunction
+from snapflow.core.environment import run_graph
+from snapflow import Environment, datafunction, sql_datafunction
 from snapflow.core.declarative.base import load_yaml
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.graph import GraphCfg
@@ -47,7 +48,7 @@ assert len(g.nodes) == 3
 ds = DataspaceCfg(graph=g)
 env = Environment(dataspace=ds)
 # env.add_module(stripe)
-run(g, env=env, execution_timelimit_seconds=1)
+run_graph(g, env=env, execution_timelimit_seconds=1)
 
 # Get the final output block
 datablock = env.get_latest_output(g.get_node("stripe_customer_lifetime_sales"))
