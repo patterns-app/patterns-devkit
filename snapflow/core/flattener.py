@@ -14,7 +14,7 @@ def flatten_sub_node(
     alias = None
     if cfg.key == parent_stdout_key:
         alias = parent_key
-    return update(cfg, key=sub_node_key, inputs=new_inputs, input=None, alias=alias)
+    return update(cfg, key=sub_node_key, inputs=new_inputs, input=None, alias=alias,)
 
 
 def update_sub_node_inputs(
@@ -58,10 +58,7 @@ def handle_augmentations(n: GraphCfg) -> GraphCfg:
         return n
     nodes = []
     source_node = GraphCfg(
-        key="source",
-        function=n.function,
-        function_cfg=n.function_cfg,
-        params=n.params,
+        key="source", function=n.function, function_cfg=n.function_cfg, params=n.params,
     )
     nodes.append(source_node)
     leaf_key = source_node.key
@@ -83,17 +80,20 @@ def handle_augmentations(n: GraphCfg) -> GraphCfg:
         dedupe = n.dedupe
         if isinstance(dedupe, bool):
             dedupe = DedupeBehavior.LATEST_RECORD
-        if dedupe != DedupeBehavior.LATEST_RECORD:
-            raise NotImplementedError(dedupe)
-        nodes.append(
-            GraphCfg(
-                key="dedupe",
-                function="core.dedupe_keep_latest",
-                input=leaf_key,
-                # alias=alias,
+        if isinstance(dedupe, str):
+            dedupe = DedupeBehavior(dedupe)
+        if dedupe == DedupeBehavior.LATEST_RECORD:
+            nodes.append(
+                GraphCfg(
+                    key="dedupe",
+                    function="core.dedupe_keep_latest",
+                    input=leaf_key,
+                    # alias=alias,
+                )
             )
-        )
-        leaf_key = "dedupe"
+            leaf_key = "dedupe"
+        elif dedupe != DedupeBehavior.NONE:
+            raise NotImplementedError(dedupe)
     if n.conform_to_schema:
         raise NotImplementedError(
             f"Conform to schema not implemented yet ({n.conform_to_schema})"

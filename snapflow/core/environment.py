@@ -302,13 +302,22 @@ class Environment:
 
         graph = self.prepare_graph(graph)
         logger.debug(f"Running: {node}")
-        node = graph.get_node(node)
-        node.resolve(self.library)
-        result = execute_to_exhaustion(
-            self,
-            self.get_executable(node, graph=graph, **execution_kwargs),
-            to_exhaustion=to_exhaustion,
-        )
+        dependencies = graph.get_all_nodes_in_execution_order()
+        nodes = graph.get_nodes_with_prefix(node)
+        print({n.key for n in dependencies})
+        node_keys = {n.key for n in nodes}
+        print(node_keys)
+        result = None
+        for node in dependencies:
+            print(node.key)
+            if not node.key in node_keys:
+                continue
+            node = node.resolve(self.library)
+            result = execute_to_exhaustion(
+                self,
+                self.get_executable(node, graph=graph, **execution_kwargs),
+                to_exhaustion=to_exhaustion,
+            )
         return result
 
     def run_graph(

@@ -559,8 +559,7 @@ class ExecutionManager:
                 # output_obj = local_vars[function.function_callable.__name__](
                 function_args, function_kwargs = function_ctx.get_function_args()
                 output_obj = function_ctx.function.function_callable(
-                    *function_args,
-                    **function_kwargs,
+                    *function_args, **function_kwargs,
                 )
                 if output_obj is not None:
                     self.emit_output_object(output_obj, function_ctx)
@@ -569,9 +568,7 @@ class ExecutionManager:
         return result
 
     def emit_output_object(
-        self,
-        output_obj: DataInterfaceType,
-        function_ctx: DataFunctionContext,
+        self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
     ):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):
