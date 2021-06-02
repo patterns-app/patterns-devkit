@@ -304,12 +304,9 @@ class Environment:
         logger.debug(f"Running: {node}")
         dependencies = graph.get_all_nodes_in_execution_order()
         nodes = graph.get_nodes_with_prefix(node)
-        print({n.key for n in dependencies})
         node_keys = {n.key for n in nodes}
-        print(node_keys)
         result = None
         for node in dependencies:
-            print(node.key)
             if not node.key in node_keys:
                 continue
             node = node.resolve(self.library)
