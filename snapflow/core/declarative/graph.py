@@ -49,6 +49,14 @@ def startswith_any(s: str, others: Iterable[str]) -> bool:
     return False
 
 
+def ensure_enum_str(s: Union[str, Enum]) -> str:
+    if isinstance(s, str):
+        return s
+    if isinstance(s, Enum):
+        return s.value
+    raise TypeError(s)
+
+
 class DedupeBehavior(str, Enum):
     NONE = "None"
     LATEST_RECORD = "LatestRecord"
@@ -162,7 +170,8 @@ class GraphCfg(FrozenPydanticBase):
         if self.accumulate:
             return True
         if self.dedupe:
-            return True
+            if self.dedupe != DedupeBehavior.NONE:
+                return True
         if self.conform_to_schema:
             return True
         return False
@@ -235,6 +244,11 @@ class GraphCfg(FrozenPydanticBase):
             return key
         assert isinstance(key, str)
         return self.node_dict()[key]
+
+    def get_nodes_with_prefix(self, prefix: Union[GraphCfg, str]) -> List[GraphCfg]:
+        if isinstance(prefix, GraphCfg):
+            prefix = prefix.key
+        return [n for n in self.nodes if n.key and n.key.startswith(prefix)]
 
     def as_nx_graph(self) -> nx.DiGraph:
         g = nx.DiGraph()
