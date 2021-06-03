@@ -307,10 +307,12 @@ def test_node_reset():
     # Now reset node
     with env.md_api.begin():
         state = get_state(env, "source")
-        assert state.state is not None
+        assert "records_imported" in state.state
+        assert state.latest_log is not None
         reset(env, "source")
         state = get_state(env, "source")
-        assert state is None
+        assert state.state is None
+        assert state.latest_log is None
 
     blocks = produce(node=metrics, graph=g, target_storage=s, env=env)
     assert len(blocks) == 1
