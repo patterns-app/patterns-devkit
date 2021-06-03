@@ -564,6 +564,7 @@ class ExecutionManager:
                 if output_obj is not None:
                     self.emit_output_object(output_obj, function_ctx)
             result = function_ctx.as_execution_result()
+            # TODO: update node state block counts?
         logger.debug(f"EXECUTION RESULT {result}")
         return result
 
@@ -592,7 +593,7 @@ class ExecutionManager:
         if node_state_obj is None:
             node_state = {}
         else:
-            node_state = node_state_obj.state
+            node_state = node_state_obj.state or {}
 
         function_log = DataFunctionLog(  # type: ignore
             node_key=node.key,
@@ -603,8 +604,10 @@ class ExecutionManager:
             # runtime_url=self.current_runtime.url,
             started_at=utcnow(),
         )
+        node_state_obj.latest_log = function_log
         md.add(function_log)
-        md.flush([function_log])
+        md.add(node_state_obj)
+        md.flush([function_log, node_state_obj])
         function_ctx = DataFunctionContext(
             env=self.env,
             function=self.function,

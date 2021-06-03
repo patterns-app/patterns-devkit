@@ -15,71 +15,6 @@ from sqlalchemy.sql.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
 
-class NodeState(BaseModel):
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    node_key = Column(String(128))
-    state = Column(JSON, nullable=True)
-
-    __table_args__ = (UniqueConstraint("dataspace_key", "node_key"),)
-
-    def __repr__(self):
-        return self._repr(
-            node_key=self.node_key,
-            state=self.state,
-        )
-
-
-def get_state(env: Environment, node_key: str) -> Optional[NodeState]:
-    return env.md_api.execute(
-        select(NodeState).filter(NodeState.node_key == node_key)
-    ).scalar_one_or_none()
-
-
-def _reset_state(env: Environment, node_key: str):
-    """
-    Resets the node's state only.
-    This is usually not something you want to do by itself, but
-    instead as part of a full reset.
-    """
-    state = get_state(env, node_key)
-    if state is not None:
-        env.md_api.delete(state)
-
-
-def _invalidate_datablocks(env: Environment, node_key: str):
-    """"""
-    dbl_ids = [
-        r
-        for r in env.md_api.execute(
-            select(DataBlockLog.id)
-            .join(DataFunctionLog)
-            .filter(DataFunctionLog.node_key == node_key)
-        )
-        .scalars()
-        .all()
-    ]
-    env.md_api.execute(
-        update(DataBlockLog)
-        .filter(DataBlockLog.id.in_(dbl_ids))
-        .values({"invalidated": True})
-        .execution_options(synchronize_session="fetch")  # TODO: or false?
-    )
-
-
-def reset(env: Environment, node_key: str):
-    """
-    Resets the node, meaning all state is cleared, and all OUTPUT and INPUT datablock
-    logs are invalidated. Output datablocks are NOT deleted.
-    NB: If downstream nodes have already processed an output datablock,
-    this will have no effect on them.
-    TODO: consider "cascading reset" for downstream recursive functions (which will still have
-    accumulated output from this node)
-    TODO: especially augmentation nodes! (accum, dedupe)
-    """
-    _reset_state(env, node_key)
-    _invalidate_datablocks(env, node_key)
-
-
 class DataFunctionLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     node_key = Column(String(128), nullable=False)
@@ -183,3 +118,74 @@ class DataBlockLog(BaseModel):
             s += f"{dbl.direction.value:9}{str(dbl.data_block.updated_at):22}"
             s += f"{dbl.data_block.nominal_schema_key:20}{dbl.data_block.realized_schema_key:20}\n"
         return s
+
+
+class NodeState(BaseModel):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    node_key = Column(String(128))
+    state = Column(JSON, nullable=True)
+    latest_log_id = Column(Integer, ForeignKey(DataFunctionLog.id), nullable=True)
+    blocks_output_stdout = Column(Integer, nullable=True)
+    blocks_output_all = Column(Integer, nullable=True)
+    latest_log: RelationshipProperty = relationship("DataFunctionLog")
+
+    __table_args__ = (UniqueConstraint("dataspace_key", "node_key"),)
+
+    def __repr__(self):
+        return self._repr(
+            node_key=self.node_key, state=self.state, latest_log_id=self.latest_log_id,
+        )
+
+
+def get_state(env: Environment, node_key: str) -> Optional[NodeState]:
+    state = env.md_api.execute(
+        select(NodeState).filter(NodeState.node_key == node_key)
+    ).scalar_one_or_none()
+    if state is None:
+        state = NodeState(node_key=node_key)
+    return state
+
+
+def _reset_state(env: Environment, node_key: str):
+    """
+    Resets the node's state only.
+    This is usually not something you want to do by itself, but
+    instead as part of a full reset.
+    """
+    state = get_state(env, node_key)
+    if state is not None:
+        env.md_api.delete(state)
+
+
+def _invalidate_datablocks(env: Environment, node_key: str):
+    """"""
+    dbl_ids = [
+        r
+        for r in env.md_api.execute(
+            select(DataBlockLog.id)
+            .join(DataFunctionLog)
+            .filter(DataFunctionLog.node_key == node_key)
+        )
+        .scalars()
+        .all()
+    ]
+    env.md_api.execute(
+        update(DataBlockLog)
+        .filter(DataBlockLog.id.in_(dbl_ids))
+        .values({"invalidated": True})
+        .execution_options(synchronize_session="fetch")  # TODO: or false?
+    )
+
+
+def reset(env: Environment, node_key: str):
+    """
+    Resets the node, meaning all state is cleared, and all OUTPUT and INPUT datablock
+    logs are invalidated. Output datablocks are NOT deleted.
+    NB: If downstream nodes have already processed an output datablock,
+    this will have no effect on them.
+    TODO: consider "cascading reset" for downstream recursive functions (which will still have
+    accumulated output from this node)
+    TODO: especially augmentation nodes! (accum, dedupe)
+    """
+    _reset_state(env, node_key)
+    _invalidate_datablocks(env, node_key)
