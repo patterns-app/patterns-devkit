@@ -1,4 +1,6 @@
 from __future__ import annotations
+from contextlib import contextmanager
+import os
 
 import sys
 from datetime import datetime
@@ -10,6 +12,7 @@ from commonmodel.base import create_quick_schema
 from dcp.data_format.formats.memory.dataframe import DataFrameFormat
 from dcp.data_format.formats.memory.records import Records, RecordsFormat
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
+from dcp.storage.database.engines.postgres import PostgresDatabaseStorageApi
 from loguru import logger
 from pandas._testing import assert_almost_equal
 from snapflow import DataBlock, datafunction
@@ -22,6 +25,8 @@ from snapflow.modules import core
 from sqlalchemy import select
 from tests.test_e2e import Customer
 
+IS_CI = os.environ.get("CI")
+
 
 @datafunction
 def funky_source(
@@ -30,11 +35,7 @@ def funky_source(
     # Gives different schema on each call
     runs = ctx.get_state_value("run_number", 0)
     records = [
-        {
-            "name": f"name{n}",
-            "joined": datetime(2000, 1, n + 1),
-            "metadata": {"idx": n},
-        }
+        {"name": f"name{n}", "joined": datetime(2000, 1, n + 1), "metadata": None,}
         for n in range(10)
     ]
     if runs == 1:
@@ -53,13 +54,13 @@ def funky_source(
         records = [
             {
                 "name": f"name{n}",
-                "joined": 123,
+                "joined": None,
                 "metadata": {"idx": n},
                 "new_field": "suprise!",
             }
             for n in range(10)
         ]
-    if runs > 3:
+    if runs == 3:
         # null field
         records = [
             {
@@ -73,45 +74,53 @@ def funky_source(
     if runs > 3:
         # missing field
         records = [
-            {
-                "joined": datetime(2000, 1, n + 1),
-                "metadata": {"idx": n},
-            }
+            {"joined": datetime(2000, 1, n + 1), "metadata": {"idx": n},}
             for n in range(10)
         ]
     ctx.emit_state_value("run_number", runs + 1)
     return records
 
 
-def get_env(key="_test", db_url=None):
-    if db_url is None:
+@contextmanager
+def get_env(key="_test"):
+    if not IS_CI:
+        with PostgresDatabaseStorageApi.temp_local_database() as db_url:
+            env = Environment(
+                DataspaceCfg(
+                    key=key, metadata_storage=get_tmp_sqlite_db_url(), storages=[db_url]
+                )
+            )
+            env.add_module(core)
+            env.add_schema(Customer)
+            yield env
+    else:
         db_url = get_tmp_sqlite_db_url()
-    env = Environment(
-        DataspaceCfg(
-            key=key, metadata_storage=db_url, storages=[get_tmp_sqlite_db_url()]
+        env = Environment(
+            DataspaceCfg(
+                key=key, metadata_storage=db_url, storages=[get_tmp_sqlite_db_url()]
+            )
         )
-    )
-    env.add_module(core)
-    env.add_schema(Customer)
-    return env
+        env.add_module(core)
+        env.add_schema(Customer)
+        yield env
 
 
 def test_source():
-    env = get_env()
-    s = env._local_python_storage
-    source = GraphCfg(key="source", function=funky_source.key)
-    g = GraphCfg(nodes=[source])
-    # Run first time
-    blocks = env.produce("source", graph=g, target_storage=s)
-    assert blocks[0].nominal_schema_key == "Customer"
-    assert len(blocks[0].realized_schema.fields) == 3
-    records = blocks[0].as_records()
-    assert len(records) == 10
-    assert len(records[0]) == 3
-    # RUn again
-    blocks = env.produce("source", graph=g, target_storage=s)
-    assert blocks[0].nominal_schema_key == "Customer"
-    assert len(blocks[0].realized_schema.fields) == 4
+    with get_env() as env:
+        s = env._local_python_storage
+        source = GraphCfg(key="source", function=funky_source.key)
+        g = GraphCfg(nodes=[source])
+        # Run first time
+        blocks = env.produce("source", graph=g, target_storage=s)
+        assert blocks[0].nominal_schema_key == "Customer"
+        assert len(blocks[0].realized_schema.fields) == 3
+        records = blocks[0].as_records()
+        assert len(records) == 10
+        assert len(records[0]) == 3
+        # RUn again
+        blocks = env.produce("source", graph=g, target_storage=s)
+        assert blocks[0].nominal_schema_key == "Customer"
+        assert len(blocks[0].realized_schema.fields) == 4
 
 
 def test_accumulate():
@@ -146,9 +155,9 @@ def test_accumulate():
         assert len(records) == 40
         assert len(records[0]) == 4
 
-    env = get_env()
-    s = env._local_python_storage
-    run_accumulate(env, GraphCfg(nodes=[source, accumulate]), s)
-    env = get_env()
-    dbs = env.get_storages()[0]
-    run_accumulate(env, GraphCfg(nodes=[source, accumulate_sql]), dbs)
+    with get_env() as env:
+        s = env._local_python_storage
+        run_accumulate(env, GraphCfg(nodes=[source, accumulate]), s)
+    with get_env() as env:
+        dbs = env.get_storages()[0]
+        run_accumulate(env, GraphCfg(nodes=[source, accumulate_sql]), dbs)
