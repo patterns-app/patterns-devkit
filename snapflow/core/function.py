@@ -39,10 +39,7 @@ class InputExhaustedException(DataFunctionException):
 DataFunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    DataBlockMetadata,
-    DataBlock,
+    DataFrame, Records, DataBlockMetadata, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -79,10 +76,10 @@ class DataFunction:
     package: DataFunctionPackage = None
     display_name: Optional[str] = None
     description: Optional[str] = None
-
     # TODO: runtime engine eg "mysql>=8.0", "python==3.7.4"  ???
     # TODO: runtime dependencies
-    def _post_init(self, *args, **kwargs):
+
+    def __post_init__(self, *args, **kwargs):
         global_library.add_function(self)
 
     @property
@@ -218,10 +215,7 @@ def function_factory(
         else:
             namespace = namespace
         function = DataFunction(
-            name=name,
-            namespace=namespace,
-            function_callable=function_like,
-            **kwargs,
+            name=name, namespace=namespace, function_callable=function_like, **kwargs,
         )
     if namespace == DEFAULT_NAMESPACE:
         # Add to default module
