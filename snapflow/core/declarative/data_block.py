@@ -16,12 +16,21 @@ from pydantic import validator
 class DataBlockMetadataCfg(FrozenPydanticBase):
     id: str
     # id = Column(Integer, primary_key=True, autoincrement=True)
-    realized_schema: Schema
-    inferred_schema: Optional[Schema] = None
-    nominal_schema: Optional[Schema] = None
+    realized_schema_key: str
+    inferred_schema_key: Optional[str] = None
+    nominal_schema_key: Optional[str] = None
     record_count: Optional[int] = None
     created_by_node_key: Optional[str] = None
     deleted: bool = False
+
+    def realized_schema(self, lib: ComponentLibrary):
+        return lib.get_schema(self.realized_schema_key)
+
+    def inferred_schema(self, lib: ComponentLibrary):
+        return lib.get_schema(self.inferred_schema_key)
+
+    def nominal_schema(self, lib: ComponentLibrary):
+        return lib.get_schema(self.nominal_schema_key)
 
     @property
     def manager(self) -> DataBlockManager:

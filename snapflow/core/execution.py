@@ -15,6 +15,7 @@ from datetime import datetime
 from enum import Enum
 from io import BufferedIOBase, BytesIO, IOBase, RawIOBase
 from typing import (
+    Iterable,
     TYPE_CHECKING,
     Any,
     Callable,
@@ -45,7 +46,6 @@ from snapflow.core.data_block import (
 )
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.execution import (
-    CumulativeExecutionResult,
     ExecutableCfg,
     ExecutionCfg,
     ExecutionResult,
@@ -116,17 +116,12 @@ class ExecutionLogger:
         self.out(msg)
 
 
-# TODO: remove deprecated name
-FunctionContext = DataFunctionContext
-
-
 class ExecutionManager:
-    def __init__(self, env: Environment, exe: ExecutableCfg):
-        self.exe = exe
-        self.env = env
+    def __init__(self, ctx: DataFunctionContext):
+        self.ctx = ctx
         self.logger = ExecutionLogger()
-        self.node = self.exe.node
-        self.function = env.get_function(self.exe.node.function)
+        self.node = self.ctx.node
+        self.function = ctx.library.get_function(self.node.function)
         self.start_time = utcnow()
 
     def execute(self) -> ExecutionResult:
@@ -137,51 +132,36 @@ class ExecutionManager:
         logger.debug(
             f"RUNNING NODE {self.node.key} {self.function.key} with params `{self.node.params}`"
         )
-        logger.debug(self.exe)
+        logger.debug(self.ctx)
         self.logger.log(base_msg)
         with self.logger.indent():
-            result = self._execute()
+            self._execute()
+            result = self.ctx.result
             self.log_execution_result(result)
-            if not result.error:
+            if not result.has_error():
                 self.logger.log(cf.success("Ok " + success_symbol + "\n"))  # type: ignore
             else:
-                error = result.error or "DataFunction failed (unknown error)"
+                error = result.function_error or "DataFunction failed (unknown error)"
                 self.logger.log(cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n")  # type: ignore
-                if result.traceback:
-                    self.logger.log(cf.dimmed(result.traceback), indent=2)  # type: ignore
+                if result.function_error.traceback:
+                    self.logger.log(cf.dimmed(result.function_error.traceback), indent=2)  # type: ignore
             logger.debug(f"Execution result: {result}")
             logger.debug(f"*DONE* RUNNING NODE {self.node.key} {self.function.key}")
         return result
 
     def _execute(self) -> ExecutionResult:
-        with self.env.md_api.begin():
-            try:
-                bound_interface = self.exe.get_bound_interface(self.env)
-            except InputExhaustedException as e:
-                logger.debug(f"Inputs exhausted {e}")
-                raise e
-                # return ExecutionResult.empty()
-            with self.start_function_run(self.node, bound_interface) as function_ctx:
-                # function = executable.compiled_function.function
-                # local_vars = locals()
-                # if hasattr(function, "_locals"):
-                #     local_vars.update(function._locals)
-                # exec(function.get_source_code(), globals(), local_vars)
-                # output_obj = local_vars[function.function_callable.__name__](
-                function_args, function_kwargs = function_ctx.get_function_args()
-                output_obj = function_ctx.function.function_callable(
-                    *function_args, **function_kwargs,
-                )
-                if output_obj is not None:
-                    self.emit_output_object(output_obj, function_ctx)
-            result = function_ctx.as_execution_result()
+        function_args, function_kwargs = self.ctx.get_function_args()
+        output_obj = self.ctx.function.function_callable(
+            *function_args, **function_kwargs,
+        )
+        if output_obj is not None:
+            self.emit_output_object(output_obj)
             # TODO: update node state block counts?
+        result = self.ctx.result
         logger.debug(f"EXECUTION RESULT {result}")
         return result
 
-    def emit_output_object(
-        self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
-    ):
+    def emit_output_object(self, output_obj: DataInterfaceType):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):
             output_iterator = output_obj
@@ -191,69 +171,7 @@ class ExecutionManager:
         for output_obj in output_iterator:
             logger.debug(output_obj)
             i += 1
-            function_ctx.emit(output_obj)
-
-    @contextmanager
-    def start_function_run(
-        self, node: GraphCfg, bound_interface: BoundInterface
-    ) -> Iterator[DataFunctionContext]:
-
-        # assert self.current_runtime is not None, "Runtime not set"
-        md = self.env.get_metadata_api()
-        node_state_obj = get_state(self.env, node.key)
-        if node_state_obj is None:
-            node_state = {}
-        else:
-            node_state = node_state_obj.state or {}
-
-        function_log = DataFunctionLog(  # type: ignore
-            node_key=node.key,
-            node_start_state=node_state.copy(),  # {k: v for k, v in node_state.items()},
-            node_end_state=node_state,
-            function_key=node.function,
-            function_params=node.params,
-            # runtime_url=self.current_runtime.url,
-            started_at=utcnow(),
-        )
-        node_state_obj.latest_log = function_log
-        md.add(function_log)
-        md.add(node_state_obj)
-        md.flush([function_log, node_state_obj])
-        function_ctx = DataFunctionContext(
-            env=self.env,
-            function=self.function,
-            node=self.node,
-            executable=self.exe,
-            metadata_api=self.env.md_api,
-            inputs=bound_interface.inputs,
-            function_log=function_log,
-            bound_interface=bound_interface,
-            execution_config=self.exe.execution_config,
-            execution_start_time=self.start_time,
-        )
-        try:
-            yield function_ctx
-            # Validate local memory objects: Did we leave any non-storeables hanging?
-            validate_data_blocks(self.env)
-        except Exception as e:
-            # Don't worry about exhaustion exceptions
-            if not isinstance(e, InputExhaustedException):
-                logger.debug(f"Error running node:\n{traceback.format_exc()}")
-                function_log.set_error(e)
-                function_log.persist_state(self.env)
-                function_log.completed_at = utcnow()
-                # TODO: should clean this up so transaction surrounds things that you DO
-                #       want to rollback, obviously
-                # md.commit()  # MUST commit here since the re-raised exception will issue a rollback
-                if (
-                    self.exe.execution_config.dataspace.snapflow.abort_on_function_error
-                ):  # TODO: from call or env
-                    raise e
-        finally:
-            function_ctx.finish_execution()
-            # Persist state on success OR error:
-            function_log.persist_state(self.env)
-            function_log.completed_at = utcnow()
+            self.ctx.emit(output_obj)
 
     def log_execution_result(self, result: ExecutionResult):
         self.logger.log("Inputs: ")
@@ -282,50 +200,6 @@ class ExecutionManager:
                     )
         else:
             self.logger.log_token("None\n")
-
-
-def execute_to_exhaustion(
-    env: Environment, exe: ExecutableCfg, to_exhaustion: bool = True
-) -> Optional[CumulativeExecutionResult]:
-    cum_result = CumulativeExecutionResult()
-    em = ExecutionManager(env, exe)
-    while True:
-        try:
-            result = em.execute()
-        except InputExhaustedException:
-            return cum_result
-        cum_result.add_result(result)
-        if (
-            not to_exhaustion or not result.non_reference_inputs_bound
-        ):  # TODO: We just run no-input DFs (sources) once no matter what
-            # (they are responsible for creating their own generators)
-            break
-        if cum_result.error:
-            break
-    return cum_result
-
-
-def get_latest_output(env: Environment, node: GraphCfg) -> Optional[DataBlock]:
-    from snapflow.core.data_block import DataBlockMetadata
-
-    with env.metadata_api.begin():
-        block: DataBlockMetadata = (
-            env.md_api.execute(
-                select(DataBlockMetadata)
-                .join(DataBlockLog)
-                .join(DataFunctionLog)
-                .filter(
-                    DataBlockLog.direction == Direction.OUTPUT,
-                    DataFunctionLog.node_key == node.key,
-                )
-                .order_by(DataBlockLog.created_at.desc())
-            )
-            .scalars()
-            .first()
-        )
-        if block is None:
-            return None
-    return block.as_managed_data_block(env)
 
 
 class DataBlockManager(FrozenPydanticBase):
@@ -395,59 +269,59 @@ class DataBlockManager(FrozenPydanticBase):
         return obj
 
     def has_format(self, fmt: DataFormat) -> bool:
-        return (
-            self.env.md_api.execute(
-                select(StoredDataBlockMetadata)
-                .filter(StoredDataBlockMetadata.data_block == self.data_block)
-                .filter(StoredDataBlockMetadata.data_format == fmt)
-            )
-        ).scalar_one_or_none() is not None
+        return fmt in [s.data_format for s in self.stored_data_blocks]
 
 
-class DataBlockStream(FrozenPydanticBase):
+class DataBlockStream(PydanticBase):
     ctx: DataFunctionContext
     blocks: List[DataBlockMetadataCfg] = []
     declared_schema: Optional[Schema] = None
     declared_schema_translation: Optional[Dict[str, str]] = None
+    _managed_blocks: Optional[Iterator[DataBlock]] = None
     _emitted_blocks: List[DataBlockMetadataCfg] = []
-    index: int = 0
+    _emitted_managed_blocks: List[DataBlock] = []
 
-    def __iter__(self) -> Iterator[DataBlockMetadataCfg]:
-        return (b for b in self.blocks)
+    def managed_blocks(self) -> Iterator[DataBlock]:
+        if self._managed_blocks is None:
+            self._managed_blocks = self.as_managed_block(self.blocks)
+        return self._managed_blocks
 
-    def __next__(self) -> DataBlockMetadataCfg:
-        if self.index >= len(self.blocks):
-            raise StopIteration
-        item = self.blocks[self.index]
-        self.index += 1
-        return item
+    def __iter__(self) -> Iterator[DataBlock]:
+        return self.managed_blocks()
 
-    def as_managed_block(
-        self, stream: Iterator[DataBlockMetadata]
+    def __next__(self) -> DataBlock:
+        return next(self.managed_blocks())
+
+    def _as_managed_block(
+        self, stream: Iterable[DataBlockMetadataCfg]
     ) -> Iterator[DataBlock]:
         from snapflow.core.function_interface_manager import get_schema_translation
 
         for db in stream:
             if db.nominal_schema_key:
                 schema_translation = get_schema_translation(
-                    self.env,
-                    source_schema=db.nominal_schema(self.env),
+                    source_schema=db.nominal_schema(self.ctx.library),
                     target_schema=self.declared_schema,
                     declared_schema_translation=self.declared_schema_translation,
                 )
             else:
                 schema_translation = None
             mdb = db.as_managed_data_block(
-                self.env, schema_translation=schema_translation
+                self.ctx, schema_translation=schema_translation
             )
             yield mdb
 
+    def as_managed_block(
+        self, stream: Iterable[DataBlockMetadataCfg]
+    ) -> Iterator[DataBlock]:
+        return self.log_emitted(self._as_managed_block(self.blocks))
+
     @property
     def all_blocks(self) -> List[DataBlock]:
-        return self._blocks
+        return list(self.as_managed_block(self.blocks))
 
     def count(self) -> int:
-        return len(self._blocks)
+        return len(self.blocks)
 
     def log_emitted(self, stream: Iterator[DataBlock]) -> Iterator[DataBlock]:
         for mdb in stream:
@@ -455,7 +329,7 @@ class DataBlockStream(FrozenPydanticBase):
             self._emitted_managed_blocks.append(mdb)
             yield mdb
 
-    def get_emitted_blocks(self) -> List[DataBlockMetadata]:
+    def get_emitted_blocks(self) -> List[DataBlockMetadataCfg]:
         return self._emitted_blocks
 
     def get_emitted_managed_blocks(self) -> List[DataBlock]:

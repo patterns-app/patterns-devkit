@@ -21,7 +21,6 @@ from snapflow.core.streams import DataBlockStream, StreamBuilder
 
 
 def get_schema_translation(
-    env: Environment,
     source_schema: Schema,
     target_schema: Optional[Schema] = None,
     declared_schema_translation: Optional[Dict[str, str]] = None,
@@ -30,8 +29,7 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation,
-            from_schema_key=source_schema.key,
+            translation=declared_schema_translation, from_schema_key=source_schema.key,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed
@@ -137,12 +135,7 @@ def bind_inputs(
             f"Building stream for `{node_input.name}` from {node_input.input_node}"
         )
         stream_builder = node_input.as_stream_builder()
-        stream_builder = _filter_stream(
-            env,
-            stream_builder,
-            node_input,
-            cfg,
-        )
+        stream_builder = _filter_stream(env, stream_builder, node_input, cfg,)
 
         """
         Inputs are considered "Exhausted" if:
@@ -222,6 +215,5 @@ def bind_node_input(
             #   (will trigger an InputExhastedException earlier otherwise)
             bound_block = next(bound_stream)
     return node_input.as_bound_input(
-        bound_block=bound_block,
-        bound_stream=bound_stream,
+        bound_block=bound_block, bound_stream=bound_stream,
     )

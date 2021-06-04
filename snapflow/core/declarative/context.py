@@ -1,25 +1,70 @@
 from __future__ import annotations
+from snapflow.core.storage import ensure_data_block_on_storage_cfg
 from snapflow.core.declarative.data_block import (
     DataBlockMetadataCfg,
     StoredDataBlockMetadataCfg,
 )
+from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
+from snapflow.core.component import ComponentLibrary
 
 import traceback
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
-
-from commonmodel.base import Schema
-from dcp.storage.base import Storage
-from snapflow.core.data_block import DataBlock, DataBlockMetadata
-from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
-from snapflow.core.declarative.dataspace import DataspaceCfg
-from snapflow.core.declarative.function import (
-    DEFAULT_OUTPUT_NAME,
-    DataFunctionInputCfg,
-    DataFunctionInterfaceCfg,
+from collections import abc, defaultdict
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from io import BufferedIOBase, BytesIO, IOBase, RawIOBase
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
 )
+
+import dcp
+import sqlalchemy
+from commonmodel.base import AnySchema, Schema, SchemaLike, SchemaTranslation
+from dcp.data_format.base import DataFormat, get_format_for_nickname
+from dcp.data_format.handler import get_handler_for_name, infer_format_for_name
+from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
+from dcp.utils.common import rand_str, utcnow
+from loguru import logger
+from snapflow.core.data_block import (
+    Alias,
+    DataBlock,
+    DataBlockMetadata,
+    ManagedDataBlock,
+    StoredDataBlockMetadata,
+    get_datablock_id,
+    get_stored_datablock_id,
+)
+from snapflow.core.declarative.dataspace import DataspaceCfg
+from snapflow.core.declarative.execution import (
+    ExecutableCfg,
+    ExecutionCfg,
+    ExecutionResult,
+    NodeInputCfg,
+)
+from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
+from snapflow.core.function import (
+    DataFunction,
+    DataInterfaceType,
+    InputExhaustedException,
+)
+from snapflow.core.function_interface_manager import BoundInput, BoundInterface
+from snapflow.core.metadata.api import MetadataApi
+from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction, get_state
+from snapflow.core.typing.casting import cast_to_realized_schema
+from snapflow.utils.output import cf, error_symbol, success_symbol
 from sqlalchemy.sql.expression import select
+
 
 if TYPE_CHECKING:
     from snapflow.core.streams import DataBlockStream, StreamBuilder
@@ -202,11 +247,14 @@ class DataFunctionContext(FrozenPydanticBase):
             nominal_output_schema = self.library.get_schema(nominal_output_schema)
         sdb = self.get_stored_datablock_for_output(output)
         db = sdb.data_block
-        if db.nominal_schema and db.nominal_schema.key != nominal_output_schema.key:
+        if (
+            db.nominal_schema_key
+            and db.nominal_schema(self.library).key != nominal_output_schema.key
+        ):
             raise Exception(
                 "Mismatch nominal schemas {db.nominal_schema_key} - {nominal_output_schema.key}"
             )
-        db.nominal_schema = nominal_output_schema
+        db.nominal_schema_key = nominal_output_schema.key
         if records_obj is not None:
             name, storage = self.handle_python_object(records_obj)
             if nominal_output_schema is not None:
@@ -256,7 +304,11 @@ class DataFunctionContext(FrozenPydanticBase):
         self, sdb: StoredDataBlockMetadataCfg, name: str, storage: Storage
     ):
         # TOO expensive to infer schema every time, so just do first time
-        if sdb.data_block.realized_schema.key in (None, "Any", "core.Any"):
+        if sdb.data_block.realized_schema(self.library).key in (
+            None,
+            "Any",
+            "core.Any",
+        ):
             handler = get_handler_for_name(name, storage)
             inferred_schema = handler().infer_schema(name, storage)
             logger.debug(
@@ -281,7 +333,7 @@ class DataFunctionContext(FrozenPydanticBase):
         #     )
         if sdb.data_block.nominal_schema_key:
             logger.debug(
-                f"Nominal schema: {sdb.data_block.nominal_schema.key} {sdb.data_block.nominal_schema.fields_summary()}"
+                f"Nominal schema: {sdb.data_block.nominal_schema(self.library).key} {sdb.data_block.nominal_schema(self.library).fields_summary()}"
             )
 
     def append_records_to_stored_datablock(

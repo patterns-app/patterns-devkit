@@ -115,38 +115,5 @@ class ExecutionResult(PydanticBase):
     function_error: Optional[PythonException] = None
     framework_error: Optional[PythonException] = None
 
-    @property
     def has_error(self) -> bool:
         return self.function_error is not None or self.framework_error is not None
-
-
-class CumulativeExecutionResult(PydanticBase):
-    input_block_counts: Dict[str, int] = {}
-    output_blocks: Optional[Dict[str, List[Dict]]] = {}
-    error: Optional[str] = None
-    traceback: Optional[str] = None
-
-    def add_result(self, result: ExecutionResult):
-        for i, c in result.input_block_counts.items():
-            self.input_block_counts[i] = self.input_block_counts.setdefault(i, 0) + c
-        for i, dbs in result.output_blocks.items():
-            self.output_blocks.setdefault(i, []).append(dbs)
-        if result.error:
-            self.error = result.error
-            self.traceback = result.traceback
-
-    def get_output_blocks(
-        self, env: Environment, name: Optional[str] = None
-    ) -> List[DataBlock]:
-        blocks = []
-        if not self.output_blocks:
-            return blocks
-        env.md_api.begin()  # TODO: hanging session
-        for bs in self.output_blocks[name or DEFAULT_OUTPUT_NAME]:
-            dbid = bs["id"]
-            block = env.md_api.execute(
-                select(DataBlockMetadata).filter(DataBlockMetadata.id == dbid)
-            ).scalar_one()
-            mds = block.as_managed_data_block(env)
-            blocks.append(mds)
-        return blocks
