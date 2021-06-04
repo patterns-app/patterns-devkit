@@ -3,7 +3,7 @@ from __future__ import annotations
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from loguru import logger
-from snapflow.core.data_block import DataBlockMetadata
+from snapflow.core.persisted.data_block import DataBlockMetadata
 from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
 from snapflow.core.environment import Environment
 from sqlalchemy.sql.expression import select

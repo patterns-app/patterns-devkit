@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dcp.data_format.formats.memory.records import RecordsFormat
 from snapflow.core import data_block
-from snapflow.core.data_block import (
+from snapflow.core.persisted.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
     get_datablock_id,

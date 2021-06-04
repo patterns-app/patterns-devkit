@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from snapflow.core.data_block import DataBlock
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -18,14 +19,13 @@ from commonmodel.base import Schema, SchemaLike
 from dcp.storage.base import Storage
 from dcp.utils.common import ensure_list
 from loguru import logger
-from snapflow.core.data_block import (
-    DataBlock,
+from snapflow.core.persisted.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
 )
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
-from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction
+from snapflow.core.persisted.state import DataBlockLog, DataFunctionLog, Direction
 from sqlalchemy import and_, not_
 from sqlalchemy.engine import Result
 from sqlalchemy.orm import Query
@@ -130,8 +130,7 @@ class StreamBuilder:
     # can just attach functions that modify queryset, don't need all these specific methods?
 
     def __init__(
-        self,
-        filters: StreamBuilderConfiguration = None,
+        self, filters: StreamBuilderConfiguration = None,
     ):
         self._filters = filters or StreamBuilderConfiguration()
 
@@ -189,15 +188,10 @@ class StreamBuilder:
         self, unprocessed_by: str, allow_cycle=False
     ) -> StreamBuilder:
         return self.clone(
-            unprocessed_by_node_key=unprocessed_by,
-            allow_cycle=allow_cycle,
+            unprocessed_by_node_key=unprocessed_by, allow_cycle=allow_cycle,
         )
 
-    def _filter_unprocessed(
-        self,
-        env: Environment,
-        query: Select,
-    ) -> Select:
+    def _filter_unprocessed(self, env: Environment, query: Select,) -> Select:
         if not self._filters.unprocessed_by_node_key:
             return query
         # if self._filters.allow_cycle:
@@ -227,11 +221,7 @@ class StreamBuilder:
     def filter_inputs(self, inputs: Union[str, List[str]]) -> StreamBuilder:
         return self.clone(node_keys=[ensure_node_key(n) for n in ensure_list(inputs)])
 
-    def _filter_inputs(
-        self,
-        env: Environment,
-        query: Select,
-    ) -> Select:
+    def _filter_inputs(self, env: Environment, query: Select,) -> Select:
         if not self._filters.node_keys:
             return query
         eligible_input_drs = (
@@ -295,10 +285,7 @@ class StreamBuilder:
         return self.clone(operators=(self.get_operators() + [op]))
 
     def is_unprocessed(
-        self,
-        env: Environment,
-        block: DataBlockMetadata,
-        node: str,
+        self, env: Environment, block: DataBlockMetadata, node: str,
     ) -> bool:
         blocks = self.filter_unprocessed(node)
         q = blocks.get_query(env)

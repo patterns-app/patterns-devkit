@@ -27,7 +27,7 @@ from dcp.data_format.handler import get_handler_for_name, infer_format_for_name
 from dcp.storage.base import FileSystemStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
-from snapflow.core.data_block import (
+from snapflow.core.persisted.data_block import (
     Alias,
     DataBlock,
     DataBlockMetadata,
@@ -53,7 +53,12 @@ from snapflow.core.function import (
 )
 from snapflow.core.function_interface_manager import BoundInput, BoundInterface
 from snapflow.core.metadata.api import MetadataApi
-from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction, get_state
+from snapflow.core.persisted.state import (
+    DataBlockLog,
+    DataFunctionLog,
+    Direction,
+    get_state,
+)
 from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.utils.output import cf, error_symbol, success_symbol
 from sqlalchemy.sql.expression import select
@@ -235,7 +240,7 @@ def execute_to_exhaustion(
 
 
 def get_latest_output(env: Environment, node: GraphCfg) -> Optional[DataBlock]:
-    from snapflow.core.data_block import DataBlockMetadata
+    from snapflow.core.persisted.data_block import DataBlockMetadata
 
     with env.metadata_api.begin():
         block: DataBlockMetadata = (

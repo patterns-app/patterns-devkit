@@ -5,7 +5,7 @@ from commonmodel.base import Schema, SchemaLike, SchemaTranslation, create_quick
 from dcp.data_format.formats.memory.dataframe import pandas_series_to_field_type
 from dcp.data_format.formats.memory.records import Records
 from dcp.utils.common import title_to_snake_case
-from snapflow.core.metadata.orm import BaseModel
+from snapflow.core.persisted.base import BaseModel
 from sqlalchemy.sql.schema import Column
 from sqlalchemy.sql.sqltypes import JSON, String
 

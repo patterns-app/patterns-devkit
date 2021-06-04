@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import pytest
-from snapflow.core.data_block import DataBlockMetadata
+from snapflow.core.persisted.data_block import DataBlockMetadata
 from snapflow.core.declarative.base import load_yaml
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.operators import filter, latest, operator
-from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction
+from snapflow.core.persisted.state import DataBlockLog, DataFunctionLog, Direction
 from snapflow.core.streams import (
     DataBlockStream,
     ManagedDataBlockStream,
@@ -99,9 +99,7 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            function_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.env.md_api.add_all([dfl, drl])
 
@@ -116,9 +114,7 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            function_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = DataFunctionLog(
             node_key=self.node1.key,
@@ -126,9 +122,7 @@ class TestStreams:
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            function_log=dfl2,
-            data_block=self.dr1t1,
-            direction=Direction.INPUT,
+            function_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
         )
         self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 
@@ -176,9 +170,7 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            function_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         self.env.md_api.add_all([dfl, drl])
 
@@ -197,14 +189,10 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            function_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         drl2 = DataBlockLog(
-            function_log=dfl,
-            data_block=self.dr2t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr2t1, direction=Direction.OUTPUT,
         )
         self.env.md_api.add_all([dfl, drl, drl2])
 
@@ -243,9 +231,7 @@ class TestStreams:
             runtime_url="test",
         )
         drl = DataBlockLog(
-            function_log=dfl,
-            data_block=self.dr1t1,
-            direction=Direction.OUTPUT,
+            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
         )
         dfl2 = DataFunctionLog(
             node_key=self.node1.key,
@@ -253,9 +239,7 @@ class TestStreams:
             runtime_url="test",
         )
         drl2 = DataBlockLog(
-            function_log=dfl2,
-            data_block=self.dr1t1,
-            direction=Direction.INPUT,
+            function_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
         )
         self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 

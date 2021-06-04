@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import enum
+from snapflow.core.persisted.data_block import DataBlockMetadata
+from snapflow.core.persisted.base import BaseModel, SNAPFLOW_METADATA_TABLE_PREFIX
 import traceback
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
-from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from pydantic_sqlalchemy.main import sqlalchemy_to_pydantic
+
 from snapflow.core.environment import Environment
-from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.expression import select, update

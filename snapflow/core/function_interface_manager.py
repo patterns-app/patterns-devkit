@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from snapflow.core.declarative.interface import NodeInputCfg
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
@@ -9,14 +10,14 @@ from loguru import logger
 from snapflow.core import operators
 from snapflow.core.data_block import DataBlock
 from snapflow.core.declarative.base import FrozenPydanticBase
-from snapflow.core.declarative.execution import ExecutableCfg, NodeInputCfg
+from snapflow.core.declarative.execution import ExecutableCfg
 from snapflow.core.declarative.function import (
     DataFunctionInputCfg,
     DataFunctionInterfaceCfg,
 )
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
-from snapflow.core.schema import GenericSchemaException, is_generic
+from snapflow.core.persisted.schema import GenericSchemaException, is_generic
 from snapflow.core.streams import DataBlockStream, StreamBuilder
 
 

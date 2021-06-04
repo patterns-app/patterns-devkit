@@ -1,10 +1,11 @@
 from __future__ import annotations
-from snapflow.core.declarative.interface import BoundInputCfg, BoundInterfaceCfg
-from snapflow.core.storage import ensure_data_block_on_storage_cfg
-from snapflow.core.declarative.data_block import (
+from snapflow.core.persisted.pydantic import (
     DataBlockMetadataCfg,
+    DataFunctionLogCfg,
     StoredDataBlockMetadataCfg,
 )
+from snapflow.core.declarative.interface import BoundInputCfg, BoundInterfaceCfg
+from snapflow.core.storage import ensure_data_block_on_storage_cfg
 from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
 from snapflow.core.component import ComponentLibrary
 
@@ -35,26 +36,29 @@ from dcp.data_format.handler import get_handler_for_name, infer_format_for_name
 from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
-from snapflow.core.data_block import (
+from snapflow.core.persisted.data_block import (
     Alias,
-    DataBlock,
     DataBlockMetadata,
-    ManagedDataBlock,
     StoredDataBlockMetadata,
     get_datablock_id,
     get_stored_datablock_id,
 )
-from snapflow.core.declarative.dataspace import DataspaceCfg
+from snapflow.core.declarative.dataspace import ComponentLibraryCfg, DataspaceCfg
 from snapflow.core.declarative.execution import (
     ExecutableCfg,
     ExecutionCfg,
     ExecutionResult,
 )
-from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
+from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME, DataFunctionCfg
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.function import DataFunction
 from snapflow.core.function_interface_manager import BoundInput, BoundInterface
-from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction, get_state
+from snapflow.core.persisted.state import (
+    DataBlockLog,
+    DataFunctionLog,
+    Direction,
+    get_state,
+)
 from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.utils.output import cf, error_symbol, success_symbol
 from sqlalchemy.sql.expression import select
@@ -68,10 +72,10 @@ if TYPE_CHECKING:
     )
 
 
-class DataFunctionContext(FrozenPydanticBase):
+class DataFunctionContextCfg(FrozenPydanticBase):
     dataspace: DataspaceCfg
-    library: ComponentLibrary
-    function: DataFunction
+    library_cfg: ComponentLibraryCfg
+    function: DataFunctionCfg
     result: ExecutionResult
     node: GraphCfg
     executable: ExecutableCfg
@@ -87,6 +91,10 @@ class DataFunctionContext(FrozenPydanticBase):
             if sdb is not None and sdb.data_is_written:
                 self.create_alias(sdb)
     """
+
+    @property
+    def library(self) -> ComponentLibrary:
+        global_library
 
     @contextmanager
     def as_tmp_local_object(self, obj: Any) -> str:

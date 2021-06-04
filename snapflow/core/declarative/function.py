@@ -20,9 +20,8 @@ from dcp.utils.common import remove_dupes
 from loguru import logger
 from pydantic import Field
 from snapflow.core.component import ComponentLibrary, global_library
-from snapflow.core.data_block import Reference
 from snapflow.core.declarative.base import FrozenPydanticBase
-from snapflow.core.schema import is_generic
+from snapflow.core.persisted.schema import is_generic
 
 if TYPE_CHECKING:
     from snapflow.core.streams import StreamLike
@@ -204,6 +203,9 @@ class DataFunctionCfg(FrozenPydanticBase):
         if self.interface:
             d["interface"] = self.interface.resolve(lib)
         return DataFunctionCfg(**d)
+
+    def to_function(self) -> DataFunction:
+        pass
 
 
 class DataFunctionPackageCfg(FrozenPydanticBase):

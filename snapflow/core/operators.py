@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from functools import partial
+from snapflow.core.execution import DataBlock
 from typing import Any, Callable, Dict, Optional, Union
 
-from snapflow.core.data_block import DataBlock
 from snapflow.core.streams import (
     DataBlockStream,
     StreamBuilder,

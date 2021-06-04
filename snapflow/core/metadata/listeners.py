@@ -5,7 +5,7 @@ from sqlalchemy.orm import object_session, sessionmaker
 # def add_persisting_sdb_listener(session_maker: sessionmaker):
 #     @event.listens_for(session_maker, "pending_to_persistent", propagate=True)
 #     def intercept_t2p(session, instance):
-#         from snapflow.core.data_block import StoredDataBlockMetadata
+#         from snapflow.core.persisted.data_block import StoredDataBlockMetadata
 
 #         if isinstance(instance, StoredDataBlockMetadata):
 #             logger.debug(
@@ -24,7 +24,7 @@ def immutability_update_listener(mapper, connection, target):
 
 # @event.listens_for(BaseModel, "init", propagate=True)
 # def intercept_init(instance, args, kwargs):
-#     from snapflow.core.data_block import StoredDataBlock
+#     from snapflow.core.persisted.data_block import StoredDataBlock
 #
 #     if isinstance(instance, StoredDataBlock):
 #         print(instance)

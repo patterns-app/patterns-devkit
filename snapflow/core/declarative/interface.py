@@ -1,6 +1,6 @@
 from __future__ import annotations
+from snapflow.core.persisted.pydantic import DataBlockWithStoredBlocksCfg
 from snapflow.core.declarative.base import FrozenPydanticBase
-from snapflow.core.declarative.data_block import DataBlockManagerCfg
 
 from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
 
@@ -29,8 +29,8 @@ class NodeInputCfg(FrozenPydanticBase):
 
     def as_bound_input(
         self,
-        bound_block: DataBlockManagerCfg = None,
-        bound_stream: List[DataBlockManagerCfg] = None,
+        bound_block: DataBlockWithStoredBlocksCfg = None,
+        bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
     ) -> BoundInputCfg:
         from snapflow.core.function_interface_manager import BoundInput
 
@@ -49,8 +49,8 @@ class BoundInputCfg(FrozenPydanticBase):
     input: DataFunctionInputCfg
     input_node: Optional[GraphCfg] = None
     schema_translation: Optional[Dict[str, str]] = None
-    bound_stream: Optional[List[DataBlockManagerCfg]] = None
-    bound_block: Optional[DataBlockManagerCfg] = None
+    bound_stream: Optional[List[DataBlockWithStoredBlocksCfg]] = None
+    bound_block: Optional[DataBlockWithStoredBlocksCfg] = None
 
     def is_bound(self) -> bool:
         return self.bound_stream is not None or self.bound_block is not None

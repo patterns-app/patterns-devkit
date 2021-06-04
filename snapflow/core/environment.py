@@ -21,13 +21,17 @@ from snapflow.core.module import (
     DEFAULT_LOCAL_NAMESPACE,
     SnapflowModule,
 )
-from snapflow.core.schema import GeneratedSchema, GenericSchemaException, is_generic
+from snapflow.core.persisted.schema import (
+    GeneratedSchema,
+    GenericSchemaException,
+    is_generic,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
     from snapflow.core.function import DataFunction
-    from snapflow.core.data_block import DataBlock
+    from snapflow.core.persisted.data_block import DataBlock
     from snapflow.core.declarative.graph import GraphCfg
     from snapflow.core.declarative.execution import ExecutableCfg, ExecutionCfg
     from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg

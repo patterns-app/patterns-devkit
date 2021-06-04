@@ -1,7 +1,6 @@
 from collections import OrderedDict
 from typing import Any
 
-import pydantic
 from commonmodel import Schema
 from dcp.data_format.base import DataFormat, DataFormatBase, get_format_for_nickname
 from dcp.utils.common import rand_str, title_to_snake_case, utcnow

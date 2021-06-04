@@ -30,10 +30,10 @@ from snapflow.core.declarative.function import (
 )
 
 if TYPE_CHECKING:
-    from snapflow.core.data_block import DataBlock
+    from snapflow.core.persisted.data_block import DataBlock
     from snapflow.core.streams import StreamBuilder, DataBlockStream
     from snapflow.core.declarative.flow import FlowCfg
-    from snapflow.core.declarative.execution import NodeInputCfg
+    from snapflow.core.declarative.interface import NodeInputCfg
 
 
 NxNode = Tuple[str, Dict[str, Dict]]

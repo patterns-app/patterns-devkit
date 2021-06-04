@@ -1,6 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
-from snapflow.core.declarative.data_block import (
+from snapflow.core.persisted.pydantic import (
     DataBlockMetadataCfg,
     StoredDataBlockMetadataCfg,
 )
@@ -10,14 +10,8 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
 
 from commonmodel.base import Schema
 from dcp.storage.base import Storage
-from snapflow.core.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
 from snapflow.core.declarative.dataspace import DataspaceCfg
-from snapflow.core.declarative.function import (
-    DEFAULT_OUTPUT_NAME,
-    DataFunctionInputCfg,
-    DataFunctionInterfaceCfg,
-)
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 from sqlalchemy.sql.expression import select
@@ -67,19 +61,6 @@ class ExecutableCfg(FrozenPydanticBase):
         node_inputs = self.node.get_node_inputs(self.graph)
         bound_inputs = bind_inputs(env, self, node_inputs)
         return BoundInterface(inputs=bound_inputs, interface=self.node.get_interface(),)
-
-
-class DataFunctionLogCfg(FrozenPydanticBase):
-    id: int
-    node_key: str
-    function_key: str
-    node_start_state: Optional[Dict] = None
-    node_end_state: Optional[Dict] = None
-    function_params: Optional[Dict] = None
-    queued_at: Optional[datetime] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    error: Optional[Dict] = None
 
 
 class PythonException(FrozenPydanticBase):

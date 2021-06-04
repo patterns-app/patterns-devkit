@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from snapflow.core.declarative.flow import FlowCfg
 from typing import Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 from commonmodel import Schema
@@ -44,4 +45,5 @@ class DataspaceCfg(FrozenPydanticBase):
 class ComponentLibraryCfg(FrozenPydanticBase):
     functions: List[DataFunctionCfg] = []
     schemas: List[Schema] = []
+    flows: List[FlowCfg] = []
     namespace_precedence: List[str] = []
