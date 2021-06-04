@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime
 from snapflow.core.declarative.data_block import (
     DataBlockMetadataCfg,
     StoredDataBlockMetadataCfg,
@@ -68,30 +69,17 @@ class ExecutableCfg(FrozenPydanticBase):
         return BoundInterface(inputs=bound_inputs, interface=self.node.get_interface(),)
 
 
-class NodeInputCfg(FrozenPydanticBase):
-    name: str
-    input: DataFunctionInputCfg
-    input_node: Optional[GraphCfg] = None
-    schema_translation: Optional[Dict[str, str]] = None
-
-    def as_stream_builder(self) -> StreamBuilder:
-        from snapflow.core.streams import StreamBuilder
-
-        return StreamBuilder().filter_inputs([self.input_node.key])
-
-    def as_bound_input(
-        self, bound_block: DataBlock = None, bound_stream: DataBlockStream = None
-    ) -> BoundInput:
-        from snapflow.core.function_interface_manager import BoundInput
-
-        return BoundInput(
-            name=self.name,
-            input=self.input,
-            input_node=self.input_node,
-            schema_translation=self.schema_translation,
-            bound_block=bound_block,
-            bound_stream=bound_stream,
-        )
+class DataFunctionLogCfg(FrozenPydanticBase):
+    id: int
+    node_key: str
+    function_key: str
+    node_start_state: Optional[Dict] = None
+    node_end_state: Optional[Dict] = None
+    function_params: Optional[Dict] = None
+    queued_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    error: Optional[Dict] = None
 
 
 class PythonException(FrozenPydanticBase):
@@ -117,3 +105,4 @@ class ExecutionResult(PydanticBase):
 
     def has_error(self) -> bool:
         return self.function_error is not None or self.framework_error is not None
+

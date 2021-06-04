@@ -32,35 +32,35 @@ class DataBlockMetadataCfg(FrozenPydanticBase):
     def nominal_schema(self, lib: ComponentLibrary):
         return lib.get_schema(self.nominal_schema_key)
 
-    @property
-    def manager(self) -> DataBlockManager:
-        pass
+    # @property
+    # def manager(self) -> DataBlockManager:
+    #     pass
 
-    def as_dataframe(self) -> DataFrame:
-        return self.manager.as_dataframe()
+    # def as_dataframe(self) -> DataFrame:
+    #     return self.manager.as_dataframe()
 
-    def as_records(self) -> Records:
-        return self.manager.as_records()
+    # def as_records(self) -> Records:
+    #     return self.manager.as_records()
 
-    def as_format(self, fmt: DataFormat) -> Any:
-        return self.manager.as_format(fmt)
+    # def as_format(self, fmt: DataFormat) -> Any:
+    #     return self.manager.as_format(fmt)
 
-    def as_table(self, storage: Storage) -> str:
-        return self.manager.as_table(storage)
+    # def as_table(self, storage: Storage) -> str:
+    #     return self.manager.as_table(storage)
 
-    def as_sql_from_stmt(self, storage: Storage) -> str:
-        from snapflow.core.sql.sql_function import apply_schema_translation_as_sql
+    # def as_sql_from_stmt(self, storage: Storage) -> str:
+    #     from snapflow.core.sql.sql_function import apply_schema_translation_as_sql
 
-        # TODO: this feels pretty forced -- how do we do schema transations in a general way for non-memory storages / runtimes?
-        sql = self.manager.as_table(storage)
-        if self.manager.schema_translation:
-            sql = apply_schema_translation_as_sql(
-                self.manager.env, sql, self.manager.schema_translation
-            )
-        return sql
+    #     # TODO: this feels pretty forced -- how do we do schema transations in a general way for non-memory storages / runtimes?
+    #     sql = self.manager.as_table(storage)
+    #     if self.manager.schema_translation:
+    #         sql = apply_schema_translation_as_sql(
+    #             self.manager.env, sql, self.manager.schema_translation
+    #         )
+    #     return sql
 
-    def has_format(self, fmt: DataFormat) -> bool:
-        return self.manager.has_format(fmt)
+    # def has_format(self, fmt: DataFormat) -> bool:
+    #     return self.manager.has_format(fmt)
 
 
 class StoredDataBlockMetadataCfg(FrozenPydanticBase):
@@ -90,4 +90,10 @@ class StoredDataBlockMetadataCfg(FrozenPydanticBase):
 def make_sdb_name(id: str, node_key: str = None) -> str:
     node_key = node_key or ""
     return as_identifier(f"_{node_key[:30]}_{id}")
+
+
+class DataBlockManagerCfg(FrozenPydanticBase):
+    data_block: DataBlockMetadataCfg
+    stored_data_blocks: List[StoredDataBlockMetadataCfg] = []
+    schema_translation: Optional[SchemaTranslation] = None
 

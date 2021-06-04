@@ -1,6 +1,7 @@
 from __future__ import annotations
 from snapflow.core.storage import ensure_data_block_on_storage_cfg
 from snapflow.core.declarative.data_block import (
+    DataBlockManagerCfg,
     DataBlockMetadataCfg,
     StoredDataBlockMetadataCfg,
 )
@@ -37,7 +38,6 @@ from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from snapflow.core.data_block import (
     Alias,
-    DataBlock,
     DataBlockMetadata,
     ManagedDataBlock,
     StoredDataBlockMetadata,
@@ -202,12 +202,16 @@ class ExecutionManager:
             self.logger.log_token("None\n")
 
 
-class DataBlockManager(FrozenPydanticBase):
-    ctx: DataFunctionContext
-    data_block: DataBlockMetadataCfg
-    stored_data_blocks: List[StoredDataBlockMetadataCfg] = []
-    storages: List[Storage] = []
-    schema_translation: Optional[SchemaTranslation] = None
+class DataBlockManager:
+    def __init__(
+        self, ctx: DataFunctionContext, cfg: DataBlockManagerCfg,
+    ):
+        self.ctx = ctx
+        self.cfg = cfg
+        self.data_block = self.cfg.data_block
+        self.stored_data_blocks = self.cfg.stored_data_blocks
+        self.storages = self.ctx.execution_config.storages
+        self.schema_translation = self.cfg.schema_translation
 
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFrameFormat)
@@ -270,6 +274,9 @@ class DataBlockManager(FrozenPydanticBase):
 
     def has_format(self, fmt: DataFormat) -> bool:
         return fmt in [s.data_format for s in self.stored_data_blocks]
+
+
+DataBlock = DataBlockManager
 
 
 class DataBlockStream(PydanticBase):

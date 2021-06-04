@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.declarative.interface import BoundInputCfg, BoundInterfaceCfg
 from snapflow.core.storage import ensure_data_block_on_storage_cfg
 from snapflow.core.declarative.data_block import (
     DataBlockMetadataCfg,
@@ -48,18 +49,11 @@ from snapflow.core.declarative.execution import (
     ExecutableCfg,
     ExecutionCfg,
     ExecutionResult,
-    NodeInputCfg,
 )
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.environment import Environment
-from snapflow.core.function import (
-    DataFunction,
-    DataInterfaceType,
-    InputExhaustedException,
-)
+from snapflow.core.function import DataFunction
 from snapflow.core.function_interface_manager import BoundInput, BoundInterface
-from snapflow.core.metadata.api import MetadataApi
 from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction, get_state
 from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.utils.output import cf, error_symbol, success_symbol
@@ -81,9 +75,9 @@ class DataFunctionContext(FrozenPydanticBase):
     result: ExecutionResult
     node: GraphCfg
     executable: ExecutableCfg
-    inputs: Dict[str, BoundInput]
-    bound_interface: BoundInterface
-    function_log: DataFunctionLog
+    inputs: Dict[str, BoundInputCfg]
+    bound_interface: BoundInterfaceCfg
+    function_log: DataFunctionLogCfg
     execution_config: ExecutionCfg
     execution_start_time: Optional[datetime] = None
 
