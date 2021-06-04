@@ -170,9 +170,6 @@ class ManagedDataBlock(Generic[T]):
 DataBlock = ManagedDataBlock
 
 
-e
-
-
 class StoredDataBlockMetadata(BaseModel):
     # id = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(128), primary_key=True, default=get_stored_datablock_id)

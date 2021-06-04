@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.declarative.dataspace import SnapflowCfg
 
 import warnings
 from dataclasses import asdict
@@ -58,7 +59,7 @@ def has_subset_nonnull_fields(sub: Schema, supr: Schema) -> bool:
 
 
 def update_matching_field_definitions(
-    env: Environment, schema: Schema, update_with_schema: Schema
+    schema: Schema, update_with_schema: Schema
 ) -> Schema:
     fields = []
     modified = False
@@ -78,7 +79,6 @@ def update_matching_field_definitions(
     schema_dict["name"] = f"{schema.name}_with_{with_name}"
     schema_dict["fields"] = fields
     updated = Schema.from_dict(schema_dict)
-    env.add_new_generated_schema(updated)
     return updated
 
 
@@ -124,10 +124,10 @@ def check_casts(
 
 
 def cast_to_realized_schema(
-    env: Environment,
     inferred_schema: Schema,
     nominal_schema: Schema,
     cast_level: CastToSchemaLevel = CastToSchemaLevel.SOFT,
+    settings: SnapflowCfg = SnapflowCfg(),
 ) -> Schema:
     realized = None
     if cast_level == CastToSchemaLevel.NONE:
@@ -138,14 +138,14 @@ def cast_to_realized_schema(
         elif has_subset_fields(nominal_schema, inferred_schema):
             if cast_level < CastToSchemaLevel.HARD:
                 realized = update_matching_field_definitions(
-                    env, inferred_schema, nominal_schema
+                    inferred_schema, nominal_schema
                 )
             else:
                 realized = nominal_schema
         elif has_subset_nonnull_fields(nominal_schema, inferred_schema):
             if cast_level < CastToSchemaLevel.HARD:
                 realized = update_matching_field_definitions(
-                    env, inferred_schema, nominal_schema
+                    inferred_schema, nominal_schema
                 )
             else:
                 pass
@@ -160,7 +160,7 @@ def cast_to_realized_schema(
             inferred_schema,
             realized,
             cast_level=cast_level,
-            warn_on_downcast=env.settings.warn_on_downcast,
-            fail_on_downcast=env.settings.fail_on_downcast,
+            warn_on_downcast=settings.warn_on_downcast,
+            fail_on_downcast=settings.fail_on_downcast,
         )
     return realized

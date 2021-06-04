@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 from snapflow.core.declarative.data_block import (
     DataBlockMetadataCfg,
     StoredDataBlockMetadataCfg,
@@ -123,13 +124,37 @@ def ensure_data_block_on_storage(
     return out_sdb
 
 
-def ensure_data_block_on_storage(
+def copy_sdb_cfg(
+    request: CopyRequest,
+    in_sdb: StoredDataBlockMetadataCfg,
+    out_sdb: StoredDataBlockMetadataCfg,
+    # target_storage: Storage,
+    # storages: Optional[List[Storage]] = None,
+    create_intermediate_sdbs: bool = True,
+) -> List[StoredDataBlockMetadataCfg]:
+    stored_blocks = []
+    result = execute_copy_request(request)
+    if create_intermediate_sdbs:
+        for name, storage, fmt in result.intermediate_created:
+            i_sdb = StoredDataBlockMetadataCfg(  # type: ignore
+                id=get_stored_datablock_id(),
+                data_block=in_sdb.data_block,
+                data_format=fmt,
+                storage_url=storage.url,
+                data_is_written=True,
+            )
+            storage.get_api().create_alias(name, i_sdb.name)
+            stored_blocks.append(i_sdb)
+    return stored_blocks
+
+
+def ensure_data_block_on_storage_cfg(
     block: DataBlockMetadataCfg,
     storage: Storage,
     stored_blocks: List[StoredDataBlockMetadataCfg],
     eligible_storages: List[Storage],
     fmt: Optional[DataFormat] = None,
-) -> StoredDataBlockMetadataCfg:
+) -> List[StoredDataBlockMetadataCfg]:
     sdbs = stored_blocks
     match = [s for s in sdbs if s.storage.url == storage.url]
     if fmt:
@@ -146,6 +171,7 @@ def ensure_data_block_on_storage(
     )  #: List[List[Tuple[ConversionCostLevel, Type[Converter]]]] = []
     existing_sdbs = sdbs
     for sdb in existing_sdbs:
+        assert sdb.name is not None
         req = CopyRequest(
             from_name=sdb.name,
             from_storage=sdb.storage,
@@ -170,8 +196,7 @@ def ensure_data_block_on_storage(
         storage=storage,
         data_is_written=True,
     )
-    req.to_name = out_sdb.get_name_for_storage()
-    copy_sdb(
-        env, request=req, in_sdb=in_sdb, out_sdb=out_sdb,
-    )
-    return out_sdb
+    req.to_name = out_sdb.name
+    created_sdbs = copy_sdb_cfg(request=req, in_sdb=in_sdb, out_sdb=out_sdb,)
+    return [out_sdb] + created_sdbs
+

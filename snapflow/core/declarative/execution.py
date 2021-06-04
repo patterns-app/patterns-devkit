@@ -1,4 +1,8 @@
 from __future__ import annotations
+from snapflow.core.declarative.data_block import (
+    DataBlockMetadataCfg,
+    StoredDataBlockMetadataCfg,
+)
 
 import traceback
 from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
@@ -61,10 +65,7 @@ class ExecutableCfg(FrozenPydanticBase):
 
         node_inputs = self.node.get_node_inputs(self.graph)
         bound_inputs = bind_inputs(env, self, node_inputs)
-        return BoundInterface(
-            inputs=bound_inputs,
-            interface=self.node.get_interface(),
-        )
+        return BoundInterface(inputs=bound_inputs, interface=self.node.get_interface(),)
 
 
 class NodeInputCfg(FrozenPydanticBase):
@@ -93,46 +94,30 @@ class NodeInputCfg(FrozenPydanticBase):
         )
 
 
-class ExecutionResult(PydanticBase):
-    inputs_bound: List[str]
-    non_reference_inputs_bound: List[str]
-    input_block_counts: Dict[str, int]
-    output_blocks: Optional[Dict[str, Dict]] = None
-    error: Optional[str] = None
-    traceback: Optional[str] = None
+class PythonException(FrozenPydanticBase):
+    error: str
+    traceback: str
 
     @classmethod
-    def empty(cls) -> ExecutionResult:
-        return ExecutionResult(
-            inputs_bound=[],
-            non_reference_inputs_bound=[],
-            input_block_counts={},
-        )
-
-    def set_error(self, e: Exception):
+    def from_exception(cls, e: Exception):
         tback = traceback.format_exc()
-        self.error = (
-            str(e) or type(e).__name__
-        )  # MUST evaluate true if there's an error!
+        error = str(e) or type(e).__name__  # MUST evaluate true if there's an error!
         # Traceback can be v large (like in max recursion), so we truncate to 5k chars
-        self.traceback = tback[:5000]
+        tback = tback[:5000]
+        return PythonException(error=error, traceback=tback)
 
-    def get_output_block(
-        self, env: Environment, name: Optional[str] = None
-    ) -> Optional[DataBlock]:
 
-        if not self.output_blocks:
-            return None
-        if name:
-            dbid = self.output_blocks[name]["id"]
-        else:
-            dbid = self.output_blocks[DEFAULT_OUTPUT_NAME]["id"]
-        env.md_api.begin()  # TODO: hanging session
-        block = env.md_api.execute(
-            select(DataBlockMetadata).filter(DataBlockMetadata.id == dbid)
-        ).scalar_one()
-        mds = block.as_managed_data_block(env)
-        return mds
+class ExecutionResult(PydanticBase):
+    input_blocks_consumed: Dict[str, List[DataBlockMetadataCfg]] = {}
+    output_blocks_emitted: Dict[str, DataBlockMetadataCfg] = {}
+    stored_blocks_created: Dict[str, List[StoredDataBlockMetadataCfg]] = {}
+    schemas_generated: List[Schema] = None
+    function_error: Optional[PythonException] = None
+    framework_error: Optional[PythonException] = None
+
+    @property
+    def has_error(self) -> bool:
+        return self.function_error is not None or self.framework_error is not None
 
 
 class CumulativeExecutionResult(PydanticBase):
