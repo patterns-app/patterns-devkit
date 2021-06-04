@@ -1,4 +1,8 @@
 from __future__ import annotations
+from snapflow.core.declarative.data_block import (
+    DataBlockMetadataCfg,
+    StoredDataBlockMetadataCfg,
+)
 
 from typing import TYPE_CHECKING, List, Optional, Type
 
@@ -114,9 +118,60 @@ def ensure_data_block_on_storage(
     env.md_api.add(out_sdb)
     req.to_name = out_sdb.get_name_for_storage()
     copy_sdb(
-        env,
-        request=req,
-        in_sdb=in_sdb,
-        out_sdb=out_sdb,
+        env, request=req, in_sdb=in_sdb, out_sdb=out_sdb,
+    )
+    return out_sdb
+
+
+def ensure_data_block_on_storage(
+    block: DataBlockMetadataCfg,
+    storage: Storage,
+    stored_blocks: List[StoredDataBlockMetadataCfg],
+    eligible_storages: List[Storage],
+    fmt: Optional[DataFormat] = None,
+) -> StoredDataBlockMetadataCfg:
+    sdbs = stored_blocks
+    match = [s for s in sdbs if s.storage.url == storage.url]
+    if fmt:
+        match = [s for s in match if s.data_format == fmt]
+    if match:
+        return match[0]
+
+    fmt = fmt or storage.storage_engine.get_natural_format()
+    target_storage_format = StorageFormat(storage.storage_engine, fmt)
+
+    # Compute conversion costs
+    eligible_conversion_paths = (
+        []
+    )  #: List[List[Tuple[ConversionCostLevel, Type[Converter]]]] = []
+    existing_sdbs = sdbs
+    for sdb in existing_sdbs:
+        req = CopyRequest(
+            from_name=sdb.name,
+            from_storage=sdb.storage,
+            to_name="placeholder",
+            to_storage=storage,
+            to_format=fmt,
+            schema=sdb.data_block.realized_schema,
+            available_storages=eligible_storages,
+        )
+        pth = get_copy_path(req)
+        if pth is not None:
+            eligible_conversion_paths.append((pth.total_cost, pth, sdb, req))
+    if not eligible_conversion_paths:
+        raise NotImplementedError(
+            f"No copy path to {target_storage_format} for existing StoredDataBlocks {existing_sdbs}"
+        )
+    cost, pth, in_sdb, req = min(eligible_conversion_paths, key=lambda x: x[0])
+    out_sdb = StoredDataBlockMetadataCfg(  # type: ignore
+        id=get_stored_datablock_id(),
+        data_block=block,
+        data_format=fmt,
+        storage=storage,
+        data_is_written=True,
+    )
+    req.to_name = out_sdb.get_name_for_storage()
+    copy_sdb(
+        env, request=req, in_sdb=in_sdb, out_sdb=out_sdb,
     )
     return out_sdb

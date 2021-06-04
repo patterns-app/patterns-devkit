@@ -1,6 +1,4 @@
 from __future__ import annotations
-from snapflow.core.declarative.base import FrozenPydanticBase
-from snapflow.core.component import ComponentLibrary
 
 import traceback
 from collections import abc, defaultdict
@@ -26,7 +24,7 @@ import sqlalchemy
 from commonmodel.base import Schema, SchemaLike
 from dcp.data_format.base import DataFormat, get_format_for_nickname
 from dcp.data_format.handler import get_handler_for_name, infer_format_for_name
-from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
+from dcp.storage.base import FileSystemStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from snapflow.core.data_block import (
@@ -113,11 +111,11 @@ class ExecutionLogger:
 
 @dataclass(frozen=True)
 class DataFunctionContext:  # TODO: (Generic[C, S]):
-    dataspace: DataspaceCfg
-    library: ComponentLibrary
+    env: Environment
     function: DataFunction
     node: GraphCfg
     executable: ExecutableCfg
+    metadata_api: MetadataApi
     inputs: Dict[str, BoundInput]
     bound_interface: BoundInterface
     function_log: DataFunctionLog
