@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Uni
 
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
-from snapflow.core.persisted.data_block import DataBlock, DataBlockMetadata
 from snapflow.core.function import DataFunction, ensure_function, make_function
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,

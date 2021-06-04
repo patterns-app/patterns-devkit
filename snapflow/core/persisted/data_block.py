@@ -39,6 +39,13 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, select
 from sqlalchemy.orm import RelationshipProperty, Session, relationship
 from sqlalchemy.sql.schema import UniqueConstraint
 
+if TYPE_CHECKING:
+    from snapflow.core.persisted.pydantic import (
+        DataBlockMetadataCfg,
+        StoredDataBlockMetadataCfg,
+        DataBlockWithStoredBlocksCfg,
+    )
+
 
 def get_datablock_id() -> str:
     return timestamp_increment_key(prefix="db")
@@ -46,6 +53,12 @@ def get_datablock_id() -> str:
 
 def get_stored_datablock_id() -> str:
     return timestamp_increment_key(prefix="sdb")
+
+
+def ensure_lib(lib: Union[Environment, ComponentLibrary]) -> ComponentLibrary:
+    if isinstance(lib, Environment):
+        return lib.library
+    return lib
 
 
 class DataBlockMetadata(BaseModel):  # , Generic[DT]):
@@ -61,7 +74,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
     created_by_node_key = Column(String(128), nullable=True)
     # Other metadata? created_by_job? last_processed_at?
     deleted = Column(Boolean, default=False)
-    stored_data_blocks: RelationshipProperty = relationship(
+    stored_data_blocks = relationship(
         "StoredDataBlockMetadata", backref="data_block", lazy="dynamic"
     )
     data_block_logs: RelationshipProperty = relationship(
@@ -76,6 +89,22 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
             realized_schema_key=self.realized_schema_key,
             record_count=self.record_count,
         )
+
+    def to_pydantic(self) -> DataBlockMetadataCfg:
+        from snapflow.core.persisted.pydantic import DataBlockMetadataCfg
+
+        return DataBlockMetadataCfg.from_orm(self)
+
+    def to_pydantic_with_stored(self) -> DataBlockWithStoredBlocksCfg:
+        from snapflow.core.persisted.pydantic import DataBlockWithStoredBlocksCfg
+
+        db = self.to_pydantic()
+        return DataBlockWithStoredBlocksCfg(
+            **db.dict(),
+            stored_data_blocks=[s.to_pydantic() for s in self.stored_data_blocks.all()],
+        )
+
+        # return DataBlockWithStoredBlocksCfg.from_orm(self)
 
     # def as_managed_data_block(
     #     self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
@@ -121,17 +150,17 @@ def make_sdb_name(id: str, node_key: str = None) -> str:
     return as_identifier(f"_{node_key[:30]}_{id}")
 
 
-def make_sdb_name_sa(context) -> str:
-    id = context.get_current_parameters()["id"]
-    node_key = context.get_current_parameters()["data_block"].created_by_node_key
-    return make_sdb_name(id, node_key)
+# def make_sdb_name_sa(context) -> str:
+#     id = context.get_current_parameters()["id"]
+#     node_key = context.get_current_parameters()["data_block"].created_by_node_key
+#     return make_sdb_name(id, node_key)
 
 
 class StoredDataBlockMetadata(BaseModel):
     # id = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(128), primary_key=True, default=get_stored_datablock_id)
     # id = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(128), nullable=False, default=make_sdb_name_sa)
+    name = Column(String(128), nullable=False)
     data_block_id = Column(
         String(128), ForeignKey(DataBlockMetadata.id), nullable=False
     )
@@ -153,23 +182,13 @@ class StoredDataBlockMetadata(BaseModel):
             storage_url=self.storage_url,
         )
 
+    def to_pydantic(self) -> StoredDataBlockMetadataCfg:
+        from snapflow.core.persisted.pydantic import StoredDataBlockMetadataCfg
+
+        return StoredDataBlockMetadataCfg.from_orm(self)
+
     def get_handler(self) -> FormatHandler:
         return get_handler_for_name(self.name, self.storage)()
-
-    def inferred_schema(self, lib: ComponentLibrary) -> Optional[Schema]:
-        if self.data_block.inferred_schema_key is None:
-            return None
-        return lib.get_schema(self.data_block.inferred_schema_key)
-
-    def nominal_schema(self, lib: ComponentLibrary) -> Optional[Schema]:
-        if self.data_block.nominal_schema_key is None:
-            return None
-        return lib.get_schema(self.data_block.nominal_schema_key)
-
-    def realized_schema(self, lib: ComponentLibrary) -> Schema:
-        if self.data_block.realized_schema_key is None:
-            return None
-        return lib.get_schema(self.data_block.realized_schema_key)
 
     @property
     def storage(self) -> Storage:
@@ -179,14 +198,12 @@ class StoredDataBlockMetadata(BaseModel):
         return StorageFormat(self.storage.storage_engine, self.data_format)
 
     def exists(self) -> bool:
-        return self.storage.get_api().exists(self.get_name_for_storage())
+        return self.storage.get_api().exists(self.name)
 
     def record_count(self) -> Optional[int]:
         if self.data_block.record_count is not None:
             return self.data_block.record_count
-        self.data_block.record_count = self.storage.get_api().record_count(
-            self.get_name_for_storage()
-        )
+        self.data_block.record_count = self.storage.get_api().record_count(self.name)
         return self.data_block.record_count
 
     def get_alias(self, env: Environment) -> Optional[Alias]:
@@ -219,7 +236,7 @@ class StoredDataBlockMetadata(BaseModel):
         else:
             a.data_block_id = self.data_block_id
             a.stored_data_block_id = self.id
-        self.storage.get_api().create_alias(self.get_name_for_storage(), alias)
+        self.storage.get_api().create_alias(self.name, alias)
         return a
 
 
@@ -244,7 +261,7 @@ class Alias(BaseModel):
 
     def update_alias(self, env: Environment, new_alias: str):
         self.stored_data_block.storage.get_api().create_alias(
-            self.stored_data_block.get_name_for_storage(), new_alias
+            self.stored_data_block.name, new_alias
         )
         self.stored_data_block.storage.get_api().remove_alias(self.name)
         self.name = new_alias

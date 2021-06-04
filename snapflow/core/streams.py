@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from snapflow.core.data_block import DataBlock
+from snapflow.core.data_block import DataBlock, DataBlockStream, Stream
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -35,7 +35,6 @@ from sqlalchemy.sql.selectable import Select
 if TYPE_CHECKING:
     from snapflow.core.operators import Operator, BoundOperator
     from snapflow.core.declarative.execution import ExecutionCfg
-    from snapflow.core.function_interface_manager import get_schema_translation
 
 
 def ensure_data_block_id(
@@ -298,20 +297,11 @@ class StreamBuilder:
     def get_all(self, env: Environment) -> List[DataBlockMetadata]:
         return self.get_query_result(env).scalars()
 
-    def as_managed_stream(
-        self,
-        env: Environment,
-        cfg: ExecutionCfg,
-        declared_schema: Optional[Schema] = None,
-        declared_schema_translation: Optional[Dict[str, str]] = None,
-    ) -> ManagedDataBlockStream:
-        return ManagedDataBlockStream(
-            env,
-            cfg,
-            self,
-            declared_schema=declared_schema,
-            declared_schema_translation=declared_schema_translation,
-        )
+    def as_blocks(self, env: Environment) -> Iterator[DataBlockMetadata]:
+        stream = self.get_query_result(env).scalars()
+        for op in self.get_operators():
+            stream = op.op_callable(stream, **op.kwargs)
+        return stream
 
 
 def block_as_stream_builder(data_block: DataBlockMetadata) -> StreamBuilder:
@@ -332,82 +322,6 @@ def block_as_stream(
         env, cfg, declared_schema, declared_schema_translation
     )
 
-
-class ManagedDataBlockStream:
-    def __init__(
-        self,
-        env: Environment,
-        cfg: ExecutionCfg,
-        stream_builder: StreamBuilder,
-        declared_schema: Optional[Schema] = None,
-        declared_schema_translation: Optional[Dict[str, str]] = None,
-    ):
-        self.cfg = cfg
-        self.env = env
-
-        self.declared_schema = declared_schema
-        self.declared_schema_translation = declared_schema_translation
-        self._blocks: List[DataBlock] = list(self._build_stream(stream_builder))
-        self._stream: Iterator[DataBlock] = self.log_emitted(self._blocks)
-        self._emitted_blocks: List[DataBlockMetadata] = []
-        self._emitted_managed_blocks: List[DataBlock] = []
-
-    def _build_stream(self, stream_builder: StreamBuilder) -> Iterator[DataBlock]:
-        result = stream_builder.get_query_result(self.env).scalars()
-        stream = (b for b in result)
-        stream = self.as_managed_block(stream)
-        for op in stream_builder.get_operators():
-            stream = op.op_callable(stream, **op.kwargs)
-        return stream
-
-    def __iter__(self) -> Iterator[DataBlock]:
-        return self._stream
-
-    def __next__(self) -> DataBlock:
-        return next(self._stream)
-
-    def as_managed_block(
-        self, stream: Iterator[DataBlockMetadata]
-    ) -> Iterator[DataBlock]:
-        from snapflow.core.function_interface_manager import get_schema_translation
-
-        for db in stream:
-            if db.nominal_schema_key:
-                schema_translation = get_schema_translation(
-                    self.env,
-                    source_schema=db.nominal_schema(self.env),
-                    target_schema=self.declared_schema,
-                    declared_schema_translation=self.declared_schema_translation,
-                )
-            else:
-                schema_translation = None
-            mdb = db.as_managed_data_block(
-                self.env, schema_translation=schema_translation
-            )
-            yield mdb
-
-    @property
-    def all_blocks(self) -> List[DataBlock]:
-        return self._blocks
-
-    def count(self) -> int:
-        return len(self._blocks)
-
-    def log_emitted(self, stream: Iterator[DataBlock]) -> Iterator[DataBlock]:
-        for mdb in stream:
-            self._emitted_blocks.append(mdb.data_block_metadata)
-            self._emitted_managed_blocks.append(mdb)
-            yield mdb
-
-    def get_emitted_blocks(self) -> List[DataBlockMetadata]:
-        return self._emitted_blocks
-
-    def get_emitted_managed_blocks(self) -> List[DataBlock]:
-        return self._emitted_managed_blocks
-
-
-DataBlockStream = Iterator[DataBlock]
-Stream = DataBlockStream
 
 StreamLike = Union[StreamBuilder, GraphCfg, str]
 # DataBlockStreamable = Union[StreamBuilder, Node]

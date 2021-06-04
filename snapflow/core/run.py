@@ -19,19 +19,12 @@ from typing import (
     Tuple,
 )
 
-import dcp
-import sqlalchemy
-from commonmodel.base import Schema, SchemaLike
-from dcp.data_format.base import DataFormat, get_format_for_nickname
-from dcp.data_format.handler import get_handler_for_name, infer_format_for_name
-from dcp.storage.base import FileSystemStorageClass, Storage
+
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from snapflow.core.persisted.data_block import (
     Alias,
-    DataBlock,
     DataBlockMetadata,
-    ManagedDataBlock,
     StoredDataBlockMetadata,
     get_datablock_id,
     get_stored_datablock_id,
@@ -41,7 +34,6 @@ from snapflow.core.declarative.execution import (
     ExecutableCfg,
     ExecutionCfg,
     ExecutionResult,
-    NodeInputCfg,
 )
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
@@ -59,7 +51,6 @@ from snapflow.core.persisted.state import (
     Direction,
     get_state,
 )
-from snapflow.core.typing.casting import cast_to_realized_schema
 from snapflow.utils.output import cf, error_symbol, success_symbol
 from sqlalchemy.sql.expression import select
 
@@ -218,7 +209,7 @@ def prepare_function_context(env: Environment, exe: ExecutableCfg):
             self.logger.log_token("None\n")
 
 
-def execute_to_exhaustion(
+def run_to_exhaustion(
     env: Environment, exe: ExecutableCfg, to_exhaustion: bool = True
 ) -> Optional[CumulativeExecutionResult]:
     cum_result = CumulativeExecutionResult()

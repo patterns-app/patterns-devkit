@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.component import ComponentLibrary
 from snapflow.core.persisted.pydantic import (
     DataBlockMetadataCfg,
     DataBlockWithStoredBlocksCfg,
@@ -31,6 +32,7 @@ from loguru import logger
 from snapflow.core.persisted.data_block import StoredDataBlockMetadata
 
 if TYPE_CHECKING:
+    from snapflow.core.declarative.context import DataFunctionContextCfg
     from snapflow.core.declarative.context import DataFunctionContext
 
 
@@ -86,16 +88,16 @@ class DataBlockManager:
     def as_python_object(self, sdb: StoredDataBlockMetadata) -> Any:
         if self.schema_translation:
             sdb.get_handler().apply_schema_translation(
-                sdb.get_name_for_storage(), sdb.storage, self.schema_translation
+                sdb.name, sdb.storage, self.schema_translation
             )
         if sdb.data_format.natural_storage_class == MemoryStorageClass:
-            obj = sdb.storage.get_api().get(sdb.get_name_for_storage())
+            obj = sdb.storage.get_api().get(sdb.name)
         else:
             if sdb.data_format == DatabaseTableFormat:
                 # TODO:
                 # obj = DatabaseTableRef(sdb.get_name(), storage_url=sdb.storage.url)
                 # raise NotImplementedError
-                return sdb.get_name_for_storage()
+                return sdb.name
             else:
                 # TODO: what is general solution to this? if we do DataFormat.as_python_object(sdb) then
                 #       we have formats depending on StoredDataBlocks again, and no seperation of concerns
@@ -103,7 +105,7 @@ class DataBlockManager:
                 # raise NotImplementedError(
                 #     f"Don't know how to bring '{sdb.data_format}' into python'"
                 # )
-                return sdb.get_name_for_storage()
+                return sdb.name
         return obj
 
     def has_format(self, fmt: DataFormat) -> bool:
@@ -117,7 +119,7 @@ Consumable = DataBlock
 
 
 class DataBlockStream(PydanticBase):
-    ctx: DataFunctionContext
+    ctx: DataFunctionContextCfg
     blocks: List[DataBlockMetadataCfg] = []
     declared_schema: Optional[Schema] = None
     declared_schema_translation: Optional[Dict[str, str]] = None
@@ -169,7 +171,7 @@ class DataBlockStream(PydanticBase):
 
     def log_emitted(self, stream: Iterator[DataBlock]) -> Iterator[DataBlock]:
         for mdb in stream:
-            self._emitted_blocks.append(mdb.data_block_metadata)
+            self._emitted_blocks.append(mdb.data_block)
             self._emitted_managed_blocks.append(mdb)
             yield mdb
 
@@ -179,3 +181,5 @@ class DataBlockStream(PydanticBase):
     def get_emitted_managed_blocks(self) -> List[DataBlock]:
         return self._emitted_managed_blocks
 
+
+Stream = DataBlockStream

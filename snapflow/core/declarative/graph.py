@@ -308,7 +308,7 @@ class GraphCfg(FrozenPydanticBase):
         return self.function_cfg.interface
 
     def get_node_inputs(self, graph: GraphCfg) -> Dict[str, NodeInputCfg]:
-        from snapflow.core.declarative.execution import NodeInputCfg
+        from snapflow.core.declarative.interface import NodeInputCfg
 
         assert self.is_function_node()  # TODO: can actually support for graph too!
         assert self.is_resolved()

@@ -5,7 +5,7 @@ from pathlib import Path
 from loguru import logger
 from snapflow import datafunction
 from snapflow.core.declarative.function import DataFunctionInterfaceCfg
-from snapflow.core.execution import DataFunctionContext
+from snapflow import DataFunctionContext
 from snapflow.core.function_package import DataFunctionPackage
 
 logger.enable("snapflow")

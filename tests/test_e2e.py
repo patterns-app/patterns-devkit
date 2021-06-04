@@ -17,7 +17,7 @@ from snapflow.core.persisted.data_block import Consumable, Reference
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment, produce
-from snapflow.core.execution import DataFunctionContext
+from snapflow import DataFunctionContext
 from snapflow.core.sql.sql_function import sql_function_factory
 from snapflow.core.persisted.state import (
     DataBlockLog,

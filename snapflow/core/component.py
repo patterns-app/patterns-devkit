@@ -1,5 +1,4 @@
 from __future__ import annotations
-from snapflow.core.declarative.dataspace import ComponentLibraryCfg
 
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, List, Union
@@ -7,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Union
 from commonmodel import Schema
 
 if TYPE_CHECKING:
+    from snapflow.core.declarative.dataspace import ComponentLibraryCfg
     from snapflow.core.function import (
         DataFunctionLike,
         DataFunction,

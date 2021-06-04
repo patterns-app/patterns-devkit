@@ -7,7 +7,7 @@ from snapflow.core.persisted.pydantic import (
 from snapflow.core.declarative.interface import BoundInputCfg, BoundInterfaceCfg
 from snapflow.core.storage import ensure_data_block_on_storage_cfg
 from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
-from snapflow.core.component import ComponentLibrary
+from snapflow.core.component import ComponentLibrary, global_library
 
 import traceback
 from collections import abc, defaultdict
@@ -51,17 +51,7 @@ from snapflow.core.declarative.execution import (
 )
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME, DataFunctionCfg
 from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.function import DataFunction
-from snapflow.core.function_interface_manager import BoundInput, BoundInterface
-from snapflow.core.persisted.state import (
-    DataBlockLog,
-    DataFunctionLog,
-    Direction,
-    get_state,
-)
 from snapflow.core.typing.casting import cast_to_realized_schema
-from snapflow.utils.output import cf, error_symbol, success_symbol
-from sqlalchemy.sql.expression import select
 
 
 if TYPE_CHECKING:
@@ -94,7 +84,10 @@ class DataFunctionContextCfg(FrozenPydanticBase):
 
     @property
     def library(self) -> ComponentLibrary:
-        global_library
+        # TODOOOOOOOOOOOOO: not every time. and merge order / precedence?
+        lib = ComponentLibrary.from_config(self.library_cfg)
+        lib.merge(global_library)
+        return lib
 
     @contextmanager
     def as_tmp_local_object(self, obj: Any) -> str:
@@ -357,7 +350,7 @@ class DataFunctionContextCfg(FrozenPydanticBase):
             # sdb.data_format = fmt
         # TODO: make sure this handles no-ops (empty object, same storage)
         # TODO: copy or alias? sometimes we are just moving temp obj to new name, dont need copy
-        # to_name = sdb.get_name_for_storage()
+        # to_name = sdb.name
         # if storage == sdb.storage:
         #     # Same storage
         #     if name == to_name:
@@ -439,3 +432,6 @@ class DataFunctionContextCfg(FrozenPydanticBase):
     #         if isinstance(self.function_log.error, dict)
     #         else None,
     #     )
+
+
+DataFunctionContext = DataFunctionContextCfg

@@ -272,7 +272,7 @@ class Environment:
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> List[DataBlock]:
-        from snapflow.core.execution import execute_to_exhaustion
+        from snapflow.core.run import run_to_exhaustion
 
         graph = self.prepare_graph(graph)
         if isinstance(node, str):
@@ -285,7 +285,7 @@ class Environment:
             dependencies = graph.get_all_nodes_in_execution_order()
         result = None
         for dep in dependencies:
-            result = execute_to_exhaustion(
+            result = run_to_exhaustion(
                 self,
                 self.get_executable(dep, graph=graph, **execution_kwargs),
                 to_exhaustion=to_exhaustion,
@@ -302,7 +302,7 @@ class Environment:
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> Optional[CumulativeExecutionResult]:
-        from snapflow.core.execution import execute_to_exhaustion
+        from snapflow.core.run import run_to_exhaustion
 
         graph = self.prepare_graph(graph)
         logger.debug(f"Running: {node}")
@@ -314,7 +314,7 @@ class Environment:
             if not node.key in node_keys:
                 continue
             node = node.resolve(self.library)
-            result = execute_to_exhaustion(
+            result = run_to_exhaustion(
                 self,
                 self.get_executable(node, graph=graph, **execution_kwargs),
                 to_exhaustion=to_exhaustion,
@@ -327,12 +327,12 @@ class Environment:
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ):
-        from snapflow.core.execution import execute_to_exhaustion
+        from snapflow.core.execution import run_to_exhaustion
 
         graph = self.prepare_graph(graph)
         nodes = graph.get_all_nodes_in_execution_order()
         for node in nodes:
-            execute_to_exhaustion(
+            run_to_exhaustion(
                 self,
                 self.get_executable(node, graph=graph, **execution_kwargs),
                 to_exhaustion=to_exhaustion,

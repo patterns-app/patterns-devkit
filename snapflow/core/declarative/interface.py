@@ -32,7 +32,6 @@ class NodeInputCfg(FrozenPydanticBase):
         bound_block: DataBlockWithStoredBlocksCfg = None,
         bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
     ) -> BoundInputCfg:
-        from snapflow.core.function_interface_manager import BoundInput
 
         return BoundInputCfg(
             name=self.name,
@@ -62,18 +61,18 @@ class BoundInputCfg(FrozenPydanticBase):
             return getattr(self.bound_stream[0], prop)
         return None
 
-    def get_bound_nominal_schema(self) -> Optional[Schema]:
-        return self.get_bound_block_property("nominal_schema")
+    def get_bound_nominal_schema(self) -> Optional[str]:
+        return self.get_bound_block_property("nominal_schema_key")
 
-    def get_bound_realized_schema(self) -> Optional[Schema]:
-        return self.get_bound_block_property("nominal_schema")
+    def get_bound_realized_schema(self) -> Optional[str]:
+        return self.get_bound_block_property("nominal_schema_key")
 
     @property
-    def nominal_schema(self) -> Optional[Schema]:
+    def nominal_schema(self) -> Optional[str]:
         return self.get_bound_nominal_schema()
 
     @property
-    def realized_schema(self) -> Optional[Schema]:
+    def realized_schema(self) -> Optional[str]:
         return self.get_bound_realized_schema()
 
     @property
@@ -84,3 +83,51 @@ class BoundInputCfg(FrozenPydanticBase):
 class BoundInterfaceCfg(FrozenPydanticBase):
     inputs: Dict[str, BoundInputCfg]
     interface: DataFunctionInterfaceCfg
+
+    # def inputs_as_kwargs(self) -> Dict[str, Union[DataBlock, DataBlockStream]]:
+    #     assert all([i.is_bound() for i in self.inputs.values()])
+    #     return {
+    #         i.name: i.bound_stream if i.is_stream else i.bound_block
+    #         for i in self.inputs.values()
+    #     }
+
+    # def non_reference_bound_inputs(self) -> List[NodeInputCfg]:
+    #     return [
+    #         i
+    #         for i in self.inputs.values()
+    #         if i.bound_stream is not None and not i.input.is_reference
+    #     ]
+
+    # def resolve_nominal_output_schema(self) -> Optional[str]:
+    #     output = self.interface.get_default_output()
+    #     if not output:
+    #         return None
+    #     if not output.is_generic:
+    #         return output.schema_key
+    #     output_generic = output.schema_key
+    #     for node_input in self.inputs.values():
+    #         if not node_input.input.is_generic:
+    #             continue
+    #         if node_input.input.schema_key == output_generic:
+    #             schema = node_input.get_bound_nominal_schema()
+    #             # We check if None -- there may be more than one input with same generic, we'll take any that are resolvable
+    #             if schema is not None:
+    #                 return schema.key
+    #     raise Exception(f"Unable to resolve generic '{output_generic}'")
+
+    def resolve_nominal_output_schema(self) -> Optional[str]:
+        output = self.interface.get_default_output()
+        if not output:
+            return None
+        if not output.is_generic:
+            return output.schema_key
+        output_generic = output.schema_key
+        for node_input in self.inputs.values():
+            if not node_input.input.is_generic:
+                continue
+            if node_input.input.schema_key == output_generic:
+                schema = node_input.get_bound_nominal_schema()
+                # We check if None -- there may be more than one input with same generic, we'll take any that are resolvable
+                if schema is not None:
+                    return schema
+        raise Exception(f"Unable to resolve generic '{output_generic}'")

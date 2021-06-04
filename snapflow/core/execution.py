@@ -1,8 +1,8 @@
 from __future__ import annotations
-from snapflow.core.declarative.context import DataFunctionContext
 
 from collections import abc, defaultdict
 from contextlib import contextmanager
+from snapflow.core.declarative.context import DataFunctionContextCfg
 from typing import (
     Iterable,
     TYPE_CHECKING,
@@ -82,7 +82,7 @@ class ExecutionLogger:
 
 
 class ExecutionManager:
-    def __init__(self, ctx: DataFunctionContext):
+    def __init__(self, ctx: DataFunctionContextCfg):
         self.ctx = ctx
         self.logger = ExecutionLogger()
         self.node = self.ctx.node

@@ -4,13 +4,12 @@ import json
 from typing import Optional
 
 from dcp.data_format.formats.memory.records import RecordsFormat
-from snapflow.core.execution import DataFunctionContext
+from snapflow import DataFunctionContext
 from snapflow.core.function import datafunction
 
 
 @datafunction(
-    namespace="core",
-    display_name="Import Records (List of dicts)",
+    namespace="core", display_name="Import Records (List of dicts)",
 )
 def import_records(
     ctx: DataFunctionContext, records: str, schema: Optional[str] = None

@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
+from snapflow.core.function_interface_manager import bind_inputs
 from snapflow.core.persisted.pydantic import (
     DataBlockMetadataCfg,
     StoredDataBlockMetadataCfg,
@@ -17,11 +18,7 @@ from snapflow.core.environment import Environment
 from sqlalchemy.sql.expression import select
 
 if TYPE_CHECKING:
-    from snapflow.core.streams import DataBlockStream, StreamBuilder
-    from snapflow.core.function_interface_manager import (
-        BoundInput,
-        BoundInterface,
-    )
+    from snapflow.core.declarative.interface import BoundInterfaceCfg
 
 
 class ExecutionCfg(FrozenPydanticBase):
@@ -55,12 +52,14 @@ class ExecutableCfg(FrozenPydanticBase):
     def node(self) -> GraphCfg:
         return self.graph.get_node(self.node_key)
 
-    def get_bound_interface(self, env: Environment) -> BoundInterface:
-        from snapflow.core.function_interface_manager import BoundInterface, bind_inputs
+    def get_bound_interface(self, env: Environment) -> BoundInterfaceCfg:
+        from snapflow.core.declarative.interface import BoundInterfaceCfg
 
         node_inputs = self.node.get_node_inputs(self.graph)
         bound_inputs = bind_inputs(env, self, node_inputs)
-        return BoundInterface(inputs=bound_inputs, interface=self.node.get_interface(),)
+        return BoundInterfaceCfg(
+            inputs=bound_inputs, interface=self.node.get_interface(),
+        )
 
 
 class PythonException(FrozenPydanticBase):

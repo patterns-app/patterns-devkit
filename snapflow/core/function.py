@@ -24,7 +24,7 @@ from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
 
 if TYPE_CHECKING:
-    from snapflow.core.execution import DataFunctionContext
+    from snapflow import DataFunctionContext
     from snapflow import Environment
     from snapflow.core.function_package import DataFunctionPackage
 

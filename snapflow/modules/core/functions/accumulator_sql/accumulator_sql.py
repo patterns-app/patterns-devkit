@@ -1,15 +1,14 @@
 from __future__ import annotations
+from snapflow.core.data_block import SelfReference
 from dcp.data_format.handler import get_handler_for_name
 from dcp.data_format.formats.database.base import field_type_to_sqlalchemy_type
 from typing import Dict, List
 from commonmodel import FieldType, DEFAULT_FIELD_TYPE
-from snapflow.core.execution import DataFunctionContext
+from snapflow import DataFunctionContext
 from sqlalchemy.sql import cast
 
-from snapflow import DataBlock
-from snapflow.core.function import Input, Output, datafunction
+from snapflow.core.function import datafunction
 from snapflow.core.sql.sql_function import SqlDataFunctionWrapper, sql_datafunction
-from snapflow.core.function_interface import SelfReference
 from snapflow.core.streams import Stream
 from snapflow.utils.typing import T
 

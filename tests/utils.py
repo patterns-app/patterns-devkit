@@ -1,4 +1,6 @@
 from __future__ import annotations
+from snapflow.core.data_block import DataBlock
+from snapflow.core.declarative.context import DataFunctionContext
 
 from typing import Optional
 
@@ -7,12 +9,10 @@ from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from pandas import DataFrame
-from snapflow.core.persisted.data_block import DataBlock, SelfReference
 from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
 from snapflow.core.declarative.execution import ExecutionCfg
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
-from snapflow.core.execution import DataFunctionContext
 from snapflow.core.function import datafunction
 from snapflow.core.module import SnapflowModule
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine

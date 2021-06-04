@@ -5,6 +5,8 @@ from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from functools import partial
 from pathlib import Path
+from snapflow.core.data_block import DataBlock
+from snapflow.core.declarative.context import DataFunctionContext
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import sqlparse
@@ -15,7 +17,6 @@ from dcp.storage.database.utils import column_map, compile_jinja_sql
 from dcp.utils.common import rand_str
 from loguru import logger
 from snapflow.core.persisted.data_block import (
-    DataBlock,
     DataBlockMetadata,
     StoredDataBlockMetadata,
 )
@@ -25,7 +26,6 @@ from snapflow.core.declarative.function import (
     InputType,
 )
 from snapflow.core.environment import Environment
-from snapflow.core.execution import DataFunctionContext
 from snapflow.core.function import DataFunction, DataInterfaceType, function_factory
 from snapflow.core.function_interface import (
     DEFAULT_OUTPUTS,

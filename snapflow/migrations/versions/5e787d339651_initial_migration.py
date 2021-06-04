@@ -87,12 +87,10 @@ def upgrade():
         sa.Column("processed_at", sa.DateTime(), nullable=False),
         sa.Column("invalidated", sa.Boolean(), nullable=True),
         sa.ForeignKeyConstraint(
-            ["data_block_id"],
-            ["_snapflow_data_block_metadata.id"],
+            ["data_block_id"], ["_snapflow_data_block_metadata.id"],
         ),
         sa.ForeignKeyConstraint(
-            ["function_log_id"],
-            ["_snapflow_data_function_log.id"],
+            ["function_log_id"], ["_snapflow_data_function_log.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -107,12 +105,11 @@ def upgrade():
         sa.Column("storage_url", sa.String(length=128), nullable=False),
         sa.Column(
             "data_format",
-            snapflow.core.metadata.orm.DataFormatType(length=128),
+            snapflow.core.persisted.base.DataFormatType(length=128),
             nullable=False,
         ),
         sa.ForeignKeyConstraint(
-            ["data_block_id"],
-            ["_snapflow_data_block_metadata.id"],
+            ["data_block_id"], ["_snapflow_data_block_metadata.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -126,12 +123,10 @@ def upgrade():
         sa.Column("data_block_id", sa.String(length=128), nullable=False),
         sa.Column("stored_data_block_id", sa.String(length=128), nullable=False),
         sa.ForeignKeyConstraint(
-            ["data_block_id"],
-            ["_snapflow_data_block_metadata.id"],
+            ["data_block_id"], ["_snapflow_data_block_metadata.id"],
         ),
         sa.ForeignKeyConstraint(
-            ["stored_data_block_id"],
-            ["_snapflow_stored_data_block_metadata.id"],
+            ["stored_data_block_id"], ["_snapflow_stored_data_block_metadata.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("dataspace_key", "name"),

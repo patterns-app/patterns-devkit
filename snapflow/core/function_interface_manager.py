@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from snapflow.core.declarative.interface import NodeInputCfg
+from snapflow.core.declarative.interface import BoundInputCfg, NodeInputCfg
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
@@ -10,15 +10,13 @@ from loguru import logger
 from snapflow.core import operators
 from snapflow.core.data_block import DataBlock
 from snapflow.core.declarative.base import FrozenPydanticBase
-from snapflow.core.declarative.execution import ExecutableCfg
-from snapflow.core.declarative.function import (
-    DataFunctionInputCfg,
-    DataFunctionInterfaceCfg,
-)
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 from snapflow.core.persisted.schema import GenericSchemaException, is_generic
 from snapflow.core.streams import DataBlockStream, StreamBuilder
+
+if TYPE_CHECKING:
+    from snapflow.core.declarative.execution import ExecutableCfg
 
 
 def get_schema_translation(
@@ -39,92 +37,12 @@ def get_schema_translation(
     return source_schema.get_translation_to(target_schema)
 
 
-@dataclass(frozen=True)
-class BoundInput:
-    name: str
-    input: DataFunctionInputCfg
-    input_node: Optional[GraphCfg] = None
-    schema_translation: Optional[Dict[str, str]] = None
-    bound_stream: Optional[DataBlockStream] = None
-    bound_block: Optional[DataBlock] = None
-
-    def is_bound(self) -> bool:
-        return self.bound_stream is not None or self.bound_block is not None
-
-    def get_bound_block_property(self, prop: str):
-        if self.bound_block:
-            return getattr(self.bound_block, prop)
-        if self.bound_stream:
-            emitted = self.bound_stream.get_emitted_managed_blocks()
-            if not emitted:
-                # if self.bound_stream.count():
-                #     logger.warning("No blocks emitted yet from non-empty stream")
-                return None
-            return getattr(emitted[0], prop)
-        return None
-
-    def get_bound_nominal_schema(self) -> Optional[Schema]:
-        return self.get_bound_block_property("nominal_schema")
-
-    def get_bound_realized_schema(self) -> Optional[Schema]:
-        return self.get_bound_block_property("nominal_schema")
-
-    @property
-    def nominal_schema(self) -> Optional[Schema]:
-        return self.get_bound_nominal_schema()
-
-    @property
-    def realized_schema(self) -> Optional[Schema]:
-        return self.get_bound_realized_schema()
-
-    @property
-    def is_stream(self) -> bool:
-        return self.input.is_stream
-
-
-@dataclass(frozen=True)
-class BoundInterface:
-    inputs: Dict[str, BoundInput]
-    interface: DataFunctionInterfaceCfg
-
-    def inputs_as_kwargs(self) -> Dict[str, Union[DataBlock, DataBlockStream]]:
-        assert all([i.is_bound() for i in self.inputs.values()])
-        return {
-            i.name: i.bound_stream if i.is_stream else i.bound_block
-            for i in self.inputs.values()
-        }
-
-    def non_reference_bound_inputs(self) -> List[NodeInputCfg]:
-        return [
-            i
-            for i in self.inputs.values()
-            if i.bound_stream is not None and not i.input.is_reference
-        ]
-
-    def resolve_nominal_output_schema(self) -> Optional[str]:
-        output = self.interface.get_default_output()
-        if not output:
-            return None
-        if not output.is_generic:
-            return output.schema_key
-        output_generic = output.schema_key
-        for node_input in self.inputs.values():
-            if not node_input.input.is_generic:
-                continue
-            if node_input.input.schema_key == output_generic:
-                schema = node_input.get_bound_nominal_schema()
-                # We check if None -- there may be more than one input with same generic, we'll take any that are resolvable
-                if schema is not None:
-                    return schema.key
-        raise Exception(f"Unable to resolve generic '{output_generic}'")
-
-
 def bind_inputs(
     env: Environment, cfg: ExecutableCfg, node_inputs: Dict[str, NodeInputCfg]
-) -> Dict[str, BoundInput]:
+) -> Dict[str, BoundInputCfg]:
     from snapflow.core.function import InputExhaustedException
 
-    bound_inputs: Dict[str, BoundInput] = {}
+    bound_inputs: Dict[str, BoundInputCfg] = {}
     any_unprocessed = False
     for node_input in node_inputs.values():
         if node_input.input_node is None:
@@ -196,7 +114,7 @@ def bind_node_input(
     cfg: ExecutableCfg,
     node_input: NodeInputCfg,
     stream_builder: StreamBuilder,
-) -> BoundInput:
+) -> BoundInputCfg:
     bound_block = None
     bound_stream = None
     if stream_builder is not None:

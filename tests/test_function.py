@@ -1,11 +1,13 @@
 from __future__ import annotations
+from snapflow.core.declarative.interface import BoundInterfaceCfg
+from snapflow.core.data_block import DataBlock
 
 from typing import Any, Callable
 
 import pytest
 from pandas import DataFrame
 from snapflow.core.component import global_library
-from snapflow.core.persisted.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.persisted.data_block import DataBlockMetadata
 from snapflow.core.declarative.base import update
 from snapflow.core.declarative.execution import ExecutableCfg
 from snapflow.core.declarative.function import (
@@ -16,7 +18,7 @@ from snapflow.core.declarative.function import (
     InputType,
 )
 from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.execution import DataFunctionContext
+from snapflow import DataFunctionContext
 from snapflow.core.function import DataFunctionLike, datafunction
 from snapflow.core.function_interface import (
     DEFAULT_OUTPUT,
@@ -24,11 +26,7 @@ from snapflow.core.function_interface import (
     ParsedAnnotation,
     parse_input_annotation,
 )
-from snapflow.core.function_interface_manager import (
-    BoundInput,
-    BoundInterface,
-    get_schema_translation,
-)
+from snapflow.core.function_interface_manager import get_schema_translation
 from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
 from snapflow.core.streams import StreamBuilder, block_as_stream
 from snapflow.modules import core
@@ -227,11 +225,10 @@ def test_generic_schema_resolution():
         )
         env.md_api.add(block)
         env.md_api.flush([block])
-        stream = block_as_stream(block, env, ec)
         inputs = n1.get_node_inputs(g)
-        inputs["input"] = inputs["input"].as_bound_input(bound_stream=stream)
-        bi = BoundInterface(inputs=inputs, interface=n1.get_interface())
-        next(stream)  # Must emit block to count
+        stream = [block.to_pydantic_with_stored()]
+        bound_inputs = {"input": inputs["input"].as_bound_input(bound_stream=stream)}
+        bi = BoundInterfaceCfg(inputs=bound_inputs, interface=n1.get_interface())
         assert len(bi.inputs) == 1
         assert bi.resolve_nominal_output_schema() == TestSchema1.key
 
@@ -257,8 +254,7 @@ def test_declared_schema_translation():
     # input: StreamInput = bi.inputs[0]
     with env.md_api.begin():
         schema_translation = get_schema_translation(
-            env,
-            block.realized_schema(env),
+            env.get_schema(block.realized_schema_key),
             target_schema=env.get_schema(
                 pi.get_single_non_reference_input().schema_key
             ),
@@ -284,8 +280,7 @@ def test_natural_schema_translation():
     )
     with env.md_api.begin():
         schema_translation = get_schema_translation(
-            env,
-            block.realized_schema(env),
+            env.get_schema(block.realized_schema_key),
             target_schema=env.get_schema(
                 pi.get_single_non_reference_input().schema_key
             ),
