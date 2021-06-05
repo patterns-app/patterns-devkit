@@ -30,9 +30,7 @@ from typing import (
 
 import dcp
 import sqlalchemy
-from commonmodel.base import AnySchema, Schema, SchemaLike, SchemaTranslation
 from dcp.data_format.base import DataFormat, get_format_for_nickname
-from dcp.data_format.handler import get_handler_for_name, infer_format_for_name
 from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
@@ -54,17 +52,8 @@ from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.typing.casting import cast_to_realized_schema
 
 
-if TYPE_CHECKING:
-    from snapflow.core.streams import DataBlockStream, StreamBuilder
-    from snapflow.core.function_interface_manager import (
-        BoundInput,
-        BoundInterface,
-    )
-
-
-class DataFunctionContextCfg(FrozenPydanticBase):
+class DataFunctionContextCfg(PydanticBase):
     dataspace: DataspaceCfg
-    library_cfg: ComponentLibraryCfg
     function: DataFunctionCfg
     result: ExecutionResult
     node: GraphCfg
@@ -72,7 +61,7 @@ class DataFunctionContextCfg(FrozenPydanticBase):
     inputs: Dict[str, BoundInputCfg]
     bound_interface: BoundInterfaceCfg
     function_log: DataFunctionLogCfg
-    execution_config: ExecutionCfg
+    library_cfg: Optional[ComponentLibraryCfg] = None
     execution_start_time: Optional[datetime] = None
 
     """
@@ -85,9 +74,15 @@ class DataFunctionContextCfg(FrozenPydanticBase):
     @property
     def library(self) -> ComponentLibrary:
         # TODOOOOOOOOOOOOO: not every time. and merge order / precedence?
+        if self.library_cfg is None:
+            return global_library
         lib = ComponentLibrary.from_config(self.library_cfg)
         lib.merge(global_library)
         return lib
+
+    @property
+    def execution_config(self) -> ExecutionCfg:
+        return self.executable.execution_config
 
     @contextmanager
     def as_tmp_local_object(self, obj: Any) -> str:
@@ -116,7 +111,9 @@ class DataFunctionContextCfg(FrozenPydanticBase):
         return self.node.params.get(key, default)
 
     def get_params(self, defaults: Dict[str, Any] = None) -> Dict[str, Any]:
-        final_params = {p.name: p.default for p in self.function.params.values()}
+        final_params = {
+            p.name: p.default for p in self.function.interface.parameters.values()
+        }
         final_params.update(defaults or {})
         final_params.update(self.node.params)
         return final_params

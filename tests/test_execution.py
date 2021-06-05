@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.run import prepare_function_context
 
 from typing import Optional
 
@@ -48,9 +49,10 @@ def test_exe():
     node = GraphCfg(key="node", function="function_t1_source")
     g = GraphCfg(nodes=[node])
     exe = env.get_executable(node, graph=g)
-    result = ExecutionManager(env, exe).execute()
+    ctx = prepare_function_context(env, exe)
+    result = ExecutionManager(ctx).execute()
     with env.md_api.begin():
-        assert not result.output_blocks
+        assert not result.output_blocks_emitted
         assert env.md_api.count(select(DataFunctionLog)) == 1
         pl = env.md_api.execute(select(DataFunctionLog)).scalar_one_or_none()
         assert pl.node_key == node.key

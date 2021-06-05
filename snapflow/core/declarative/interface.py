@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.data_block import DataBlock, DataBlockStream
 from snapflow.core.persisted.pydantic import DataBlockWithStoredBlocksCfg
 from snapflow.core.declarative.base import FrozenPydanticBase
 
@@ -84,19 +85,19 @@ class BoundInterfaceCfg(FrozenPydanticBase):
     inputs: Dict[str, BoundInputCfg]
     interface: DataFunctionInterfaceCfg
 
-    # def inputs_as_kwargs(self) -> Dict[str, Union[DataBlock, DataBlockStream]]:
-    #     assert all([i.is_bound() for i in self.inputs.values()])
-    #     return {
-    #         i.name: i.bound_stream if i.is_stream else i.bound_block
-    #         for i in self.inputs.values()
-    #     }
+    def inputs_as_kwargs(self) -> Dict[str, Union[DataBlock, DataBlockStream]]:
+        assert all([i.is_bound() for i in self.inputs.values()])
+        return {
+            i.name: i.bound_stream if i.is_stream else i.bound_block
+            for i in self.inputs.values()
+        }
 
-    # def non_reference_bound_inputs(self) -> List[NodeInputCfg]:
-    #     return [
-    #         i
-    #         for i in self.inputs.values()
-    #         if i.bound_stream is not None and not i.input.is_reference
-    #     ]
+    def non_reference_bound_inputs(self) -> List[NodeInputCfg]:
+        return [
+            i
+            for i in self.inputs.values()
+            if i.bound_stream is not None and not i.input.is_reference
+        ]
 
     # def resolve_nominal_output_schema(self) -> Optional[str]:
     #     output = self.interface.get_default_output()

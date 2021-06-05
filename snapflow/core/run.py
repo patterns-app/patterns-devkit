@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.declarative.context import DataFunctionContextCfg
 
 import traceback
 from collections import abc, defaultdict
@@ -43,7 +44,6 @@ from snapflow.core.function import (
     DataInterfaceType,
     InputExhaustedException,
 )
-from snapflow.core.function_interface_manager import BoundInput, BoundInterface
 from snapflow.core.metadata.api import MetadataApi
 from snapflow.core.persisted.state import (
     DataBlockLog,
@@ -64,6 +64,7 @@ class ImproperlyStoredDataBlockException(Exception):
     pass
 
 
+# TODO: use this
 def validate_data_blocks(env: Environment):
     # TODO: More checks?
     env.md_api.flush()
@@ -78,54 +79,20 @@ def validate_data_blocks(env: Environment):
                     )
 
 
-def prepare_function_context(env: Environment, exe: ExecutableCfg):
+def prepare_function_context(
+    env: Environment, exe: ExecutableCfg
+) -> DataFunctionContextCfg:
     with env.md_api.begin():
+        md = env.md_api
         try:
             bound_interface = exe.get_bound_interface(env)
         except InputExhaustedException as e:
             logger.debug(f"Inputs exhausted {e}")
             raise e
             # return ExecutionResult.empty()
-        with self.start_function_run(self.node, bound_interface) as function_ctx:
-            # function = executable.compiled_function.function
-            # local_vars = locals()
-            # if hasattr(function, "_locals"):
-            #     local_vars.update(function._locals)
-            # exec(function.get_source_code(), globals(), local_vars)
-            # output_obj = local_vars[function.function_callable.__name__](
-            function_args, function_kwargs = function_ctx.get_function_args()
-            output_obj = function_ctx.function.function_callable(
-                *function_args, **function_kwargs,
-            )
-            if output_obj is not None:
-                self.emit_output_object(output_obj, function_ctx)
-        result = function_ctx.as_execution_result()
-        # TODO: update node state block counts?
-    logger.debug(f"EXECUTION RESULT {result}")
-    return result
-
-    def emit_output_object(
-        self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
-    ):
-        assert output_obj is not None
-        if isinstance(output_obj, abc.Generator):
-            output_iterator = output_obj
-        else:
-            output_iterator = [output_obj]
-        i = 0
-        for output_obj in output_iterator:
-            logger.debug(output_obj)
-            i += 1
-            function_ctx.emit(output_obj)
-
-    @contextmanager
-    def start_function_run(
-        self, node: GraphCfg, bound_interface: BoundInterface
-    ) -> Iterator[DataFunctionContext]:
-
-        # assert self.current_runtime is not None, "Runtime not set"
-        md = self.env.get_metadata_api()
-        node_state_obj = get_state(self.env, node.key)
+        node = exe.node
+        function = exe.node.function
+        node_state_obj = get_state(env, node.key)
         if node_state_obj is None:
             node_state = {}
         else:
@@ -144,90 +111,123 @@ def prepare_function_context(env: Environment, exe: ExecutableCfg):
         md.add(function_log)
         md.add(node_state_obj)
         md.flush([function_log, node_state_obj])
-        function_ctx = DataFunctionContext(
-            env=self.env,
-            function=self.function,
-            node=self.node,
-            executable=self.exe,
-            metadata_api=self.env.md_api,
+        function_ctx = DataFunctionContextCfg(
+            dataspace=env.dataspace,
+            # library_cfg=build_library_config(),
+            function=node.function_cfg,
+            node=node,
+            executable=exe,
             inputs=bound_interface.inputs,
             function_log=function_log,
             bound_interface=bound_interface,
-            execution_config=self.exe.execution_config,
-            execution_start_time=self.start_time,
+            execution_start_time=None,
+            result=ExecutionResult(),
         )
-        try:
-            yield function_ctx
-            # Validate local memory objects: Did we leave any non-storeables hanging?
-            validate_data_blocks(self.env)
-        except Exception as e:
-            # Don't worry about exhaustion exceptions
-            if not isinstance(e, InputExhaustedException):
-                logger.debug(f"Error running node:\n{traceback.format_exc()}")
-                function_log.set_error(e)
-                function_log.persist_state(self.env)
-                function_log.completed_at = utcnow()
-                # TODO: should clean this up so transaction surrounds things that you DO
-                #       want to rollback, obviously
-                # md.commit()  # MUST commit here since the re-raised exception will issue a rollback
-                if (
-                    self.exe.execution_config.dataspace.snapflow.abort_on_function_error
-                ):  # TODO: from call or env
-                    raise e
-        finally:
-            function_ctx.finish_execution()
-            # Persist state on success OR error:
-            function_log.persist_state(self.env)
-            function_log.completed_at = utcnow()
+        return function_ctx
+        # Validate local memory objects: Did we leave any non-storeables hanging?
+        # validate_data_blocks(self.env)
 
-    def log_execution_result(self, result: ExecutionResult):
-        self.logger.log("Inputs: ")
-        if result.input_block_counts:
-            self.logger.log("\n")
-            with self.logger.indent():
-                for input_name, cnt in result.input_block_counts.items():
-                    self.logger.log(f"{input_name}: {cnt} block(s) processed\n")
-        else:
-            if not result.non_reference_inputs_bound:
-                self.logger.log_token("n/a\n")
-            else:
-                self.logger.log_token("None\n")
-        self.logger.log("Outputs: ")
-        if result.output_blocks:
-            self.logger.log("\n")
-            with self.logger.indent():
-                for output_name, block_summary in result.output_blocks.items():
-                    self.logger.log(f"{output_name}:")
-                    cnt = block_summary["record_count"]
-                    alias = block_summary["alias"]
-                    if cnt is not None:
-                        self.logger.log_token(f" {cnt} records")
-                    self.logger.log_token(
-                        f" {alias} " + cf.dimmed(f"({block_summary['id']})\n")  # type: ignore
-                    )
-        else:
-            self.logger.log_token("None\n")
+    # # TODO: goes somewhere else
+    #     except Exception as e:
+    #         # Don't worry about exhaustion exceptions
+    #         if not isinstance(e, InputExhaustedException):
+    #             logger.debug(f"Error running node:\n{traceback.format_exc()}")
+    #             function_log.set_error(e)
+    #             function_log.persist_state(self.env)
+    #             function_log.completed_at = utcnow()
+    #             # TODO: should clean this up so transaction surrounds things that you DO
+    #             #       want to rollback, obviously
+    #             # md.commit()  # MUST commit here since the re-raised exception will issue a rollback
+    #             if (
+    #                 self.exe.execution_config.dataspace.snapflow.abort_on_function_error
+    #             ):  # TODO: from call or env
+    #                 raise e
+    #     finally:
+    #         function_ctx.finish_execution()
+    #         # Persist state on success OR error:
+    #         function_log.persist_state(self.env)
+    #         function_log.completed_at = utcnow()
+
+    #     with self.start_function_run(self.node, bound_interface) as function_ctx:
+    #         # function = executable.compiled_function.function
+    #         # local_vars = locals()
+    #         # if hasattr(function, "_locals"):
+    #         #     local_vars.update(function._locals)
+    #         # exec(function.get_source_code(), globals(), local_vars)
+    #         # output_obj = local_vars[function.function_callable.__name__](
+    #         function_args, function_kwargs = function_ctx.get_function_args()
+    #         output_obj = function_ctx.function.function_callable(
+    #             *function_args, **function_kwargs,
+    #         )
+    #         if output_obj is not None:
+    #             self.emit_output_object(output_obj, function_ctx)
+    #     result = function_ctx.as_execution_result()
+    #     # TODO: update node state block counts?
+    # logger.debug(f"EXECUTION RESULT {result}")
+    # return result
+
+    # def emit_output_object(
+    #     self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
+    # ):
+    #     assert output_obj is not None
+    #     if isinstance(output_obj, abc.Generator):
+    #         output_iterator = output_obj
+    #     else:
+    #         output_iterator = [output_obj]
+    #     i = 0
+    #     for output_obj in output_iterator:
+    #         logger.debug(output_obj)
+    #         i += 1
+    #         function_ctx.emit(output_obj)
+
+    # def log_execution_result(self, result: ExecutionResult):
+    #     self.logger.log("Inputs: ")
+    #     if result.input_block_counts:
+    #         self.logger.log("\n")
+    #         with self.logger.indent():
+    #             for input_name, cnt in result.input_block_counts.items():
+    #                 self.logger.log(f"{input_name}: {cnt} block(s) processed\n")
+    #     else:
+    #         if not result.non_reference_inputs_bound:
+    #             self.logger.log_token("n/a\n")
+    #         else:
+    #             self.logger.log_token("None\n")
+    #     self.logger.log("Outputs: ")
+    #     if result.output_blocks:
+    #         self.logger.log("\n")
+    #         with self.logger.indent():
+    #             for output_name, block_summary in result.output_blocks.items():
+    #                 self.logger.log(f"{output_name}:")
+    #                 cnt = block_summary["record_count"]
+    #                 alias = block_summary["alias"]
+    #                 if cnt is not None:
+    #                     self.logger.log_token(f" {cnt} records")
+    #                 self.logger.log_token(
+    #                     f" {alias} " + cf.dimmed(f"({block_summary['id']})\n")  # type: ignore
+    #                 )
+    #     else:
+    #         self.logger.log_token("None\n")
 
 
-def run_to_exhaustion(
-    env: Environment, exe: ExecutableCfg, to_exhaustion: bool = True
-) -> Optional[CumulativeExecutionResult]:
-    cum_result = CumulativeExecutionResult()
-    em = ExecutionManager(env, exe)
-    while True:
-        try:
-            result = em.execute()
-        except InputExhaustedException:
-            return cum_result
-        cum_result.add_result(result)
-        if (
-            not to_exhaustion or not result.non_reference_inputs_bound
-        ):  # TODO: We just run no-input DFs (sources) once no matter what
-            # (they are responsible for creating their own generators)
-            break
-        if cum_result.error:
-            break
-    return cum_result
+# def run_to_exhaustion(
+#     env: Environment, exe: ExecutableCfg, to_exhaustion: bool = True
+# ) -> Optional[CumulativeExecutionResult]:
+#     cum_result = CumulativeExecutionResult()
+#     em = ExecutionManager(env, exe)
+#     while True:
+#         try:
+#             result = em.execute()
+#         except InputExhaustedException:
+#             return cum_result
+#         cum_result.add_result(result)
+#         if (
+#             not to_exhaustion or not result.non_reference_inputs_bound
+#         ):  # TODO: We just run no-input DFs (sources) once no matter what
+#             # (they are responsible for creating their own generators)
+#             break
+#         if cum_result.error:
+#             break
+#     return cum_result
 
 
 def get_latest_output(env: Environment, node: GraphCfg) -> Optional[DataBlock]:

@@ -116,9 +116,7 @@ class ExecutionManager:
 
     def _execute(self) -> ExecutionResult:
         function_args, function_kwargs = self.ctx.get_function_args()
-        output_obj = self.ctx.function.function_callable(
-            *function_args, **function_kwargs,
-        )
+        output_obj = self.function.function_callable(*function_args, **function_kwargs,)
         if output_obj is not None:
             self.emit_output_object(output_obj)
             # TODO: update node state block counts?
@@ -140,28 +138,28 @@ class ExecutionManager:
 
     def log_execution_result(self, result: ExecutionResult):
         self.logger.log("Inputs: ")
-        if result.input_block_counts:
+        if result.input_blocks_consumed:
             self.logger.log("\n")
             with self.logger.indent():
-                for input_name, cnt in result.input_block_counts.items():
-                    self.logger.log(f"{input_name}: {cnt} block(s) processed\n")
+                for input_name, cnt in result.input_blocks_consumed.items():
+                    self.logger.log(f"{input_name}: {len(cnt)} block(s) processed\n")
         else:
-            if not result.non_reference_inputs_bound:
-                self.logger.log_token("n/a\n")
-            else:
-                self.logger.log_token("None\n")
+            # if not result.non_reference_inputs_bound:
+            #     self.logger.log_token("n/a\n")
+            # else:
+            self.logger.log_token("None\n")
         self.logger.log("Outputs: ")
-        if result.output_blocks:
+        if result.output_blocks_emitted:
             self.logger.log("\n")
             with self.logger.indent():
-                for output_name, block_summary in result.output_blocks.items():
+                for output_name, block in result.output_blocks_emitted.items():
                     self.logger.log(f"{output_name}:")
-                    cnt = block_summary["record_count"]
-                    alias = block_summary["alias"]
+                    cnt = block.record_count
+                    # alias = block.alias
                     if cnt is not None:
-                        self.logger.log_token(f" {cnt} records")
+                        self.logger.log_token(f" {cnt} records ")
                     self.logger.log_token(
-                        f" {alias} " + cf.dimmed(f"({block_summary['id']})\n")  # type: ignore
+                        cf.dimmed(f"({block.id})\n")  # type: ignore
                     )
         else:
             self.logger.log_token("None\n")
