@@ -8,7 +8,6 @@ from snapflow.core.operators import filter, latest, operator
 from snapflow.core.persisted.state import DataBlockLog, DataFunctionLog, Direction
 from snapflow.core.streams import (
     DataBlockStream,
-    ManagedDataBlockStream,
     StreamBuilder,
     stream,
 )
@@ -207,48 +206,45 @@ class TestStreams:
         sb = stream(nodes=[self.node_source.key])
         expected_cnt = sb.get_count(self.env)
         assert expected_cnt == 2
-        list(count(sb).as_managed_stream(self.env, self.ctx))
+        list(count(sb).as_blocks(self.env))
         assert self._cnt == expected_cnt
 
         # Test composed operators
         self._cnt = 0
-        list(count(latest(sb)).as_managed_stream(self.env, self.ctx))
+        list(count(latest(sb)).as_blocks(self.env))
         assert self._cnt == 1
 
         # Test kwargs
         self._cnt = 0
-        list(
-            count(filter(sb, function=lambda db: False)).as_managed_stream(
-                self.env, self.ctx
-            )
-        )
+        list(count(filter(sb, function=lambda db: False)).as_blocks(self.env))
         assert self._cnt == 0
 
-    def test_managed_stream(self):
-        dfl = DataFunctionLog(
-            node_key=self.node_source.key,
-            function_key=self.node_source.function,
-            runtime_url="test",
-        )
-        drl = DataBlockLog(
-            function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
-        )
-        dfl2 = DataFunctionLog(
-            node_key=self.node1.key,
-            function_key=self.node1.function,
-            runtime_url="test",
-        )
-        drl2 = DataBlockLog(
-            function_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
-        )
-        self.env.md_api.add_all([dfl, drl, dfl2, drl2])
+    # def test_managed_stream(self):
+    #     dfl = DataFunctionLog(
+    #         node_key=self.node_source.key,
+    #         function_key=self.node_source.function,
+    #         runtime_url="test",
+    #     )
+    #     drl = DataBlockLog(
+    #         function_log=dfl, data_block=self.dr1t1, direction=Direction.OUTPUT,
+    #     )
+    #     dfl2 = DataFunctionLog(
+    #         node_key=self.node1.key,
+    #         function_key=self.node1.function,
+    #         runtime_url="test",
+    #     )
+    #     drl2 = DataBlockLog(
+    #         function_log=dfl2, data_block=self.dr1t1, direction=Direction.INPUT,
+    #     )
+    #     self.env.md_api.add_all([dfl, drl, dfl2, drl2])
 
-        s = stream(nodes=[self.node_source.key])
-        s = s.filter_unprocessed(self.node1.key)
+    #     s = stream(nodes=[self.node_source.key])
+    #     s = s.filter_unprocessed(self.node1.key)
+    #     s.as_blocks()
 
-        env = make_test_env()
-        ctx = make_test_run_context(env)
-        with env.md_api.begin():
-            dbs = ManagedDataBlockStream(env, ctx, stream_builder=s)
-            with pytest.raises(StopIteration):
-                assert next(dbs) is None
+    #     env = make_test_env()
+    #     ctx = make_test_run_context(env)
+    #     with env.md_api.begin():
+    #         dbs = ManagedDataBlockStream(env, ctx, stream_builder=s)
+    #         with pytest.raises(StopIteration):
+    #             assert next(dbs) is None

@@ -1,6 +1,6 @@
 from __future__ import annotations
+from snapflow.core.data_block import DataBlock
 
-from snapflow.core.persisted.data_block import DataBlock
 from snapflow import DataFunctionContext
 from snapflow.core.module import SnapflowModule
 from snapflow.utils.typing import T

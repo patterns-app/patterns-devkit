@@ -7,12 +7,7 @@ import pytest
 from dcp.data_format.formats.memory.records import Records
 from loguru import logger
 from pandas import DataFrame
-from snapflow.core.persisted.data_block import (
-    Alias,
-    DataBlock,
-    DataBlockMetadata,
-    Reference,
-)
+from snapflow.core.persisted.data_block import Alias
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.execution import ExecutionManager
 from snapflow.core.function import Input, datafunction
@@ -22,9 +17,6 @@ from sqlalchemy.sql.expression import select
 from tests.utils import (
     TestSchema1,
     TestSchema4,
-    function_generic,
-    function_t1_sink,
-    function_t1_source,
     function_t1_to_t2,
     make_test_env,
     make_test_run_context,

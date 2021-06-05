@@ -310,19 +310,6 @@ def block_as_stream_builder(data_block: DataBlockMetadata) -> StreamBuilder:
     )
 
 
-def block_as_stream(
-    data_block: DataBlockMetadata,
-    env: Environment,
-    cfg: ExecutionCfg,
-    declared_schema: Optional[Schema] = None,
-    declared_schema_translation: Optional[Dict[str, str]] = None,
-) -> DataBlockStream:
-    stream = block_as_stream_builder(data_block)
-    return stream.as_managed_stream(
-        env, cfg, declared_schema, declared_schema_translation
-    )
-
-
 StreamLike = Union[StreamBuilder, GraphCfg, str]
 # DataBlockStreamable = Union[StreamBuilder, Node]
 # InputStreams = Dict[str, DataBlockStream]
