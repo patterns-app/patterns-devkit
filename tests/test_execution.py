@@ -75,9 +75,11 @@ def test_exe_output():
     node = GraphCfg(key="node", function="function_dl_source", alias=output_alias)
     g = GraphCfg(nodes=[node])
     exe = env.get_executable(node, graph=g)
-    result = ExecutionManager(env, exe).execute()
+    ctx = prepare_function_context(env, exe)
+    result = ExecutionManager(ctx).execute()
+    assert len(result.stdout_blocks_emitted()) == 1
     with env.md_api.begin():
-        block = result.get_output_block(env)
+        block = result.stdout_blocks_emitted()[0]
         assert block is not None
         assert block.as_records() == mock_dl_output
         assert block.nominal_schema is TestSchema4
@@ -101,8 +103,9 @@ def test_non_terminating_function():
     node = GraphCfg(key="node", function="never_stop")
     g = GraphCfg(nodes=[node])
     exe = env.get_executable(node, graph=g)
-    result = ExecutionManager(env, exe).execute()
-    assert result.get_output_block(env) is None
+    ctx = prepare_function_context(env, exe)
+    result = ExecutionManager(ctx).execute()
+    assert not result.output_blocks_emitted
 
 
 def test_non_terminating_function_with_reference_input():
@@ -116,10 +119,12 @@ def test_non_terminating_function_with_reference_input():
     node = GraphCfg(key="node", function="never_stop", input=source.key)
     g = GraphCfg(nodes=[source, node])
     exe = env.get_executable(source, graph=g)
-    result = ExecutionManager(env, exe).execute()
+    ctx = prepare_function_context(env, exe)
+    result = ExecutionManager(ctx).execute()
     # TODO: reference inputs need to log too? (So they know when to update)
     # with env.md_api.begin():
     #     assert env.md_api.count(select(DataBlockLog)) == 1
     exe = env.get_executable(node, graph=g)
-    result = ExecutionManager(env, exe).execute()
-    assert result.get_output_block(env) is None
+    ctx = prepare_function_context(env, exe)
+    result = ExecutionManager(ctx).execute()
+    assert not result.output_blocks_emitted

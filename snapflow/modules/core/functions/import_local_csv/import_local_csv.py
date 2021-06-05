@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from dcp.data_format.formats import DataFrameFormat, JsonLinesFileObjectFormat
 from dcp.data_format.formats.file_system.csv_file import CsvFileFormat
 from snapflow import DataFunctionContext, datafunction
-from snapflow.core.streams import Stream
 from snapflow.utils.typing import T
 
 

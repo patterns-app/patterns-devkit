@@ -116,70 +116,74 @@ DataBlock = DataBlockManager
 SelfReference = Union[DataBlock, None]
 Reference = DataBlock
 Consumable = DataBlock
-
-
-class DataBlockStream(PydanticBase):
-    ctx: DataFunctionContextCfg
-    blocks: List[DataBlockMetadataCfg] = []
-    declared_schema: Optional[Schema] = None
-    declared_schema_translation: Optional[Dict[str, str]] = None
-    _managed_blocks: Optional[Iterator[DataBlock]] = None
-    _emitted_blocks: List[DataBlockMetadataCfg] = []
-    _emitted_managed_blocks: List[DataBlock] = []
-
-    def managed_blocks(self) -> Iterator[DataBlock]:
-        if self._managed_blocks is None:
-            self._managed_blocks = self.as_managed_block(self.blocks)
-        return self._managed_blocks
-
-    def __iter__(self) -> Iterator[DataBlock]:
-        return self.managed_blocks()
-
-    def __next__(self) -> DataBlock:
-        return next(self.managed_blocks())
-
-    def _as_managed_block(
-        self, stream: Iterable[DataBlockMetadataCfg]
-    ) -> Iterator[DataBlock]:
-        from snapflow.core.function_interface_manager import get_schema_translation
-
-        for db in stream:
-            if db.nominal_schema_key:
-                schema_translation = get_schema_translation(
-                    source_schema=db.nominal_schema(self.ctx.library),
-                    target_schema=self.declared_schema,
-                    declared_schema_translation=self.declared_schema_translation,
-                )
-            else:
-                schema_translation = None
-            mdb = db.as_managed_data_block(
-                self.ctx, schema_translation=schema_translation
-            )
-            yield mdb
-
-    def as_managed_block(
-        self, stream: Iterable[DataBlockMetadataCfg]
-    ) -> Iterator[DataBlock]:
-        return self.log_emitted(self._as_managed_block(self.blocks))
-
-    @property
-    def all_blocks(self) -> List[DataBlock]:
-        return list(self.as_managed_block(self.blocks))
-
-    def count(self) -> int:
-        return len(self.blocks)
-
-    def log_emitted(self, stream: Iterator[DataBlock]) -> Iterator[DataBlock]:
-        for mdb in stream:
-            self._emitted_blocks.append(mdb.data_block)
-            self._emitted_managed_blocks.append(mdb)
-            yield mdb
-
-    def get_emitted_blocks(self) -> List[DataBlockMetadataCfg]:
-        return self._emitted_blocks
-
-    def get_emitted_managed_blocks(self) -> List[DataBlock]:
-        return self._emitted_managed_blocks
-
-
+DataBlockStream = Iterable[DataBlockManager]
 Stream = DataBlockStream
+
+
+# DataFunctionInputType = Union[DataBlock, DataBlockStream]
+
+# class DataBlockStream(PydanticBase):
+#     ctx: DataFunctionContextCfg
+#     blocks: List[DataBlockMetadataCfg] = []
+#     declared_schema: Optional[Schema] = None
+#     declared_schema_translation: Optional[Dict[str, str]] = None
+#     _managed_blocks: Optional[Iterator[DataBlock]] = None
+#     _emitted_blocks: List[DataBlockMetadataCfg] = []
+#     _emitted_managed_blocks: List[DataBlock] = []
+
+#     def managed_blocks(self) -> Iterator[DataBlock]:
+#         if self._managed_blocks is None:
+#             self._managed_blocks = self.as_managed_block(self.blocks)
+#         return self._managed_blocks
+
+#     def __iter__(self) -> Iterator[DataBlock]:
+#         return self.managed_blocks()
+
+#     def __next__(self) -> DataBlock:
+#         return next(self.managed_blocks())
+
+#     def _as_managed_block(
+#         self, stream: Iterable[DataBlockMetadataCfg]
+#     ) -> Iterator[DataBlock]:
+#         from snapflow.core.function_interface_manager import get_schema_translation
+
+#         for db in stream:
+#             if db.nominal_schema_key:
+#                 schema_translation = get_schema_translation(
+#                     source_schema=db.nominal_schema(self.ctx.library),
+#                     target_schema=self.declared_schema,
+#                     declared_schema_translation=self.declared_schema_translation,
+#                 )
+#             else:
+#                 schema_translation = None
+#             mdb = db.as_managed_data_block(
+#                 self.ctx, schema_translation=schema_translation
+#             )
+#             yield mdb
+
+#     def as_managed_block(
+#         self, stream: Iterable[DataBlockMetadataCfg]
+#     ) -> Iterator[DataBlock]:
+#         return self.log_emitted(self._as_managed_block(self.blocks))
+
+#     @property
+#     def all_blocks(self) -> List[DataBlock]:
+#         return list(self.as_managed_block(self.blocks))
+
+#     def count(self) -> int:
+#         return len(self.blocks)
+
+#     def log_emitted(self, stream: Iterator[DataBlock]) -> Iterator[DataBlock]:
+#         for mdb in stream:
+#             self._emitted_blocks.append(mdb.data_block)
+#             self._emitted_managed_blocks.append(mdb)
+#             yield mdb
+
+#     def get_emitted_blocks(self) -> List[DataBlockMetadataCfg]:
+#         return self._emitted_blocks
+
+#     def get_emitted_managed_blocks(self) -> List[DataBlock]:
+#         return self._emitted_managed_blocks
+
+
+# Stream = DataBlockStream

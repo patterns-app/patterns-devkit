@@ -1,5 +1,5 @@
 from __future__ import annotations
-from snapflow.core.data_block import DataBlock
+from snapflow.core.data_block import DataBlock, Stream
 from snapflow.core.declarative.context import DataFunctionContext
 
 from typing import Optional
@@ -16,7 +16,6 @@ from snapflow.core.environment import Environment
 from snapflow.core.function import datafunction
 from snapflow.core.module import SnapflowModule
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
-from snapflow.core.streams import DataBlockStream, Stream
 from snapflow.utils.typing import T
 
 TestSchema1 = create_quick_schema("TestSchema1", [("f1", "Text")], namespace="_test")

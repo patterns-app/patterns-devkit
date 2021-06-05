@@ -1,9 +1,8 @@
 from __future__ import annotations
-from snapflow.core.data_block import SelfReference
+from snapflow.core.data_block import SelfReference, Stream
 
 from pandas import DataFrame, concat
 from snapflow.core.function import datafunction
-from snapflow.core.streams import Stream
 from snapflow.utils.typing import T
 
 

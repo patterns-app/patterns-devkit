@@ -1,8 +1,10 @@
 from __future__ import annotations
 from datetime import datetime
+from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.function_interface_manager import bind_inputs
 from snapflow.core.persisted.pydantic import (
     DataBlockMetadataCfg,
+    DataFunctionLogCfg,
     StoredDataBlockMetadataCfg,
 )
 
@@ -12,7 +14,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
 from commonmodel.base import Schema
 from dcp.storage.base import Storage
 from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
-from snapflow.core.declarative.dataspace import DataspaceCfg
+from snapflow.core.declarative.dataspace import ComponentLibraryCfg, DataspaceCfg
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 from sqlalchemy.sql.expression import select
@@ -27,6 +29,7 @@ class ExecutionCfg(FrozenPydanticBase):
     local_storage: Optional[str] = None
     target_data_format: Optional[str] = None
     storages: List[str] = []
+    library_cfg: Optional[ComponentLibraryCfg] = None
     run_until_inputs_exhausted: bool = True
     # TODO: this is a "soft" limit, could imagine a "hard" one too
     execution_timelimit_seconds: Optional[int] = None
@@ -47,19 +50,12 @@ class ExecutableCfg(FrozenPydanticBase):
     node_key: str
     graph: GraphCfg
     execution_config: ExecutionCfg
+    bound_interface: BoundInterfaceCfg
+    function_log: DataFunctionLogCfg
 
     @property
     def node(self) -> GraphCfg:
         return self.graph.get_node(self.node_key)
-
-    def get_bound_interface(self, env: Environment) -> BoundInterfaceCfg:
-        from snapflow.core.declarative.interface import BoundInterfaceCfg
-
-        node_inputs = self.node.get_node_inputs(self.graph)
-        bound_inputs = bind_inputs(env, self, node_inputs)
-        return BoundInterfaceCfg(
-            inputs=bound_inputs, interface=self.node.get_interface(),
-        )
 
 
 class PythonException(FrozenPydanticBase):
@@ -86,3 +82,5 @@ class ExecutionResult(PydanticBase):
     def has_error(self) -> bool:
         return self.function_error is not None or self.framework_error is not None
 
+    def stdout_blocks_emitted(self) -> List[DataBlockMetadataCfg]:
+        return self.output_blocks_emitted.get(DEFAULT_OUTPUT_NAME, [])

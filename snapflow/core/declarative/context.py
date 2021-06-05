@@ -1,4 +1,7 @@
 from __future__ import annotations
+
+from commonmodel.base import Schema
+from snapflow.core.data_block import DataBlock, DataBlockStream
 from snapflow.core.persisted.pydantic import (
     DataBlockMetadataCfg,
     DataFunctionLogCfg,
@@ -26,11 +29,12 @@ from typing import (
     Optional,
     Set,
     Tuple,
+    Union,
 )
 
 import dcp
 import sqlalchemy
-from dcp.data_format.base import DataFormat, get_format_for_nickname
+from dcp.data_format.base import DataFormat, get_format_for_nickname, DataFormatBase
 from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
@@ -40,6 +44,7 @@ from snapflow.core.persisted.data_block import (
     StoredDataBlockMetadata,
     get_datablock_id,
     get_stored_datablock_id,
+    make_sdb_name,
 )
 from snapflow.core.declarative.dataspace import ComponentLibraryCfg, DataspaceCfg
 from snapflow.core.declarative.execution import (
@@ -52,17 +57,19 @@ from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.typing.casting import cast_to_realized_schema
 
 
-class DataFunctionContextCfg(PydanticBase):
+class UnknownFormat(DataFormatBase):
+    nickname = "unknown"
+
+
+class DataFunctionContext(FrozenPydanticBase):
     dataspace: DataspaceCfg
-    function: DataFunctionCfg
-    result: ExecutionResult
+    function: DataFunction
     node: GraphCfg
     executable: ExecutableCfg
-    inputs: Dict[str, BoundInputCfg]
-    bound_interface: BoundInterfaceCfg
-    function_log: DataFunctionLogCfg
-    library_cfg: Optional[ComponentLibraryCfg] = None
+    inputs: Dict[str, Union[DataBlock, DataBlockStream]]
     execution_start_time: Optional[datetime] = None
+    library: Optional[ComponentLibrary] = None
+    result: ExecutionResult
 
     """
     TODO:
@@ -70,15 +77,6 @@ class DataFunctionContextCfg(PydanticBase):
             if sdb is not None and sdb.data_is_written:
                 self.create_alias(sdb)
     """
-
-    @property
-    def library(self) -> ComponentLibrary:
-        # TODOOOOOOOOOOOOO: not every time. and merge order / precedence?
-        if self.library_cfg is None:
-            return global_library
-        lib = ComponentLibrary.from_config(self.library_cfg)
-        lib.merge(global_library)
-        return lib
 
     @property
     def execution_config(self) -> ExecutionCfg:
@@ -95,10 +93,11 @@ class DataFunctionContextCfg(PydanticBase):
         function_args = []
         if self.bound_interface.interface.uses_context:
             function_args.append(self)
-        function_inputs = self.bound_interface.inputs_as_kwargs()
-        function_kwargs = function_inputs
+        function_kwargs = self.inputs.copy()
         function_params = self.get_params()
-        assert not set(function_params) & set(function_inputs)
+        assert not (
+            set(function_params) & set(self.inputs)
+        ), f"Conflicting parameter and input names {set(function_params)} {set(self.inputs)}"
         function_kwargs.update(function_params)
         return (function_args, function_kwargs)
 
@@ -140,7 +139,7 @@ class DataFunctionContextCfg(PydanticBase):
         storage: Storage = None,
         stream: str = DEFAULT_OUTPUT_NAME,
         data_format: DataFormat = None,
-        schema: SchemaLike = None,
+        schema: Union[Schema, str] = None,
         update_state: Dict[str, Any] = None,
         replace_state: Dict[str, Any] = None,
     ):
@@ -177,17 +176,20 @@ class DataFunctionContextCfg(PydanticBase):
     def create_stored_datablock(self) -> StoredDataBlockMetadataCfg:
         block = DataBlockMetadataCfg(
             id=get_datablock_id(),
-            inferred_schema=None,
-            nominal_schema=None,
-            realized_schema=AnySchema,
+            inferred_schema_key=None,
+            nominal_schema_key=None,
+            realized_schema_key="Any",
             record_count=None,
             created_by_node_key=self.node.key,
         )
+        sid = get_stored_datablock_id()
         sdb = StoredDataBlockMetadataCfg(  # type: ignore
-            id=get_stored_datablock_id(),
+            id=sid,
+            name=make_sdb_name(sid, self.node.key),
+            data_block_id=block.id,
             data_block=block,
             storage_url=self.execution_config.target_storage,
-            data_format=None,
+            data_format=UnknownFormat.nickname,
             data_is_written=False,
         )
         return sdb
@@ -228,7 +230,7 @@ class DataFunctionContextCfg(PydanticBase):
             return records_obj
         elif isinstance(records_obj, DataBlockMetadata):
             raise NotImplementedError
-        elif isinstance(records_obj, ManagedDataBlock):
+        elif isinstance(records_obj, DataBlock):
             raise NotImplementedError
         nominal_output_schema = schema
         if nominal_output_schema is None:
@@ -332,7 +334,7 @@ class DataFunctionContextCfg(PydanticBase):
         self, name: str, storage: Storage, sdb: StoredDataBlockMetadataCfg
     ):
         self.resolve_new_object_with_data_block(sdb, name, storage)
-        if sdb.data_format is None:
+        if sdb.data_format == UnknownFormat:
             if self.execution_config.target_data_format:
                 sdb.data_format = get_format_for_nickname(
                     self.execution_config.target_data_format

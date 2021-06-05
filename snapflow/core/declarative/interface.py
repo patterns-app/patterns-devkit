@@ -1,9 +1,10 @@
 from __future__ import annotations
+import itertools
 from snapflow.core.data_block import DataBlock, DataBlockStream
 from snapflow.core.persisted.pydantic import DataBlockWithStoredBlocksCfg
 from snapflow.core.declarative.base import FrozenPydanticBase
 
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
+from typing import Iterator, TYPE_CHECKING, Dict, List, Optional, Set, Union
 
 from commonmodel.base import Schema
 from snapflow.core.declarative.function import (
@@ -13,20 +14,12 @@ from snapflow.core.declarative.function import (
 )
 from snapflow.core.declarative.graph import GraphCfg
 
-if TYPE_CHECKING:
-    from snapflow.core.streams import StreamBuilder
-
 
 class NodeInputCfg(FrozenPydanticBase):
     name: str
     input: DataFunctionInputCfg
     input_node: Optional[GraphCfg] = None
     schema_translation: Optional[Dict[str, str]] = None
-
-    def as_stream_builder(self) -> StreamBuilder:
-        from snapflow.core.streams import StreamBuilder
-
-        return StreamBuilder().filter_inputs([self.input_node.key])
 
     def as_bound_input(
         self,
@@ -50,14 +43,40 @@ class BoundInputCfg(FrozenPydanticBase):
     input_node: Optional[GraphCfg] = None
     schema_translation: Optional[Dict[str, str]] = None
     bound_stream: Optional[List[DataBlockWithStoredBlocksCfg]] = None
-    bound_block: Optional[DataBlockWithStoredBlocksCfg] = None
 
-    def is_bound(self) -> bool:
-        return self.bound_stream is not None or self.bound_block is not None
+    def get_bound_input(
+        self,
+    ) -> Union[
+        Iterator[DataBlockWithStoredBlocksCfg],
+        List[DataBlockWithStoredBlocksCfg],
+        DataBlockWithStoredBlocksCfg,
+        None,
+    ]:
+        if self.input.is_stream:
+            return self.get_bound_stream()
+        if self.input.is_reference:
+            return self.get_bound_reference_block()
+        return self.get_bound_block_iterator()
+
+    def get_bound_block_iterator(self) -> Iterator[DataBlockWithStoredBlocksCfg]:
+        assert not self.input.is_stream and not self.input.is_reference
+        if not self.bound_stream:
+            raise StopIteration
+        return (b for b in self.bound_stream)
+
+    def get_bound_stream(self) -> Optional[List[DataBlockWithStoredBlocksCfg]]:
+        assert self.input.is_stream
+        if not self.bound_stream:
+            return None
+        return self.bound_stream
+
+    def get_bound_reference_block(self) -> Optional[DataBlockWithStoredBlocksCfg]:
+        assert self.input.is_reference
+        if not self.bound_stream:
+            return None
+        return self.bound_stream[0]
 
     def get_bound_block_property(self, prop: str):
-        if self.bound_block:
-            return getattr(self.bound_block, prop)
         if self.bound_stream:
             return getattr(self.bound_stream[0], prop)
         return None
@@ -76,23 +95,30 @@ class BoundInputCfg(FrozenPydanticBase):
     def realized_schema(self) -> Optional[str]:
         return self.get_bound_realized_schema()
 
-    @property
-    def is_stream(self) -> bool:
-        return self.input.is_stream
-
 
 class BoundInterfaceCfg(FrozenPydanticBase):
     inputs: Dict[str, BoundInputCfg]
     interface: DataFunctionInterfaceCfg
 
-    def inputs_as_kwargs(self) -> Dict[str, Union[DataBlock, DataBlockStream]]:
-        assert all([i.is_bound() for i in self.inputs.values()])
-        return {
-            i.name: i.bound_stream if i.is_stream else i.bound_block
-            for i in self.inputs.values()
-        }
+    def iter_as_function_kwarg_inputs(
+        self,
+    ) -> Iterator[
+        Dict[
+            str, Union[DataBlockWithStoredBlocksCfg, List[DataBlockWithStoredBlocksCfg]]
+        ]
+    ]:
+        input_sources = {n: inpt.get_bound_input() for n, inpt in self.inputs.items()}
+        while True:
+            input_kwargs = {}
+            for iname, src in input_sources.items():
+                if isinstance(src, Iterator):
+                    block_input = next(src)
+                else:
+                    block_input = src
+                input_kwargs[block_input]
+            yield input_kwargs
 
-    def non_reference_bound_inputs(self) -> List[NodeInputCfg]:
+    def non_reference_bound_inputs(self) -> List[BoundInputCfg]:
         return [
             i
             for i in self.inputs.values()

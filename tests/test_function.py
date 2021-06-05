@@ -28,7 +28,6 @@ from snapflow.core.function_interface import (
 )
 from snapflow.core.function_interface_manager import get_schema_translation
 from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
-from snapflow.core.streams import StreamBuilder, block_as_stream
 from snapflow.modules import core
 from snapflow.utils.typing import T, U
 from tests.utils import (

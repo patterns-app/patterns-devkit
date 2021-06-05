@@ -1,5 +1,7 @@
 from __future__ import annotations
-from snapflow.core.declarative.context import DataFunctionContextCfg
+from snapflow.core.component import ComponentLibrary, global_library
+from snapflow.core.function_interface_manager import get_bound_interface
+from snapflow.core.declarative.context import DataFunctionContext
 
 import traceback
 from collections import abc, defaultdict
@@ -79,19 +81,19 @@ def validate_data_blocks(env: Environment):
                     )
 
 
-def prepare_function_context(
-    env: Environment, exe: ExecutableCfg
-) -> DataFunctionContextCfg:
+def prepare_executable(
+    env: Environment, cfg: ExecutionCfg, node_key: str, graph: GraphCfg
+) -> ExecutableCfg:
     with env.md_api.begin():
         md = env.md_api
         try:
-            bound_interface = exe.get_bound_interface(env)
+            bound_interface = get_bound_interface(env, cfg, node_key, graph)
         except InputExhaustedException as e:
             logger.debug(f"Inputs exhausted {e}")
             raise e
             # return ExecutionResult.empty()
-        node = exe.node
-        function = exe.node.function
+        node = graph.get_node(node_key)
+        function = node.function
         node_state_obj = get_state(env, node.key)
         if node_state_obj is None:
             node_state = {}
@@ -111,17 +113,19 @@ def prepare_function_context(
         md.add(function_log)
         md.add(node_state_obj)
         md.flush([function_log, node_state_obj])
-        function_ctx = DataFunctionContextCfg(
-            dataspace=env.dataspace,
-            # library_cfg=build_library_config(),
-            function=node.function_cfg,
-            node=node,
-            executable=exe,
-            inputs=bound_interface.inputs,
-            function_log=function_log,
+
+        if cfg.library_cfg is None:
+            lib = global_library
+        else:
+            lib = ComponentLibrary.from_config(cfg.library_cfg)
+            lib.merge(global_library)
+
+        function_ctx = ExecutableCfg(
+            node_key=node_key,
+            graph=graph,
+            execution_config=cfg,
             bound_interface=bound_interface,
-            execution_start_time=None,
-            result=ExecutionResult(),
+            function_log=function_log,
         )
         return function_ctx
         # Validate local memory objects: Did we leave any non-storeables hanging?

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from snapflow.core.data_block import SelfReference
+from snapflow.core.data_block import SelfReference, Stream
 from dcp.data_format.handler import get_handler_for_name
 from dcp.data_format.formats.database.base import field_type_to_sqlalchemy_type
 from typing import Dict, List
@@ -9,7 +9,6 @@ from sqlalchemy.sql import cast
 
 from snapflow.core.function import datafunction
 from snapflow.core.sql.sql_function import SqlDataFunctionWrapper, sql_datafunction
-from snapflow.core.streams import Stream
 from snapflow.utils.typing import T
 
 

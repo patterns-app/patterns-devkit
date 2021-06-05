@@ -23,9 +23,6 @@ from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.declarative.base import FrozenPydanticBase
 from snapflow.core.persisted.schema import is_generic
 
-if TYPE_CHECKING:
-    from snapflow.core.streams import StreamLike
-
 
 DEFAULT_OUTPUT_NAME = "stdout"
 DEFAULT_INPUT_NAME = "stdin"

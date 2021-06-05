@@ -30,8 +30,6 @@ from snapflow.core.declarative.function import (
 )
 
 if TYPE_CHECKING:
-    from snapflow.core.persisted.data_block import DataBlock
-    from snapflow.core.streams import StreamBuilder, DataBlockStream
     from snapflow.core.declarative.flow import FlowCfg
     from snapflow.core.declarative.interface import NodeInputCfg
 
@@ -352,11 +350,6 @@ class GraphCfg(FrozenPydanticBase):
             input_names_have <= input_names_ok_to_have
         ), f"Extra input(s): {input_names_have - input_names_ok_to_have}"
         return inputs
-
-    def as_stream_builder(self) -> StreamBuilder:
-        from snapflow.core.streams import StreamBuilder
-
-        return StreamBuilder().filter_inputs([self.key])
 
     # def has_node(self, key: str) -> bool:
     #     return key in self._nodes
