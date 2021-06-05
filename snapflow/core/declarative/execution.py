@@ -1,5 +1,6 @@
 from __future__ import annotations
 from datetime import datetime
+from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.function_interface_manager import bind_inputs
 from snapflow.core.persisted.pydantic import (
@@ -52,10 +53,19 @@ class ExecutableCfg(FrozenPydanticBase):
     execution_config: ExecutionCfg
     bound_interface: BoundInterfaceCfg
     function_log: DataFunctionLogCfg
+    result_listener: MetadataExecutionResultListener
 
     @property
     def node(self) -> GraphCfg:
         return self.graph.get_node(self.node_key)
+
+    def get_library(self) -> ComponentLibrary:
+        if self.execution_config.library_cfg is None:
+            lib = global_library
+        else:
+            lib = ComponentLibrary.from_config(self.execution_config.library_cfg)
+            lib.merge(global_library)
+        return lib
 
 
 class PythonException(FrozenPydanticBase):
@@ -84,3 +94,12 @@ class ExecutionResult(PydanticBase):
 
     def stdout_blocks_emitted(self) -> List[DataBlockMetadataCfg]:
         return self.output_blocks_emitted.get(DEFAULT_OUTPUT_NAME, [])
+
+
+@dataclass
+class MetadataExecutionResultListener:
+    env: Environment
+    exe: ExecutableCfg
+
+    def __call__(self, result: ExecutionResult):
+        save_result(env, exe, result)

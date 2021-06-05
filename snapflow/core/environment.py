@@ -254,46 +254,43 @@ class Environment:
         target_storage: Union[Storage, str] = None,
         **kwargs,
     ) -> ExecutableCfg:
-        from snapflow.core.declarative.execution import ExecutableCfg
+        from snapflow.core.run import prepare_executable
 
-        graph = self.prepare_graph(graph)
-        return ExecutableCfg(
-            node_key=node.key,
-            graph=graph,
-            execution_config=self.get_execution_config(
-                target_storage=target_storage, **kwargs
-            ),
+        execution_config = self.get_execution_config(
+            target_storage=target_storage, **kwargs
         )
-
-    def produce(
-        self,
-        node: Union[GraphCfg, str] = None,
-        graph: Optional[GraphCfg] = None,
-        to_exhaustion: bool = True,
-        **execution_kwargs: Any,
-    ) -> List[DataBlock]:
-        from snapflow.core.run import run_to_exhaustion
-
         graph = self.prepare_graph(graph)
-        if isinstance(node, str):
-            node = graph.get_node(node)
-        assert node.is_function_node()
+        return prepare_executable(self, execution_config, node, graph)
 
-        if node is not None:
-            dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
-        else:
-            dependencies = graph.get_all_nodes_in_execution_order()
-        result = None
-        for dep in dependencies:
-            result = run_to_exhaustion(
-                self,
-                self.get_executable(dep, graph=graph, **execution_kwargs),
-                to_exhaustion=to_exhaustion,
-            )
-        if result:
-            with self.metadata_api.begin():
-                return result.get_output_blocks(self)
-        return []
+    # def produce(
+    #     self,
+    #     node: Union[GraphCfg, str] = None,
+    #     graph: Optional[GraphCfg] = None,
+    #     to_exhaustion: bool = True,
+    #     **execution_kwargs: Any,
+    # ) -> List[DataBlock]:
+    #     from snapflow.core.run import run_to_exhaustion
+
+    #     graph = self.prepare_graph(graph)
+    #     if isinstance(node, str):
+    #         node = graph.get_node(node)
+    #     assert node.is_function_node()
+
+    #     if node is not None:
+    #         dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
+    #     else:
+    #         dependencies = graph.get_all_nodes_in_execution_order()
+    #     result = None
+    #     for dep in dependencies:
+    #         result = run_to_exhaustion(
+    #             self,
+    #             self.get_executable(dep, graph=graph, **execution_kwargs),
+    #             to_exhaustion=to_exhaustion,
+    #         )
+    #     if result:
+    #         with self.metadata_api.begin():
+    #             return result.get_output_blocks(self)
+    #     return []
 
     def run_node(
         self,
@@ -302,7 +299,7 @@ class Environment:
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> Optional[CumulativeExecutionResult]:
-        from snapflow.core.run import run_to_exhaustion
+        from snapflow.core.run import run
 
         graph = self.prepare_graph(graph)
         logger.debug(f"Running: {node}")
@@ -314,7 +311,7 @@ class Environment:
             if not node.key in node_keys:
                 continue
             node = node.resolve(self.library)
-            result = run_to_exhaustion(
+            result = run(
                 self,
                 self.get_executable(node, graph=graph, **execution_kwargs),
                 to_exhaustion=to_exhaustion,
@@ -344,20 +341,20 @@ class Environment:
         return get_latest_output(self, node)
 
 
-# Shortcuts
-def produce(
-    node: Union[str, GraphCfg],
-    graph: Optional[GraphCfg] = None,
-    env: Optional[Environment] = None,
-    modules: Optional[List[SnapflowModule]] = None,
-    **kwargs: Any,
-) -> List[DataBlock]:
-    if env is None:
-        env = Environment()
-    if modules is not None:
-        for module in modules:
-            env.add_module(module)
-    return env.produce(node, graph=graph, **kwargs)
+# # Shortcuts
+# def produce(
+#     node: Union[str, GraphCfg],
+#     graph: Optional[GraphCfg] = None,
+#     env: Optional[Environment] = None,
+#     modules: Optional[List[SnapflowModule]] = None,
+#     **kwargs: Any,
+# ) -> List[DataBlock]:
+#     if env is None:
+#         env = Environment()
+#     if modules is not None:
+#         for module in modules:
+#             env.add_module(module)
+#     return env.produce(node, graph=graph, **kwargs)
 
 
 def run_node(

@@ -19,7 +19,7 @@ from snapflow.core.persisted.data_block import (
     DataBlockMetadata,
 )
 from snapflow.core.declarative.dataspace import DataspaceCfg
-from snapflow.core.declarative.execution import ExecutionResult
+from snapflow.core.declarative.execution import ExecutableCfg, ExecutionResult
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
@@ -82,11 +82,11 @@ class ExecutionLogger:
 
 
 class ExecutionManager:
-    def __init__(self, ctx: DataFunctionContextCfg):
-        self.ctx = ctx
+    def __init__(self, exe: ExecutableCfg):
+        self.exe = exe
         self.logger = ExecutionLogger()
-        self.node = self.ctx.node
-        self.function = ctx.library.get_function(self.node.function)
+        self.node = self.exe.node
+        self.function = exe.get_library().get_function(self.node.function)
         self.start_time = utcnow()
 
     def execute(self) -> ExecutionResult:
@@ -113,6 +113,9 @@ class ExecutionManager:
             logger.debug(f"Execution result: {result}")
             logger.debug(f"*DONE* RUNNING NODE {self.node.key} {self.function.key}")
         return result
+    
+    def report_result(self, result: ExecutionResult):
+        # TODO: support alternate reporters
 
     def _execute(self) -> ExecutionResult:
         function_args, function_kwargs = self.ctx.get_function_args()

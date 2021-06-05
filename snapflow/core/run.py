@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.execution import ExecutionManager
 from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.function_interface_manager import get_bound_interface
 from snapflow.core.declarative.context import DataFunctionContext
@@ -82,18 +83,16 @@ def validate_data_blocks(env: Environment):
 
 
 def prepare_executable(
-    env: Environment, cfg: ExecutionCfg, node_key: str, graph: GraphCfg
+    env: Environment, cfg: ExecutionCfg, node: GraphCfg, graph: GraphCfg
 ) -> ExecutableCfg:
     with env.md_api.begin():
         md = env.md_api
         try:
-            bound_interface = get_bound_interface(env, cfg, node_key, graph)
+            bound_interface = get_bound_interface(env, cfg, node, graph)
         except InputExhaustedException as e:
             logger.debug(f"Inputs exhausted {e}")
             raise e
             # return ExecutionResult.empty()
-        node = graph.get_node(node_key)
-        function = node.function
         node_state_obj = get_state(env, node.key)
         if node_state_obj is None:
             node_state = {}
@@ -114,20 +113,13 @@ def prepare_executable(
         md.add(node_state_obj)
         md.flush([function_log, node_state_obj])
 
-        if cfg.library_cfg is None:
-            lib = global_library
-        else:
-            lib = ComponentLibrary.from_config(cfg.library_cfg)
-            lib.merge(global_library)
-
-        function_ctx = ExecutableCfg(
-            node_key=node_key,
+        return ExecutableCfg(
+            node_key=node.key,
             graph=graph,
             execution_config=cfg,
             bound_interface=bound_interface,
             function_log=function_log,
         )
-        return function_ctx
         # Validate local memory objects: Did we leave any non-storeables hanging?
         # validate_data_blocks(self.env)
 
@@ -213,25 +205,27 @@ def prepare_executable(
     #         self.logger.log_token("None\n")
 
 
-# def run_to_exhaustion(
-#     env: Environment, exe: ExecutableCfg, to_exhaustion: bool = True
-# ) -> Optional[CumulativeExecutionResult]:
-#     cum_result = CumulativeExecutionResult()
-#     em = ExecutionManager(env, exe)
-#     while True:
-#         try:
-#             result = em.execute()
-#         except InputExhaustedException:
-#             return cum_result
-#         cum_result.add_result(result)
-#         if (
-#             not to_exhaustion or not result.non_reference_inputs_bound
-#         ):  # TODO: We just run no-input DFs (sources) once no matter what
-#             # (they are responsible for creating their own generators)
-#             break
-#         if cum_result.error:
-#             break
-#     return cum_result
+def run(
+    env: Environment, exe: ExecutableCfg, to_exhaustion: bool = True
+) -> Optional[ExecutionResult]:
+    # TODO: support other runtimes
+    cum_result = ExecutionResult()
+    em = ExecutionManager(exe)
+    result = em.execute()
+    # while True:
+    #     try:
+    #         result = em.execute()
+    #     except InputExhaustedException:
+    #         return cum_result
+    #     cum_result.add_result(result)
+    #     if (
+    #         not to_exhaustion or not result.non_reference_inputs_bound
+    #     ):  # TODO: We just run no-input DFs (sources) once no matter what
+    #         # (they are responsible for creating their own generators)
+    #         break
+    #     if cum_result.error:
+    #         break
+    # return cum_result
 
 
 def get_latest_output(env: Environment, node: GraphCfg) -> Optional[DataBlock]:

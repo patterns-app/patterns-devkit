@@ -46,9 +46,8 @@ def get_schema_translation(
 
 
 def get_bound_interface(
-    env: Environment, cfg: ExecutionCfg, node_key: str, graph: GraphCfg
+    env: Environment, cfg: ExecutionCfg, node: GraphCfg, graph: GraphCfg
 ) -> BoundInterfaceCfg:
-    node = graph.get_node(node_key)
     node_inputs = node.get_node_inputs(graph)
     bound_inputs = bind_inputs(env, cfg, node, node_inputs)
     return BoundInterfaceCfg(inputs=bound_inputs, interface=node.get_interface(),)
