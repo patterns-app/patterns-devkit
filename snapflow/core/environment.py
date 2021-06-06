@@ -226,7 +226,7 @@ class Environment:
     # def run(
     #     self, graph: Graph, target_storage: Storage = None, **kwargs
     # ) -> Iterator[ExecutionManager]:
-    #     from snapflow.core.execution import ExecutionManager
+    #     from snapflow.core.execution.execution import ExecutionManager
 
     #     # self.session.begin_nested()
     #     ec = self.get_execution_context(target_storage=target_storage, **kwargs)
@@ -249,17 +249,20 @@ class Environment:
 
     def get_executable(
         self,
-        node: GraphCfg,
-        graph: Optional[GraphCfg] = None,
+        node_key: str,
+        graph: GraphCfg,
         target_storage: Union[Storage, str] = None,
         **kwargs,
     ) -> ExecutableCfg:
-        from snapflow.core.run import prepare_executable
+        from snapflow.core.execution.run import prepare_executable
 
         execution_config = self.get_execution_config(
             target_storage=target_storage, **kwargs
         )
-        graph = self.prepare_graph(graph)
+        assert graph.is_resolved()
+        assert graph.is_flattened()
+        # graph = self.prepare_graph(graph)
+        node = graph.get_node(node_key)
         return prepare_executable(self, execution_config, node, graph)
 
     # def produce(
@@ -269,7 +272,7 @@ class Environment:
     #     to_exhaustion: bool = True,
     #     **execution_kwargs: Any,
     # ) -> List[DataBlock]:
-    #     from snapflow.core.run import run_to_exhaustion
+    #     from snapflow.core.execution.run import run_to_exhaustion
 
     #     graph = self.prepare_graph(graph)
     #     if isinstance(node, str):
@@ -299,7 +302,7 @@ class Environment:
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> Optional[CumulativeExecutionResult]:
-        from snapflow.core.run import run
+        from snapflow.core.execution.run import run
 
         graph = self.prepare_graph(graph)
         logger.debug(f"Running: {node}")
@@ -313,7 +316,7 @@ class Environment:
             node = node.resolve(self.library)
             result = run(
                 self,
-                self.get_executable(node, graph=graph, **execution_kwargs),
+                self.get_executable(node.key, graph=graph, **execution_kwargs),
                 to_exhaustion=to_exhaustion,
             )
         return result
@@ -324,19 +327,19 @@ class Environment:
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ):
-        from snapflow.core.execution import run_to_exhaustion
+        from snapflow.core.execution.execution import run
 
         graph = self.prepare_graph(graph)
         nodes = graph.get_all_nodes_in_execution_order()
         for node in nodes:
-            run_to_exhaustion(
+            run(
                 self,
-                self.get_executable(node, graph=graph, **execution_kwargs),
+                self.get_executable(node.key, graph=graph, **execution_kwargs),
                 to_exhaustion=to_exhaustion,
             )
 
     def get_latest_output(self, node: GraphCfg) -> Optional[DataBlock]:
-        from snapflow.core.execution import get_latest_output
+        from snapflow.core.execution.execution import get_latest_output
 
         return get_latest_output(self, node)
 

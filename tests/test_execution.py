@@ -9,7 +9,7 @@ from loguru import logger
 from pandas import DataFrame
 from snapflow.core.persisted.data_block import Alias
 from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.execution import ExecutionManager
+from snapflow.core.execution.execution import ExecutionManager
 from snapflow.core.function import Input, datafunction
 from snapflow.core.persisted.state import DataBlockLog, DataFunctionLog, Direction
 from snapflow.modules import core
@@ -18,6 +18,7 @@ from tests.utils import (
     TestSchema1,
     TestSchema4,
     function_t1_to_t2,
+    function_t1_source,
     make_test_env,
     make_test_run_context,
 )
@@ -46,9 +47,12 @@ def never_stop(input: Optional[Reference] = None) -> DataFrame:
 def test_exe():
     env = make_test_env()
     node = GraphCfg(key="node", function="function_t1_source")
-    g = GraphCfg(nodes=[node])
-    exe = env.get_executable(node, graph=g)
-    result = ExecutionManager(exe).execute()
+    g = GraphCfg(nodes=[node]).resolve_and_flatten(env.library)
+    print(g)
+    exe = env.get_executable(node.key, graph=g)
+    results = ExecutionManager(exe).execute()
+    assert len(results) == 1
+    result = results[0]
     with env.md_api.begin():
         assert not result.output_blocks_emitted
         assert env.md_api.count(select(DataFunctionLog)) == 1

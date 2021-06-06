@@ -32,8 +32,8 @@ from loguru import logger
 from snapflow.core.persisted.data_block import StoredDataBlockMetadata
 
 if TYPE_CHECKING:
-    from snapflow.core.declarative.context import DataFunctionContextCfg
-    from snapflow.core.declarative.context import DataFunctionContext
+    from snapflow.core.execution.context import DataFunctionContextCfg
+    from snapflow.core.execution.context import DataFunctionContext
 
 
 class DataBlockManager:

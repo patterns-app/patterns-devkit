@@ -1,16 +1,14 @@
 from __future__ import annotations
-import itertools
-from snapflow.core.data_block import DataBlock, DataBlockStream
 from snapflow.core.persisted.pydantic import DataBlockWithStoredBlocksCfg
 from snapflow.core.declarative.base import FrozenPydanticBase
 
 from typing import Iterator, TYPE_CHECKING, Dict, List, Optional, Set, Union
 
-from commonmodel.base import Schema
 from snapflow.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     DataFunctionInputCfg,
     DataFunctionInterfaceCfg,
+    InputType,
 )
 from snapflow.core.declarative.graph import GraphCfg
 
@@ -117,6 +115,18 @@ class BoundInterfaceCfg(FrozenPydanticBase):
                     block_input = src
                 input_kwargs[block_input]
             yield input_kwargs
+            if not self.has_consumable_input():
+                break
+
+    def has_consumable_input(self) -> bool:
+        if any(
+            [
+                i.input.input_type == InputType.DataBlock and i.bound_stream
+                for i in self.inputs.values()
+            ]
+        ):
+            return True
+        return False
 
     def non_reference_bound_inputs(self) -> List[BoundInputCfg]:
         return [

@@ -90,6 +90,10 @@ class DataFunctionInputCfg(FunctionIoBase):
     def is_reference(self) -> bool:
         return self.input_type in (InputType.Reference, InputType.SelfReference)
 
+    @property
+    def is_consumable(self) -> bool:
+        return self.input_type in (InputType.DataBlock, InputType.Stream)
+
 
 class DataFunctionOutputCfg(FunctionIoBase):
     name: str = DEFAULT_OUTPUT_NAME

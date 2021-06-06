@@ -1,6 +1,6 @@
 from __future__ import annotations
 from snapflow.core.data_block import DataBlock, Stream
-from snapflow.core.declarative.context import DataFunctionContext
+from snapflow.core.execution.context import DataFunctionContext
 
 from typing import Optional
 

@@ -186,10 +186,15 @@ class GraphCfg(FrozenPydanticBase):
 
     def is_resolved(self) -> bool:
         if self.flow and not self.nodes:
+            print("no flow")
             return False
-        if self.function and not self.function_cfg:
+        if self.function and self.function_cfg is None:
+            print("no funk")
             return False
-        return all([n.is_resolved() for n in self.nodes])
+        nodes = all([n.is_resolved() for n in self.nodes])
+        if not nodes:
+            print("no nodes")
+        return nodes
 
     def get_stdin_key(self) -> str:
         if self.stdin_key:

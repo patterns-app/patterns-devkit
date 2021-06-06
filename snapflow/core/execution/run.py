@@ -1,24 +1,9 @@
 from __future__ import annotations
 from snapflow.core.persisted.schema import GeneratedSchema
-from snapflow.core.execution import ExecutionManager
-from snapflow.core.component import ComponentLibrary, global_library
+from snapflow.core.execution.execution import ExecutionManager
 from snapflow.core.function_interface_manager import get_bound_interface
-from snapflow.core.declarative.context import DataFunctionContext
 
-import traceback
-from collections import abc, defaultdict
-from contextlib import contextmanager
-from dataclasses import dataclass, field
-from datetime import datetime
-from enum import Enum
-from io import BufferedIOBase, BytesIO, IOBase, RawIOBase
 from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Iterator,
-    List,
     Optional,
     Set,
     Tuple,
@@ -39,6 +24,8 @@ from snapflow.core.declarative.execution import (
     ExecutableCfg,
     ExecutionCfg,
     ExecutionResult,
+    MetadataExecutionResultListener,
+    set_global_metadata_result_listener,
 )
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
@@ -86,6 +73,8 @@ def validate_data_blocks(env: Environment):
 def prepare_executable(
     env: Environment, cfg: ExecutionCfg, node: GraphCfg, graph: GraphCfg
 ) -> ExecutableCfg:
+    global global_metadata_result_listener
+
     with env.md_api.begin():
         md = env.md_api
         try:
@@ -114,13 +103,18 @@ def prepare_executable(
         md.add(node_state_obj)
         md.flush([function_log, node_state_obj])
 
-        return ExecutableCfg(
+        # TODO: runtime and result listener
+
+        exe = ExecutableCfg(
             node_key=node.key,
             graph=graph,
             execution_config=cfg,
             bound_interface=bound_interface,
             function_log=function_log,
         )
+        set_global_metadata_result_listener(MetadataExecutionResultListener(env, exe))
+        return exe
+
         # Validate local memory objects: Did we leave any non-storeables hanging?
         # validate_data_blocks(self.env)
 
@@ -210,9 +204,7 @@ def run(
     env: Environment, exe: ExecutableCfg, to_exhaustion: bool = True
 ) -> Optional[ExecutionResult]:
     # TODO: support other runtimes
-    cum_result = ExecutionResult()
-    em = ExecutionManager(exe)
-    result = em.execute()
+    ExecutionManager(exe).execute()
     # while True:
     #     try:
     #         result = em.execute()
@@ -296,7 +288,7 @@ def save_result(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
     env.md_api.add_all(
         [
             GeneratedSchema(key=s.key, definition=s.dict())
-            for s in result.schemas_generated
+            for s in result.schemas_generated or []
         ]
     )
 

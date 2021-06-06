@@ -20,9 +20,7 @@ from snapflow.core.declarative.dataspace import ComponentLibraryCfg, DataspaceCf
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 from sqlalchemy.sql.expression import select
-
-if TYPE_CHECKING:
-    from snapflow.core.declarative.interface import BoundInterfaceCfg
+from snapflow.core.declarative.interface import BoundInterfaceCfg
 
 
 class ExecutionCfg(FrozenPydanticBase):
@@ -46,27 +44,6 @@ class ExecutionCfg(FrozenPydanticBase):
 
     def get_storages(self) -> List[Storage]:
         return [Storage(s) for s in self.storages]
-
-
-class ExecutableCfg(FrozenPydanticBase):
-    node_key: str
-    graph: GraphCfg
-    execution_config: ExecutionCfg
-    bound_interface: BoundInterfaceCfg
-    function_log: DataFunctionLogCfg
-    result_listener: MetadataExecutionResultListener
-
-    @property
-    def node(self) -> GraphCfg:
-        return self.graph.get_node(self.node_key)
-
-    def get_library(self) -> ComponentLibrary:
-        if self.execution_config.library_cfg is None:
-            lib = global_library
-        else:
-            lib = ComponentLibrary.from_config(self.execution_config.library_cfg)
-            lib.merge(global_library)
-        return lib
 
 
 class PythonException(FrozenPydanticBase):
@@ -103,6 +80,40 @@ class MetadataExecutionResultListener:
     exe: ExecutableCfg
 
     def __call__(self, result: ExecutionResult):
-        from snapflow.core.run import save_result
+        from snapflow.core.execution.run import save_result
 
         save_result(self.env, self.exe, result)
+
+
+# Used for local python runtime
+global_metadata_result_listener: Optional[MetadataExecutionResultListener] = None
+
+
+def get_global_metadata_result_listener() -> Optional[MetadataExecutionResultListener]:
+    return global_metadata_result_listener
+
+
+def set_global_metadata_result_listener(listener: MetadataExecutionResultListener):
+    global global_metadata_result_listener
+    global_metadata_result_listener = listener
+
+
+class ExecutableCfg(FrozenPydanticBase):
+    node_key: str
+    graph: GraphCfg
+    execution_config: ExecutionCfg
+    bound_interface: BoundInterfaceCfg
+    function_log: DataFunctionLogCfg
+    result_listener_type: str = MetadataExecutionResultListener.__name__
+
+    @property
+    def node(self) -> GraphCfg:
+        return self.graph.get_node(self.node_key)
+
+    def get_library(self) -> ComponentLibrary:
+        if self.execution_config.library_cfg is None:
+            lib = global_library
+        else:
+            lib = ComponentLibrary.from_config(self.execution_config.library_cfg)
+            lib.merge(global_library)
+        return lib

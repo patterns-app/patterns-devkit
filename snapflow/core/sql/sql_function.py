@@ -6,7 +6,7 @@ from datetime import date, datetime
 from functools import partial
 from pathlib import Path
 from snapflow.core.data_block import DataBlock
-from snapflow.core.declarative.context import DataFunctionContext
+from snapflow.core.execution.context import DataFunctionContext
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import sqlparse

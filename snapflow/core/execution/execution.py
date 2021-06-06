@@ -3,10 +3,7 @@ from __future__ import annotations
 from collections import abc, defaultdict
 from contextlib import contextmanager
 from sys import executable
-from snapflow.core.declarative.context import (
-    DataFunctionContext,
-    DataFunctionContextCfg,
-)
+from snapflow.core.execution.context import DataFunctionContext
 from typing import (
     Iterable,
     TYPE_CHECKING,
@@ -23,7 +20,12 @@ from snapflow.core.persisted.data_block import (
     DataBlockMetadata,
 )
 from snapflow.core.declarative.dataspace import DataspaceCfg
-from snapflow.core.declarative.execution import ExecutableCfg, ExecutionResult
+from snapflow.core.declarative.execution import (
+    ExecutableCfg,
+    ExecutionResult,
+    MetadataExecutionResultListener,
+    get_global_metadata_result_listener,
+)
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
@@ -95,7 +97,7 @@ class ExecutionManager:
         self.cfg = exe.execution_config
         self.to_exhaustion = True
 
-    def execute(self):
+    def execute(self) -> List[ExecutionResult]:
         # Setup for run
         base_msg = (
             f"Running node {cf.bold(self.node.key)} {cf.dimmed(self.function.key)}\n"
@@ -105,9 +107,12 @@ class ExecutionManager:
         )
         logger.debug(self.exe)
         self.logger.log(base_msg)
+        results = []
         for inputs in self.exe.bound_interface.iter_as_function_kwarg_inputs():
             result = self._execute_inputs(inputs)
             self.publish_result(result)
+            results.append(result)
+        return results
 
     def _execute_inputs(self, inputs) -> ExecutionResult:
         with self.logger.indent():
@@ -130,9 +135,10 @@ class ExecutionManager:
 
     def publish_result(self, result: ExecutionResult):
         # TODO: support alternate reporters
-        if callable(self.exe.result_listener):
-            self.exe.result_listener(result)
-        raise NotImplementedError(self.exe.result_listener)
+        if self.exe.result_listener_type == MetadataExecutionResultListener.__name__:
+            get_global_metadata_result_listener()(result)
+        else:
+            raise NotImplementedError(self.exe.result_listener_type)
 
     def prepare_context(self, inputs) -> DataFunctionContext:
         return DataFunctionContext(
