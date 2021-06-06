@@ -16,7 +16,6 @@ from typing import (
 )
 
 import networkx as nx
-from attr import validate
 from commonmodel import Schema
 from dcp.utils.common import as_identifier, remove_dupes
 from pydantic import validator
