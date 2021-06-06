@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import dataclass
 from datetime import datetime
 from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
@@ -102,4 +103,6 @@ class MetadataExecutionResultListener:
     exe: ExecutableCfg
 
     def __call__(self, result: ExecutionResult):
-        save_result(env, exe, result)
+        from snapflow.core.run import save_result
+
+        save_result(self.env, self.exe, result)

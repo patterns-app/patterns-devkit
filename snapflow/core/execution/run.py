@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.persisted.schema import GeneratedSchema
 from snapflow.core.execution import ExecutionManager
 from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.function_interface_manager import get_bound_interface
@@ -249,3 +250,53 @@ def get_latest_output(env: Environment, node: GraphCfg) -> Optional[DataBlock]:
         if block is None:
             return None
     return block.as_managed_data_block(env)
+
+
+def ensure_log(
+    env: Environment,
+    dfl: DataFunctionLog,
+    block: DataBlockMetadata,
+    direction: Direction,
+    name: str,
+):
+    if env.md_api.execute(
+        select(DataBlockLog).filter_by(
+            function_log_id=dfl.id,
+            stream_name=name,
+            data_block_id=block.id,
+            direction=direction,
+        )
+    ).scalar_one_or_none():
+        return
+    drl = DataBlockLog(  # type: ignore
+        function_log_id=dfl.id,
+        stream_name=name,
+        data_block_id=block.id,
+        direction=direction,
+        processed_at=block.created_at,
+    )
+    env.md_api.add(drl)
+
+
+def save_result(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
+    for input_name, blocks in result.input_blocks_consumed.items():
+        for block in blocks:
+            ensure_log(env, exe.function_log, block, Direction.INPUT, input_name)
+            logger.debug(f"Input logged: {block}")
+    for output_name, block in result.output_blocks_emitted.items():
+        # if not block.data_is_written:
+        #     # TODO: this means we didn't actually ever write an output
+        #     # object (usually because we hit an error during output handling)
+        #     # TODO: did we really process the inputs then? this is more of a framework-level error
+        #     continue
+        env.md_api.add(block)
+        logger.debug(f"Output logged: {block}")
+        ensure_log(env, exe.function_log, block, Direction.OUTPUT, output_name)
+    env.md_api.add_all(result.stored_blocks_created)
+    env.md_api.add_all(
+        [
+            GeneratedSchema(key=s.key, definition=s.dict())
+            for s in result.schemas_generated
+        ]
+    )
+

@@ -1,5 +1,4 @@
 from __future__ import annotations
-from snapflow.core.run import prepare_function_context
 
 from typing import Optional
 
@@ -49,8 +48,7 @@ def test_exe():
     node = GraphCfg(key="node", function="function_t1_source")
     g = GraphCfg(nodes=[node])
     exe = env.get_executable(node, graph=g)
-    ctx = prepare_function_context(env, exe)
-    result = ExecutionManager(ctx).execute()
+    result = ExecutionManager(exe).execute()
     with env.md_api.begin():
         assert not result.output_blocks_emitted
         assert env.md_api.count(select(DataFunctionLog)) == 1
@@ -75,8 +73,7 @@ def test_exe_output():
     node = GraphCfg(key="node", function="function_dl_source", alias=output_alias)
     g = GraphCfg(nodes=[node])
     exe = env.get_executable(node, graph=g)
-    ctx = prepare_function_context(env, exe)
-    result = ExecutionManager(ctx).execute()
+    result = ExecutionManager(exe).execute()
     assert len(result.stdout_blocks_emitted()) == 1
     with env.md_api.begin():
         block = result.stdout_blocks_emitted()[0]
@@ -103,8 +100,7 @@ def test_non_terminating_function():
     node = GraphCfg(key="node", function="never_stop")
     g = GraphCfg(nodes=[node])
     exe = env.get_executable(node, graph=g)
-    ctx = prepare_function_context(env, exe)
-    result = ExecutionManager(ctx).execute()
+    result = ExecutionManager(exe).execute()
     assert not result.output_blocks_emitted
 
 
@@ -119,12 +115,10 @@ def test_non_terminating_function_with_reference_input():
     node = GraphCfg(key="node", function="never_stop", input=source.key)
     g = GraphCfg(nodes=[source, node])
     exe = env.get_executable(source, graph=g)
-    ctx = prepare_function_context(env, exe)
-    result = ExecutionManager(ctx).execute()
+    result = ExecutionManager(exe).execute()
     # TODO: reference inputs need to log too? (So they know when to update)
     # with env.md_api.begin():
     #     assert env.md_api.count(select(DataBlockLog)) == 1
     exe = env.get_executable(node, graph=g)
-    ctx = prepare_function_context(env, exe)
-    result = ExecutionManager(ctx).execute()
+    result = ExecutionManager(exe).execute()
     assert not result.output_blocks_emitted

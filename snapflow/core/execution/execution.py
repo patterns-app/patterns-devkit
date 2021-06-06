@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from collections import abc, defaultdict
 from contextlib import contextmanager
-from snapflow.core.declarative.context import DataFunctionContextCfg
+from sys import executable
+from snapflow.core.declarative.context import (
+    DataFunctionContext,
+    DataFunctionContextCfg,
+)
 from typing import (
     Iterable,
     TYPE_CHECKING,
@@ -88,8 +92,10 @@ class ExecutionManager:
         self.node = self.exe.node
         self.function = exe.get_library().get_function(self.node.function)
         self.start_time = utcnow()
+        self.cfg = exe.execution_config
+        self.to_exhaustion = True
 
-    def execute(self) -> ExecutionResult:
+    def execute(self):
         # Setup for run
         base_msg = (
             f"Running node {cf.bold(self.node.key)} {cf.dimmed(self.function.key)}\n"
@@ -97,14 +103,22 @@ class ExecutionManager:
         logger.debug(
             f"RUNNING NODE {self.node.key} {self.function.key} with params `{self.node.params}`"
         )
-        logger.debug(self.ctx)
+        logger.debug(self.exe)
         self.logger.log(base_msg)
+        for inputs in self.exe.bound_interface.iter_as_function_kwarg_inputs():
+            result = self._execute_inputs(inputs)
+            self.publish_result(result)
+
+    def _execute_inputs(self, inputs) -> ExecutionResult:
         with self.logger.indent():
-            self._execute()
-            result = self.ctx.result
+            self.logger.log(f"Running inputs {inputs}")
+            ctx = self.prepare_context(inputs)
+            self._call_data_function(ctx)
+            result = ctx.result
             self.log_execution_result(result)
             if not result.has_error():
                 self.logger.log(cf.success("Ok " + success_symbol + "\n"))  # type: ignore
+                ctx.log_inputs()
             else:
                 error = result.function_error or "DataFunction failed (unknown error)"
                 self.logger.log(cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n")  # type: ignore
@@ -113,19 +127,32 @@ class ExecutionManager:
             logger.debug(f"Execution result: {result}")
             logger.debug(f"*DONE* RUNNING NODE {self.node.key} {self.function.key}")
         return result
-    
-    def report_result(self, result: ExecutionResult):
-        # TODO: support alternate reporters
 
-    def _execute(self) -> ExecutionResult:
-        function_args, function_kwargs = self.ctx.get_function_args()
+    def publish_result(self, result: ExecutionResult):
+        # TODO: support alternate reporters
+        if callable(self.exe.result_listener):
+            self.exe.result_listener(result)
+        raise NotImplementedError(self.exe.result_listener)
+
+    def prepare_context(self, inputs) -> DataFunctionContext:
+        return DataFunctionContext(
+            dataspace=self.cfg.dataspace,
+            function=self.function,
+            node=self.node,
+            executable=self.exe,
+            result=ExecutionResult(),
+            inputs=inputs,
+            execution_start_time=utcnow(),
+            library=self.exe.get_library(),
+        )
+
+    def _call_data_function(self, ctx: DataFunctionContext):
+        function_args, function_kwargs = ctx.get_function_args()
         output_obj = self.function.function_callable(*function_args, **function_kwargs,)
         if output_obj is not None:
             self.emit_output_object(output_obj)
             # TODO: update node state block counts?
-        result = self.ctx.result
-        logger.debug(f"EXECUTION RESULT {result}")
-        return result
+        logger.debug(f"EXECUTION RESULT {ctx.result}")
 
     def emit_output_object(self, output_obj: DataInterfaceType):
         assert output_obj is not None

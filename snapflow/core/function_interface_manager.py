@@ -5,8 +5,6 @@ from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 
 from sqlalchemy.sql.selectable import Select
-from snapflow.core.declarative.execution import ExecutionCfg
-
 from sqlalchemy.sql.expression import select
 from snapflow.core.persisted.data_block import (
     DataBlockMetadata,
@@ -25,6 +23,10 @@ from typing import Iterable, TYPE_CHECKING, Any, Dict, List, Optional, Union
 from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
 from dcp.storage.base import Storage
 from loguru import logger
+
+
+if TYPE_CHECKING:
+    from snapflow.core.declarative.execution import ExecutionCfg
 
 
 def get_schema_translation(

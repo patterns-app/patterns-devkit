@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.function import DataFunction
 
 from commonmodel.base import Schema
 from snapflow.core.data_block import DataBlock, DataBlockStream
@@ -61,15 +62,16 @@ class UnknownFormat(DataFormatBase):
     nickname = "unknown"
 
 
-class DataFunctionContext(FrozenPydanticBase):
+@dataclass(frozen=True)
+class DataFunctionContext:
     dataspace: DataspaceCfg
     function: DataFunction
     node: GraphCfg
     executable: ExecutableCfg
     inputs: Dict[str, Union[DataBlock, DataBlockStream]]
+    result: ExecutionResult
     execution_start_time: Optional[datetime] = None
     library: Optional[ComponentLibrary] = None
-    result: ExecutionResult
 
     """
     TODO:
@@ -91,7 +93,7 @@ class DataFunctionContext(FrozenPydanticBase):
 
     def get_function_args(self) -> Tuple[List, Dict]:
         function_args = []
-        if self.bound_interface.interface.uses_context:
+        if self.executable.bound_interface.interface.uses_context:
             function_args.append(self)
         function_kwargs = self.inputs.copy()
         function_params = self.get_params()
@@ -111,26 +113,26 @@ class DataFunctionContext(FrozenPydanticBase):
 
     def get_params(self, defaults: Dict[str, Any] = None) -> Dict[str, Any]:
         final_params = {
-            p.name: p.default for p in self.function.interface.parameters.values()
+            p.name: p.default for p in self.function.get_interface().parameters.values()
         }
         final_params.update(defaults or {})
         final_params.update(self.node.params)
         return final_params
 
     def get_state_value(self, key: str, default: Any = None) -> Any:
-        assert isinstance(self.function_log.node_end_state, dict)
-        return self.function_log.node_end_state.get(key, default)
+        assert isinstance(self.executable.function_log.node_end_state, dict)
+        return self.executable.function_log.node_end_state.get(key, default)
 
     def get_state(self) -> Dict[str, Any]:
-        return self.function_log.node_end_state
+        return self.executable.function_log.node_end_state
 
     def emit_state_value(self, key: str, new_value: Any):
-        new_state = self.function_log.node_end_state.copy()
+        new_state = self.executable.function_log.node_end_state.copy()
         new_state[key] = new_value
-        self.function_log.node_end_state = new_state
+        self.executable.function_log.node_end_state = new_state
 
     def emit_state(self, new_state: Dict):
-        self.function_log.node_end_state = new_state
+        self.executable.function_log.node_end_state = new_state
 
     def emit(
         self,
@@ -145,7 +147,7 @@ class DataFunctionContext(FrozenPydanticBase):
     ):
         assert records_obj is not None or (
             name is not None and storage is not None
-        ), "Emit takes either records_obj, or name and storage"
+        ), "Emit takes either a records_obj, or a name and storage"
         if schema is not None:
             schema = self.library.get_schema(schema)
         if data_format is not None:
@@ -160,18 +162,27 @@ class DataFunctionContext(FrozenPydanticBase):
             schema=schema,
         )
         if update_state is not None:
+            raise NotImplementedError
             for k, v in update_state.items():
                 self.emit_state_value(k, v)
         if replace_state is not None:
+            raise NotImplementedError
             self.emit_state(replace_state)
         # Commit input blocks to db as well, to save progress
-        self.log_processed_input_blocks()
+        # self.log_processed_input_blocks()
 
     # def create_alias(self, sdb: StoredDataBlockMetadata) -> Optional[Alias]:
     #     self.metadata_api.flush([sdb.data_block, sdb])
     #     alias = sdb.create_alias(self.env, self.node.get_alias())
     #     self.metadata_api.flush([alias])
     #     return alias
+
+    def log_inputs(self):
+        for name, input_blocks in self.inputs.items():
+            if isinstance(input_blocks, DataBlock):
+                input_blocks = [input_blocks]
+            for db in input_blocks:
+                self.result.input_blocks_consumed.setdefault(name, []).append(db)
 
     def create_stored_datablock(self) -> StoredDataBlockMetadataCfg:
         block = DataBlockMetadataCfg(
@@ -227,19 +238,23 @@ class DataFunctionContext(FrozenPydanticBase):
             # TODO is it in local storage tho? we skip conversion below...
             # This is just special case right now to support SQL function
             # Will need better solution for explicitly creating DB/SDBs inside of functions
-            return records_obj
+            sdb = records_obj
+            records_obj = None
+            name = sdb.name
+            storage = sdb.storage
         elif isinstance(records_obj, DataBlockMetadata):
             raise NotImplementedError
         elif isinstance(records_obj, DataBlock):
             raise NotImplementedError
+        else:
+            sdb = self.get_stored_datablock_for_output(output)
         nominal_output_schema = schema
         if nominal_output_schema is None:
             nominal_output_schema = (
-                self.bound_interface.resolve_nominal_output_schema()
-            )  # TODO: could check output to see if it is LocalRecords with a schema too?
+                self.executable.bound_interface.resolve_nominal_output_schema()
+            )
         if nominal_output_schema is not None:
             nominal_output_schema = self.library.get_schema(nominal_output_schema)
-        sdb = self.get_stored_datablock_for_output(output)
         db = sdb.data_block
         if (
             db.nominal_schema_key
@@ -267,7 +282,7 @@ class DataFunctionContext(FrozenPydanticBase):
             # Handle file-like by writing to disk first
             file_storages = [
                 s
-                for s in self.execution_config.get_storages()
+                for s in self.executable.execution_config.get_storages()
                 if s.storage_engine.storage_class == FileSystemStorageClass
             ]
             if not file_storages:
@@ -275,8 +290,8 @@ class DataFunctionContext(FrozenPydanticBase):
                     "File-like object returned but no file storage provided."
                     "Add a file storage to the environment: `env.add_storage('file:///....')`"
                 )
-            if self.execution_config.get_target_storage() in file_storages:
-                storage = self.execution_config.get_target_storage()
+            if self.executable.execution_config.get_target_storage() in file_storages:
+                storage = self.executable.execution_config.get_target_storage()
             else:
                 storage = file_storages[0]
             mode = "w"
@@ -286,7 +301,7 @@ class DataFunctionContext(FrozenPydanticBase):
                 for s in obj:
                     f.write(s)
         else:
-            storage = self.execution_config.get_local_storage()
+            storage = self.executable.execution_config.get_local_storage()
             storage.get_api().put(name, obj)
         return name, storage
 
@@ -297,7 +312,7 @@ class DataFunctionContext(FrozenPydanticBase):
     def resolve_new_object_with_data_block(
         self, sdb: StoredDataBlockMetadataCfg, name: str, storage: Storage
     ):
-        # TOO expensive to infer schema every time, so just do first time
+        # TODO expensive to infer schema every time, so just do first time
         if sdb.data_block.realized_schema(self.library).key in (
             None,
             "Any",
@@ -378,13 +393,6 @@ class DataFunctionContext(FrozenPydanticBase):
         logger.debug(f"REMOVING NAME {name}")
         storage.get_api().remove(name)
 
-    # TODO: ensure we're doing this somewhere (hopefully as managed stream step?)
-    # def log_processed_input_blocks(self):
-    #     for node_input in self.bound_interface.inputs.values():
-    #         if node_input.bound_stream is not None:
-    #             for db in node_input.bound_stream.get_emitted_blocks():
-    #                 self.input_blocks_processed[node_input.name].add(db)
-
     def should_continue(self) -> bool:
         """
         Long running functions should check this function periodically
@@ -432,5 +440,3 @@ class DataFunctionContext(FrozenPydanticBase):
     #         else None,
     #     )
 
-
-DataFunctionContext = DataFunctionContextCfg
