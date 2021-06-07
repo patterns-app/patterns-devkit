@@ -56,6 +56,10 @@ def ensure_enum_str(s: Union[str, Enum]) -> str:
     raise TypeError(s)
 
 
+class ImproperlyConfigured(Exception):
+    pass
+
+
 class DedupeBehavior(str, Enum):
     NONE = "None"
     LATEST_RECORD = "LatestRecord"
@@ -337,19 +341,22 @@ class GraphCfg(FrozenPydanticBase):
         interface = self.function_cfg.interface
         if "stdin" in inputs:
             stdin_name = interface.get_stdin_name()
-            assert stdin_name is not None, f"No stdin on interface {interface}"
+            if stdin_name is None:
+                raise ImproperlyConfigured(f"No stdin on interface {interface}")
             inputs[stdin_name] = inputs.pop("stdin")
         input_names_have = set(inputs.keys())
         input_names_must_have = set(
             i.name for i in interface.inputs.values() if i.required
         )
         input_names_ok_to_have = set(interface.inputs)
-        assert (
-            input_names_have >= input_names_must_have
-        ), f"Missing required input(s): {input_names_must_have - input_names_have}"
-        assert (
-            input_names_have <= input_names_ok_to_have
-        ), f"Extra input(s): {input_names_have - input_names_ok_to_have}"
+        if input_names_have < input_names_must_have:
+            raise ImproperlyConfigured(
+                f"Missing required input(s): {input_names_must_have - input_names_have}"
+            )
+        if input_names_have > input_names_ok_to_have:
+            raise ImproperlyConfigured(
+                f"Extra input(s): {input_names_have - input_names_ok_to_have}"
+            )
         return inputs
 
     def as_stream_builder(self) -> StreamBuilder:

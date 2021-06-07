@@ -299,6 +299,7 @@ class Environment:
         **execution_kwargs: Any,
     ) -> Optional[CumulativeExecutionResult]:
         from snapflow.core.execution import execute_to_exhaustion
+        from snapflow.core.declarative.graph import ImproperlyConfigured
 
         graph = self.prepare_graph(graph)
         logger.debug(f"Running: {node}")
@@ -309,12 +310,15 @@ class Environment:
         for node in dependencies:
             if not node.key in node_keys:
                 continue
-            node = node.resolve(self.library)
-            result = execute_to_exhaustion(
-                self,
-                self.get_executable(node, graph=graph, **execution_kwargs),
-                to_exhaustion=to_exhaustion,
-            )
+            try:
+                node = node.resolve(self.library)
+                result = execute_to_exhaustion(
+                    self,
+                    self.get_executable(node, graph=graph, **execution_kwargs),
+                    to_exhaustion=to_exhaustion,
+                )
+            except ImproperlyConfigured as e:
+                logger.error(f"Improperly configured node {node}")
         return result
 
     def run_graph(
@@ -324,15 +328,19 @@ class Environment:
         **execution_kwargs: Any,
     ):
         from snapflow.core.execution import execute_to_exhaustion
+        from snapflow.core.declarative.graph import ImproperlyConfigured
 
         graph = self.prepare_graph(graph)
         nodes = graph.get_all_nodes_in_execution_order()
         for node in nodes:
-            execute_to_exhaustion(
-                self,
-                self.get_executable(node, graph=graph, **execution_kwargs),
-                to_exhaustion=to_exhaustion,
-            )
+            try:
+                execute_to_exhaustion(
+                    self,
+                    self.get_executable(node, graph=graph, **execution_kwargs),
+                    to_exhaustion=to_exhaustion,
+                )
+            except ImproperlyConfigured as e:
+                logger.error(f"Improperly configured node {node}")
 
     def get_latest_output(self, node: GraphCfg) -> Optional[DataBlock]:
         from snapflow.core.execution import get_latest_output
