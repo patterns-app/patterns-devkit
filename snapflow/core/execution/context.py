@@ -2,6 +2,7 @@ from __future__ import annotations
 from snapflow.core.function import DataFunction
 
 from commonmodel.base import Schema
+from dcp.data_format import get_handler_for_name
 from snapflow.core.data_block import DataBlock, DataBlockStream
 from snapflow.core.persisted.pydantic import (
     DataBlockMetadataCfg,
@@ -60,6 +61,8 @@ from snapflow.core.typing.casting import cast_to_realized_schema
 
 class UnknownFormat(DataFormatBase):
     nickname = "unknown"
+    natural_storage_class = None
+    natural_storage_engine = None
 
 
 @dataclass(frozen=True)
@@ -184,7 +187,9 @@ class DataFunctionContext:
             for db in input_blocks:
                 self.result.input_blocks_consumed.setdefault(name, []).append(db)
 
-    def create_stored_datablock(self) -> StoredDataBlockMetadataCfg:
+    def create_stored_datablock(
+        self,
+    ) -> Tuple[DataBlockMetadataCfg, StoredDataBlockMetadataCfg]:
         block = DataBlockMetadataCfg(
             id=get_datablock_id(),
             inferred_schema_key=None,
@@ -203,22 +208,21 @@ class DataFunctionContext:
             data_format=UnknownFormat.nickname,
             data_is_written=False,
         )
-        return sdb
+        return block, sdb
 
     def get_stored_datablock_for_output(
         self, output: str
-    ) -> StoredDataBlockMetadataCfg:
+    ) -> Tuple[DataBlockMetadataCfg, StoredDataBlockMetadataCfg]:
         db = self.result.output_blocks_emitted.get(output)
         if db is None:
-            sdb = self.create_stored_datablock()
-            db = sdb.data_block
-            self.result.output_blocks_emitted[output] = sdb.data_block
+            db, sdb = self.create_stored_datablock()
+            self.result.output_blocks_emitted[output] = db
             self.result.stored_blocks_created.setdefault(db.id, []).append(sdb)
         sdbs = self.result.stored_blocks_created[db.id]
         for sdb in sdbs:
-            if sdb.storage == self.execution_config.target_storage:
-                return sdb
-        return sdbs[0]
+            if sdb.storage_url == self.execution_config.target_storage:
+                return db, sdb
+        return db, sdbs[0]
 
     def handle_emit(
         self,
@@ -235,19 +239,23 @@ class DataFunctionContext:
         # TODO: can i return an existing DataBlock? Or do I need to create a "clone"?
         #   Answer: ok to return as is (just mark it as 'output' in DBL)
         if isinstance(records_obj, StoredDataBlockMetadata):
+            records_obj = StoredDataBlockMetadataCfg.from_orm(records_obj)
+
+        if isinstance(records_obj, StoredDataBlockMetadataCfg):
             # TODO is it in local storage tho? we skip conversion below...
             # This is just special case right now to support SQL function
             # Will need better solution for explicitly creating DB/SDBs inside of functions
             sdb = records_obj
+            db = sdb.data_block
             records_obj = None
             name = sdb.name
-            storage = sdb.storage
+            storage = Storage(sdb.storage_url)
         elif isinstance(records_obj, DataBlockMetadata):
             raise NotImplementedError
         elif isinstance(records_obj, DataBlock):
             raise NotImplementedError
         else:
-            sdb = self.get_stored_datablock_for_output(output)
+            db, sdb = self.get_stored_datablock_for_output(output)
         nominal_output_schema = schema
         if nominal_output_schema is None:
             nominal_output_schema = (
@@ -255,7 +263,6 @@ class DataFunctionContext:
             )
         if nominal_output_schema is not None:
             nominal_output_schema = self.library.get_schema(nominal_output_schema)
-        db = sdb.data_block
         if (
             db.nominal_schema_key
             and db.nominal_schema(self.library).key != nominal_output_schema.key
@@ -272,7 +279,7 @@ class DataFunctionContext:
                 handler().cast_to_schema(name, storage, nominal_output_schema)
         assert name is not None
         assert storage is not None
-        self.append_records_to_stored_datablock(name, storage, sdb)
+        self.append_records_to_stored_datablock(name, storage, db, sdb)
         sdb.data_is_written = True
         return sdb
 
@@ -309,15 +316,18 @@ class DataFunctionContext:
         if schema not in self.result.schemas_generated:
             self.result.schemas_generated.append(schema)
 
+    def add_stored_data_block(self, sdb: StoredDataBlockMetadataCfg):
+        self.result.stored_blocks_created.setdefault(sdb.data_block_id, []).append(sdb)
+
     def resolve_new_object_with_data_block(
-        self, sdb: StoredDataBlockMetadataCfg, name: str, storage: Storage
+        self,
+        db: DataBlockMetadataCfg,
+        sdb: StoredDataBlockMetadataCfg,
+        name: str,
+        storage: Storage,
     ):
         # TODO expensive to infer schema every time, so just do first time
-        if sdb.data_block.realized_schema(self.library).key in (
-            None,
-            "Any",
-            "core.Any",
-        ):
+        if db.realized_schema_key in (None, "Any", "core.Any",):
             handler = get_handler_for_name(name, storage)
             inferred_schema = handler().infer_schema(name, storage)
             logger.debug(
@@ -327,35 +337,44 @@ class DataFunctionContext:
             # Cast to nominal if no existing realized schema
             realized_schema = cast_to_realized_schema(
                 inferred_schema=inferred_schema,
-                nominal_schema=sdb.data_block.nominal_schema,
+                nominal_schema=self.library.get_schema(db.nominal_schema_key),
             )
             logger.debug(
                 f"Realized schema: {realized_schema.key} {realized_schema.fields_summary()}"
             )
             self.add_schema(realized_schema)
-            sdb.data_block.realized_schema_key = realized_schema.key
+            db.realized_schema_key = realized_schema.key
         #     # If already a realized schema, conform new inferred schema to existing realized
         #     realized_schema = cast_to_realized_schema(
         #         self.env,
         #         inferred_schema=inferred_schema,
         #         nominal_schema=sdb.data_block.realized_schema(self.env),
         #     )
-        if sdb.data_block.nominal_schema_key:
+        if db.nominal_schema_key:
             logger.debug(
-                f"Nominal schema: {sdb.data_block.nominal_schema(self.library).key} {sdb.data_block.nominal_schema(self.library).fields_summary()}"
+                f"Nominal schema: {db.nominal_schema_key} {self.library.get_schema(db.nominal_schema_key).fields_summary()}"
             )
 
     def append_records_to_stored_datablock(
-        self, name: str, storage: Storage, sdb: StoredDataBlockMetadataCfg
+        self,
+        name: str,
+        storage: Storage,
+        db: DataBlockMetadataCfg,
+        sdb: StoredDataBlockMetadataCfg,
     ):
-        self.resolve_new_object_with_data_block(sdb, name, storage)
-        if sdb.data_format == UnknownFormat:
+        self.resolve_new_object_with_data_block(db, sdb, name, storage)
+        if (
+            sdb.data_format == UnknownFormat
+            or sdb.data_format == UnknownFormat.nickname
+        ):
             if self.execution_config.target_data_format:
                 sdb.data_format = get_format_for_nickname(
                     self.execution_config.target_data_format
                 )
             else:
-                sdb.data_format = sdb.storage.storage_engine.get_natural_format()
+                sdb.data_format = Storage(
+                    sdb.storage_url
+                ).storage_engine.get_natural_format()
             # fmt = infer_format_for_name(name, storage)
             # # if sdb.data_format and sdb.data_format != fmt:
             # #     raise Exception(f"Format mismatch {fmt} - {sdb.data_format}")
@@ -378,13 +397,13 @@ class DataFunctionContext:
         #         storage.get_api().create_alias(name, to_name)
         #         return
         logger.debug(
-            f"Copying output from {name} {storage} to {sdb.name} {sdb.storage} ({sdb.data_format})"
+            f"Copying output from {name} {storage} to {sdb.name} {sdb.storage_url} ({sdb.data_format})"
         )
         result = dcp.copy(
             from_name=name,
             from_storage=storage,
             to_name=sdb.name,
-            to_storage=sdb.storage,
+            to_storage=Storage(sdb.storage_url),
             to_format=sdb.data_format,
             available_storages=self.execution_config.get_storages(),
             if_exists="append",

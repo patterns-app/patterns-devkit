@@ -148,6 +148,7 @@ class Environment:
         self.md_api.add(got)
         self.md_api.flush([got])
         self.library.add_schema(schema)
+        global_library.add_schema(schema)  # TODO: really?
 
     def all_schemas(self) -> List[Schema]:
         return self.library.all_schemas()

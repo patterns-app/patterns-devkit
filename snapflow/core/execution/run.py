@@ -281,14 +281,16 @@ def save_result(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
         #     # object (usually because we hit an error during output handling)
         #     # TODO: did we really process the inputs then? this is more of a framework-level error
         #     continue
-        env.md_api.add(block)
+        env.md_api.add(DataBlockMetadata(**block.dict()))
         logger.debug(f"Output logged: {block}")
         ensure_log(env, exe.function_log, block, Direction.OUTPUT, output_name)
-    env.md_api.add_all(result.stored_blocks_created)
     env.md_api.add_all(
         [
-            GeneratedSchema(key=s.key, definition=s.dict())
-            for s in result.schemas_generated or []
+            StoredDataBlockMetadata(**s.dict())
+            for v in result.stored_blocks_created.values()
+            for s in v
         ]
     )
+    for s in result.schemas_generated or []:
+        env.add_new_generated_schema(s)
 

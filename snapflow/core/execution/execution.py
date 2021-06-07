@@ -156,11 +156,13 @@ class ExecutionManager:
         function_args, function_kwargs = ctx.get_function_args()
         output_obj = self.function.function_callable(*function_args, **function_kwargs,)
         if output_obj is not None:
-            self.emit_output_object(output_obj)
+            self.emit_output_object(ctx, output_obj)
             # TODO: update node state block counts?
         logger.debug(f"EXECUTION RESULT {ctx.result}")
 
-    def emit_output_object(self, output_obj: DataInterfaceType):
+    def emit_output_object(
+        self, ctx: DataFunctionContext, output_obj: DataInterfaceType
+    ):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):
             output_iterator = output_obj
@@ -170,7 +172,7 @@ class ExecutionManager:
         for output_obj in output_iterator:
             logger.debug(output_obj)
             i += 1
-            self.ctx.emit(output_obj)
+            ctx.emit(output_obj)
 
     def log_execution_result(self, result: ExecutionResult):
         self.logger.log("Inputs: ")

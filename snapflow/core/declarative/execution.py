@@ -1,11 +1,13 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
+from snapflow.core.data_block import DataBlock, as_managed
 from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.function_interface_manager import bind_inputs
 from snapflow.core.persisted.pydantic import (
     DataBlockMetadataCfg,
+    DataBlockWithStoredBlocksCfg,
     DataFunctionLogCfg,
     StoredDataBlockMetadataCfg,
 )
@@ -63,15 +65,22 @@ class ExecutionResult(PydanticBase):
     input_blocks_consumed: Dict[str, List[DataBlockMetadataCfg]] = {}
     output_blocks_emitted: Dict[str, DataBlockMetadataCfg] = {}
     stored_blocks_created: Dict[str, List[StoredDataBlockMetadataCfg]] = {}
-    schemas_generated: List[Schema] = None
+    schemas_generated: List[Schema] = []
     function_error: Optional[PythonException] = None
     framework_error: Optional[PythonException] = None
 
     def has_error(self) -> bool:
         return self.function_error is not None or self.framework_error is not None
 
-    def stdout_blocks_emitted(self) -> List[DataBlockMetadataCfg]:
-        return self.output_blocks_emitted.get(DEFAULT_OUTPUT_NAME, [])
+    def stdout_block_emitted(self) -> Optional[DataBlockMetadataCfg]:
+        return self.output_blocks_emitted.get(DEFAULT_OUTPUT_NAME)
+
+    def stdout(self) -> Optional[DataBlock]:
+        dbc = self.stdout_block_emitted()
+        dbws = DataBlockWithStoredBlocksCfg(
+            **dbc.dict(), stored_data_blocks=self.stored_blocks_created.get(dbc.id, [])
+        )
+        return as_managed(dbws)
 
 
 @dataclass

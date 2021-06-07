@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.persisted.pydantic import (
     DataBlockMetadataCfg,
     StoredDataBlockMetadataCfg,
@@ -56,6 +57,7 @@ def ensure_data_block_on_storage_cfg(
     stored_blocks: List[StoredDataBlockMetadataCfg],
     eligible_storages: List[Storage],
     fmt: Optional[DataFormat] = None,
+    library: ComponentLibrary = global_library,
 ) -> List[StoredDataBlockMetadataCfg]:
     sdbs = stored_blocks
     match = [s for s in sdbs if s.storage.url == storage.url]
@@ -80,7 +82,7 @@ def ensure_data_block_on_storage_cfg(
             to_name="placeholder",
             to_storage=storage,
             to_format=fmt,
-            schema=sdb.data_block.realized_schema,
+            schema=library.get_schema(block.realized_schema_key),
             available_storages=eligible_storages,
         )
         pth = get_copy_path(req)
@@ -95,9 +97,10 @@ def ensure_data_block_on_storage_cfg(
     out_sdb = StoredDataBlockMetadataCfg(  # type: ignore
         id=sid,
         name=make_sdb_name(sid, block.created_by_node_key),
+        data_block_id=block.id,
         data_block=block,
-        data_format=fmt,
-        storage=storage,
+        data_format=fmt.nickname,
+        storage_url=storage.url,
         data_is_written=True,
     )
     req.to_name = out_sdb.name

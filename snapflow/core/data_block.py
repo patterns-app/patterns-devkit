@@ -1,4 +1,10 @@
 from __future__ import annotations
+
+from dcp.data_format.formats.database.base import DatabaseTableFormat
+from dcp.data_format.formats.memory.dataframe import DataFrameFormat
+from dcp.data_format.formats.memory.records import Records, RecordsFormat
+from dcp.storage.memory.engines.python import new_local_python_storage
+from pandas.core.frame import DataFrame
 from snapflow.core.component import ComponentLibrary
 from snapflow.core.persisted.pydantic import (
     DataBlockMetadataCfg,
@@ -32,22 +38,29 @@ from loguru import logger
 from snapflow.core.persisted.data_block import StoredDataBlockMetadata
 
 if TYPE_CHECKING:
-    from snapflow.core.execution.context import DataFunctionContextCfg
     from snapflow.core.execution.context import DataFunctionContext
 
 
 class DataBlockManager:
     def __init__(
         self,
-        ctx: DataFunctionContext,
         data_block: DataBlockWithStoredBlocksCfg,
+        ctx: DataFunctionContext = None,
         schema_translation: Optional[SchemaTranslation] = None,
+        storages: List[str] = None,
     ):
         self.ctx = ctx
         self.data_block = data_block
         self.stored_data_blocks = self.data_block.stored_data_blocks
-        self.storages = self.ctx.execution_config.storages
+        self.storages = storages or []
+        if not self.storages and self.ctx is not None:
+            storages = self.ctx.execution_config.storages
+        if not self.storages:
+            self.storages = [new_local_python_storage()]
         self.schema_translation = schema_translation
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.data_block, name)
 
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFrameFormat)
@@ -65,7 +78,7 @@ class DataBlockManager:
     def ensure_format(
         self, fmt: DataFormat, target_storage: Storage = None
     ) -> StoredDataBlockMetadataCfg:
-        from snapflow.core.storage import ensure_data_block_on_storage
+        from snapflow.core.storage import ensure_data_block_on_storage_cfg
 
         if fmt.natural_storage_class == MemoryStorageClass:
             # Ensure we are putting memory format in memory
@@ -81,8 +94,9 @@ class DataBlockManager:
             fmt=fmt,
             eligible_storages=self.storages,
         )
-        for sdb in sdbs:
-            self.ctx.add_stored_data_block(sdb)
+        if self.ctx is not None:
+            for sdb in sdbs:
+                self.ctx.add_stored_data_block(sdb)
         return sdbs[0]
 
     def as_python_object(self, sdb: StoredDataBlockMetadata) -> Any:
@@ -120,70 +134,5 @@ DataBlockStream = Iterable[DataBlockManager]
 Stream = DataBlockStream
 
 
-# DataFunctionInputType = Union[DataBlock, DataBlockStream]
-
-# class DataBlockStream(PydanticBase):
-#     ctx: DataFunctionContextCfg
-#     blocks: List[DataBlockMetadataCfg] = []
-#     declared_schema: Optional[Schema] = None
-#     declared_schema_translation: Optional[Dict[str, str]] = None
-#     _managed_blocks: Optional[Iterator[DataBlock]] = None
-#     _emitted_blocks: List[DataBlockMetadataCfg] = []
-#     _emitted_managed_blocks: List[DataBlock] = []
-
-#     def managed_blocks(self) -> Iterator[DataBlock]:
-#         if self._managed_blocks is None:
-#             self._managed_blocks = self.as_managed_block(self.blocks)
-#         return self._managed_blocks
-
-#     def __iter__(self) -> Iterator[DataBlock]:
-#         return self.managed_blocks()
-
-#     def __next__(self) -> DataBlock:
-#         return next(self.managed_blocks())
-
-#     def _as_managed_block(
-#         self, stream: Iterable[DataBlockMetadataCfg]
-#     ) -> Iterator[DataBlock]:
-#         from snapflow.core.function_interface_manager import get_schema_translation
-
-#         for db in stream:
-#             if db.nominal_schema_key:
-#                 schema_translation = get_schema_translation(
-#                     source_schema=db.nominal_schema(self.ctx.library),
-#                     target_schema=self.declared_schema,
-#                     declared_schema_translation=self.declared_schema_translation,
-#                 )
-#             else:
-#                 schema_translation = None
-#             mdb = db.as_managed_data_block(
-#                 self.ctx, schema_translation=schema_translation
-#             )
-#             yield mdb
-
-#     def as_managed_block(
-#         self, stream: Iterable[DataBlockMetadataCfg]
-#     ) -> Iterator[DataBlock]:
-#         return self.log_emitted(self._as_managed_block(self.blocks))
-
-#     @property
-#     def all_blocks(self) -> List[DataBlock]:
-#         return list(self.as_managed_block(self.blocks))
-
-#     def count(self) -> int:
-#         return len(self.blocks)
-
-#     def log_emitted(self, stream: Iterator[DataBlock]) -> Iterator[DataBlock]:
-#         for mdb in stream:
-#             self._emitted_blocks.append(mdb.data_block)
-#             self._emitted_managed_blocks.append(mdb)
-#             yield mdb
-
-#     def get_emitted_blocks(self) -> List[DataBlockMetadataCfg]:
-#         return self._emitted_blocks
-
-#     def get_emitted_managed_blocks(self) -> List[DataBlock]:
-#         return self._emitted_managed_blocks
-
-
-# Stream = DataBlockStream
+def as_managed(db: DataBlockWithStoredBlocksCfg, **kwargs) -> DataBlock:
+    return DataBlockManager(data_block=db, **kwargs)

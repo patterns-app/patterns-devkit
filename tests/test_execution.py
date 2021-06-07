@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.data_block import as_managed
 
 from typing import Optional
 
@@ -48,7 +49,6 @@ def test_exe():
     env = make_test_env()
     node = GraphCfg(key="node", function="function_t1_source")
     g = GraphCfg(nodes=[node]).resolve_and_flatten(env.library)
-    print(g)
     exe = env.get_executable(node.key, graph=g)
     results = ExecutionManager(exe).execute()
     assert len(results) == 1
@@ -75,16 +75,19 @@ def test_exe_output():
     # ec = env.get_run_context(g, current_runtime=rt, target_storage=rt.as_storage())
     output_alias = "node_output"
     node = GraphCfg(key="node", function="function_dl_source", alias=output_alias)
-    g = GraphCfg(nodes=[node])
-    exe = env.get_executable(node, graph=g)
-    result = ExecutionManager(exe).execute()
-    assert len(result.stdout_blocks_emitted()) == 1
+    g = GraphCfg(nodes=[node]).resolve_and_flatten(env.library)
+    exe = env.get_executable(node.key, graph=g)
+    results = ExecutionManager(exe).execute()
+    assert len(results) == 1
+    result = results[0]
     with env.md_api.begin():
-        block = result.stdout_blocks_emitted()[0]
+        block = result.stdout()
         assert block is not None
         assert block.as_records() == mock_dl_output
-        assert block.nominal_schema is TestSchema4
-        assert len(block.realized_schema.fields) == len(TestSchema4.fields)
+        assert block.nominal_schema_key == TestSchema4.key
+        assert len(env.get_schema(block.realized_schema_key).fields) == len(
+            TestSchema4.fields
+        )
         # Test alias was created correctly
         assert (
             env.md_api.execute(select(Alias).filter(Alias.name == output_alias))
@@ -102,8 +105,8 @@ def test_non_terminating_function():
     env = make_test_env()
     env.add_function(never_stop)
     node = GraphCfg(key="node", function="never_stop")
-    g = GraphCfg(nodes=[node])
-    exe = env.get_executable(node, graph=g)
+    g = GraphCfg(nodes=[node]).resolve_and_flatten(env.library)
+    exe = env.get_executable(node.key, graph=g)
     result = ExecutionManager(exe).execute()
     assert not result.output_blocks_emitted
 
@@ -117,12 +120,12 @@ def test_non_terminating_function_with_reference_input():
         params={"dataframe": pd.DataFrame({"a": range(10)})},
     )
     node = GraphCfg(key="node", function="never_stop", input=source.key)
-    g = GraphCfg(nodes=[source, node])
-    exe = env.get_executable(source, graph=g)
+    g = GraphCfg(nodes=[source, node]).resolve_and_flatten(env.library)
+    exe = env.get_executable(source.key, graph=g)
     result = ExecutionManager(exe).execute()
     # TODO: reference inputs need to log too? (So they know when to update)
     # with env.md_api.begin():
     #     assert env.md_api.count(select(DataBlockLog)) == 1
-    exe = env.get_executable(node, graph=g)
+    exe = env.get_executable(node.key, graph=g)
     result = ExecutionManager(exe).execute()
     assert not result.output_blocks_emitted
