@@ -1,5 +1,5 @@
 from __future__ import annotations
-from snapflow.core.persisted.pydantic import DataBlockWithStoredBlocksCfg
+from snapflow.core.persistence.pydantic import DataBlockWithStoredBlocksCfg
 from snapflow.core.declarative.base import FrozenPydanticBase
 
 from typing import Iterator, TYPE_CHECKING, Dict, List, Optional, Set, Union
@@ -20,9 +20,7 @@ class NodeInputCfg(FrozenPydanticBase):
     schema_translation: Optional[Dict[str, str]] = None
 
     def as_bound_input(
-        self,
-        bound_block: DataBlockWithStoredBlocksCfg = None,
-        bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
+        self, bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
     ) -> BoundInputCfg:
 
         return BoundInputCfg(
@@ -30,7 +28,6 @@ class NodeInputCfg(FrozenPydanticBase):
             input=self.input,
             input_node=self.input_node,
             schema_translation=self.schema_translation,
-            bound_block=bound_block,
             bound_stream=bound_stream,
         )
 

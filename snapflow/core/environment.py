@@ -15,13 +15,13 @@ from dcp.storage.memory.engines.python import new_local_python_storage
 from dcp.utils.common import AttrDict
 from loguru import logger
 from snapflow.core.component import ComponentLibrary, global_library
-from snapflow.core.metadata.api import MetadataApi
+from snapflow.core.persistence.api import MetadataApi
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
     DEFAULT_LOCAL_NAMESPACE,
     SnapflowModule,
 )
-from snapflow.core.persisted.schema import (
+from snapflow.core.persistence.schema import (
     GeneratedSchema,
     GenericSchemaException,
     is_generic,

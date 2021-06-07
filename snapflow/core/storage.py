@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
 from snapflow.core.component import ComponentLibrary, global_library
-from snapflow.core.persisted.pydantic import (
+from snapflow.core.persistence.pydantic import (
     DataBlockMetadataCfg,
     StoredDataBlockMetadataCfg,
 )
@@ -14,9 +14,7 @@ from dcp.data_copy.graph import execute_copy_request, get_copy_path
 from dcp.data_format.base import DataFormat
 from dcp.storage.base import Storage
 from loguru import logger
-from snapflow.core.persisted.data_block import (
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
+from snapflow.core.persistence.data_block import (
     get_stored_datablock_id,
     make_sdb_name,
 )

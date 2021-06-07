@@ -4,7 +4,7 @@ from snapflow.core.function import DataFunction
 from commonmodel.base import Schema
 from dcp.data_format import get_handler_for_name
 from snapflow.core.data_block import DataBlock, DataBlockStream
-from snapflow.core.persisted.pydantic import (
+from snapflow.core.persistence.pydantic import (
     DataBlockMetadataCfg,
     DataFunctionLogCfg,
     StoredDataBlockMetadataCfg,
@@ -40,7 +40,7 @@ from dcp.data_format.base import DataFormat, get_format_for_nickname, DataFormat
 from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
-from snapflow.core.persisted.data_block import (
+from snapflow.core.persistence.data_block import (
     Alias,
     DataBlockMetadata,
     StoredDataBlockMetadata,

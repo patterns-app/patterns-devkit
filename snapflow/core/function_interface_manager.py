@@ -6,11 +6,11 @@ from snapflow.core.environment import Environment
 
 from sqlalchemy.sql.selectable import Select
 from sqlalchemy.sql.expression import select
-from snapflow.core.persisted.data_block import (
+from snapflow.core.persistence.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
 )
-from snapflow.core.persisted.state import DataBlockLog, DataFunctionLog, Direction
+from snapflow.core.persistence.state import DataBlockLog, DataFunctionLog, Direction
 
 from sqlalchemy.orm.query import Query
 from snapflow.core.declarative.interface import (

@@ -5,7 +5,7 @@ from snapflow.core.data_block import DataBlock, as_managed
 from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.function_interface_manager import bind_inputs
-from snapflow.core.persisted.pydantic import (
+from snapflow.core.persistence.pydantic import (
     DataBlockMetadataCfg,
     DataBlockWithStoredBlocksCfg,
     DataFunctionLogCfg,

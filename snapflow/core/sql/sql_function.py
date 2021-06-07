@@ -16,10 +16,6 @@ from dcp.storage.base import DatabaseStorageClass, Storage
 from dcp.storage.database.utils import column_map, compile_jinja_sql
 from dcp.utils.common import rand_str
 from loguru import logger
-from snapflow.core.persisted.data_block import (
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
-)
 from snapflow.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     DataFunctionInterfaceCfg,

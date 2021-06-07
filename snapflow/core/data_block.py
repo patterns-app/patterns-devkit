@@ -6,7 +6,7 @@ from dcp.data_format.formats.memory.records import Records, RecordsFormat
 from dcp.storage.memory.engines.python import new_local_python_storage
 from pandas.core.frame import DataFrame
 from snapflow.core.component import ComponentLibrary
-from snapflow.core.persisted.pydantic import (
+from snapflow.core.persistence.pydantic import (
     DataBlockMetadataCfg,
     DataBlockWithStoredBlocksCfg,
     StoredDataBlockMetadataCfg,
@@ -35,7 +35,6 @@ from dcp.data_format.base import DataFormat, get_format_for_nickname
 from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
-from snapflow.core.persisted.data_block import StoredDataBlockMetadata
 
 if TYPE_CHECKING:
     from snapflow.core.execution.context import DataFunctionContext
@@ -99,7 +98,7 @@ class DataBlockManager:
                 self.ctx.add_stored_data_block(sdb)
         return sdbs[0]
 
-    def as_python_object(self, sdb: StoredDataBlockMetadata) -> Any:
+    def as_python_object(self, sdb: StoredDataBlockMetadataCfg) -> Any:
         if self.schema_translation:
             sdb.get_handler().apply_schema_translation(
                 sdb.name, sdb.storage, self.schema_translation

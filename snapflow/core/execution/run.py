@@ -1,6 +1,6 @@
 from __future__ import annotations
 from snapflow.core.data_block import DataBlock
-from snapflow.core.persisted.schema import GeneratedSchema
+from snapflow.core.persistence.schema import GeneratedSchema
 from snapflow.core.execution.execution import ExecutionManager
 from snapflow.core.function_interface_manager import get_bound_interface
 
@@ -13,7 +13,7 @@ from typing import (
 
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
-from snapflow.core.persisted.data_block import (
+from snapflow.core.persistence.data_block import (
     Alias,
     DataBlockMetadata,
     StoredDataBlockMetadata,
@@ -36,8 +36,7 @@ from snapflow.core.function import (
     DataInterfaceType,
     InputExhaustedException,
 )
-from snapflow.core.metadata.api import MetadataApi
-from snapflow.core.persisted.state import (
+from snapflow.core.persistence.state import (
     DataBlockLog,
     DataFunctionLog,
     Direction,
@@ -56,19 +55,19 @@ class ImproperlyStoredDataBlockException(Exception):
     pass
 
 
-# TODO: use this
-def validate_data_blocks(env: Environment):
-    # TODO: More checks?
-    env.md_api.flush()
-    for obj in env.md_api.active_session.identity_map.values():
-        if isinstance(obj, DataBlockMetadata):
-            urls = set([sdb.storage_url for sdb in obj.stored_data_blocks])
-            if all(u.startswith("python") for u in urls):
-                fmts = set([sdb.data_format for sdb in obj.stored_data_blocks])
-                if all(not f.is_storable() for f in fmts):
-                    raise ImproperlyStoredDataBlockException(
-                        f"DataBlock {obj} is not properly stored (no storeable format(s): {fmts})"
-                    )
+# # TODO: use this
+# def validate_data_blocks(env: Environment):
+#     # TODO: More checks?
+#     env.md_api.flush()
+#     for obj in env.md_api.active_session.identity_map.values():
+#         if isinstance(obj, DataBlockMetadata):
+#             urls = set([sdb.storage_url for sdb in obj.stored_data_blocks])
+#             if all(u.startswith("python") for u in urls):
+#                 fmts = set([sdb.data_format for sdb in obj.stored_data_blocks])
+#                 if all(not f.is_storable() for f in fmts):
+#                     raise ImproperlyStoredDataBlockException(
+#                         f"DataBlock {obj} is not properly stored (no storeable format(s): {fmts})"
+#                     )
 
 
 def prepare_executable(
@@ -223,7 +222,7 @@ def run(
 
 
 def get_latest_output(env: Environment, node: GraphCfg) -> Optional[DataBlock]:
-    from snapflow.core.persisted.data_block import DataBlockMetadata
+    from snapflow.core.persistence.data_block import DataBlockMetadata
 
     with env.metadata_api.begin():
         block: DataBlockMetadata = (

@@ -22,7 +22,7 @@ from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.function_package import DataFunctionPackage
 from snapflow.core.module import SnapflowModule
-from snapflow.core.persisted.state import DataBlockLog
+from snapflow.core.persistence.state import DataBlockLog
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select

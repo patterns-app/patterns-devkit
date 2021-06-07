@@ -105,7 +105,7 @@ def upgrade():
         sa.Column("storage_url", sa.String(length=128), nullable=False),
         sa.Column(
             "data_format",
-            snapflow.core.persisted.base.DataFormatType(length=128),
+            snapflow.core.persistence.base.DataFormatType(length=128),
             nullable=False,
         ),
         sa.ForeignKeyConstraint(

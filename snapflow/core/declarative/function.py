@@ -21,7 +21,7 @@ from loguru import logger
 from pydantic import Field
 from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.declarative.base import FrozenPydanticBase
-from snapflow.core.persisted.schema import is_generic
+from snapflow.core.persistence.schema import is_generic
 
 
 DEFAULT_OUTPUT_NAME = "stdout"

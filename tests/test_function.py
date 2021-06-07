@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.execution.run import prepare_executable
 from snapflow.core.declarative.interface import BoundInterfaceCfg
 from snapflow.core.data_block import DataBlock
 
@@ -7,7 +8,7 @@ from typing import Any, Callable
 import pytest
 from pandas import DataFrame
 from snapflow.core.component import global_library
-from snapflow.core.persisted.data_block import DataBlockMetadata
+from snapflow.core.persistence.data_block import DataBlockMetadata
 from snapflow.core.declarative.base import update
 from snapflow.core.declarative.execution import ExecutableCfg
 from snapflow.core.declarative.function import (
@@ -26,7 +27,10 @@ from snapflow.core.function_interface import (
     ParsedAnnotation,
     parse_input_annotation,
 )
-from snapflow.core.function_interface_manager import get_schema_translation
+from snapflow.core.function_interface_manager import (
+    get_bound_interface,
+    get_schema_translation,
+)
 from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
 from snapflow.modules import core
 from snapflow.utils.typing import T, U
@@ -304,8 +308,7 @@ def test_inputs():
 
     # ec.graph = g.instantiate(env)
     with env.md_api.begin():
-        exe = ExecutableCfg(node_key=n1.key, graph=g, execution_config=ec)
-        bi = exe.get_bound_interface(env)
+        bi = get_bound_interface(env, ec, n1, g)
         assert bi is not None
 
 

@@ -16,10 +16,6 @@ import dcp
 import sqlalchemy
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
-from snapflow.core.persisted.data_block import (
-    Alias,
-    DataBlockMetadata,
-)
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.execution import (
     ExecutableCfg,
@@ -48,18 +44,18 @@ class ImproperlyStoredDataBlockException(Exception):
     pass
 
 
-def validate_data_blocks(env: Environment):
-    # TODO: More checks?
-    env.md_api.flush()
-    for obj in env.md_api.active_session.identity_map.values():
-        if isinstance(obj, DataBlockMetadata):
-            urls = set([sdb.storage_url for sdb in obj.stored_data_blocks])
-            if all(u.startswith("python") for u in urls):
-                fmts = set([sdb.data_format for sdb in obj.stored_data_blocks])
-                if all(not f.is_storable() for f in fmts):
-                    raise ImproperlyStoredDataBlockException(
-                        f"DataBlock {obj} is not properly stored (no storeable format(s): {fmts})"
-                    )
+# def validate_data_blocks(env: Environment):
+#     # TODO: More checks?
+#     env.md_api.flush()
+#     for obj in env.md_api.active_session.identity_map.values():
+#         if isinstance(obj, DataBlockMetadata):
+#             urls = set([sdb.storage_url for sdb in obj.stored_data_blocks])
+#             if all(u.startswith("python") for u in urls):
+#                 fmts = set([sdb.data_format for sdb in obj.stored_data_blocks])
+#                 if all(not f.is_storable() for f in fmts):
+#                     raise ImproperlyStoredDataBlockException(
+#                         f"DataBlock {obj} is not properly stored (no storeable format(s): {fmts})"
+#                     )
 
 
 class ExecutionLogger:

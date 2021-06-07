@@ -4,7 +4,6 @@ import inspect
 from dataclasses import asdict, dataclass, field
 from functools import partial
 from snapflow.core.data_block import DataBlock
-from snapflow.core.persisted.data_block import DataBlockMetadata
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
 from commonmodel.base import SchemaLike
@@ -40,7 +39,7 @@ class InputExhaustedException(DataFunctionException):
 DataFunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame, Records, DataBlockMetadata, DataBlock,
+    DataFrame, Records, DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 

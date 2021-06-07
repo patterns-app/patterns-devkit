@@ -8,11 +8,11 @@ import pytest
 from dcp.data_format.formats.memory.records import Records
 from loguru import logger
 from pandas import DataFrame
-from snapflow.core.persisted.data_block import Alias
+from snapflow.core.persistence.data_block import Alias
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.execution.execution import ExecutionManager
 from snapflow.core.function import Input, datafunction
-from snapflow.core.persisted.state import DataBlockLog, DataFunctionLog, Direction
+from snapflow.core.persistence.state import DataBlockLog, DataFunctionLog, Direction
 from snapflow.modules import core
 from sqlalchemy.sql.expression import select
 from tests.utils import (

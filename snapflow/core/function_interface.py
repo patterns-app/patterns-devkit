@@ -17,7 +17,7 @@ from snapflow.core.declarative.function import (
     Parameter,
     ParameterType,
 )
-from snapflow.core.persisted.schema import is_generic
+from snapflow.core.persistence.schema import is_generic
 
 if TYPE_CHECKING:
     from snapflow.core.function import (

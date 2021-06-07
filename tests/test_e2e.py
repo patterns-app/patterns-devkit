@@ -18,7 +18,7 @@ from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 from snapflow import DataFunctionContext
 from snapflow.core.sql.sql_function import sql_function_factory
-from snapflow.core.persisted.state import (
+from snapflow.core.persistence.state import (
     DataBlockLog,
     DataFunctionLog,
     NodeState,

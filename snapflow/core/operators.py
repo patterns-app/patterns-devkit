@@ -1,4 +1,4 @@
-from snapflow.core.persisted.pydantic import DataBlockMetadataCfg
+from snapflow.core.persistence.pydantic import DataBlockMetadataCfg
 from typing import Any, Callable, Dict, Iterable, Optional, Union
 
 DataBlockStream = Iterable[DataBlockMetadataCfg]
