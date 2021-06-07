@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.data_block import DataBlock
 from snapflow.core.persisted.schema import GeneratedSchema
 from snapflow.core.execution.execution import ExecutionManager
 from snapflow.core.function_interface_manager import get_bound_interface
@@ -202,9 +203,9 @@ def prepare_executable(
 
 def run(
     env: Environment, exe: ExecutableCfg, to_exhaustion: bool = True
-) -> Optional[ExecutionResult]:
+) -> List[ExecutionResult]:
     # TODO: support other runtimes
-    ExecutionManager(exe).execute()
+    return ExecutionManager(exe).execute()
     # while True:
     #     try:
     #         result = em.execute()

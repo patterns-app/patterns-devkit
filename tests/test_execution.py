@@ -107,7 +107,9 @@ def test_non_terminating_function():
     node = GraphCfg(key="node", function="never_stop")
     g = GraphCfg(nodes=[node]).resolve_and_flatten(env.library)
     exe = env.get_executable(node.key, graph=g)
-    result = ExecutionManager(exe).execute()
+    results = ExecutionManager(exe).execute()
+    assert len(results) == 1
+    result = results[0]
     assert not result.output_blocks_emitted
 
 
@@ -127,5 +129,7 @@ def test_non_terminating_function_with_reference_input():
     # with env.md_api.begin():
     #     assert env.md_api.count(select(DataBlockLog)) == 1
     exe = env.get_executable(node.key, graph=g)
-    result = ExecutionManager(exe).execute()
+    results = ExecutionManager(exe).execute()
+    assert len(results) == 1
+    result = results[0]
     assert not result.output_blocks_emitted

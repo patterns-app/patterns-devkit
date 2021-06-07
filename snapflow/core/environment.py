@@ -31,11 +31,11 @@ from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
     from snapflow.core.function import DataFunction
-    from snapflow.core.persisted.data_block import DataBlock
+    from snapflow.core.data_block import DataBlock
     from snapflow.core.declarative.graph import GraphCfg
     from snapflow.core.declarative.execution import ExecutableCfg, ExecutionCfg
     from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
-    from snapflow.core.declarative.execution import CumulativeExecutionResult
+    from snapflow.core.declarative.execution import ExecutionResult
 
 DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
 
@@ -273,12 +273,12 @@ class Environment:
     #     to_exhaustion: bool = True,
     #     **execution_kwargs: Any,
     # ) -> List[DataBlock]:
-    #     from snapflow.core.execution.run import run_to_exhaustion
+    #     from snapflow.core.execution.run import run
 
-    #     graph = self.prepare_graph(graph)
+    #     # graph = self.prepare_graph(graph)
     #     if isinstance(node, str):
     #         node = graph.get_node(node)
-    #     assert node.is_function_node()
+    #     # assert node.is_function_node()
 
     #     if node is not None:
     #         dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
@@ -286,11 +286,7 @@ class Environment:
     #         dependencies = graph.get_all_nodes_in_execution_order()
     #     result = None
     #     for dep in dependencies:
-    #         result = run_to_exhaustion(
-    #             self,
-    #             self.get_executable(dep, graph=graph, **execution_kwargs),
-    #             to_exhaustion=to_exhaustion,
-    #         )
+    #         result = self.run_node(dep, graph, to_exhaustion=to_exhaustion, **execution_kwargs)
     #     if result:
     #         with self.metadata_api.begin():
     #             return result.get_output_blocks(self)
@@ -302,7 +298,7 @@ class Environment:
         graph: Optional[GraphCfg] = None,
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
-    ) -> Optional[CumulativeExecutionResult]:
+    ) -> List[ExecutionResult]:
         from snapflow.core.execution.run import run
 
         graph = self.prepare_graph(graph)
@@ -310,17 +306,17 @@ class Environment:
         dependencies = graph.get_all_nodes_in_execution_order()
         nodes = graph.get_nodes_with_prefix(node)
         node_keys = {n.key for n in nodes}
-        result = None
+        results = []
         for node in dependencies:
             if not node.key in node_keys:
                 continue
             node = node.resolve(self.library)
-            result = run(
+            results = run(
                 self,
                 self.get_executable(node.key, graph=graph, **execution_kwargs),
                 to_exhaustion=to_exhaustion,
             )
-        return result
+        return results
 
     def run_graph(
         self,
@@ -340,7 +336,7 @@ class Environment:
             )
 
     def get_latest_output(self, node: GraphCfg) -> Optional[DataBlock]:
-        from snapflow.core.execution.execution import get_latest_output
+        from snapflow.core.execution.run import get_latest_output
 
         return get_latest_output(self, node)
 

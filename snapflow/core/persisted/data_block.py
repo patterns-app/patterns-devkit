@@ -106,17 +106,16 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
 
         # return DataBlockWithStoredBlocksCfg.from_orm(self)
 
-    # def as_managed_data_block(
-    #     self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
-    # ):
-    #     mgr = DataBlockManager(env, self, schema_translation=schema_translation)
-    #     return ManagedDataBlock(
-    #         data_block_id=self.id,
-    #         inferred_schema_key=self.inferred_schema_key,
-    #         nominal_schema_key=self.nominal_schema_key,
-    #         realized_schema_key=self.realized_schema_key,
-    #         manager=mgr,
-    #     )
+    def as_managed_data_block(
+        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
+    ) -> DataBlock:
+        from snapflow.core.data_block import DataBlockManager
+
+        return DataBlockManager(
+            self.to_pydantic_with_stored(),
+            schema_translation=schema_translation,
+            storages=[s.url for s in env.get_storages()],
+        )
 
     def compute_record_count(self) -> bool:
         for sdb in self.stored_data_blocks.all():

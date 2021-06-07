@@ -13,10 +13,9 @@ from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from loguru import logger
 from pandas._testing import assert_almost_equal
 from snapflow import DataBlock, datafunction
-from snapflow.core.persisted.data_block import Consumable, Reference
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.environment import Environment, produce
+from snapflow.core.environment import Environment
 from snapflow import DataFunctionContext
 from snapflow.core.sql.sql_function import sql_function_factory
 from snapflow.core.persisted.state import (
@@ -223,7 +222,7 @@ def test_alternate_apis():
     metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
     g = GraphCfg(nodes=[source, metrics])
     # Run first time
-    blocks = produce(node=metrics, graph=g, target_storage=s, env=env)
+    blocks = env.produce(node=metrics, graph=g, target_storage=s)
     assert len(blocks) == 1
     output = blocks[0]
     assert output.nominal_schema_key.endswith("Metric")
@@ -243,7 +242,7 @@ def test_function_failure():
     cfg = {"batches": batches, "fail": True}
     source = GraphCfg(key="source", function=customer_source.key, params=cfg)
     g = GraphCfg(nodes=[source])
-    blocks = produce(graph=g, node=source, target_storage=s, env=env)
+    blocks = env.produce(graph=g, node=source, target_storage=s)
     assert len(blocks) == 1
     records = blocks[0].as_records()
     assert len(records) == 2
@@ -265,7 +264,7 @@ def test_function_failure():
 
     # Run again without failing, should see different result
     source.params["fail"] = False
-    blocks = produce(graph=g, node=source, target_storage=s, env=env)
+    blocks = env.produce(graph=g, node=source, target_storage=s)
     assert len(blocks) == 1
     records = blocks[0].as_records()
     assert len(records) == batch_size
@@ -302,7 +301,7 @@ def test_node_reset():
     metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
     g = GraphCfg(nodes=[source, accum, metrics])
     # Run first time
-    produce(node=source, graph=g, target_storage=s, env=env)
+    env.produce(node=source, graph=g, target_storage=s)
 
     # Now reset node
     with env.md_api.begin():
@@ -314,7 +313,7 @@ def test_node_reset():
         assert state.state is None
         assert state.latest_log is None
 
-    blocks = produce(node=metrics, graph=g, target_storage=s, env=env)
+    blocks = env.produce(node=metrics, graph=g, target_storage=s)
     assert len(blocks) == 1
     records = blocks[0].as_records()
     expected_records = [
@@ -361,7 +360,7 @@ def test_ref_input():
     )
     g = GraphCfg(nodes=[source, accum, metrics, join, join_ref])
     # Run once, for one metrics output
-    output = produce(node=metrics, graph=g, target_storage=s, env=env)
+    output = env.produce(node=metrics, graph=g, target_storage=s)
 
     # Both joins work
     output = env.run_node(join_ref, graph=g, target_storage=s)

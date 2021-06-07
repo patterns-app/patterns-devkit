@@ -151,5 +151,5 @@ def _filter_blocks(
         logger.opt(lazy=True).debug(
             "{x} unprocessed DataBlocks", x=lambda: eligible_input_dbs.count()
         )
-    return eligible_input_dbs.all()
+    return eligible_input_dbs
 

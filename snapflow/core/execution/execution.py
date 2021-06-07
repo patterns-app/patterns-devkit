@@ -6,6 +6,7 @@ from sys import executable
 from snapflow.core.execution.context import DataFunctionContext
 from typing import (
     Iterable,
+    List,
     TYPE_CHECKING,
     Any,
     Callable,
