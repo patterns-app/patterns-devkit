@@ -59,11 +59,12 @@ def accumulator_sql(
         for col in cols:
             if col in block.realized_schema.field_names():
                 f = block.realized_schema.get_field(col)
-                if f.field_type == col_types[f.name]:
-                    cast_sql = col
-                else:
-                    dialect = target_storage.get_api().get_engine().dialect
-                    cast_sql = field_sql_with_cast(f.name, col_types[f.name], dialect)
+                # if f.field_type == col_types[f.name]:
+                #     cast_sql = col
+                # else:
+                # TODO: Always cast?
+                dialect = target_storage.get_api().get_engine().dialect
+                cast_sql = field_sql_with_cast(f.name, col_types[f.name], dialect)
                 col_sql.append(cast_sql)
             else:
                 col_sql.append("null as " + col)
