@@ -93,11 +93,11 @@ def test_exe_output():
             env.md_api.execute(select(Alias).filter(Alias.name == output_alias))
             .scalar_one_or_none()
             .data_block_id
-            == block.data_block_id
+            == block.id
         )
         assert env.md_api.count(select(DataBlockLog)) == 1
         dbl = env.md_api.execute(select(DataBlockLog)).scalar_one_or_none()
-        assert dbl.data_block_id == block.data_block_id
+        assert dbl.data_block_id == block.id
         assert dbl.direction == Direction.OUTPUT
 
 

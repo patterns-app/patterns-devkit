@@ -186,6 +186,10 @@ class StoredDataBlockMetadata(BaseModel):
 
         return StoredDataBlockMetadataCfg.from_orm(self)
 
+    @classmethod
+    def from_pydantic(cls, cfg: StoredDataBlockMetadataCfg) -> StoredDataBlockMetadata:
+        return StoredDataBlockMetadata(**cfg.dict())
+
     def get_handler(self) -> FormatHandler:
         return get_handler_for_name(self.name, self.storage)()
 
@@ -221,7 +225,9 @@ class StoredDataBlockMetadata(BaseModel):
     def create_alias(self, env: Environment, alias: str) -> Alias:
         # Create or update Alias
         a: Alias = env.md_api.execute(
-            select(Alias).filter(Alias.name == alias)
+            select(Alias).filter(
+                Alias.name == alias, Alias.storage_url == self.storage_url
+            )
         ).scalar_one_or_none()
         if a is None:
             # (not really a race condition here since alias is unique to node and node cannot
@@ -230,11 +236,13 @@ class StoredDataBlockMetadata(BaseModel):
                 name=alias,
                 data_block_id=self.data_block_id,
                 stored_data_block_id=self.id,
+                storage_url=self.storage_url,
             )
             env.md_api.add(a)
         else:
             a.data_block_id = self.data_block_id
             a.stored_data_block_id = self.id
+            a.storage_url = self.storage_url
         self.storage.get_api().create_alias(self.name, alias)
         return a
 
@@ -246,6 +254,7 @@ class StoredDataBlockMetadata(BaseModel):
 class Alias(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(128))
+    storage_url = Column(String(128), nullable=True)
     data_block_id = Column(
         String(128), ForeignKey(DataBlockMetadata.id), nullable=False
     )
@@ -256,7 +265,7 @@ class Alias(BaseModel):
     data_block: "DataBlockMetadata"
     stored_data_block: "StoredDataBlockMetadata"
 
-    __table_args__ = (UniqueConstraint("dataspace_key", "name"),)
+    __table_args__ = (UniqueConstraint("dataspace_key", "name", "storage_url"),)
 
     def update_alias(self, env: Environment, new_alias: str):
         self.stored_data_block.storage.get_api().create_alias(

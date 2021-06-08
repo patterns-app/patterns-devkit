@@ -40,6 +40,7 @@ from snapflow.core.persistence.state import (
     DataBlockLog,
     DataFunctionLog,
     Direction,
+    NodeState,
     get_state,
 )
 from snapflow.utils.output import cf, error_symbol, success_symbol
@@ -271,6 +272,8 @@ def ensure_log(
 
 
 def save_result(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
+    # TODO: this should be inside one roll-backable transaction
+
     for input_name, blocks in result.input_blocks_consumed.items():
         for block in blocks:
             ensure_log(env, exe.function_log, block, Direction.INPUT, input_name)
@@ -293,4 +296,27 @@ def save_result(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
     )
     for s in result.schemas_generated or []:
         env.add_new_generated_schema(s)
+    save_state(env, exe)
+    ensure_aliases(env, exe, result)
 
+
+def save_state(env: Environment, exe: ExecutableCfg):
+    state = env.md_api.execute(
+        select(NodeState).filter(NodeState.node_key == exe.node_key)
+    ).scalar_one_or_none()
+    if state is None:
+        state = NodeState(node_key=exe.node_key)
+    state.state = exe.function_log.node_end_state
+    state.latest_log_id = exe.function_log.id
+    state.alias = exe.node.get_alias()
+    env.md_api.add(state)
+
+
+def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
+    # TODO: do for all output streams
+    db = result.stdout_block_emitted()
+    if db is None:
+        return
+    for sdbc in result.stored_blocks_created[db.id]:
+        sdb = StoredDataBlockMetadata.from_pydantic(sdbc)
+        alias = sdb.create_alias(env, exe.node.get_alias())
