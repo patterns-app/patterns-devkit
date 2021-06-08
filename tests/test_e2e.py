@@ -24,7 +24,7 @@ from snapflow.core.state import (
     DataFunctionLog,
     NodeState,
     _reset_state,
-    get_state,
+    get_or_create_state,
     reset,
 )
 from snapflow.modules import core
