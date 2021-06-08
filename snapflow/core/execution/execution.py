@@ -113,7 +113,7 @@ class ExecutionManager:
 
     def _execute_inputs(self, inputs) -> ExecutionResult:
         with self.logger.indent():
-            self.logger.log(f"Running inputs {inputs}")
+            # self.logger.log(f"Running inputs {inputs}")
             ctx = self.prepare_context(inputs)
             self._call_data_function(ctx)
             result = ctx.result

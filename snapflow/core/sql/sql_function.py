@@ -5,6 +5,7 @@ from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from functools import partial
 from pathlib import Path
+from snapflow.core.component import ComponentLibrary
 from snapflow.core.data_block import DataBlock
 from snapflow.core.execution.context import DataFunctionContext
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -300,7 +301,7 @@ def params_as_sql(ctx: DataFunctionContext) -> Dict[str, Any]:
 
 
 def apply_schema_translation_as_sql(
-    env: Environment, name: str, translation: SchemaTranslation
+    lib: ComponentLibrary, name: str, translation: SchemaTranslation
 ) -> str:
     if not translation.from_schema_key:
         raise NotImplementedError(
@@ -308,7 +309,7 @@ def apply_schema_translation_as_sql(
         )
     sql = column_map(
         name,
-        env.get_schema(translation.from_schema_key).field_names(),
+        lib.get_schema(translation.from_schema_key).field_names(),
         translation.as_dict(),
     )
     table_stmt = f"""
@@ -354,7 +355,7 @@ class SqlDataFunctionWrapper:
 
         db_api = storage.get_api()
         logger.debug(
-            f"Resolved in sql function {ctx.bound_interface.resolve_nominal_output_schema()}"
+            f"Resolved in sql function {ctx.executable.bound_interface.resolve_nominal_output_schema()}"
         )
         tmp_name = f"_tmp_{rand_str(10)}".lower()
         sql = db_api.clean_sub_sql(sql)

@@ -4,6 +4,7 @@ import os
 
 import sys
 from datetime import datetime
+from tests.utils import get_stdout_block
 from typing import Generator, Iterator, Optional
 
 import pandas as pd
@@ -26,6 +27,8 @@ from sqlalchemy import select
 from tests.test_e2e import Customer
 
 IS_CI = os.environ.get("CI")
+
+logger.enable("snapflow")
 
 
 @datafunction
@@ -111,16 +114,18 @@ def test_source():
         source = GraphCfg(key="source", function=funky_source.key)
         g = GraphCfg(nodes=[source])
         # Run first time
-        blocks = env.produce("source", graph=g, target_storage=s)
-        assert blocks[0].nominal_schema_key == "Customer"
-        assert len(blocks[0].realized_schema.fields) == 3
-        records = blocks[0].as_records()
+        results = env.run_node("source", graph=g, target_storage=s)
+        block = get_stdout_block(results)
+        assert block.nominal_schema_key == "Customer"
+        assert len(env.get_schema(block.realized_schema_key).fields) == 3
+        records = block.as_records()
         assert len(records) == 10
         assert len(records[0]) == 3
-        # RUn again
-        blocks = env.produce("source", graph=g, target_storage=s)
-        assert blocks[0].nominal_schema_key == "Customer"
-        assert len(blocks[0].realized_schema.fields) == 4
+        # Run again
+        results = env.run_node("source", graph=g, target_storage=s)
+        block = get_stdout_block(results)
+        assert block.nominal_schema_key == "Customer"
+        assert len(env.get_schema(block.realized_schema_key).fields) == 4
 
 
 def test_accumulate():
@@ -131,33 +136,35 @@ def test_accumulate():
     )
 
     def run_accumulate(env, g, s):
-        blocks = env.produce("accumulate", graph=g, target_storage=s)
-        assert len(blocks) == 1
-        records = blocks[0].as_records()
+        results = env.produce("accumulate", graph=g, target_storage=s)
+        block = get_stdout_block(results)
+        records = block.as_records()
         assert len(records) == 10
         assert len(records[0]) == 3
         # Run second time
-        blocks = env.produce("accumulate", graph=g, target_storage=s)
-        assert len(blocks) == 1
-        records = blocks[0].as_records()
+        results = env.produce("accumulate", graph=g, target_storage=s)
+        block = get_stdout_block(results)
+        records = block.as_records()
         assert len(records) == 20
         assert len(records[0]) == 4
         # Run third time
-        blocks = env.produce("accumulate", graph=g, target_storage=s)
-        assert len(blocks) == 1
-        records = blocks[0].as_records()
+        results = env.produce("accumulate", graph=g, target_storage=s)
+        block = get_stdout_block(results)
+        records = block.as_records()
         assert len(records) == 30
         assert len(records[0]) == 4
         # Run fourth time
-        blocks = env.produce("accumulate", graph=g, target_storage=s)
-        assert len(blocks) == 1
-        records = blocks[0].as_records()
+        results = env.produce("accumulate", graph=g, target_storage=s)
+        block = get_stdout_block(results)
+        records = block.as_records()
         assert len(records) == 40
         assert len(records[0]) == 4
 
     with get_env() as env:
+        print("Running python accum")
         s = env._local_python_storage
         run_accumulate(env, GraphCfg(nodes=[source, accumulate]), s)
     with get_env() as env:
         dbs = env.get_storages()[0]
+        print(f"Running database accum: {dbs.url}")
         run_accumulate(env, GraphCfg(nodes=[source, accumulate_sql]), dbs)

@@ -2,7 +2,7 @@ from __future__ import annotations
 from snapflow.core.data_block import DataBlock, Stream
 from snapflow.core.execution.context import DataFunctionContext
 
-from typing import Optional
+from typing import List, Optional
 
 from commonmodel.base import create_quick_schema
 from dcp.storage.base import Storage
@@ -10,7 +10,7 @@ from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from pandas import DataFrame
 from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
-from snapflow.core.declarative.execution import ExecutionCfg
+from snapflow.core.declarative.execution import ExecutionCfg, ExecutionResult
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 from snapflow.core.function import datafunction
@@ -89,6 +89,13 @@ def function_multiple_input(
     input: DataBlock[T], other_t2: Optional[DataBlock[TestSchema2]]
 ) -> DataFrame[T]:
     pass
+
+
+def get_stdout_block(results: List[ExecutionResult]) -> Optional[DataBlock]:
+    assert len(results) == 1
+    result = results[0]
+    block = result.stdout()
+    return block
 
 
 all_functions = [

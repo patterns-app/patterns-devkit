@@ -266,31 +266,30 @@ class Environment:
         node = graph.get_node(node_key)
         return prepare_executable(self, execution_config, node, graph)
 
-    # def produce(
-    #     self,
-    #     node: Union[GraphCfg, str] = None,
-    #     graph: Optional[GraphCfg] = None,
-    #     to_exhaustion: bool = True,
-    #     **execution_kwargs: Any,
-    # ) -> List[DataBlock]:
-    #     from snapflow.core.execution.run import run
+    def produce(
+        self,
+        node: Union[GraphCfg, str] = None,
+        graph: Optional[GraphCfg] = None,
+        to_exhaustion: bool = True,
+        **execution_kwargs: Any,
+    ) -> List[ExecutionResult]:
+        from snapflow.core.execution.run import run
 
-    #     # graph = self.prepare_graph(graph)
-    #     if isinstance(node, str):
-    #         node = graph.get_node(node)
-    #     # assert node.is_function_node()
+        # graph = self.prepare_graph(graph)
+        if isinstance(node, str):
+            node = graph.get_node(node)
+        # assert node.is_function_node()
 
-    #     if node is not None:
-    #         dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
-    #     else:
-    #         dependencies = graph.get_all_nodes_in_execution_order()
-    #     result = None
-    #     for dep in dependencies:
-    #         result = self.run_node(dep, graph, to_exhaustion=to_exhaustion, **execution_kwargs)
-    #     if result:
-    #         with self.metadata_api.begin():
-    #             return result.get_output_blocks(self)
-    #     return []
+        if node is not None:
+            dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
+        else:
+            dependencies = graph.get_all_nodes_in_execution_order()
+        results = []
+        for dep in dependencies:
+            results = self.run_node(
+                dep, graph, to_exhaustion=to_exhaustion, **execution_kwargs
+            )
+        return results
 
     def run_node(
         self,
@@ -300,6 +299,7 @@ class Environment:
         **execution_kwargs: Any,
     ) -> List[ExecutionResult]:
         from snapflow.core.execution.run import run
+        from snapflow.core.function import InputExhaustedException
 
         graph = self.prepare_graph(graph)
         logger.debug(f"Running: {node}")
@@ -311,11 +311,14 @@ class Environment:
             if not node.key in node_keys:
                 continue
             node = node.resolve(self.library)
-            results = run(
-                self,
-                self.get_executable(node.key, graph=graph, **execution_kwargs),
-                to_exhaustion=to_exhaustion,
-            )
+            try:
+                results = run(
+                    self,
+                    self.get_executable(node.key, graph=graph, **execution_kwargs),
+                    to_exhaustion=to_exhaustion,
+                )
+            except InputExhaustedException:
+                pass
         return results
 
     def run_graph(

@@ -1,8 +1,11 @@
 from __future__ import annotations
+
+from loguru import logger
+from snapflow.core.data_block import as_managed
 from snapflow.core.persistence.pydantic import DataBlockWithStoredBlocksCfg
 from snapflow.core.declarative.base import FrozenPydanticBase
 
-from typing import Iterator, TYPE_CHECKING, Dict, List, Optional, Set, Union
+from typing import Iterable, Iterator, TYPE_CHECKING, Dict, List, Optional, Set, Union
 
 from snapflow.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
@@ -105,12 +108,28 @@ class BoundInterfaceCfg(FrozenPydanticBase):
         input_sources = {n: inpt.get_bound_input() for n, inpt in self.inputs.items()}
         while True:
             input_kwargs = {}
+            logger.debug("INPUTSSSSS")
             for iname, src in input_sources.items():
-                if isinstance(src, Iterator):
+                logger.debug(f"{iname}, {type(src)}, {src}")
+                if isinstance(src, Iterator) and not self.inputs[iname].input.is_stream:
+                    logger.debug("iter")
                     block_input = next(src)
+                    block_input = as_managed(block_input)
                 else:
                     block_input = src
-                input_kwargs[block_input]
+                    if isinstance(src, Iterable) and self.inputs[iname].input.is_stream:
+                        logger.debug("iterb")
+                        block_input = [as_managed(b) for b in block_input]
+                    else:
+                        logger.debug("nope")
+                        block_input = as_managed(block_input)
+                input_kwargs[iname] = block_input
+            print(
+                {
+                    n: type(i[0]) if isinstance(i, list) else type(i)
+                    for n, i in input_kwargs.items()
+                }
+            )
             yield input_kwargs
             if not self.has_consumable_input():
                 break

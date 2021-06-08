@@ -205,7 +205,12 @@ def run(
     env: Environment, exe: ExecutableCfg, to_exhaustion: bool = True
 ) -> List[ExecutionResult]:
     # TODO: support other runtimes
-    return ExecutionManager(exe).execute()
+    results = []
+    try:
+        results = ExecutionManager(exe).execute()
+    except InputExhaustedException:
+        pass
+    return results
     # while True:
     #     try:
     #         result = em.execute()

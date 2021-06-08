@@ -62,7 +62,7 @@ def ensure_data_block_on_storage_cfg(
     if fmt:
         match = [s for s in match if s.data_format == fmt]
     if match:
-        return match[0]
+        return [match[0]]
 
     fmt = fmt or storage.storage_engine.get_natural_format()
     target_storage_format = StorageFormat(storage.storage_engine, fmt)

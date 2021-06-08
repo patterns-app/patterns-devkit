@@ -5,7 +5,7 @@ from dcp.data_format.formats.memory.dataframe import DataFrameFormat
 from dcp.data_format.formats.memory.records import Records, RecordsFormat
 from dcp.storage.memory.engines.python import new_local_python_storage
 from pandas.core.frame import DataFrame
-from snapflow.core.component import ComponentLibrary
+from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.persistence.pydantic import (
     DataBlockMetadataCfg,
     DataBlockWithStoredBlocksCfg,
@@ -49,6 +49,7 @@ class DataBlockManager:
         storages: List[str] = None,
     ):
         self.ctx = ctx
+        self.library = self.ctx.library if self.ctx else global_library
         self.data_block = data_block
         self.stored_data_blocks = self.data_block.stored_data_blocks
         self.storages = storages or []
@@ -60,6 +61,18 @@ class DataBlockManager:
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.data_block, name)
+
+    @property
+    def realized_schema(self) -> Schema:
+        return self.library.get_schema(self.data_block.realized_schema_key)
+
+    @property
+    def nominal_schema(self) -> Optional[Schema]:
+        return self.library.get_schema(self.data_block.nominal_schema_key)
+
+    @property
+    def inferred_schema(self) -> Optional[Schema]:
+        return self.library.get_schema(self.data_block.inferred_schema_key)
 
     def as_dataframe(self) -> DataFrame:
         return self.as_format(DataFrameFormat)
@@ -123,6 +136,17 @@ class DataBlockManager:
 
     def has_format(self, fmt: DataFormat) -> bool:
         return fmt in [s.data_format for s in self.stored_data_blocks]
+
+    def as_sql_from_stmt(self, storage: Storage) -> str:
+        from snapflow.core.sql.sql_function import apply_schema_translation_as_sql
+
+        # TODO: this feels pretty forced -- how do we do schema transations in a general way for non-memory storages / runtimes?
+        sql = self.as_table(storage)
+        if self.schema_translation:
+            sql = apply_schema_translation_as_sql(
+                self.library, sql, self.schema_translation
+            )
+        return sql
 
 
 DataBlock = DataBlockManager
