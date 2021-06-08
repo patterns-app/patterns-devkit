@@ -291,6 +291,16 @@ class Environment:
                 return result.get_output_blocks(self)
         return []
 
+    def translate_node_to_flattened_nodes(
+        self, node: Union[GraphCfg, str], flattened_graph: Optional[GraphCfg] = None,
+    ) -> List[GraphCfg]:
+        # Return in execution order
+        assert flattened_graph.is_flattened()
+        nodes = flattened_graph.get_nodes_with_prefix(node)
+        dependencies = flattened_graph.get_all_nodes_in_execution_order()
+        node_keys = {n.key for n in nodes}
+        return [n for n in dependencies if n.key in node_keys]
+
     def run_node(
         self,
         node: Union[GraphCfg, str],
@@ -303,22 +313,18 @@ class Environment:
 
         graph = self.prepare_graph(graph)
         logger.debug(f"Running: {node}")
-        dependencies = graph.get_all_nodes_in_execution_order()
-        nodes = graph.get_nodes_with_prefix(node)
-        node_keys = {n.key for n in nodes}
+        flattened_nodes = self.translate_node_to_flattened_nodes(node, graph)
         result = None
-        for node in dependencies:
-            if not node.key in node_keys:
-                continue
+        for n in flattened_nodes:
             try:
-                node = node.resolve(self.library)
+                n = n.resolve(self.library)
                 result = execute_to_exhaustion(
                     self,
-                    self.get_executable(node, graph=graph, **execution_kwargs),
+                    self.get_executable(n, graph=graph, **execution_kwargs),
                     to_exhaustion=to_exhaustion,
                 )
             except ImproperlyConfigured as e:
-                logger.error(f"Improperly configured node {node}")
+                logger.error(f"Improperly configured node {n}")
         return result
 
     def run_graph(
@@ -346,6 +352,17 @@ class Environment:
         from snapflow.core.execution import get_latest_output
 
         return get_latest_output(self, node)
+
+    def reset_node(
+        self, node: Union[GraphCfg, str], graph: Optional[GraphCfg] = None,
+    ):
+        from snapflow.core.state import reset
+
+        graph = self.prepare_graph(graph)
+        logger.debug(f"Resetting: {node}")
+        flattened_nodes = self.translate_node_to_flattened_nodes(node, graph)
+        for n in flattened_nodes:
+            reset(self, n.key)
 
 
 # Shortcuts

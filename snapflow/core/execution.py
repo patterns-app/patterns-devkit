@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.core.state import get_or_create_state
 
 import traceback
 from collections import abc, defaultdict
@@ -589,7 +590,7 @@ class ExecutionManager:
 
         # assert self.current_runtime is not None, "Runtime not set"
         md = self.env.get_metadata_api()
-        node_state_obj = get_state(self.env, node.key)
+        node_state_obj = get_or_create_state(self.env, node.key)
         if node_state_obj is None:
             node_state = {}
         else:

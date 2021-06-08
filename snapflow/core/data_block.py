@@ -27,9 +27,6 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, select
 from sqlalchemy.orm import RelationshipProperty, Session, relationship
 from sqlalchemy.sql.schema import UniqueConstraint
 
-if TYPE_CHECKING:
-    from snapflow.core.execution.executable import ExecutionContext
-
 
 def get_datablock_id() -> str:
     return timestamp_increment_key(prefix="db")
@@ -78,9 +75,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         return env.get_schema(self.realized_schema_key)
 
     def as_managed_data_block(
-        self,
-        env: Environment,
-        schema_translation: Optional[SchemaTranslation] = None,
+        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
     ):
         mgr = DataBlockManager(env, self, schema_translation=schema_translation)
         return ManagedDataBlock(
