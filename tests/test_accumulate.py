@@ -161,10 +161,8 @@ def test_accumulate():
         assert len(records[0]) == 4
 
     with get_env() as env:
-        print("Running python accum")
         s = env._local_python_storage
         run_accumulate(env, GraphCfg(nodes=[source, accumulate]), s)
     with get_env() as env:
         dbs = env.get_storages()[0]
-        print(f"Running database accum: {dbs.url}")
         run_accumulate(env, GraphCfg(nodes=[source, accumulate_sql]), dbs)

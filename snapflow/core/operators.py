@@ -9,7 +9,7 @@ def latest(stream: DataBlockStream) -> DataBlockStream:
     for block in stream:
         latest_ = block
     if latest_ is None:
-        raise StopIteration
+        return
     yield latest_
 
 

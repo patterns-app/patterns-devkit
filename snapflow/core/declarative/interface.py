@@ -59,7 +59,7 @@ class BoundInputCfg(FrozenPydanticBase):
     def get_bound_block_iterator(self) -> Iterator[DataBlockWithStoredBlocksCfg]:
         assert not self.input.is_stream and not self.input.is_reference
         if not self.bound_stream:
-            raise StopIteration
+            return (_ for _ in [])
         return (b for b in self.bound_stream)
 
     def get_bound_stream(self) -> Optional[List[DataBlockWithStoredBlocksCfg]]:
@@ -113,7 +113,10 @@ class BoundInterfaceCfg(FrozenPydanticBase):
                 logger.debug(f"{iname}, {type(src)}, {src}")
                 if isinstance(src, Iterator) and not self.inputs[iname].input.is_stream:
                     logger.debug("iter")
-                    block_input = next(src)
+                    try:
+                        block_input = next(src)
+                    except StopIteration:
+                        return
                     block_input = as_managed(block_input)
                 else:
                     block_input = src
@@ -124,12 +127,12 @@ class BoundInterfaceCfg(FrozenPydanticBase):
                         logger.debug("nope")
                         block_input = as_managed(block_input)
                 input_kwargs[iname] = block_input
-            print(
-                {
-                    n: type(i[0]) if isinstance(i, list) else type(i)
-                    for n, i in input_kwargs.items()
-                }
-            )
+            # print(
+            #     {
+            #         n: type(i[0]) if isinstance(i, list) else type(i)
+            #         for n, i in input_kwargs.items()
+            #     }
+            # )
             yield input_kwargs
             if not self.has_consumable_input():
                 break

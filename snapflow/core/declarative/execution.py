@@ -67,7 +67,7 @@ class ExecutionResult(PydanticBase):
     stored_blocks_created: Dict[str, List[StoredDataBlockMetadataCfg]] = {}
     schemas_generated: List[Schema] = []
     function_error: Optional[PythonException] = None
-    framework_error: Optional[PythonException] = None
+    framework_error: Optional[PythonException] = None  # TODO: do we ever use this?
 
     def has_error(self) -> bool:
         return self.function_error is not None or self.framework_error is not None

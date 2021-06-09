@@ -21,6 +21,7 @@ from snapflow.core.declarative.execution import (
     ExecutableCfg,
     ExecutionResult,
     MetadataExecutionResultListener,
+    PythonException,
     get_global_metadata_result_listener,
 )
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
@@ -102,28 +103,43 @@ class ExecutionManager:
         logger.debug(
             f"RUNNING NODE {self.node.key} {self.function.key} with params `{self.node.params}`"
         )
+        self.exe.function_log.started_at = utcnow()
         logger.debug(self.exe)
         self.logger.log(base_msg)
         results = []
+        # try:
         for inputs in self.exe.bound_interface.iter_as_function_kwarg_inputs():
             result = self._execute_inputs(inputs)
             self.publish_result(result)
             results.append(result)
+            if result.has_error():
+                break
+        # except Exception as e:
+        #     self.exe.function_log.error = PythonException.from_exception(e).dict()
+        #     raise e
+        # finally:
+        #     self.exe.function_log.completed_at = utcnow()
+        # self.publish_result()
         return results
 
     def _execute_inputs(self, inputs) -> ExecutionResult:
         with self.logger.indent():
             # self.logger.log(f"Running inputs {inputs}")
             ctx = self.prepare_context(inputs)
-            self._call_data_function(ctx)
+            try:
+                self._call_data_function(ctx)
+            except Exception as e:
+                ctx.result.function_error = PythonException.from_exception(e)
             result = ctx.result
+            if not result.has_error():
+                ctx.log_inputs()
             self.log_execution_result(result)
             if not result.has_error():
                 self.logger.log(cf.success("Ok " + success_symbol + "\n"))  # type: ignore
-                ctx.log_inputs()
             else:
-                error = result.function_error or "DataFunction failed (unknown error)"
-                self.logger.log(cf.error("Error " + error_symbol + " " + cf.dimmed(error[:80])) + "\n")  # type: ignore
+                error = result.function_error or result.framework_error
+                error_msg = error.error or "DataFunction failed (unknown error)"
+                self.logger.log(cf.error("Error " + error_symbol + " " + cf.dimmed(error_msg[:80])) + "\n")  # type: ignore
                 if result.function_error.traceback:
                     self.logger.log(cf.dimmed(result.function_error.traceback), indent=2)  # type: ignore
             logger.debug(f"Execution result: {result}")
@@ -155,7 +171,6 @@ class ExecutionManager:
         if output_obj is not None:
             self.emit_output_object(ctx, output_obj)
             # TODO: update node state block counts?
-        logger.debug(f"EXECUTION RESULT {ctx.result}")
 
     def emit_output_object(
         self, ctx: DataFunctionContext, output_obj: DataInterfaceType
@@ -176,8 +191,15 @@ class ExecutionManager:
         if result.input_blocks_consumed:
             self.logger.log("\n")
             with self.logger.indent():
-                for input_name, cnt in result.input_blocks_consumed.items():
-                    self.logger.log(f"{input_name}: {len(cnt)} block(s) processed\n")
+                for input_name, blocks in result.input_blocks_consumed.items():
+                    if len(blocks) > 1:
+                        self.logger.log(
+                            f"{input_name}: {len(blocks)} blocks processed\n"
+                        )
+                    elif len(blocks) == 1:
+                        self.logger.log(f"{input_name}: {blocks[0].id}\n")
+                    else:
+                        self.logger.log(f"{input_name}: No blocks processed\n")
         else:
             # if not result.non_reference_inputs_bound:
             #     self.logger.log_token("n/a\n")
@@ -188,13 +210,13 @@ class ExecutionManager:
             self.logger.log("\n")
             with self.logger.indent():
                 for output_name, block in result.output_blocks_emitted.items():
-                    self.logger.log(f"{output_name}:")
+                    self.logger.log(f"{output_name}: ")
                     cnt = block.record_count
                     # alias = block.alias
                     if cnt is not None:
                         self.logger.log_token(f" {cnt} records ")
                     self.logger.log_token(
-                        cf.dimmed(f"({block.id})\n")  # type: ignore
+                        cf.dimmed(f"{block.id}\n")  # type: ignore
                     )
         else:
             self.logger.log_token("None\n")

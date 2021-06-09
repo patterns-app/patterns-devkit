@@ -32,7 +32,12 @@ import dcp
 import sqlalchemy
 from commonmodel.base import AnySchema, Schema, SchemaLike, SchemaTranslation
 from dcp.data_format.base import DataFormat, get_format_for_nickname
-from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
+from dcp.storage.base import (
+    FileSystemStorageClass,
+    MemoryStorageClass,
+    Storage,
+    ensure_storage,
+)
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 
@@ -92,10 +97,12 @@ class DataBlockManager:
     ) -> StoredDataBlockMetadataCfg:
         from snapflow.core.storage import ensure_data_block_on_storage_cfg
 
+        storages = [ensure_storage(s) for s in self.storages]
+
         if fmt.natural_storage_class == MemoryStorageClass:
             # Ensure we are putting memory format in memory
             # if not target_storage.storage_engine.storage_class == PythonStorageClass:
-            for s in self.storages:
+            for s in storages:
                 if s.storage_engine.storage_class == MemoryStorageClass:
                     target_storage = s
         assert target_storage is not None
@@ -104,7 +111,7 @@ class DataBlockManager:
             storage=target_storage,
             stored_blocks=self.stored_data_blocks,
             fmt=fmt,
-            eligible_storages=self.storages,
+            eligible_storages=storages,
         )
         if self.ctx is not None:
             for sdb in sdbs:

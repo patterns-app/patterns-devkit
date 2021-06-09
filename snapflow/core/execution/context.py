@@ -263,10 +263,7 @@ class DataFunctionContext:
             )
         if nominal_output_schema is not None:
             nominal_output_schema = self.library.get_schema(nominal_output_schema)
-        if (
-            db.nominal_schema_key
-            and db.nominal_schema(self.library).key != nominal_output_schema.key
-        ):
+        if db.nominal_schema_key and db.nominal_schema_key != nominal_output_schema.key:
             raise Exception(
                 "Mismatch nominal schemas {db.nominal_schema_key} - {nominal_output_schema.key}"
             )

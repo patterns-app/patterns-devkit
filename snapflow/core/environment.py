@@ -327,7 +327,7 @@ class Environment:
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ):
-        from snapflow.core.execution.execution import run
+        from snapflow.core.execution.run import run
 
         graph = self.prepare_graph(graph)
         nodes = graph.get_all_nodes_in_execution_order()
@@ -366,7 +366,7 @@ def run_node(
     env: Optional[Environment] = None,
     modules: Optional[List[SnapflowModule]] = None,
     **kwargs: Any,
-) -> Optional[CumulativeExecutionResult]:
+) -> List[ExecutionResult]:
     if env is None:
         env = Environment()
     if modules is not None:

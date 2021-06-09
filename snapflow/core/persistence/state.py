@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+from snapflow.core.declarative.base import PydanticBase
 from snapflow.core.persistence.data_block import DataBlockMetadata
 from snapflow.core.persistence.base import BaseModel, SNAPFLOW_METADATA_TABLE_PREFIX
 import traceback
@@ -38,9 +39,13 @@ class DataFunctionLog(BaseModel):
             id=self.id,
             node_key=self.node_key,
             function_key=self.function_key,
-            runtime_url=self.runtime_url,
             started_at=self.started_at,
+            completed_at=self.completed_at,
         )
+
+    @classmethod
+    def from_pydantic(cls, cfg: PydanticBase) -> DataFunctionLog:
+        return DataFunctionLog(**cfg.dict())
 
     def output_data_blocks(self) -> Iterable[DataBlockMetadata]:
         return [

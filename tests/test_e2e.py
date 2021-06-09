@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from datetime import datetime
+from tests.utils import get_stdout_block
 from typing import Generator, Iterator, Optional
 
 import pandas as pd
@@ -29,7 +30,7 @@ from snapflow.core.persistence.state import (
 from snapflow.modules import core
 from sqlalchemy import select
 
-# logger.enable("snapflow")
+logger.enable("snapflow")
 
 Customer = create_quick_schema(
     "Customer", [("name", "Text"), ("joined", "DateTime"), ("metadata", "Json")]
@@ -159,8 +160,9 @@ def test_simple_import():
     env.add_module(core)
     df = pd.DataFrame({"a": range(10), "b": range(10)})
     n = GraphCfg(key="n1", function="import_dataframe", params={"dataframe": df})
-    blocks = env.produce("n1", graph=GraphCfg(nodes=[n]))
-    assert_almost_equal(blocks[0].as_dataframe(), df, check_dtype=False)
+    results = env.produce("n1", graph=GraphCfg(nodes=[n]))
+    block = get_stdout_block(results)
+    assert_almost_equal(block.as_dataframe(), df, check_dtype=False)
 
 
 def test_repeated_runs():
@@ -175,17 +177,19 @@ def test_repeated_runs():
     metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
     g = GraphCfg(nodes=[source, metrics])
     # Run first time
-    blocks = env.produce("metrics", graph=g, target_storage=s)
-    assert blocks[0].nominal_schema_key.endswith("Metric")
-    records = blocks[0].as_records()
+    results = env.produce("metrics", graph=g, target_storage=s)
+    block = get_stdout_block(results)
+    assert block.nominal_schema_key.endswith("Metric")
+    records = block.as_records()
     expected_records = [
         {"metric": "row_count", "value": batch_size},
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
     # Run again, should get next batch
-    blocks = env.produce("metrics", graph=g, target_storage=s)
-    records = blocks[0].as_records()
+    results = env.produce("metrics", graph=g, target_storage=s)
+    block = get_stdout_block(results)
+    records = block.as_records()
     assert records == expected_records
     # Test latest_output
     block = env.get_latest_output(metrics)
@@ -203,9 +207,9 @@ def test_repeated_runs():
         key="new_accumulator", function="core.accumulator", input="source"
     )
     g = GraphCfg(nodes=g.nodes + [newnode])
-    blocks = env.produce("new_accumulator", graph=g, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
+    results = env.produce("new_accumulator", graph=g, target_storage=s)
+    block = get_stdout_block(results)
+    records = block.as_records()
     assert len(records) == N
     blocks = env.produce("new_accumulator", graph=g, target_storage=s)
     assert len(blocks) == 0
@@ -222,11 +226,11 @@ def test_alternate_apis():
     metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
     g = GraphCfg(nodes=[source, metrics])
     # Run first time
-    blocks = env.produce(node=metrics, graph=g, target_storage=s)
-    assert len(blocks) == 1
-    output = blocks[0]
+    results = env.produce(node=metrics, graph=g, target_storage=s)
+    block = get_stdout_block(results)
+    output = block
     assert output.nominal_schema_key.endswith("Metric")
-    records = blocks[0].as_records()
+    records = block.as_records()
     expected_records = [
         {"metric": "row_count", "value": batch_size},
         {"metric": "col_count", "value": 3},
@@ -242,9 +246,9 @@ def test_function_failure():
     cfg = {"batches": batches, "fail": True}
     source = GraphCfg(key="source", function=customer_source.key, params=cfg)
     g = GraphCfg(nodes=[source])
-    blocks = env.produce(graph=g, node=source, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
+    results = env.produce(graph=g, node=source, target_storage=s)
+    block = get_stdout_block(results)
+    records = block.as_records()
     assert len(records) == 2
     with env.md_api.begin():
         assert env.md_api.count(select(DataFunctionLog)) == 1
@@ -256,6 +260,8 @@ def test_function_failure():
         assert pl.function_key == source.function
         assert pl.function_params == cfg
         assert pl.error is not None
+        assert pl.started_at is not None
+        assert pl.completed_at is not None
         assert FAIL_MSG in pl.error["error"]
         ns = env.md_api.execute(
             select(NodeState).filter(NodeState.node_key == pl.node_key)
@@ -264,9 +270,9 @@ def test_function_failure():
 
     # Run again without failing, should see different result
     source.params["fail"] = False
-    blocks = env.produce(graph=g, node=source, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
+    results = env.produce(graph=g, node=source, target_storage=s)
+    block = get_stdout_block(results)
+    records = block.as_records()
     assert len(records) == batch_size
     with env.md_api.begin():
         assert env.md_api.count(select(DataFunctionLog)) == 2
@@ -284,6 +290,8 @@ def test_function_failure():
         assert pl.function_key == source.function
         assert pl.function_params == {"batches": batches, "fail": False}
         assert pl.error is None
+        assert pl.started_at is not None
+        assert pl.completed_at is not None
         ns = env.md_api.execute(
             select(NodeState).filter(NodeState.node_key == pl.node_key)
         ).scalar_one_or_none()
@@ -313,9 +321,9 @@ def test_node_reset():
         assert state.state is None
         assert state.latest_log is None
 
-    blocks = env.produce(node=metrics, graph=g, target_storage=s)
-    assert len(blocks) == 1
-    records = blocks[0].as_records()
+    results = env.produce(node=metrics, graph=g, target_storage=s)
+    block = get_stdout_block(results)
+    records = block.as_records()
     expected_records = [
         {"metric": "row_count", "value": batch_size},  # Just one run of source, not two
         {"metric": "col_count", "value": 3},
@@ -360,20 +368,23 @@ def test_ref_input():
     )
     g = GraphCfg(nodes=[source, accum, metrics, join, join_ref])
     # Run once, for one metrics output
-    output = env.produce(node=metrics, graph=g, target_storage=s)
+    results = env.produce(node=metrics, graph=g, target_storage=s)
 
     # Both joins work
-    output = env.run_node(join_ref, graph=g, target_storage=s)
-    assert output.output_blocks
-    output = env.run_node(join, graph=g, target_storage=s)
-    assert output.output_blocks
+    results = env.run_node(join_ref, graph=g, target_storage=s)
+    block = get_stdout_block(results)
+    assert block
+    results = env.run_node(join, graph=g, target_storage=s)
+    block = get_stdout_block(results)
+    assert block
     # Run source to create new customers, but NOT new metrics
-    output = env.run_node(source, graph=g, target_storage=s)
+    results = env.run_node(source, graph=g, target_storage=s)
     # This time only ref will still have a metrics input
-    output = env.run_node(join_ref, graph=g, target_storage=s)
-    assert output.output_blocks
-    output = env.run_node(join, graph=g, target_storage=s)
-    assert not output.output_blocks  # Regular join has exhausted metrics
+    results = env.run_node(join_ref, graph=g, target_storage=s)
+    block = get_stdout_block(results)
+    assert block
+    results = env.run_node(join, graph=g, target_storage=s)
+    assert not results  # Regular join has exhausted metrics
 
 
 def test_multi_env():
@@ -387,8 +398,9 @@ def test_multi_env():
     metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
     g = GraphCfg(nodes=[source, metrics])
     # Run first time
-    blocks = env1.produce(node=metrics, graph=g, target_storage=s)
-    assert len(blocks) == 1
+    results = env1.produce(node=metrics, graph=g, target_storage=s)
+    block = get_stdout_block(results)
+    assert block
     with env1.md_api.begin():
         assert env1.md_api.count(select(DataFunctionLog)) == 2
         assert env1.md_api.count(select(DataBlockLog)) == 3
@@ -398,8 +410,9 @@ def test_multi_env():
     # Initial graph
     batches = 2
     # Run first time
-    blocks = env2.produce(node=metrics, graph=g, target_storage=s)
-    assert len(blocks) == 1
+    results = env2.produce(node=metrics, graph=g, target_storage=s)
+    block = get_stdout_block(results)
+    assert block
     with env2.md_api.begin():
         assert env2.md_api.count(select(DataFunctionLog)) == 2
         assert env2.md_api.count(select(DataBlockLog)) == 3

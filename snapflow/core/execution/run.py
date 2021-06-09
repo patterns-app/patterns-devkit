@@ -97,7 +97,7 @@ def prepare_executable(
             function_key=node.function,
             function_params=node.params,
             # runtime_url=self.current_runtime.url,
-            started_at=utcnow(),
+            # started_at=utcnow(),
         )
         node_state_obj.latest_log = function_log
         md.add(function_log)
@@ -278,7 +278,19 @@ def ensure_log(
 
 def save_result(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
     # TODO: this should be inside one roll-backable transaction
-
+    if result.function_error:
+        exe.function_log.error = result.function_error.dict()
+    if (
+        exe.function_log.function_params
+        and "dataframe" in exe.function_log.function_params
+    ):
+        # TODO / FIXME: special case hack (don't support dataframe parameters in general!)
+        del exe.function_log.function_params["dataframe"]
+    if exe.function_log.completed_at is None:
+        # TODO: completed at should happen inside the execution? what about multiple inputs?
+        exe.function_log.completed_at = utcnow()
+    function_log = env.md_api.merge(DataFunctionLog.from_pydantic(exe.function_log))
+    env.md_api.add(function_log)
     for input_name, blocks in result.input_blocks_consumed.items():
         for block in blocks:
             ensure_log(env, exe.function_log, block, Direction.INPUT, input_name)
