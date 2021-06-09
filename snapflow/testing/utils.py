@@ -1,9 +1,12 @@
 from __future__ import annotations
+from snapflow.core.component import ComponentLibrary
+from tests.utils import get_stdout_block
+from snapflow.core.declarative.execution import ExecutionResult
 
 import tempfile
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Dict, Iterator, List, Optional, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from commonmodel.base import Schema, SchemaLike
 from dcp.data_format.formats.memory.records import PythonRecordsHandler
@@ -77,7 +80,7 @@ class DataInput:
     schema: Optional[SchemaLike] = None
     package: Optional[DataFunctionPackage] = None
 
-    def as_dataframe(self, env: Environment):
+    def as_dataframe(self, env: Union[Environment, ComponentLibrary]):
         schema = None
         if self.schema:
             schema = env.get_schema(self.schema)
@@ -130,17 +133,17 @@ def run_test_case(case: TestCase, **kwargs):
     # logger.enable("dcp")
     with produce_function_output_for_static_input(
         function=case.package.function, inputs=case.inputs, **kwargs
-    ) as blocks:
+    ) as (env, results):
         if not case.outputs:
-            assert len(blocks) == 0
+            assert len(results) == 0
         else:
-            assert len(blocks) == 1  # TODO: multiple output blocks
-            output = blocks[0]
+            assert len(results) == 1  # TODO: multiple output blocks
+            block = get_stdout_block(results)
             expected = case.outputs[DEFAULT_OUTPUT_NAME]  # TODO: custom output name
             assert_dataframes_are_almost_equal(
-                output.as_dataframe(),
-                expected.as_dataframe(output.manager.env),
-                schema=output.nominal_schema,
+                block.as_dataframe(),
+                expected.as_dataframe(env),
+                schema=env.get_schema(block.nominal_schema_key),
             )
     # logger.disable("dcp")
 
@@ -184,7 +187,7 @@ def produce_function_output_for_static_input(
     module: Optional[SnapflowModule] = None,
     target_storage: Optional[Storage] = None,
     upstream: Any = None,  # TODO: DEPRECATED
-) -> Iterator[List[DataBlock]]:
+) -> Iterator[Tuple[Environment, List[ExecutionResult]]]:
     inputs = input or inputs or upstream
 
     with provide_test_storages(function, target_storage) as target_storage:
@@ -228,10 +231,10 @@ def produce_function_output_for_static_input(
                 inputs={k: i.key for k, i in input_nodes.items()},
             )
             graph = GraphCfg(nodes=[test_node] + list(input_nodes.values()))
-            blocks = env.produce(
+            results = env.produce(
                 node=test_node,
                 graph=graph,
                 to_exhaustion=False,
                 target_storage=target_storage,
             )
-            yield blocks
+            yield env, results

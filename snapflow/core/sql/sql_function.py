@@ -401,7 +401,9 @@ class SqlDataFunctionWrapper:
         sql_ctx = dict(
             ctx=ctx,
             inputs=input_sql,  # TODO: change this (??)
-            input_objects={i.name: i for i in ctx.inputs.values()},
+            input_objects={
+                i.name: i for i in ctx.executable.bound_interface.inputs.values()
+            },
             params=params_as_sql(ctx),
             storage=storage,
             # TODO: we haven't logged the input blocks yet (in the case of a stream) so we can't
