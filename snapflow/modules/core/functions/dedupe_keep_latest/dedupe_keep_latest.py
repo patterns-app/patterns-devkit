@@ -30,6 +30,6 @@ def dedupe_keep_latest(ctx: DataFunctionContext, input: DataBlock[T]) -> DataFra
         ctx.execution_config.get_target_storage().storage_engine.storage_class
         == DatabaseStorageClass
     ):
-        return dedupe_keep_latest_sql(input)
+        return dedupe_keep_latest_sql(ctx, input)
     return dedupe_keep_latest_dataframe(input)
 
