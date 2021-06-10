@@ -5,10 +5,9 @@ Revises: 722cbaa0a8d2
 Create Date: 2021-06-07 17:18:11.119780
 
 """
-from alembic import op
-import sqlalchemy as sa
 import snapflow
-
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "83486b160cf0"

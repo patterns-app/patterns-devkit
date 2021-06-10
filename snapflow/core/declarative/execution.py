@@ -1,9 +1,20 @@
 from __future__ import annotations
+
+import traceback
 from dataclasses import dataclass
 from datetime import datetime
-from snapflow.core.data_block import DataBlock, as_managed
+from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
+
+from commonmodel.base import Schema
+from dcp.storage.base import Storage
 from snapflow.core.component import ComponentLibrary, global_library
+from snapflow.core.data_block import DataBlock, as_managed
+from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
+from snapflow.core.declarative.dataspace import ComponentLibraryCfg, DataspaceCfg
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
+from snapflow.core.declarative.graph import GraphCfg
+from snapflow.core.declarative.interface import BoundInterfaceCfg
+from snapflow.core.environment import Environment
 from snapflow.core.function_interface_manager import bind_inputs
 from snapflow.core.persistence.pydantic import (
     DataBlockMetadataCfg,
@@ -11,18 +22,7 @@ from snapflow.core.persistence.pydantic import (
     DataFunctionLogCfg,
     StoredDataBlockMetadataCfg,
 )
-
-import traceback
-from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
-
-from commonmodel.base import Schema
-from dcp.storage.base import Storage
-from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
-from snapflow.core.declarative.dataspace import ComponentLibraryCfg, DataspaceCfg
-from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.environment import Environment
 from sqlalchemy.sql.expression import select
-from snapflow.core.declarative.interface import BoundInterfaceCfg
 
 
 class ExecutionCfg(FrozenPydanticBase):

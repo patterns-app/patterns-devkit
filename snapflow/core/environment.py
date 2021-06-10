@@ -15,12 +15,12 @@ from dcp.storage.memory.engines.python import new_local_python_storage
 from dcp.utils.common import AttrDict
 from loguru import logger
 from snapflow.core.component import ComponentLibrary, global_library
-from snapflow.core.persistence.api import MetadataApi
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
     DEFAULT_LOCAL_NAMESPACE,
     SnapflowModule,
 )
+from snapflow.core.persistence.api import MetadataApi
 from snapflow.core.persistence.schema import (
     GeneratedSchema,
     GenericSchemaException,
@@ -308,7 +308,7 @@ class Environment:
         node_keys = {n.key for n in nodes}
         results = []
         for node in dependencies:
-            if not node.key in node_keys:
+            if node.key not in node_keys:
                 continue
             node = node.resolve(self.library)
             try:

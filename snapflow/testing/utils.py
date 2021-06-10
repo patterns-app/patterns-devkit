@@ -1,7 +1,4 @@
 from __future__ import annotations
-from snapflow.core.component import ComponentLibrary
-from tests.utils import get_stdout_block
-from snapflow.core.declarative.execution import ExecutionResult
 
 import tempfile
 from contextlib import contextmanager
@@ -20,7 +17,9 @@ from dcp.utils.pandas import assert_dataframes_are_almost_equal
 from loguru import logger
 from pandas import DataFrame
 from snapflow import DataBlock, DataFunction, Environment
+from snapflow.core.component import ComponentLibrary
 from snapflow.core.declarative.dataspace import DataspaceCfg
+from snapflow.core.declarative.execution import ExecutionResult
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.function_package import DataFunctionPackage
@@ -29,6 +28,7 @@ from snapflow.core.persistence.state import DataBlockLog
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import select
+from tests.utils import get_stdout_block
 
 
 def display_function_log(env: Environment):

@@ -23,7 +23,6 @@ from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.declarative.base import FrozenPydanticBase
 from snapflow.core.persistence.schema import is_generic
 
-
 DEFAULT_OUTPUT_NAME = "stdout"
 DEFAULT_INPUT_NAME = "stdin"
 DEFAULT_ERROR_NAME = "stderr"
@@ -205,8 +204,8 @@ class DataFunctionCfg(FrozenPydanticBase):
             d["interface"] = self.interface.resolve(lib)
         return DataFunctionCfg(**d)
 
-    def to_function(self) -> DataFunction:
-        pass
+    # def to_function(self) -> DataFunction:
+    #     pass
 
 
 class DataFunctionPackageCfg(FrozenPydanticBase):

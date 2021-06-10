@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import sys
 from datetime import datetime
-from tests.utils import get_stdout_block
 from typing import Generator, Iterator, Optional
 
 import pandas as pd
@@ -10,25 +9,29 @@ import pytest
 from commonmodel.base import create_quick_schema
 from dcp.data_format.formats.memory.dataframe import DataFrameFormat
 from dcp.data_format.formats.memory.records import Records, RecordsFormat
+from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from loguru import logger
 from pandas._testing import assert_almost_equal
-from snapflow import DataBlock, datafunction
+from snapflow import DataBlock, DataFunctionContext, datafunction
+from snapflow.core.data_block import Consumable, Reference
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
-from snapflow import DataFunctionContext
-from snapflow.core.sql.sql_function import sql_function_factory
+from snapflow.core.persistence.data_block import Alias
 from snapflow.core.persistence.state import (
     DataBlockLog,
     DataFunctionLog,
+    Direction,
     NodeState,
     _reset_state,
     get_state,
     reset,
 )
+from snapflow.core.sql.sql_function import sql_function_factory
 from snapflow.modules import core
 from sqlalchemy import select
+from tests.utils import get_stdout_block
 
 logger.enable("snapflow")
 
@@ -156,13 +159,49 @@ def get_env(key="_test", db_url=None):
 
 def test_simple_import():
     dburl = get_tmp_sqlite_db_url()
-    env = Environment(DataspaceCfg(metadata_storage=dburl))
+    storage = get_tmp_sqlite_db_url()
+    env = Environment(DataspaceCfg(metadata_storage=dburl, storages=[storage]))
     env.add_module(core)
+    alias_name = "n1_alias"
     df = pd.DataFrame({"a": range(10), "b": range(10)})
-    n = GraphCfg(key="n1", function="import_dataframe", params={"dataframe": df})
-    results = env.produce("n1", graph=GraphCfg(nodes=[n]))
+    n = GraphCfg(
+        key="n1",
+        function="import_dataframe",
+        params={"dataframe": df},
+        alias=alias_name,
+    )
+    results = env.produce("n1", graph=GraphCfg(nodes=[n]), target_storage=storage)
     block = get_stdout_block(results)
+    # Data check
     assert_almost_equal(block.as_dataframe(), df, check_dtype=False)
+    # Datablock checks
+    assert block.created_at is not None
+    assert block.updated_at is not None
+    assert block.dataspace_key == env.dataspace.key
+    assert block.nominal_schema_key == "core.Any"
+    inferred = env.get_schema(block.inferred_schema_key)
+    realized = env.get_schema(block.realized_schema_key)
+    assert inferred.field_names() == ["a", "b"]
+    assert realized.field_names() == ["a", "b"]
+    assert block.created_by_node_key == n.key
+    assert not block.deleted
+    # Stored data block checks
+    assert len(block.stored_data_blocks) == 1
+    sdb = block.stored_data_blocks[0]
+    assert sdb.created_at is not None
+    assert sdb.updated_at is not None
+    assert sdb.data_block_id == block.id
+    assert sdb.name is not None
+    assert sdb.storage_url == storage
+    assert Storage(storage).get_api().exists(sdb.name)
+    # Alias checks
+    alias = env.md_api.execute(
+        select(Alias).filter(Alias.name == alias_name, Alias.storage_url == storage)
+    ).scalar_one_or_none()
+    assert alias is not None
+    assert Storage(storage).get_api().exists(alias_name)
+    assert alias.data_block_id == block.id
+    assert alias.stored_data_block_id == block.stored_data_blocks[0].id
 
 
 def test_repeated_runs():
@@ -176,6 +215,7 @@ def test_repeated_runs():
     )
     metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
     g = GraphCfg(nodes=[source, metrics])
+
     # Run first time
     results = env.produce("metrics", graph=g, target_storage=s)
     block = get_stdout_block(results)
@@ -185,7 +225,26 @@ def test_repeated_runs():
         {"metric": "row_count", "value": batch_size},
         {"metric": "col_count", "value": 3},
     ]
+    # Logs
+    dfl = env.md_api.execute(
+        select(DataFunctionLog).filter(DataFunctionLog.node_key == metrics.key)
+    ).scalar_one()
+    dbls = list(
+        env.md_api.execute(
+            select(DataBlockLog)
+            .filter(DataBlockLog.function_log_id == dfl.id)
+            .order_by(DataBlockLog.direction)
+        ).scalars()
+    )
+    assert len(dbls) == 2
+    inpt = dbls[0]
+    output = dbls[1]
+    assert inpt.direction == Direction.INPUT
+    assert output.direction == Direction.OUTPUT
+    assert output.data_block_id == block.id
+    # Records
     assert records == expected_records
+
     # Run again, should get next batch
     results = env.produce("metrics", graph=g, target_storage=s)
     block = get_stdout_block(results)
@@ -195,6 +254,7 @@ def test_repeated_runs():
     block = env.get_latest_output(metrics)
     records = block.as_records()
     assert records == expected_records
+
     # Run again, should be exhausted
     blocks = env.produce("metrics", graph=g, target_storage=s)
     assert len(blocks) == 0
@@ -296,6 +356,67 @@ def test_function_failure():
             select(NodeState).filter(NodeState.node_key == pl.node_key)
         ).scalar_one_or_none()
         assert ns.state == {"records_imported": chunk_size + batch_size}
+
+
+# TODO
+# def test_function_failure_with_input():
+#     env = get_env()
+#     s = env._local_python_storage
+#     # Initial graph
+#     batches = 2
+#     cfg = {"batches": batches, "fail": True}
+#     source = GraphCfg(key="source", function=customer_source.key, params=cfg)
+#     g = GraphCfg(nodes=[source])
+#     results = env.produce(graph=g, node=source, target_storage=s)
+#     block = get_stdout_block(results)
+#     records = block.as_records()
+#     assert len(records) == 2
+#     with env.md_api.begin():
+#         assert env.md_api.count(select(DataFunctionLog)) == 1
+#         assert env.md_api.count(select(DataBlockLog)) == 1
+#         pl = env.md_api.execute(select(DataFunctionLog)).scalar_one_or_none()
+#         assert pl.node_key == source.key
+#         assert pl.node_start_state == {}
+#         assert pl.node_end_state == {"records_imported": chunk_size}
+#         assert pl.function_key == source.function
+#         assert pl.function_params == cfg
+#         assert pl.error is not None
+#         assert pl.started_at is not None
+#         assert pl.completed_at is not None
+#         assert FAIL_MSG in pl.error["error"]
+#         ns = env.md_api.execute(
+#             select(NodeState).filter(NodeState.node_key == pl.node_key)
+#         ).scalar_one_or_none()
+#         assert ns.state == {"records_imported": chunk_size}
+
+#     # Run again without failing, should see different result
+#     source.params["fail"] = False
+#     results = env.produce(graph=g, node=source, target_storage=s)
+#     block = get_stdout_block(results)
+#     records = block.as_records()
+#     assert len(records) == batch_size
+#     with env.md_api.begin():
+#         assert env.md_api.count(select(DataFunctionLog)) == 2
+#         assert env.md_api.count(select(DataBlockLog)) == 2
+#         pl = (
+#             env.md_api.execute(
+#                 select(DataFunctionLog).order_by(DataFunctionLog.completed_at.desc())
+#             )
+#             .scalars()
+#             .first()
+#         )
+#         assert pl.node_key == source.key
+#         assert pl.node_start_state == {"records_imported": chunk_size}
+#         assert pl.node_end_state == {"records_imported": chunk_size + batch_size}
+#         assert pl.function_key == source.function
+#         assert pl.function_params == {"batches": batches, "fail": False}
+#         assert pl.error is None
+#         assert pl.started_at is not None
+#         assert pl.completed_at is not None
+#         ns = env.md_api.execute(
+#             select(NodeState).filter(NodeState.node_key == pl.node_key)
+#         ).scalar_one_or_none()
+#         assert ns.state == {"records_imported": chunk_size + batch_size}
 
 
 def test_node_reset():

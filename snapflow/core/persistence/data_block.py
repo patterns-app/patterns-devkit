@@ -1,14 +1,12 @@
 from __future__ import annotations
 
-from pydantic_sqlalchemy import sqlalchemy_to_pydantic
 from dataclasses import dataclass
-from snapflow.core.component import ComponentLibrary
 from typing import (
-    List,
     TYPE_CHECKING,
     Any,
     Generic,
     Iterator,
+    List,
     Optional,
     Tuple,
     Type,
@@ -27,6 +25,8 @@ from dcp.storage.memory.engines.python import LOCAL_PYTHON_STORAGE
 from dcp.utils.common import as_identifier, rand_str
 from loguru import logger
 from pandas import DataFrame
+from pydantic_sqlalchemy import sqlalchemy_to_pydantic
+from snapflow.core.component import ComponentLibrary
 from snapflow.core.environment import Environment
 from snapflow.core.persistence.base import (
     BaseModel,
@@ -45,6 +45,7 @@ if TYPE_CHECKING:
         StoredDataBlockMetadataCfg,
         DataBlockWithStoredBlocksCfg,
     )
+    from snapflow.core.data_block import DataBlock
 
 
 def get_datablock_id() -> str:
@@ -107,7 +108,9 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         # return DataBlockWithStoredBlocksCfg.from_orm(self)
 
     def as_managed_data_block(
-        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
+        self,
+        env: Environment,
+        schema_translation: Optional[SchemaTranslation] = None,
     ) -> DataBlock:
         from snapflow.core.data_block import DataBlockManager
 
@@ -277,4 +280,3 @@ class Alias(BaseModel):
 
 
 # Type aliases
-

@@ -1,18 +1,4 @@
 from __future__ import annotations
-from snapflow.core.function import DataFunction
-
-from commonmodel.base import Schema
-from dcp.data_format import get_handler_for_name
-from snapflow.core.data_block import DataBlock, DataBlockStream
-from snapflow.core.persistence.pydantic import (
-    DataBlockMetadataCfg,
-    DataFunctionLogCfg,
-    StoredDataBlockMetadataCfg,
-)
-from snapflow.core.declarative.interface import BoundInputCfg, BoundInterfaceCfg
-from snapflow.core.storage import ensure_data_block_on_storage_cfg
-from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
-from snapflow.core.component import ComponentLibrary, global_library
 
 import traceback
 from collections import abc, defaultdict
@@ -36,18 +22,15 @@ from typing import (
 
 import dcp
 import sqlalchemy
-from dcp.data_format.base import DataFormat, get_format_for_nickname, DataFormatBase
+from commonmodel.base import Schema
+from dcp.data_format import get_handler_for_name
+from dcp.data_format.base import DataFormat, DataFormatBase, get_format_for_nickname
 from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
-from snapflow.core.persistence.data_block import (
-    Alias,
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
-    get_datablock_id,
-    get_stored_datablock_id,
-    make_sdb_name,
-)
+from snapflow.core.component import ComponentLibrary, global_library
+from snapflow.core.data_block import DataBlock, DataBlockStream
+from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
 from snapflow.core.declarative.dataspace import ComponentLibraryCfg, DataspaceCfg
 from snapflow.core.declarative.execution import (
     ExecutableCfg,
@@ -56,6 +39,22 @@ from snapflow.core.declarative.execution import (
 )
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME, DataFunctionCfg
 from snapflow.core.declarative.graph import GraphCfg
+from snapflow.core.declarative.interface import BoundInputCfg, BoundInterfaceCfg
+from snapflow.core.function import DataFunction
+from snapflow.core.persistence.data_block import (
+    Alias,
+    DataBlockMetadata,
+    StoredDataBlockMetadata,
+    get_datablock_id,
+    get_stored_datablock_id,
+    make_sdb_name,
+)
+from snapflow.core.persistence.pydantic import (
+    DataBlockMetadataCfg,
+    DataFunctionLogCfg,
+    StoredDataBlockMetadataCfg,
+)
+from snapflow.core.storage import ensure_data_block_on_storage_cfg
 from snapflow.core.typing.casting import cast_to_realized_schema
 
 
@@ -192,6 +191,8 @@ class DataFunctionContext:
     ) -> Tuple[DataBlockMetadataCfg, StoredDataBlockMetadataCfg]:
         block = DataBlockMetadataCfg(
             id=get_datablock_id(),
+            created_at=utcnow(),
+            updated_at=utcnow(),
             inferred_schema_key=None,
             nominal_schema_key=None,
             realized_schema_key="Any",
@@ -201,6 +202,8 @@ class DataFunctionContext:
         sid = get_stored_datablock_id()
         sdb = StoredDataBlockMetadataCfg(  # type: ignore
             id=sid,
+            created_at=utcnow(),
+            updated_at=utcnow(),
             name=make_sdb_name(sid, self.node.key),
             data_block_id=block.id,
             data_block=block,
@@ -231,7 +234,7 @@ class DataFunctionContext:
         storage: Storage = None,
         output: str = DEFAULT_OUTPUT_NAME,
         data_format: DataFormat = None,
-        schema: SchemaLike = None,
+        schema: Union[Schema, str] = None,
     ):
         logger.debug(
             f"HANDLING EMITTED OBJECT (of type '{type(records_obj).__name__}')"
@@ -324,13 +327,18 @@ class DataFunctionContext:
         storage: Storage,
     ):
         # TODO expensive to infer schema every time, so just do first time
-        if db.realized_schema_key in (None, "Any", "core.Any",):
+        if db.realized_schema_key in (
+            None,
+            "Any",
+            "core.Any",
+        ):
             handler = get_handler_for_name(name, storage)
             inferred_schema = handler().infer_schema(name, storage)
             logger.debug(
                 f"Inferred schema: {inferred_schema.key} {inferred_schema.fields_summary()}"
             )
             self.add_schema(inferred_schema)
+            db.inferred_schema_key = inferred_schema.key
             # Cast to nominal if no existing realized schema
             realized_schema = cast_to_realized_schema(
                 inferred_schema=inferred_schema,
@@ -455,4 +463,3 @@ class DataFunctionContext:
     #         if isinstance(self.function_log.error, dict)
     #         else None,
     #     )
-

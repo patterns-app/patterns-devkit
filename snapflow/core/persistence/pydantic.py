@@ -1,17 +1,17 @@
 from __future__ import annotations
 
+from typing import Any, List
+
 from dcp.data_format.base import DataFormat, get_format_for_nickname
 from dcp.storage.base import Storage
-from snapflow.core.persistence.state import DataBlockLog, DataFunctionLog, NodeState
-from typing import Any, List
+from pydantic import validator
+from pydantic_sqlalchemy.main import sqlalchemy_to_pydantic
 from snapflow.core.persistence.data_block import (
     Alias,
     DataBlockMetadata,
     StoredDataBlockMetadata,
 )
-from pydantic_sqlalchemy.main import sqlalchemy_to_pydantic
-from pydantic import validator
-
+from snapflow.core.persistence.state import DataBlockLog, DataFunctionLog, NodeState
 
 DataBlockMetadataCfg = sqlalchemy_to_pydantic(DataBlockMetadata)
 _StoredDataBlockMetadataCfg = sqlalchemy_to_pydantic(StoredDataBlockMetadata)

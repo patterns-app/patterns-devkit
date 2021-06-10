@@ -14,7 +14,13 @@ def flatten_sub_node(
     alias = None
     if cfg.key == parent_stdout_key:
         alias = parent_key
-    return update(cfg, key=sub_node_key, inputs=new_inputs, input=None, alias=alias,)
+    return update(
+        cfg,
+        key=sub_node_key,
+        inputs=new_inputs,
+        input=None,
+        alias=alias,
+    )
 
 
 def update_sub_node_inputs(
@@ -58,7 +64,10 @@ def handle_augmentations(n: GraphCfg) -> GraphCfg:
         return n
     nodes = []
     source_node = GraphCfg(
-        key="source", function=n.function, function_cfg=n.function_cfg, params=n.params,
+        key="source",
+        function=n.function,
+        function_cfg=n.function_cfg,
+        params=n.params,
     )
     nodes.append(source_node)
     leaf_key = source_node.key

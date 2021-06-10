@@ -1,5 +1,4 @@
 from __future__ import annotations
-from snapflow.core.data_block import as_managed
 
 from typing import Optional
 
@@ -8,18 +7,20 @@ import pytest
 from dcp.data_format.formats.memory.records import Records
 from loguru import logger
 from pandas import DataFrame
-from snapflow.core.persistence.data_block import Alias
+from snapflow.core.data_block import Reference, as_managed
+from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.execution.execution import ExecutionManager
 from snapflow.core.function import Input, datafunction
+from snapflow.core.persistence.data_block import Alias
 from snapflow.core.persistence.state import DataBlockLog, DataFunctionLog, Direction
 from snapflow.modules import core
 from sqlalchemy.sql.expression import select
 from tests.utils import (
     TestSchema1,
     TestSchema4,
-    function_t1_to_t2,
     function_t1_source,
+    function_t1_to_t2,
     make_test_env,
     make_test_run_context,
 )
@@ -97,6 +98,7 @@ def test_exe_output():
         )
         assert env.md_api.count(select(DataBlockLog)) == 1
         dbl = env.md_api.execute(select(DataBlockLog)).scalar_one_or_none()
+        assert dbl.stream_name == DEFAULT_OUTPUT_NAME
         assert dbl.data_block_id == block.id
         assert dbl.direction == Direction.OUTPUT
 

@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import enum
-from snapflow.core.declarative.base import PydanticBase
-from snapflow.core.persistence.data_block import DataBlockMetadata
-from snapflow.core.persistence.base import BaseModel, SNAPFLOW_METADATA_TABLE_PREFIX
 import traceback
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from pydantic_sqlalchemy.main import sqlalchemy_to_pydantic
-
+from snapflow.core.declarative.base import PydanticBase
 from snapflow.core.environment import Environment
+from snapflow.core.persistence.base import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
+from snapflow.core.persistence.data_block import DataBlockMetadata
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.expression import select, update
@@ -140,7 +139,9 @@ class NodeState(BaseModel):
 
     def __repr__(self):
         return self._repr(
-            node_key=self.node_key, state=self.state, latest_log_id=self.latest_log_id,
+            node_key=self.node_key,
+            state=self.state,
+            latest_log_id=self.latest_log_id,
         )
 
 

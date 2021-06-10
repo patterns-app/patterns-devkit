@@ -8,7 +8,8 @@ from snapflow import DataFunctionContext, datafunction
 
 
 @datafunction(
-    namespace="core", display_name="Import Pandas DataFrame",
+    namespace="core",
+    display_name="Import Pandas DataFrame",
 )
 def import_dataframe(
     ctx: DataFunctionContext, dataframe: str, schema: Optional[str] = None

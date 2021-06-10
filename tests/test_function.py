@@ -1,14 +1,12 @@
 from __future__ import annotations
-from snapflow.core.execution.run import prepare_executable
-from snapflow.core.declarative.interface import BoundInterfaceCfg
-from snapflow.core.data_block import DataBlock
 
 from typing import Any, Callable
 
 import pytest
 from pandas import DataFrame
+from snapflow import DataFunctionContext
 from snapflow.core.component import global_library
-from snapflow.core.persistence.data_block import DataBlockMetadata
+from snapflow.core.data_block import DataBlock
 from snapflow.core.declarative.base import update
 from snapflow.core.declarative.execution import ExecutableCfg
 from snapflow.core.declarative.function import (
@@ -19,7 +17,8 @@ from snapflow.core.declarative.function import (
     InputType,
 )
 from snapflow.core.declarative.graph import GraphCfg
-from snapflow import DataFunctionContext
+from snapflow.core.declarative.interface import BoundInterfaceCfg
+from snapflow.core.execution.run import prepare_executable
 from snapflow.core.function import DataFunctionLike, datafunction
 from snapflow.core.function_interface import (
     DEFAULT_OUTPUT,
@@ -32,6 +31,7 @@ from snapflow.core.function_interface_manager import (
     get_schema_translation,
 )
 from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
+from snapflow.core.persistence.data_block import DataBlockMetadata
 from snapflow.modules import core
 from snapflow.utils.typing import T, U
 from tests.utils import (
@@ -109,7 +109,11 @@ def function_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     pass
 
 
-def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
+def df4(
+    input: DataBlock[T],
+    dr2: DataBlock[U],
+    dr3: DataBlock[U],
+) -> DataFrame[T]:
     pass
 
 
@@ -215,7 +219,7 @@ def test_function_interface(
 
 def test_generic_schema_resolution():
     env = make_test_env()
-    ec = make_test_run_context(env)
+    # make_test_run_context(env)
     n0 = GraphCfg(key="n0", function="function_t1_source").resolve()
     n1 = GraphCfg(key="node1", function="function_generic", input="n0").resolve()
     g = GraphCfg(nodes=[n0, n1])
@@ -249,7 +253,8 @@ def test_declared_schema_translation():
     pi = n1.resolve(global_library).get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
@@ -279,7 +284,8 @@ def test_natural_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
     )
     with env.md_api.begin():
         schema_translation = get_schema_translation(

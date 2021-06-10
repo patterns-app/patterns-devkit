@@ -1,5 +1,4 @@
 from __future__ import annotations
-from snapflow.core.declarative.dataspace import SnapflowCfg
 
 import warnings
 from dataclasses import asdict
@@ -8,6 +7,7 @@ from functools import total_ordering
 from typing import TYPE_CHECKING, Any, Iterable
 
 from commonmodel import Field, FieldType, Schema
+from snapflow.core.declarative.dataspace import SnapflowCfg
 
 if TYPE_CHECKING:
     from snapflow import Environment

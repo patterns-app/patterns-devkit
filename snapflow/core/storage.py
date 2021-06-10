@@ -1,11 +1,6 @@
 from __future__ import annotations
-import os
-from snapflow.core.component import ComponentLibrary, global_library
-from snapflow.core.persistence.pydantic import (
-    DataBlockMetadataCfg,
-    StoredDataBlockMetadataCfg,
-)
 
+import os
 from typing import TYPE_CHECKING, List, Optional, Type
 
 from dcp import StorageFormat
@@ -14,11 +9,13 @@ from dcp.data_copy.graph import execute_copy_request, get_copy_path
 from dcp.data_format.base import DataFormat
 from dcp.storage.base import Storage
 from loguru import logger
-from snapflow.core.persistence.data_block import (
-    get_stored_datablock_id,
-    make_sdb_name,
-)
+from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.environment import Environment
+from snapflow.core.persistence.data_block import get_stored_datablock_id, make_sdb_name
+from snapflow.core.persistence.pydantic import (
+    DataBlockMetadataCfg,
+    StoredDataBlockMetadataCfg,
+)
 from sqlalchemy import or_
 from sqlalchemy.sql.expression import select
 
@@ -102,6 +99,9 @@ def ensure_data_block_on_storage_cfg(
         data_is_written=True,
     )
     req.to_name = out_sdb.name
-    created_sdbs = copy_sdb_cfg(request=req, in_sdb=in_sdb, out_sdb=out_sdb,)
+    created_sdbs = copy_sdb_cfg(
+        request=req,
+        in_sdb=in_sdb,
+        out_sdb=out_sdb,
+    )
     return [out_sdb] + created_sdbs
-

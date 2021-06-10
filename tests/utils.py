@@ -1,6 +1,4 @@
 from __future__ import annotations
-from snapflow.core.data_block import DataBlock, Stream
-from snapflow.core.execution.context import DataFunctionContext
 
 from typing import List, Optional
 
@@ -9,10 +7,12 @@ from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from pandas import DataFrame
+from snapflow.core.data_block import DataBlock, SelfReference, Stream
 from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
 from snapflow.core.declarative.execution import ExecutionCfg, ExecutionResult
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
+from snapflow.core.execution.context import DataFunctionContext
 from snapflow.core.function import datafunction
 from snapflow.core.module import SnapflowModule
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
@@ -39,7 +39,9 @@ def make_test_env(**kwargs) -> Environment:
     ds_args.update(**kwargs)
     ds = DataspaceCfg(**ds_args)
     env = Environment(dataspace=ds)
-    test_module = SnapflowModule("_test",)
+    test_module = SnapflowModule(
+        "_test",
+    )
     for schema in [TestSchema1, TestSchema2, TestSchema3, TestSchema4]:
         env.add_schema(schema)
     for fn in all_functions:
@@ -52,7 +54,10 @@ def make_test_run_context(env: Environment = None, **kwargs) -> ExecutionCfg:
     s = f"python://_test_default_{rand_str(6)}"
     env = env or make_test_env()
     args = dict(
-        dataspace=env.dataspace, local_storage=s, target_storage=s, storages=[s],
+        dataspace=env.dataspace,
+        local_storage=s,
+        target_storage=s,
+        storages=[s],
     )
     args.update(**kwargs)
     return ExecutionCfg(**args)

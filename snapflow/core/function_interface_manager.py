@@ -1,31 +1,27 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
-from sqlalchemy.sql.elements import not_
+from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
+from dcp.storage.base import Storage
+from loguru import logger
 from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.environment import Environment
-
-from sqlalchemy.sql.selectable import Select
-from sqlalchemy.sql.expression import and_, select
-from snapflow.core.persistence.data_block import (
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
-)
-from snapflow.core.persistence.state import DataBlockLog, DataFunctionLog, Direction
-
-from sqlalchemy.orm.query import Query
 from snapflow.core.declarative.interface import (
     BoundInputCfg,
     BoundInterfaceCfg,
     NodeInputCfg,
 )
-from typing import Iterable, TYPE_CHECKING, Any, Dict, List, Optional, Union
-
-from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
-from dcp.storage.base import Storage
-from loguru import logger
-
+from snapflow.core.environment import Environment
+from snapflow.core.persistence.data_block import (
+    DataBlockMetadata,
+    StoredDataBlockMetadata,
+)
+from snapflow.core.persistence.state import DataBlockLog, DataFunctionLog, Direction
+from sqlalchemy.orm.query import Query
+from sqlalchemy.sql.elements import not_
+from sqlalchemy.sql.expression import and_, select
+from sqlalchemy.sql.selectable import Select
 
 if TYPE_CHECKING:
     from snapflow.core.declarative.execution import ExecutionCfg
@@ -40,7 +36,8 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation, from_schema_key=source_schema.key,
+            translation=declared_schema_translation,
+            from_schema_key=source_schema.key,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed
@@ -54,7 +51,10 @@ def get_bound_interface(
 ) -> BoundInterfaceCfg:
     node_inputs = node.get_node_inputs(graph)
     bound_inputs = bind_inputs(env, cfg, node, node_inputs)
-    return BoundInterfaceCfg(inputs=bound_inputs, interface=node.get_interface(),)
+    return BoundInterfaceCfg(
+        inputs=bound_inputs,
+        interface=node.get_interface(),
+    )
 
 
 def bind_inputs(
@@ -111,7 +111,10 @@ def bind_inputs(
 
 
 def _filter_blocks(
-    env: Environment, node: GraphCfg, node_input: NodeInputCfg, cfg: ExecutionCfg,
+    env: Environment,
+    node: GraphCfg,
+    node_input: NodeInputCfg,
+    cfg: ExecutionCfg,
 ) -> Select:
     node = node
     eligible_input_dbs = select(DataBlockMetadata)
@@ -179,4 +182,3 @@ def _filter_unprocessed(query: Select, unprocessed_by_node_key: str) -> Select:
         .distinct()
     )
     return query.filter(not_(DataBlockMetadata.id.in_(already_processed_drs)))
-

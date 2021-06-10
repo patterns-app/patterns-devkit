@@ -1,10 +1,9 @@
 from __future__ import annotations
-from contextlib import contextmanager
-import os
 
+import os
 import sys
+from contextlib import contextmanager
 from datetime import datetime
-from tests.utils import get_stdout_block
 from typing import Generator, Iterator, Optional
 
 import pandas as pd
@@ -12,19 +11,19 @@ import pytest
 from commonmodel.base import create_quick_schema
 from dcp.data_format.formats.memory.dataframe import DataFrameFormat
 from dcp.data_format.formats.memory.records import Records, RecordsFormat
-from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.storage.database.engines.postgres import PostgresDatabaseStorageApi
+from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from loguru import logger
 from pandas._testing import assert_almost_equal
-from snapflow import DataBlock, datafunction
+from snapflow import DataBlock, DataFunctionContext, datafunction
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
-from snapflow import DataFunctionContext
 from snapflow.core.sql.sql_function import sql_function_factory
 from snapflow.modules import core
 from sqlalchemy import select
 from tests.test_e2e import Customer
+from tests.utils import get_stdout_block
 
 IS_CI = os.environ.get("CI")
 
@@ -38,7 +37,11 @@ def funky_source(
     # Gives different schema on each call
     runs = ctx.get_state_value("run_number", 0)
     records = [
-        {"name": f"name{n}", "joined": datetime(2000, 1, n + 1), "metadata": None,}
+        {
+            "name": f"name{n}",
+            "joined": datetime(2000, 1, n + 1),
+            "metadata": None,
+        }
         for n in range(10)
     ]
     if runs == 1:
@@ -77,7 +80,10 @@ def funky_source(
     if runs > 3:
         # missing field
         records = [
-            {"joined": datetime(2000, 1, n + 1), "metadata": {"idx": n},}
+            {
+                "joined": datetime(2000, 1, n + 1),
+                "metadata": {"idx": n},
+            }
             for n in range(10)
         ]
     ctx.emit_state_value("run_number", runs + 1)

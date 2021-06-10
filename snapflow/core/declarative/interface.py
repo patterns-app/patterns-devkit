@@ -1,12 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Dict, Iterable, Iterator, List, Optional, Set, Union
+
 from loguru import logger
 from snapflow.core.data_block import as_managed
-from snapflow.core.persistence.pydantic import DataBlockWithStoredBlocksCfg
 from snapflow.core.declarative.base import FrozenPydanticBase
-
-from typing import Iterable, Iterator, TYPE_CHECKING, Dict, List, Optional, Set, Union
-
 from snapflow.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     DataFunctionInputCfg,
@@ -14,6 +12,7 @@ from snapflow.core.declarative.function import (
     InputType,
 )
 from snapflow.core.declarative.graph import GraphCfg
+from snapflow.core.persistence.pydantic import DataBlockWithStoredBlocksCfg
 
 
 class NodeInputCfg(FrozenPydanticBase):
@@ -23,7 +22,8 @@ class NodeInputCfg(FrozenPydanticBase):
     schema_translation: Optional[Dict[str, str]] = None
 
     def as_bound_input(
-        self, bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
+        self,
+        bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
     ) -> BoundInputCfg:
 
         return BoundInputCfg(

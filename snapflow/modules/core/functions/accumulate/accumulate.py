@@ -1,12 +1,12 @@
 from __future__ import annotations
-from snapflow.api import Stream
-from snapflow.core.data_block import SelfReference
 
 from typing import Optional
 
 from dcp.storage.base import DatabaseStorageClass
 from pandas import DataFrame, concat
 from snapflow import DataFunctionContext
+from snapflow.api import Stream
+from snapflow.core.data_block import SelfReference
 from snapflow.core.function import Input, Output, datafunction
 from snapflow.modules.core.functions.accumulator.accumulator import accumulator
 from snapflow.modules.core.functions.accumulator_sql.accumulator_sql import (
@@ -17,7 +17,9 @@ from snapflow.utils.typing import T
 
 @datafunction(namespace="core", display_name="Accumulate successive outputs")
 def accumulate(
-    ctx: DataFunctionContext, input: Stream[T], previous: SelfReference[T] = None,
+    ctx: DataFunctionContext,
+    input: Stream[T],
+    previous: SelfReference[T] = None,
 ) -> T:
     """Adaptive to storages.
     TODO: is this the right pattern for handling different storage classes / engines? No probably not,

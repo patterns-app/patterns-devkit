@@ -5,9 +5,6 @@ from dataclasses import asdict, dataclass
 from datetime import date, datetime
 from functools import partial
 from pathlib import Path
-from snapflow.core.component import ComponentLibrary
-from snapflow.core.data_block import DataBlock
-from snapflow.core.execution.context import DataFunctionContext
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import sqlparse
@@ -17,12 +14,15 @@ from dcp.storage.base import DatabaseStorageClass, Storage
 from dcp.storage.database.utils import column_map, compile_jinja_sql
 from dcp.utils.common import rand_str
 from loguru import logger
+from snapflow.core.component import ComponentLibrary
+from snapflow.core.data_block import DataBlock
 from snapflow.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     DataFunctionInterfaceCfg,
     InputType,
 )
 from snapflow.core.environment import Environment
+from snapflow.core.execution.context import DataFunctionContext
 from snapflow.core.function import DataFunction, DataInterfaceType, function_factory
 from snapflow.core.function_interface import (
     DEFAULT_OUTPUTS,
@@ -148,7 +148,9 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
+        original_sql=sql,
+        sql_with_jinja_vars=sql_with_jinja_vars,
+        found_params=params,
     )
 
 
@@ -261,7 +263,9 @@ def extract_tables(  # noqa: C901
     new_sql_str = "".join(new_sql)
     new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", r"as \1", new_sql_str, flags=re.I)
     return ParsedSqlStatement(
-        original_sql=sql, sql_with_jinja_vars=new_sql_str, found_tables=found_tables,
+        original_sql=sql,
+        sql_with_jinja_vars=new_sql_str,
+        found_tables=found_tables,
     )
 
 
@@ -506,7 +510,11 @@ def sql_function_decorator(
     else:
         name = sql_fn_or_function.__name__
     return sql_function_factory(
-        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
+        name=name,
+        sql=sql,
+        file=file,
+        autodetect_inputs=autodetect_inputs,
+        **kwargs,
     )
 
 

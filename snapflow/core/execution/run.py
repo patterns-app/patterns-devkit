@@ -1,25 +1,10 @@
 from __future__ import annotations
-from snapflow.core.data_block import DataBlock
-from snapflow.core.persistence.schema import GeneratedSchema
-from snapflow.core.execution.execution import ExecutionManager
-from snapflow.core.function_interface_manager import get_bound_interface
 
-from typing import (
-    Optional,
-    Set,
-    Tuple,
-)
-
+from typing import List, Optional, Set, Tuple
 
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
-from snapflow.core.persistence.data_block import (
-    Alias,
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
-    get_datablock_id,
-    get_stored_datablock_id,
-)
+from snapflow.core.data_block import DataBlock
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.execution import (
     ExecutableCfg,
@@ -31,11 +16,21 @@ from snapflow.core.declarative.execution import (
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
+from snapflow.core.execution.execution import ExecutionManager
 from snapflow.core.function import (
     DataFunction,
     DataInterfaceType,
     InputExhaustedException,
 )
+from snapflow.core.function_interface_manager import get_bound_interface
+from snapflow.core.persistence.data_block import (
+    Alias,
+    DataBlockMetadata,
+    StoredDataBlockMetadata,
+    get_datablock_id,
+    get_stored_datablock_id,
+)
+from snapflow.core.persistence.schema import GeneratedSchema
 from snapflow.core.persistence.state import (
     DataBlockLog,
     DataFunctionLog,
@@ -336,4 +331,4 @@ def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult
         return
     for sdbc in result.stored_blocks_created[db.id]:
         sdb = StoredDataBlockMetadata.from_pydantic(sdbc)
-        alias = sdb.create_alias(env, exe.node.get_alias())
+        sdb.create_alias(env, exe.node.get_alias())

@@ -3,9 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from loguru import logger
-from snapflow import datafunction
+from snapflow import DataFunctionContext, datafunction
 from snapflow.core.declarative.function import DataFunctionInterfaceCfg
-from snapflow import DataFunctionContext
 from snapflow.core.function_package import DataFunctionPackage
 
 logger.enable("snapflow")

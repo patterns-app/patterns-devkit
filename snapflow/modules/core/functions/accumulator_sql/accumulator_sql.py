@@ -1,15 +1,16 @@
 from __future__ import annotations
-from snapflow.core.data_block import SelfReference, Stream
-from dcp.data_format.handler import get_handler_for_name
-from dcp.data_format.formats.database.base import field_type_to_sqlalchemy_type
-from typing import Dict, List
-from commonmodel import FieldType, DEFAULT_FIELD_TYPE
-from snapflow import DataFunctionContext
-from sqlalchemy.sql import cast
 
+from typing import Dict, List
+
+from commonmodel import DEFAULT_FIELD_TYPE, FieldType
+from dcp.data_format.formats.database.base import field_type_to_sqlalchemy_type
+from dcp.data_format.handler import get_handler_for_name
+from snapflow import DataFunctionContext
+from snapflow.core.data_block import SelfReference, Stream
 from snapflow.core.function import datafunction
 from snapflow.core.sql.sql_function import SqlDataFunctionWrapper, sql_datafunction
 from snapflow.utils.typing import T
+from sqlalchemy.sql import cast
 
 
 def merge_field_types(ft_base: FieldType, ft_new: FieldType) -> FieldType:
@@ -29,7 +30,9 @@ def field_sql_with_cast(name: str, ftype: FieldType, dialect=None) -> str:
 
 @datafunction(namespace="core", display_name="Accumulate sql tables")
 def accumulator_sql(
-    ctx: DataFunctionContext, input: Stream[T], previous: SelfReference[T] = None,
+    ctx: DataFunctionContext,
+    input: Stream[T],
+    previous: SelfReference[T] = None,
 ) -> T:
     """
     Critical core data function. Handles a scary operation: merging a stream of data blocks
@@ -79,4 +82,3 @@ def accumulator_sql(
 
     sdf.get_compiled_sql = noop
     return sdf(ctx, input=input, previous=previous)
-

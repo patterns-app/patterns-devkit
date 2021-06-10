@@ -3,14 +3,7 @@ from __future__ import annotations
 from collections import abc, defaultdict
 from contextlib import contextmanager
 from sys import executable
-from snapflow.core.execution.context import DataFunctionContext
-from typing import (
-    Iterable,
-    List,
-    TYPE_CHECKING,
-    Any,
-    Callable,
-)
+from typing import TYPE_CHECKING, Any, Callable, Iterable, List
 
 import dcp
 import sqlalchemy
@@ -27,6 +20,7 @@ from snapflow.core.declarative.execution import (
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
+from snapflow.core.execution.context import DataFunctionContext
 from snapflow.core.function import (
     DataFunction,
     DataInterfaceType,
@@ -167,7 +161,10 @@ class ExecutionManager:
 
     def _call_data_function(self, ctx: DataFunctionContext):
         function_args, function_kwargs = ctx.get_function_args()
-        output_obj = self.function.function_callable(*function_args, **function_kwargs,)
+        output_obj = self.function.function_callable(
+            *function_args,
+            **function_kwargs,
+        )
         if output_obj is not None:
             self.emit_output_object(ctx, output_obj)
             # TODO: update node state block counts?
@@ -215,9 +212,6 @@ class ExecutionManager:
                     # alias = block.alias
                     if cnt is not None:
                         self.logger.log_token(f" {cnt} records ")
-                    self.logger.log_token(
-                        cf.dimmed(f"{block.id}\n")  # type: ignore
-                    )
+                    self.logger.log_token(cf.dimmed(f"{block.id}\n"))  # type: ignore
         else:
             self.logger.log_token("None\n")
-
