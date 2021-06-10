@@ -1,16 +1,15 @@
 from __future__ import annotations
-from snapflow.modules.core.functions.dedupe_keep_latest_sql.dedupe_keep_latest_sql import (
-    dedupe_keep_latest_sql,
-)
+
+from dcp.storage.base import DatabaseStorageClass
+from pandas import DataFrame
+from snapflow import DataBlock, DataFunctionContext
+from snapflow.core.function import datafunction
 from snapflow.modules.core.functions.dedupe_keep_latest_dataframe.dedupe_keep_latest_dataframe import (
     dedupe_keep_latest_dataframe,
 )
-from dcp.storage.base import DatabaseStorageClass
-from snapflow.core.execution import DataFunctionContext
-
-from pandas import DataFrame
-from snapflow import DataBlock
-from snapflow.core.function import datafunction
+from snapflow.modules.core.functions.dedupe_keep_latest_sql.dedupe_keep_latest_sql import (
+    dedupe_keep_latest_sql,
+)
 from snapflow.utils.typing import T
 
 # TODO: currently no-op when no unique columns specified.
@@ -18,7 +17,8 @@ from snapflow.utils.typing import T
 
 
 @datafunction(
-    namespace="core", display_name="Dedupe records (keep latest)",
+    namespace="core",
+    display_name="Dedupe records (keep latest)",
 )
 def dedupe_keep_latest(ctx: DataFunctionContext, input: DataBlock[T]) -> DataFrame[T]:
     """Adaptive to storages.
@@ -32,4 +32,3 @@ def dedupe_keep_latest(ctx: DataFunctionContext, input: DataBlock[T]) -> DataFra
     ):
         return dedupe_keep_latest_sql(ctx, input)
     return dedupe_keep_latest_dataframe(input)
-

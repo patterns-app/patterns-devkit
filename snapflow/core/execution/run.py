@@ -36,6 +36,7 @@ from snapflow.core.persistence.state import (
     DataFunctionLog,
     Direction,
     NodeState,
+    get_or_create_state,
     get_state,
 )
 from snapflow.utils.output import cf, error_symbol, success_symbol
@@ -79,7 +80,7 @@ def prepare_executable(
             logger.debug(f"Inputs exhausted {e}")
             raise e
             # return ExecutionResult.empty()
-        node_state_obj = get_state(env, node.key)
+        node_state_obj = get_or_create_state(env, node.key)
         if node_state_obj is None:
             node_state = {}
         else:

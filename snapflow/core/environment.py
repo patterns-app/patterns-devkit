@@ -292,7 +292,9 @@ class Environment:
         return results
 
     def translate_node_to_flattened_nodes(
-        self, node: Union[GraphCfg, str], flattened_graph: Optional[GraphCfg] = None,
+        self,
+        node: Union[GraphCfg, str],
+        flattened_graph: Optional[GraphCfg] = None,
     ) -> List[GraphCfg]:
         # Return in execution order
         assert flattened_graph.is_flattened()
@@ -308,7 +310,7 @@ class Environment:
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> List[ExecutionResult]:
-        from snapflow.core.execution import run
+        from snapflow.core.execution.run import run
         from snapflow.core.declarative.graph import ImproperlyConfigured
         from snapflow.core.function import InputExhaustedException
 
@@ -327,7 +329,7 @@ class Environment:
                     )
                 except InputExhaustedException:
                     pass
-            except ImproperlyConfigured as e:
+            except ImproperlyConfigured:
                 logger.error(f"Improperly configured node {n}")
         return results
 
@@ -349,9 +351,8 @@ class Environment:
                     self.get_executable(node.key, graph=graph, **execution_kwargs),
                     to_exhaustion=to_exhaustion,
                 )
-            except ImproperlyConfigured as e:
+            except ImproperlyConfigured:
                 logger.error(f"Improperly configured node {node}")
-
 
     def get_latest_output(self, node: GraphCfg) -> Optional[DataBlock]:
         from snapflow.core.execution.run import get_latest_output
@@ -359,7 +360,9 @@ class Environment:
         return get_latest_output(self, node)
 
     def reset_node(
-        self, node: Union[GraphCfg, str], graph: Optional[GraphCfg] = None,
+        self,
+        node: Union[GraphCfg, str],
+        graph: Optional[GraphCfg] = None,
     ):
         from snapflow.core.state import reset
 
