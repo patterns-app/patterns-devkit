@@ -1,4 +1,12 @@
 from __future__ import annotations
+from snapflow.modules.core.functions.dedupe_keep_latest_sql.dedupe_keep_latest_sql import (
+    dedupe_keep_latest_sql,
+)
+from snapflow.modules.core.functions.dedupe_keep_latest_dataframe.dedupe_keep_latest_dataframe import (
+    dedupe_keep_latest_dataframe,
+)
+from dcp.storage.base import DatabaseStorageClass
+from snapflow.core.execution import DataFunctionContext
 
 from pandas import DataFrame
 from snapflow import DataBlock
@@ -10,33 +18,18 @@ from snapflow.utils.typing import T
 
 
 @datafunction(
-    namespace="core",
-    display_name="Dedupe DataFrame (keep latest)",
+    namespace="core", display_name="Dedupe records (keep latest)",
 )
-def dedupe_keep_latest(input: DataBlock[T]) -> DataFrame[T]:
-    if input.nominal_schema is None or not input.nominal_schema.unique_on:
-        return input.as_dataframe()  # TODO: make this a no-op
-    records = input.as_dataframe()
-    # TODO: parameterize this too (so user can override)
-    if input.nominal_schema.field_roles.modification_ordering:
-        records = records.sort_values(
-            input.nominal_schema.field_roles.modification_ordering
-        )
-    return records.drop_duplicates(input.nominal_schema.unique_on, keep="last")
+def dedupe_keep_latest(ctx: DataFunctionContext, input: DataBlock[T]) -> DataFrame[T]:
+    """Adaptive to storages.
+    TODO: is this the right pattern for handling different storage classes / engines? No probably not,
+    but good hack for now, lots of flexibility.
+    TODO: how to specify _supported_ storage classes vs _required_ storage classes / engines?
+    """
+    if (
+        ctx.execution_config.get_target_storage().storage_engine.storage_class
+        == DatabaseStorageClass
+    ):
+        return dedupe_keep_latest_sql(ctx, input)
+    return dedupe_keep_latest_dataframe(input)
 
-
-# input_data = """
-#     k1,k2,f1,f2,f3,f4
-#     1,2,abc,1.1,1,2012-01-01
-#     1,2,def,1.1,{"1":2},2012-01-02
-#     1,3,abc,1.1,2,2012-01-01
-#     1,4,,,"[1,2,3]",2012-01-01
-#     2,2,1.0,2.1,"[1,2,3]",2012-01-01
-# """
-# expected = """
-#     k1,k2,f1,f2,f3,f4
-#     1,2,def,1.1,{"1":2},2012-01-02
-#     1,3,abc,1.1,2,2012-01-01
-#     1,4,,,"[1,2,3]",2012-01-01
-#     2,2,1.0,2.1,"[1,2,3]",2012-01-01
-# """

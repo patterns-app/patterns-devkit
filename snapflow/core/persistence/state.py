@@ -149,6 +149,11 @@ def get_state(env: Environment, node_key: str) -> Optional[NodeState]:
     state = env.md_api.execute(
         select(NodeState).filter(NodeState.node_key == node_key)
     ).scalar_one_or_none()
+    return state
+
+
+def get_or_create_state(env: Environment, node_key: str) -> NodeState:
+    state = get_state(env, node_key)
     if state is None:
         state = NodeState(node_key=node_key)
     return state

@@ -291,6 +291,16 @@ class Environment:
             )
         return results
 
+    def translate_node_to_flattened_nodes(
+        self, node: Union[GraphCfg, str], flattened_graph: Optional[GraphCfg] = None,
+    ) -> List[GraphCfg]:
+        # Return in execution order
+        assert flattened_graph.is_flattened()
+        nodes = flattened_graph.get_nodes_with_prefix(node)
+        dependencies = flattened_graph.get_all_nodes_in_execution_order()
+        node_keys = {n.key for n in nodes}
+        return [n for n in dependencies if n.key in node_keys]
+
     def run_node(
         self,
         node: Union[GraphCfg, str],
@@ -298,27 +308,27 @@ class Environment:
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ) -> List[ExecutionResult]:
-        from snapflow.core.execution.run import run
+        from snapflow.core.execution import run
+        from snapflow.core.declarative.graph import ImproperlyConfigured
         from snapflow.core.function import InputExhaustedException
 
         graph = self.prepare_graph(graph)
         logger.debug(f"Running: {node}")
-        dependencies = graph.get_all_nodes_in_execution_order()
-        nodes = graph.get_nodes_with_prefix(node)
-        node_keys = {n.key for n in nodes}
+        flattened_nodes = self.translate_node_to_flattened_nodes(node, graph)
         results = []
-        for node in dependencies:
-            if node.key not in node_keys:
-                continue
-            node = node.resolve(self.library)
+        for n in flattened_nodes:
             try:
-                results = run(
-                    self,
-                    self.get_executable(node.key, graph=graph, **execution_kwargs),
-                    to_exhaustion=to_exhaustion,
-                )
-            except InputExhaustedException:
-                pass
+                n = n.resolve(self.library)
+                try:
+                    results = run(
+                        self,
+                        self.get_executable(n.key, graph=graph, **execution_kwargs),
+                        to_exhaustion=to_exhaustion,
+                    )
+                except InputExhaustedException:
+                    pass
+            except ImproperlyConfigured as e:
+                logger.error(f"Improperly configured node {n}")
         return results
 
     def run_graph(
@@ -328,20 +338,36 @@ class Environment:
         **execution_kwargs: Any,
     ):
         from snapflow.core.execution.run import run
+        from snapflow.core.declarative.graph import ImproperlyConfigured
 
         graph = self.prepare_graph(graph)
         nodes = graph.get_all_nodes_in_execution_order()
         for node in nodes:
-            run(
-                self,
-                self.get_executable(node.key, graph=graph, **execution_kwargs),
-                to_exhaustion=to_exhaustion,
-            )
+            try:
+                run(
+                    self,
+                    self.get_executable(node.key, graph=graph, **execution_kwargs),
+                    to_exhaustion=to_exhaustion,
+                )
+            except ImproperlyConfigured as e:
+                logger.error(f"Improperly configured node {node}")
+
 
     def get_latest_output(self, node: GraphCfg) -> Optional[DataBlock]:
         from snapflow.core.execution.run import get_latest_output
 
         return get_latest_output(self, node)
+
+    def reset_node(
+        self, node: Union[GraphCfg, str], graph: Optional[GraphCfg] = None,
+    ):
+        from snapflow.core.state import reset
+
+        graph = self.prepare_graph(graph)
+        logger.debug(f"Resetting: {node}")
+        flattened_nodes = self.translate_node_to_flattened_nodes(node, graph)
+        for n in flattened_nodes:
+            reset(self, n.key)
 
 
 # # Shortcuts

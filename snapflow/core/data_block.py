@@ -43,7 +43,6 @@ from snapflow.core.storage import ensure_data_block_on_storage_cfg
 if TYPE_CHECKING:
     from snapflow.core.execution.context import DataFunctionContext
 
-
 class DataBlockManager:
     def __init__(
         self,

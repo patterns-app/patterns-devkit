@@ -25,7 +25,7 @@ from snapflow.core.persistence.state import (
     Direction,
     NodeState,
     _reset_state,
-    get_state,
+    get_or_create_state,
     reset,
 )
 from snapflow.core.sql.sql_function import sql_function_factory
@@ -434,11 +434,11 @@ def test_node_reset():
 
     # Now reset node
     with env.md_api.begin():
-        state = get_state(env, "source")
+        state = get_or_create_state(env, "source")
         assert "records_imported" in state.state
         assert state.latest_log is not None
         reset(env, "source")
-        state = get_state(env, "source")
+        state = get_or_create_state(env, "source")
         assert state.state is None
         assert state.latest_log is None
 
