@@ -14,6 +14,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from loguru import logger
 
 import networkx as nx
 from commonmodel import Schema
@@ -139,7 +140,12 @@ class GraphCfg(FrozenPydanticBase):
         nodes = self.nodes
         if self.flow:
             assert not self.nodes
-            flow: FlowCfg = lib.get_flow(self.flow)
+            try:
+                flow: FlowCfg = lib.get_flow(self.flow)
+            except KeyError:
+                raise ImproperlyConfigured(
+                    f"Flow {self.flow} does not exist on node {self.key}"
+                )
             fg = flow.graph
             nodes = fg.nodes
             # Update flow defaults with this graphs settings
@@ -147,9 +153,20 @@ class GraphCfg(FrozenPydanticBase):
             flow_dict.update({k: v for k, v in d.items() if v is not None})
             flow_dict["flow"] = None  # Flow has been resolved, remove
             d = flow_dict
-        d["nodes"] = [n.resolve(lib) for n in nodes]
+        d["nodes"] = []
+        for n in nodes:
+            # TODO: We allow subnodes to just be dropped if they do not create (but must be leaf nodes?)
+            try:
+                d["nodes"].append(n.resolve(lib))
+            except ImproperlyConfigured:
+                logger.warning(f"Function {n.function} does not exist on node {n.key}")
+                # TODO: make acting on this configurable
+                pass
         if self.function:
-            d["function_cfg"] = lib.get_function(self.function).to_config()
+            try:
+                d["function_cfg"] = lib.get_function(self.function).to_config()
+            except KeyError:
+                raise ImproperlyConfigured(f"Function {self.function} does not exist")
         return GraphCfg(**d)
 
     def flatten(self) -> GraphCfg:
@@ -158,7 +175,9 @@ class GraphCfg(FrozenPydanticBase):
         return flatten_graph_config(self)
 
     def resolve_and_flatten(self, lib: ComponentLibrary) -> GraphCfg:
-        return self.resolve(lib).flatten()
+        return (
+            self.resolve(lib).flatten().resolve(lib)
+        )  # TODO: second resolve needed because we add augmentations! Need to pass in lib or re-think
 
     def is_function_node(self) -> bool:
         return (

@@ -318,7 +318,7 @@ class Environment:
         results = []
         for n in flattened_nodes:
             try:
-                n = n.resolve(self.library)
+                n = n.resolve(self.library)  # TODO: Isn't this already resolved?
                 try:
                     results = run(
                         self,
