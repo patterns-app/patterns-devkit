@@ -280,6 +280,7 @@ class DataFunctionContext:
         assert name is not None
         assert storage is not None
         self.append_records_to_stored_datablock(name, storage, db, sdb)
+        db.data_is_written = True
         sdb.data_is_written = True
         return sdb
 
@@ -327,11 +328,7 @@ class DataFunctionContext:
         storage: Storage,
     ):
         # TODO expensive to infer schema every time, so just do first time
-        if db.realized_schema_key in (
-            None,
-            "Any",
-            "core.Any",
-        ):
+        if db.realized_schema_key in (None, "Any", "core.Any",):
             handler = get_handler_for_name(name, storage)
             inferred_schema = handler().infer_schema(name, storage)
             logger.debug(

@@ -64,7 +64,9 @@ class PythonException(FrozenPydanticBase):
 class ExecutionResult(PydanticBase):
     input_blocks_consumed: Dict[str, List[DataBlockMetadataCfg]] = {}
     output_blocks_emitted: Dict[str, DataBlockMetadataCfg] = {}
-    stored_blocks_created: Dict[str, List[StoredDataBlockMetadataCfg]] = {}
+    stored_blocks_created: Dict[
+        str, List[StoredDataBlockMetadataCfg]
+    ] = {}  # Keyed on data block ID
     schemas_generated: List[Schema] = []
     function_error: Optional[PythonException] = None
     framework_error: Optional[PythonException] = None  # TODO: do we ever use this?
@@ -81,6 +83,35 @@ class ExecutionResult(PydanticBase):
             **dbc.dict(), stored_data_blocks=self.stored_blocks_created.get(dbc.id, [])
         )
         return as_managed(dbws)
+
+    def finalize(self, compute_record_counts: bool = True) -> ExecutionResult:
+        if compute_record_counts:
+            self.compute_record_counts()
+        return ExecutionResult(
+            input_blocks_consumed=self.input_blocks_consumed,
+            output_blocks_emitted={
+                n: b for n, b in self.output_blocks_emitted.items() if b.data_is_written
+            },
+            stored_blocks_created={
+                bid: [b for b in blocks if b.data_is_written]
+                for bid, blocks in self.stored_blocks_created.items()
+            },
+            schemas_generated=self.schemas_generated,
+            function_error=self.function_error,
+            framework_error=self.framework_error,
+        )
+
+    def compute_record_counts(self):
+        cnts = {}
+        for sdbs in self.stored_blocks_created.values():
+            if not sdbs:
+                continue
+            sdb = sdbs[0]  # TODO: choose cheapest sdb?
+            cnts[sdb.data_block_id] = (
+                Storage(sdb.storage_url).get_api().record_count(sdb.name)
+            )
+        for db in self.output_blocks_emitted.values():
+            db.record_count = cnts.get(db.id)
 
 
 @dataclass

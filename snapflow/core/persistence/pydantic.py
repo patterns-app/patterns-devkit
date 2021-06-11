@@ -13,9 +13,13 @@ from snapflow.core.persistence.data_block import (
 )
 from snapflow.core.persistence.state import DataBlockLog, DataFunctionLog, NodeState
 
-DataBlockMetadataCfg = sqlalchemy_to_pydantic(DataBlockMetadata)
+_DataBlockMetadataCfg = sqlalchemy_to_pydantic(DataBlockMetadata)
 _StoredDataBlockMetadataCfg = sqlalchemy_to_pydantic(StoredDataBlockMetadata)
 AliasCfg = sqlalchemy_to_pydantic(Alias)
+
+
+class DataBlockMetadataCfg(_DataBlockMetadataCfg):
+    data_is_written: bool = False
 
 
 class StoredDataBlockMetadataCfg(_StoredDataBlockMetadataCfg):

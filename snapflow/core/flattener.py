@@ -14,13 +14,7 @@ def flatten_sub_node(
     alias = None
     if cfg.key == parent_stdout_key:
         alias = parent_key
-    return update(
-        cfg,
-        key=sub_node_key,
-        inputs=new_inputs,
-        input=None,
-        alias=alias,
-    )
+    return update(cfg, key=sub_node_key, inputs=new_inputs, input=None, alias=alias,)
 
 
 def update_sub_node_inputs(
@@ -64,10 +58,7 @@ def handle_augmentations(n: GraphCfg) -> GraphCfg:
         return n
     nodes = []
     source_node = GraphCfg(
-        key="source",
-        function=n.function,
-        function_cfg=n.function_cfg,
-        params=n.params,
+        key="source", function=n.function, function_cfg=n.function_cfg, params=n.params,
     )
     nodes.append(source_node)
     leaf_key = source_node.key
@@ -126,8 +117,10 @@ def flatten_graph_config(config: GraphCfg) -> GraphCfg:
     while not config.is_flattened():
         stdout_lookup = {}
         flattened_nodes: Dict[str, GraphCfg] = {}
+        # Convert augmentations into a sub-graph
         parent_nodes = [handle_augmentations(parent) for parent in config.nodes]
         for parent in parent_nodes:
+            # For each top-level node: flatten any sub nodes by prefixing with parent key and pulling up
             if parent.nodes:
                 if parent.stdout_key:
                     stdout_lookup[parent.key] = parent.key + "." + parent.stdout_key

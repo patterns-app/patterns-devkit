@@ -142,6 +142,7 @@ class ExecutionManager:
 
     def publish_result(self, result: ExecutionResult):
         # TODO: support alternate reporters
+        result = result.finalize()  # TODO: pretty important step!
         if self.exe.result_listener_type == MetadataExecutionResultListener.__name__:
             get_global_metadata_result_listener()(result)
         else:
@@ -161,10 +162,7 @@ class ExecutionManager:
 
     def _call_data_function(self, ctx: DataFunctionContext):
         function_args, function_kwargs = ctx.get_function_args()
-        output_obj = self.function.function_callable(
-            *function_args,
-            **function_kwargs,
-        )
+        output_obj = self.function.function_callable(*function_args, **function_kwargs,)
         if output_obj is not None:
             self.emit_output_object(ctx, output_obj)
             # TODO: update node state block counts?

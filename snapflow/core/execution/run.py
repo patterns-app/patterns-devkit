@@ -272,7 +272,9 @@ def ensure_log(
     env.md_api.add(drl)
 
 
-def save_result(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
+def save_result(
+    env: Environment, exe: ExecutableCfg, result: ExecutionResult,
+):
     # TODO: this should be inside one roll-backable transaction
     if result.function_error:
         exe.function_log.error = result.function_error.dict()
@@ -287,6 +289,7 @@ def save_result(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
         exe.function_log.completed_at = utcnow()
     function_log = env.md_api.merge(DataFunctionLog.from_pydantic(exe.function_log))
     env.md_api.add(function_log)
+    dbms: List[DataBlockMetadata] = []
     for input_name, blocks in result.input_blocks_consumed.items():
         for block in blocks:
             ensure_log(env, exe.function_log, block, Direction.INPUT, input_name)
@@ -297,7 +300,9 @@ def save_result(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
         #     # object (usually because we hit an error during output handling)
         #     # TODO: did we really process the inputs then? this is more of a framework-level error
         #     continue
-        env.md_api.add(DataBlockMetadata(**block.dict()))
+        dbm = DataBlockMetadata(**block.dict())
+        dbms.append(dbm)
+        env.md_api.add(dbm)
         logger.debug(f"Output logged: {block}")
         ensure_log(env, exe.function_log, block, Direction.OUTPUT, output_name)
     env.md_api.add_all(
@@ -335,3 +340,4 @@ def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult
     for sdbc in result.stored_blocks_created[db.id]:
         sdb = StoredDataBlockMetadata.from_pydantic(sdbc)
         sdb.create_alias(env, exe.node.get_alias())
+
