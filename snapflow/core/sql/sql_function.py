@@ -14,18 +14,15 @@ from dcp.storage.base import DatabaseStorageClass, Storage
 from dcp.storage.database.utils import column_map, compile_jinja_sql
 from dcp.utils.common import rand_str
 from loguru import logger
-from snapflow.core.data_block import (
-    DataBlock,
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
-)
+from snapflow.core.component import ComponentLibrary
+from snapflow.core.data_block import DataBlock
 from snapflow.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     DataFunctionInterfaceCfg,
     InputType,
 )
 from snapflow.core.environment import Environment
-from snapflow.core.execution import DataFunctionContext
+from snapflow.core.execution.context import DataFunctionContext
 from snapflow.core.function import DataFunction, DataInterfaceType, function_factory
 from snapflow.core.function_interface import (
     DEFAULT_OUTPUTS,
@@ -308,7 +305,7 @@ def params_as_sql(ctx: DataFunctionContext) -> Dict[str, Any]:
 
 
 def apply_schema_translation_as_sql(
-    env: Environment, name: str, translation: SchemaTranslation
+    lib: ComponentLibrary, name: str, translation: SchemaTranslation
 ) -> str:
     if not translation.from_schema_key:
         raise NotImplementedError(
@@ -316,7 +313,7 @@ def apply_schema_translation_as_sql(
         )
     sql = column_map(
         name,
-        env.get_schema(translation.from_schema_key).field_names(),
+        lib.get_schema(translation.from_schema_key).field_names(),
         translation.as_dict(),
     )
     table_stmt = f"""
@@ -362,7 +359,7 @@ class SqlDataFunctionWrapper:
 
         db_api = storage.get_api()
         logger.debug(
-            f"Resolved in sql function {ctx.bound_interface.resolve_nominal_output_schema()}"
+            f"Resolved in sql function {ctx.executable.bound_interface.resolve_nominal_output_schema()}"
         )
         tmp_name = f"_tmp_{rand_str(10)}".lower()
         sql = db_api.clean_sub_sql(sql)
@@ -408,7 +405,9 @@ class SqlDataFunctionWrapper:
         sql_ctx = dict(
             ctx=ctx,
             inputs=input_sql,  # TODO: change this (??)
-            input_objects={i.name: i for i in ctx.inputs.values()},
+            input_objects={
+                i.name: i for i in ctx.executable.bound_interface.inputs.values()
+            },
             params=params_as_sql(ctx),
             storage=storage,
             # TODO: we haven't logged the input blocks yet (in the case of a stream) so we can't

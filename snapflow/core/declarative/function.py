@@ -20,13 +20,8 @@ from dcp.utils.common import remove_dupes
 from loguru import logger
 from pydantic import Field
 from snapflow.core.component import ComponentLibrary, global_library
-from snapflow.core.data_block import Reference
 from snapflow.core.declarative.base import FrozenPydanticBase
-from snapflow.core.schema import is_generic
-
-if TYPE_CHECKING:
-    from snapflow.core.streams import StreamLike
-
+from snapflow.core.persistence.schema import is_generic
 
 DEFAULT_OUTPUT_NAME = "stdout"
 DEFAULT_INPUT_NAME = "stdin"
@@ -93,6 +88,10 @@ class DataFunctionInputCfg(FunctionIoBase):
     @property
     def is_reference(self) -> bool:
         return self.input_type in (InputType.Reference, InputType.SelfReference)
+
+    @property
+    def is_consumable(self) -> bool:
+        return self.input_type in (InputType.DataBlock, InputType.Stream)
 
 
 class DataFunctionOutputCfg(FunctionIoBase):
@@ -204,6 +203,9 @@ class DataFunctionCfg(FrozenPydanticBase):
         if self.interface:
             d["interface"] = self.interface.resolve(lib)
         return DataFunctionCfg(**d)
+
+    # def to_function(self) -> DataFunction:
+    #     pass
 
 
 class DataFunctionPackageCfg(FrozenPydanticBase):

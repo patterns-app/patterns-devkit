@@ -7,7 +7,6 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from commonmodel.base import SchemaLike
-from snapflow.core.data_block import Consumable, DataBlock, Reference, SelfReference
 from snapflow.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     DataFunctionInputCfg,
@@ -17,7 +16,7 @@ from snapflow.core.declarative.function import (
     Parameter,
     ParameterType,
 )
-from snapflow.core.schema import is_generic
+from snapflow.core.persistence.schema import is_generic
 
 if TYPE_CHECKING:
     from snapflow.core.function import (

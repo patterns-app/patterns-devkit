@@ -93,12 +93,12 @@ def test_cast_to_schema(cast_level, inferred, nominal, expected):
     with env.md_api.begin():
         if expected == ERROR:
             with pytest.raises(SchemaTypeError):
-                s = cast_to_realized_schema(env, inferred, nominal, cast_level)
+                s = cast_to_realized_schema(inferred, nominal, cast_level)
         elif expected == WARN:
             with pytest.warns(UserWarning):
-                s = cast_to_realized_schema(env, inferred, nominal, cast_level)
+                s = cast_to_realized_schema(inferred, nominal, cast_level)
         else:
-            s = cast_to_realized_schema(env, inferred, nominal, cast_level)
+            s = cast_to_realized_schema(inferred, nominal, cast_level)
             for f in s.fields:
                 e = expected.get_field(f.name)
                 assert f == e

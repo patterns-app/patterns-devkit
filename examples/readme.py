@@ -8,7 +8,6 @@ from cleo import CommandTester
 from snapflow.cli.app import app
 from snapflow_stripe import module as stripe
 
-
 sys.path.append(".")
 
 

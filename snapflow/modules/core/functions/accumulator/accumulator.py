@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from pandas import DataFrame, concat
-from snapflow.core.data_block import DataBlock, SelfReference
-from snapflow.core.function import Input, Output, datafunction
-from snapflow.core.streams import Stream
+from snapflow.core.data_block import SelfReference, Stream
+from snapflow.core.function import datafunction
 from snapflow.utils.typing import T
 
 

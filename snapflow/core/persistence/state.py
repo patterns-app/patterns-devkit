@@ -4,9 +4,11 @@ import enum
 import traceback
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
-from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from pydantic_sqlalchemy.main import sqlalchemy_to_pydantic
+from snapflow.core.declarative.base import PydanticBase
 from snapflow.core.environment import Environment
-from snapflow.core.metadata.orm import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
+from snapflow.core.persistence.base import SNAPFLOW_METADATA_TABLE_PREFIX, BaseModel
+from snapflow.core.persistence.data_block import DataBlockMetadata
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.expression import select, update
@@ -36,9 +38,13 @@ class DataFunctionLog(BaseModel):
             id=self.id,
             node_key=self.node_key,
             function_key=self.function_key,
-            runtime_url=self.runtime_url,
             started_at=self.started_at,
+            completed_at=self.completed_at,
         )
+
+    @classmethod
+    def from_pydantic(cls, cfg: PydanticBase) -> DataFunctionLog:
+        return DataFunctionLog(**cfg.dict())
 
     def output_data_blocks(self) -> Iterable[DataBlockMetadata]:
         return [
@@ -133,7 +139,9 @@ class NodeState(BaseModel):
 
     def __repr__(self):
         return self._repr(
-            node_key=self.node_key, state=self.state, latest_log_id=self.latest_log_id,
+            node_key=self.node_key,
+            state=self.state,
+            latest_log_id=self.latest_log_id,
         )
 
 

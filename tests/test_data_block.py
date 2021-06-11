@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from dcp.data_format.formats.memory.records import RecordsFormat
-from snapflow.core import data_block
-from snapflow.core.data_block import (
+from snapflow.core.persistence.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
     get_datablock_id,
@@ -23,6 +22,7 @@ def test_data_block_methods():
     records = [{"a": 1}]
     sdb = StoredDataBlockMetadata(
         id=get_stored_datablock_id(),
+        name="_test",
         data_block_id=db.id,
         data_block=db,
         storage_url=strg.url,
@@ -31,13 +31,10 @@ def test_data_block_methods():
     with env.md_api.begin():
         env.md_api.add(db)
         env.md_api.add(sdb)
-        assert sdb.name is None
-        name = sdb.get_name_for_storage()
-        assert len(name) > 10
-        assert sdb.name == name
-        strg.get_api().put(sdb.get_name_for_storage(), records)
-        assert db.inferred_schema(env) == TestSchema1
-        assert db.nominal_schema(env) == TestSchema2
-        assert db.realized_schema(env) == TestSchema3
+        assert sdb.name == "_test"
+        strg.get_api().put(sdb.name, records)
+        assert env.get_schema(db.inferred_schema_key) == TestSchema1
+        assert env.get_schema(db.nominal_schema_key) == TestSchema2
+        assert env.get_schema(db.realized_schema_key) == TestSchema3
         db.compute_record_count()
         assert db.record_count == 1

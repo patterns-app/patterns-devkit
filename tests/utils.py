@@ -1,22 +1,21 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from commonmodel.base import create_quick_schema
 from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from pandas import DataFrame
-from snapflow.core.data_block import DataBlock, SelfReference
+from snapflow.core.data_block import DataBlock, SelfReference, Stream
 from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
-from snapflow.core.declarative.execution import ExecutionCfg
+from snapflow.core.declarative.execution import ExecutionCfg, ExecutionResult
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
-from snapflow.core.execution import DataFunctionContext
+from snapflow.core.execution.context import DataFunctionContext
 from snapflow.core.function import datafunction
 from snapflow.core.module import SnapflowModule
 from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
-from snapflow.core.streams import DataBlockStream, Stream
 from snapflow.utils.typing import T
 
 TestSchema1 = create_quick_schema("TestSchema1", [("f1", "Text")], namespace="_test")
@@ -95,6 +94,13 @@ def function_multiple_input(
     input: DataBlock[T], other_t2: Optional[DataBlock[TestSchema2]]
 ) -> DataFrame[T]:
     pass
+
+
+def get_stdout_block(results: List[ExecutionResult]) -> Optional[DataBlock]:
+    assert len(results) == 1
+    result = results[0]
+    block = result.stdout()
+    return block
 
 
 all_functions = [

@@ -85,6 +85,11 @@ class MetadataApi:
             obj.dataspace_key = self.dataspace_key
         self.get_session().add(obj)
 
+    def merge(self, obj: Any, set_env: bool = True) -> Any:
+        if obj.dataspace_key is None and set_env:
+            obj.dataspace_key = self.dataspace_key
+        return self.get_session().merge(obj)
+
     def add_all(self, objects: Iterable, set_env: bool = True):
         for obj in objects:
             if obj.dataspace_key is None and set_env:

@@ -26,6 +26,7 @@ requests = "^2.23.0"
 sqlalchemy = "^1.4.1"
 sqlparse = "^0.3.1"
 strictyaml = "^1.0.6"
+pydantic-sqlalchemy = "^0.0.9"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"

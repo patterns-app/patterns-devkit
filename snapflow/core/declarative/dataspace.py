@@ -6,6 +6,7 @@ from typing import Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 from commonmodel import Schema
 from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.declarative.base import FrozenPydanticBase
+from snapflow.core.declarative.flow import FlowCfg
 from snapflow.core.declarative.function import DataFunctionCfg
 from snapflow.core.declarative.graph import GraphCfg
 
@@ -44,4 +45,5 @@ class DataspaceCfg(FrozenPydanticBase):
 class ComponentLibraryCfg(FrozenPydanticBase):
     functions: List[DataFunctionCfg] = []
     schemas: List[Schema] = []
+    flows: List[FlowCfg] = []
     namespace_precedence: List[str] = []

@@ -4,9 +4,7 @@ from typing import Optional
 
 from dcp.data_format.formats import DataFrameFormat, JsonLinesFileObjectFormat
 from pandas.core.frame import DataFrame
-from snapflow.core.execution import DataFunctionContext
-from snapflow.core.function import Input, Output, Param, datafunction
-from snapflow.core.streams import Stream
+from snapflow import DataFunctionContext, datafunction
 
 
 @datafunction(

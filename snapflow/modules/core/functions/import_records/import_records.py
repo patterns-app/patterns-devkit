@@ -4,7 +4,7 @@ import json
 from typing import Optional
 
 from dcp.data_format.formats.memory.records import RecordsFormat
-from snapflow.core.execution import DataFunctionContext
+from snapflow import DataFunctionContext
 from snapflow.core.function import datafunction
 
 

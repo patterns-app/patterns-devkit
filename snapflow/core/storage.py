@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, List, Optional, Type
 
 from dcp import StorageFormat
@@ -8,76 +9,58 @@ from dcp.data_copy.graph import execute_copy_request, get_copy_path
 from dcp.data_format.base import DataFormat
 from dcp.storage.base import Storage
 from loguru import logger
-from snapflow.core.data_block import (
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
-    get_stored_datablock_id,
-)
+from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.environment import Environment
+from snapflow.core.persistence.data_block import get_stored_datablock_id, make_sdb_name
+from snapflow.core.persistence.pydantic import (
+    DataBlockMetadataCfg,
+    StoredDataBlockMetadataCfg,
+)
 from sqlalchemy import or_
 from sqlalchemy.sql.expression import select
 
 
-def copy_sdb(
-    env: Environment,
+def copy_sdb_cfg(
     request: CopyRequest,
-    in_sdb: StoredDataBlockMetadata,
-    out_sdb: StoredDataBlockMetadata,
+    in_sdb: StoredDataBlockMetadataCfg,
+    out_sdb: StoredDataBlockMetadataCfg,
     # target_storage: Storage,
     # storages: Optional[List[Storage]] = None,
     create_intermediate_sdbs: bool = True,
-):
+) -> List[StoredDataBlockMetadataCfg]:
+    stored_blocks = []
     result = execute_copy_request(request)
     if create_intermediate_sdbs:
         for name, storage, fmt in result.intermediate_created:
-            i_sdb = StoredDataBlockMetadata(  # type: ignore
-                id=get_stored_datablock_id(),
-                data_block_id=in_sdb.data_block_id,
+            sid = get_stored_datablock_id()
+            i_sdb = StoredDataBlockMetadataCfg(  # type: ignore
+                id=sid,
+                name=make_sdb_name(sid, in_sdb.data_block.created_by_node_key),
                 data_block=in_sdb.data_block,
                 data_format=fmt,
                 storage_url=storage.url,
+                data_is_written=True,
             )
-            storage.get_api().create_alias(name, i_sdb.get_name_for_storage())
-            env.md_api.add(i_sdb)
+            storage.get_api().create_alias(name, i_sdb.name)
+            stored_blocks.append(i_sdb)
+    return stored_blocks
 
 
-def ensure_data_block_on_storage(
-    env: Environment,
-    block: DataBlockMetadata,
+def ensure_data_block_on_storage_cfg(
+    block: DataBlockMetadataCfg,
     storage: Storage,
+    stored_blocks: List[StoredDataBlockMetadataCfg],
+    eligible_storages: List[Storage],
     fmt: Optional[DataFormat] = None,
-    eligible_storages: Optional[List[Storage]] = None,
-) -> StoredDataBlockMetadata:
-    if eligible_storages is None:
-        eligible_storages = env.storages
-    sdbs = select(StoredDataBlockMetadata).filter(
-        StoredDataBlockMetadata.data_block == block
-    )
-    match = sdbs.filter(StoredDataBlockMetadata.storage_url == storage.url)
+    library: ComponentLibrary = global_library,
+) -> List[StoredDataBlockMetadataCfg]:
+    sdbs = stored_blocks
+    match = [s for s in sdbs if s.storage.url == storage.url]
     if fmt:
-        match = match.filter(StoredDataBlockMetadata.data_format == fmt)
-    matched_sdb = env.md_api.execute(match).scalar_one_or_none()
-    if matched_sdb is not None:
-        return matched_sdb
+        match = [s for s in match if s.data_format == fmt]
+    if match:
+        return [match[0]]
 
-    # logger.debug(f"{cnt} SDBs total")
-    existing_sdbs = sdbs.filter(
-        # DO NOT fetch memory SDBs that aren't of current runtime (since we can't get them!)
-        # TODO: clean up memory SDBs when the memory goes away? Doesn't make sense to persist them really
-        # Should be a separate in-memory lookup for memory SDBs, so they naturally expire?
-        or_(
-            ~StoredDataBlockMetadata.storage_url.startswith("python:"),
-            StoredDataBlockMetadata.storage_url == env._local_python_storage.url,
-        ),
-    )
-    # logger.debug(
-    #     f"{existing_sdbs.count()} SDBs on-disk or in local memory (local: {self.ctx.local_python_storage.url})"
-    # )
-    if eligible_storages:
-        existing_sdbs = existing_sdbs.filter(
-            StoredDataBlockMetadata.storage_url.in_(s.url for s in eligible_storages),
-        )
-    # logger.debug(f"{existing_sdbs.count()} SDBs in eligible storages")
     fmt = fmt or storage.storage_engine.get_natural_format()
     target_storage_format = StorageFormat(storage.storage_engine, fmt)
 
@@ -85,15 +68,16 @@ def ensure_data_block_on_storage(
     eligible_conversion_paths = (
         []
     )  #: List[List[Tuple[ConversionCostLevel, Type[Converter]]]] = []
-    existing_sdbs = list(env.md_api.execute(existing_sdbs).scalars())
+    existing_sdbs = sdbs
     for sdb in existing_sdbs:
+        assert sdb.name is not None
         req = CopyRequest(
-            from_name=sdb.get_name_for_storage(),
+            from_name=sdb.name,
             from_storage=sdb.storage,
             to_name="placeholder",
             to_storage=storage,
             to_format=fmt,
-            schema=sdb.realized_schema(env),
+            schema=library.get_schema(block.realized_schema_key),
             available_storages=eligible_storages,
         )
         pth = get_copy_path(req)
@@ -104,19 +88,20 @@ def ensure_data_block_on_storage(
             f"No copy path to {target_storage_format} for existing StoredDataBlocks {existing_sdbs}"
         )
     cost, pth, in_sdb, req = min(eligible_conversion_paths, key=lambda x: x[0])
-    out_sdb = StoredDataBlockMetadata(  # type: ignore
-        id=get_stored_datablock_id(),
+    sid = get_stored_datablock_id()
+    out_sdb = StoredDataBlockMetadataCfg(  # type: ignore
+        id=sid,
+        name=make_sdb_name(sid, block.created_by_node_key),
         data_block_id=block.id,
         data_block=block,
-        data_format=fmt,
+        data_format=fmt.nickname,
         storage_url=storage.url,
+        data_is_written=True,
     )
-    env.md_api.add(out_sdb)
-    req.to_name = out_sdb.get_name_for_storage()
-    copy_sdb(
-        env,
+    req.to_name = out_sdb.name
+    created_sdbs = copy_sdb_cfg(
         request=req,
         in_sdb=in_sdb,
         out_sdb=out_sdb,
     )
-    return out_sdb
+    return [out_sdb] + created_sdbs

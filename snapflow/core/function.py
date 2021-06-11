@@ -13,7 +13,7 @@ from snapflow.core.component import (
     DEFAULT_NAMESPACE,
     global_library,
 )
-from snapflow.core.data_block import DataBlock, DataBlockMetadata
+from snapflow.core.data_block import DataBlock
 from snapflow.core.declarative.function import DataFunctionCfg, DataFunctionInterfaceCfg
 from snapflow.core.function_interface import (  # merge_declared_interface_with_signature_interface,
     Parameter,
@@ -23,7 +23,7 @@ from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
 from snapflow.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
 
 if TYPE_CHECKING:
-    from snapflow.core.execution import DataFunctionContext
+    from snapflow import DataFunctionContext
     from snapflow import Environment
     from snapflow.core.function_package import DataFunctionPackage
 
@@ -39,7 +39,9 @@ class InputExhaustedException(DataFunctionException):
 DataFunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame, Records, DataBlockMetadata, DataBlock,
+    DataFrame,
+    Records,
+    DataBlock,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -215,7 +217,10 @@ def function_factory(
         else:
             namespace = namespace
         function = DataFunction(
-            name=name, namespace=namespace, function_callable=function_like, **kwargs,
+            name=name,
+            namespace=namespace,
+            function_callable=function_like,
+            **kwargs,
         )
     if namespace == DEFAULT_NAMESPACE:
         # Add to default module

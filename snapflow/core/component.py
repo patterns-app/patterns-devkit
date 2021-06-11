@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Union
 from commonmodel import Schema
 
 if TYPE_CHECKING:
+    from snapflow.core.declarative.dataspace import ComponentLibraryCfg
     from snapflow.core.function import (
         DataFunctionLike,
         DataFunction,
@@ -38,6 +39,17 @@ class ComponentLibrary:
         if namespace_precedence:
             for k in namespace_precedence:
                 self.add_namespace(k)
+
+    @classmethod
+    def from_config(cls, cfg: ComponentLibraryCfg) -> ComponentLibrary:
+        lib = ComponentLibrary(namespace_precedence=cfg.namespace_precedence)
+        for f in cfg.functions:
+            lib.add_function(f.to_function())
+        for s in cfg.schemas:
+            lib.add_schema(s)
+        for f in cfg.flows:
+            lib.add_flow(f)
+        return lib
 
     def add_namespace(self, k: str):
         k = k.split(".")[0]

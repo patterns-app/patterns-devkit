@@ -29,10 +29,8 @@ from snapflow.core.declarative.function import (
 )
 
 if TYPE_CHECKING:
-    from snapflow.core.data_block import DataBlock
-    from snapflow.core.streams import StreamBuilder, DataBlockStream
     from snapflow.core.declarative.flow import FlowCfg
-    from snapflow.core.declarative.execution import NodeInputCfg
+    from snapflow.core.declarative.interface import NodeInputCfg
 
 
 NxNode = Tuple[str, Dict[str, Dict]]
@@ -192,9 +190,10 @@ class GraphCfg(FrozenPydanticBase):
     def is_resolved(self) -> bool:
         if self.flow and not self.nodes:
             return False
-        if self.function and not self.function_cfg:
+        if self.function and self.function_cfg is None:
             return False
-        return all([n.is_resolved() for n in self.nodes])
+        nodes = all([n.is_resolved() for n in self.nodes])
+        return nodes
 
     def get_stdin_key(self) -> str:
         if self.stdin_key:
@@ -311,7 +310,7 @@ class GraphCfg(FrozenPydanticBase):
         return self.function_cfg.interface
 
     def get_node_inputs(self, graph: GraphCfg) -> Dict[str, NodeInputCfg]:
-        from snapflow.core.declarative.execution import NodeInputCfg
+        from snapflow.core.declarative.interface import NodeInputCfg
 
         assert self.is_function_node()  # TODO: can actually support for graph too!
         assert self.is_resolved()
@@ -358,11 +357,6 @@ class GraphCfg(FrozenPydanticBase):
                 f"Extra input(s): {input_names_have - input_names_ok_to_have}"
             )
         return inputs
-
-    def as_stream_builder(self) -> StreamBuilder:
-        from snapflow.core.streams import StreamBuilder
-
-        return StreamBuilder().filter_inputs([self.key])
 
     # def has_node(self, key: str) -> bool:
     #     return key in self._nodes

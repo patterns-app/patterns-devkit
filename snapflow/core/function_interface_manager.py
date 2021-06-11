@@ -1,27 +1,33 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
 from dcp.storage.base import Storage
 from loguru import logger
-from snapflow.core import operators
-from snapflow.core.data_block import DataBlock
-from snapflow.core.declarative.base import FrozenPydanticBase
-from snapflow.core.declarative.execution import ExecutableCfg, NodeInputCfg
-from snapflow.core.declarative.function import (
-    DataFunctionInputCfg,
-    DataFunctionInterfaceCfg,
-)
 from snapflow.core.declarative.graph import GraphCfg
+from snapflow.core.declarative.interface import (
+    BoundInputCfg,
+    BoundInterfaceCfg,
+    NodeInputCfg,
+)
 from snapflow.core.environment import Environment
-from snapflow.core.schema import GenericSchemaException, is_generic
-from snapflow.core.streams import DataBlockStream, StreamBuilder
+from snapflow.core.persistence.data_block import (
+    DataBlockMetadata,
+    StoredDataBlockMetadata,
+)
+from snapflow.core.persistence.state import DataBlockLog, DataFunctionLog, Direction
+from sqlalchemy.orm.query import Query
+from sqlalchemy.sql.elements import not_
+from sqlalchemy.sql.expression import and_, select
+from sqlalchemy.sql.selectable import Select
+
+if TYPE_CHECKING:
+    from snapflow.core.declarative.execution import ExecutionCfg
 
 
 def get_schema_translation(
-    env: Environment,
     source_schema: Schema,
     target_schema: Optional[Schema] = None,
     declared_schema_translation: Optional[Dict[str, str]] = None,
@@ -40,108 +46,38 @@ def get_schema_translation(
     return source_schema.get_translation_to(target_schema)
 
 
-@dataclass(frozen=True)
-class BoundInput:
-    name: str
-    input: DataFunctionInputCfg
-    input_node: Optional[GraphCfg] = None
-    schema_translation: Optional[Dict[str, str]] = None
-    bound_stream: Optional[DataBlockStream] = None
-    bound_block: Optional[DataBlock] = None
-
-    def is_bound(self) -> bool:
-        return self.bound_stream is not None or self.bound_block is not None
-
-    def get_bound_block_property(self, prop: str):
-        if self.bound_block:
-            return getattr(self.bound_block, prop)
-        if self.bound_stream:
-            emitted = self.bound_stream.get_emitted_managed_blocks()
-            if not emitted:
-                # if self.bound_stream.count():
-                #     logger.warning("No blocks emitted yet from non-empty stream")
-                return None
-            return getattr(emitted[0], prop)
-        return None
-
-    def get_bound_nominal_schema(self) -> Optional[Schema]:
-        return self.get_bound_block_property("nominal_schema")
-
-    def get_bound_realized_schema(self) -> Optional[Schema]:
-        return self.get_bound_block_property("nominal_schema")
-
-    @property
-    def nominal_schema(self) -> Optional[Schema]:
-        return self.get_bound_nominal_schema()
-
-    @property
-    def realized_schema(self) -> Optional[Schema]:
-        return self.get_bound_realized_schema()
-
-    @property
-    def is_stream(self) -> bool:
-        return self.input.is_stream
-
-
-@dataclass(frozen=True)
-class BoundInterface:
-    inputs: Dict[str, BoundInput]
-    interface: DataFunctionInterfaceCfg
-
-    def inputs_as_kwargs(self) -> Dict[str, Union[DataBlock, DataBlockStream]]:
-        assert all([i.is_bound() for i in self.inputs.values()])
-        return {
-            i.name: i.bound_stream if i.is_stream else i.bound_block
-            for i in self.inputs.values()
-        }
-
-    def non_reference_bound_inputs(self) -> List[NodeInputCfg]:
-        return [
-            i
-            for i in self.inputs.values()
-            if i.bound_stream is not None and not i.input.is_reference
-        ]
-
-    def resolve_nominal_output_schema(self) -> Optional[str]:
-        output = self.interface.get_default_output()
-        if not output:
-            return None
-        if not output.is_generic:
-            return output.schema_key
-        output_generic = output.schema_key
-        for node_input in self.inputs.values():
-            if not node_input.input.is_generic:
-                continue
-            if node_input.input.schema_key == output_generic:
-                schema = node_input.get_bound_nominal_schema()
-                # We check if None -- there may be more than one input with same generic, we'll take any that are resolvable
-                if schema is not None:
-                    return schema.key
-        raise Exception(f"Unable to resolve generic '{output_generic}'")
+def get_bound_interface(
+    env: Environment, cfg: ExecutionCfg, node: GraphCfg, graph: GraphCfg
+) -> BoundInterfaceCfg:
+    node_inputs = node.get_node_inputs(graph)
+    bound_inputs = bind_inputs(env, cfg, node, node_inputs)
+    return BoundInterfaceCfg(
+        inputs=bound_inputs,
+        interface=node.get_interface(),
+    )
 
 
 def bind_inputs(
-    env: Environment, cfg: ExecutableCfg, node_inputs: Dict[str, NodeInputCfg]
-) -> Dict[str, BoundInput]:
+    env: Environment,
+    cfg: ExecutionCfg,
+    node: GraphCfg,
+    node_inputs: Dict[str, NodeInputCfg],
+) -> Dict[str, BoundInputCfg]:
     from snapflow.core.function import InputExhaustedException
 
-    bound_inputs: Dict[str, BoundInput] = {}
+    bound_inputs: Dict[str, BoundInputCfg] = {}
     any_unprocessed = False
     for node_input in node_inputs.values():
         if node_input.input_node is None:
             if not node_input.input.required:
-                # bound_inputs[node_input.name] = node_input.as_bound_input()
                 continue
             raise Exception(f"Missing required input {node_input.name}")
         logger.debug(
-            f"Building stream for `{node_input.name}` from {node_input.input_node}"
+            f"Building stream for '{node_input.name}' from '{node_input.input_node.key}'"
         )
-        stream_builder = node_input.as_stream_builder()
-        stream_builder = _filter_stream(
-            env,
-            stream_builder,
-            node_input,
-            cfg,
+        block_stream_query = _filter_blocks(env, node, node_input, cfg)
+        block_stream: List[DataBlockMetadata] = list(
+            env.md_api.execute(block_stream_query).scalars()
         )
 
         """
@@ -151,18 +87,18 @@ def bind_inputs(
 
         In other words, if ANY block stream is empty, bail out. If ALL DS streams are empty, bail
         """
-        if stream_builder.get_count(env) == 0:
+        if len(block_stream) == 0:
             logger.debug(
-                f"Couldnt find eligible DataBlocks for input `{node_input.name}` from {stream_builder}"
+                f"Couldnt find eligible DataBlocks for input '{node_input.name}' from node '{node_input.input_node.key}'"
             )
             if node_input.input.required:
                 raise InputExhaustedException(
-                    f"    Required input '{node_input.name}'={stream_builder} to DataFunction '{cfg.node_key}' is empty"
+                    f"    Required input '{node_input.name}' (from node '{node_input.input_node.key}') to node '{node.key}' is empty"
                 )
             continue
         else:
-            bound_inputs[node_input.name] = bind_node_input(
-                env, cfg, node_input, stream_builder
+            bound_inputs[node_input.name] = node_input.as_bound_input(
+                bound_stream=[db.to_pydantic_with_stored() for db in block_stream]
             )
         any_unprocessed = True
 
@@ -174,54 +110,75 @@ def bind_inputs(
     return bound_inputs
 
 
-def _filter_stream(
+def _filter_blocks(
     env: Environment,
-    stream_builder: StreamBuilder,
+    node: GraphCfg,
     node_input: NodeInputCfg,
-    cfg: ExecutableCfg,
-) -> StreamBuilder:
-    logger.debug(f"{stream_builder.get_count(env)} available DataBlocks")
-    storages = cfg.execution_config.storages
+    cfg: ExecutionCfg,
+) -> Select:
+    node = node
+    eligible_input_dbs = select(DataBlockMetadata)
+
+    logger.opt(lazy=True).debug(
+        "{x} all DataBlocks", x=lambda: env.md_api.count(select(DataBlockLog))
+    )
+    eligible_input_logs = (
+        Query(DataBlockLog.data_block_id)
+        .join(DataFunctionLog)
+        .filter(
+            DataBlockLog.direction == Direction.OUTPUT,
+            # DataBlockLog.stream_name == stream_name,
+            DataFunctionLog.node_key == node_input.input_node.key,
+        )
+        .filter(DataBlockLog.invalidated == False)  # noqa
+        .distinct()
+    )
+    eligible_input_dbs = eligible_input_dbs.filter(
+        DataBlockMetadata.id.in_(eligible_input_logs)
+    )
+    logger.opt(lazy=True).debug(
+        "{x} available DataBlocks", x=lambda: env.md_api.count(eligible_input_dbs)
+    )
+    storages = cfg.storages
     if storages:
-        stream_builder = stream_builder.filter_storages(storages)
-        logger.debug(
-            f"{stream_builder.get_count(env)} available DataBlocks in storages {storages}"
+        eligible_input_dbs = eligible_input_dbs.join(StoredDataBlockMetadata).filter(
+            StoredDataBlockMetadata.storage_url.in_(storages)  # type: ignore
+        )
+        logger.opt(lazy=True).debug(
+            "{x} available DataBlocks in storages {storages}",
+            x=lambda: env.md_api.count(eligible_input_dbs),
+            storages=lambda: storages,
         )
     if node_input.input.is_reference:
         logger.debug("Reference input, taking latest")
-        stream_builder = operators.latest(stream_builder)
+        eligible_input_dbs = eligible_input_dbs.order_by(
+            DataBlockMetadata.id.desc()
+        ).limit(1)
     else:
-        logger.debug(f"Finding unprocessed input for: {stream_builder}")
-        stream_builder = stream_builder.filter_unprocessed(cfg.node_key)
-        logger.debug(f"{stream_builder.get_count(env)} unprocessed DataBlocks")
-    return stream_builder
-
-
-def bind_node_input(
-    env: Environment,
-    cfg: ExecutableCfg,
-    node_input: NodeInputCfg,
-    stream_builder: StreamBuilder,
-) -> BoundInput:
-    bound_block = None
-    bound_stream = None
-    if stream_builder is not None:
-        schema = None
-        try:
-            schema = env.get_schema(node_input.input.schema_key)
-        except GenericSchemaException:
-            pass
-        bound_stream = stream_builder.as_managed_stream(
-            env,
-            cfg.execution_config,
-            declared_schema=schema,
-            declared_schema_translation=node_input.schema_translation,
+        eligible_input_dbs = eligible_input_dbs.order_by(DataBlockMetadata.id)
+        eligible_input_dbs = _filter_unprocessed(eligible_input_dbs, node.key)
+        logger.opt(lazy=True).debug(
+            "{x} unprocessed DataBlocks", x=lambda: env.md_api.count(eligible_input_dbs)
         )
-        if not node_input.input.is_stream:
-            # TODO: handle StopIteration here? Happens if `get_bound_interface` is passed empty stream
-            #   (will trigger an InputExhastedException earlier otherwise)
-            bound_block = next(bound_stream)
-    return node_input.as_bound_input(
-        bound_block=bound_block,
-        bound_stream=bound_stream,
+    return eligible_input_dbs
+
+
+def _filter_unprocessed(query: Select, unprocessed_by_node_key: str) -> Select:
+    filter_clause = and_(
+        DataBlockLog.direction == Direction.INPUT,
+        DataFunctionLog.node_key == unprocessed_by_node_key,
     )
+    # else:
+    #     # No block cycles allowed
+    #     # Exclude blocks processed as INPUT and blocks outputted
+    #     filter_clause = (
+    #         DataFunctionLog.node_key == self._filters.unprocessed_by_node_key
+    #     )
+    already_processed_drs = (
+        Query(DataBlockLog.data_block_id)
+        .join(DataFunctionLog)
+        .filter(filter_clause)
+        .filter(DataBlockLog.invalidated == False)  # noqa
+        .distinct()
+    )
+    return query.filter(not_(DataBlockMetadata.id.in_(already_processed_drs)))

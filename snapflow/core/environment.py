@@ -15,13 +15,17 @@ from dcp.storage.memory.engines.python import new_local_python_storage
 from dcp.utils.common import AttrDict
 from loguru import logger
 from snapflow.core.component import ComponentLibrary, global_library
-from snapflow.core.metadata.api import MetadataApi
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
     DEFAULT_LOCAL_NAMESPACE,
     SnapflowModule,
 )
-from snapflow.core.schema import GeneratedSchema, GenericSchemaException, is_generic
+from snapflow.core.persistence.api import MetadataApi
+from snapflow.core.persistence.schema import (
+    GeneratedSchema,
+    GenericSchemaException,
+    is_generic,
+)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -31,7 +35,7 @@ if TYPE_CHECKING:
     from snapflow.core.declarative.graph import GraphCfg
     from snapflow.core.declarative.execution import ExecutableCfg, ExecutionCfg
     from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
-    from snapflow.core.declarative.execution import CumulativeExecutionResult
+    from snapflow.core.declarative.execution import ExecutionResult
 
 DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
 
@@ -144,6 +148,7 @@ class Environment:
         self.md_api.add(got)
         self.md_api.flush([got])
         self.library.add_schema(schema)
+        global_library.add_schema(schema)  # TODO: really?
 
     def all_schemas(self) -> List[Schema]:
         return self.library.all_schemas()
@@ -222,7 +227,7 @@ class Environment:
     # def run(
     #     self, graph: Graph, target_storage: Storage = None, **kwargs
     # ) -> Iterator[ExecutionManager]:
-    #     from snapflow.core.execution import ExecutionManager
+    #     from snapflow.core.execution.execution import ExecutionManager
 
     #     # self.session.begin_nested()
     #     ec = self.get_execution_context(target_storage=target_storage, **kwargs)
@@ -245,21 +250,21 @@ class Environment:
 
     def get_executable(
         self,
-        node: GraphCfg,
-        graph: Optional[GraphCfg] = None,
+        node_key: str,
+        graph: GraphCfg,
         target_storage: Union[Storage, str] = None,
         **kwargs,
     ) -> ExecutableCfg:
-        from snapflow.core.declarative.execution import ExecutableCfg
+        from snapflow.core.execution.run import prepare_executable
 
-        graph = self.prepare_graph(graph)
-        return ExecutableCfg(
-            node_key=node.key,
-            graph=graph,
-            execution_config=self.get_execution_config(
-                target_storage=target_storage, **kwargs
-            ),
+        execution_config = self.get_execution_config(
+            target_storage=target_storage, **kwargs
         )
+        assert graph.is_resolved()
+        assert graph.is_flattened()
+        # graph = self.prepare_graph(graph)
+        node = graph.get_node(node_key)
+        return prepare_executable(self, execution_config, node, graph)
 
     def produce(
         self,
@@ -267,32 +272,29 @@ class Environment:
         graph: Optional[GraphCfg] = None,
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
-    ) -> List[DataBlock]:
-        from snapflow.core.execution import execute_to_exhaustion
+    ) -> List[ExecutionResult]:
+        from snapflow.core.execution.run import run
 
-        graph = self.prepare_graph(graph)
+        # graph = self.prepare_graph(graph)
         if isinstance(node, str):
             node = graph.get_node(node)
-        assert node.is_function_node()
+        # assert node.is_function_node()
 
         if node is not None:
             dependencies = graph.get_all_upstream_dependencies_in_execution_order(node)
         else:
             dependencies = graph.get_all_nodes_in_execution_order()
-        result = None
+        results = []
         for dep in dependencies:
-            result = execute_to_exhaustion(
-                self,
-                self.get_executable(dep, graph=graph, **execution_kwargs),
-                to_exhaustion=to_exhaustion,
+            results = self.run_node(
+                dep, graph, to_exhaustion=to_exhaustion, **execution_kwargs
             )
-        if result:
-            with self.metadata_api.begin():
-                return result.get_output_blocks(self)
-        return []
+        return results
 
     def translate_node_to_flattened_nodes(
-        self, node: Union[GraphCfg, str], flattened_graph: Optional[GraphCfg] = None,
+        self,
+        node: Union[GraphCfg, str],
+        flattened_graph: Optional[GraphCfg] = None,
     ) -> List[GraphCfg]:
         # Return in execution order
         assert flattened_graph.is_flattened()
@@ -307,25 +309,29 @@ class Environment:
         graph: Optional[GraphCfg] = None,
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
-    ) -> Optional[CumulativeExecutionResult]:
-        from snapflow.core.execution import execute_to_exhaustion
+    ) -> List[ExecutionResult]:
+        from snapflow.core.execution.run import run
         from snapflow.core.declarative.graph import ImproperlyConfigured
+        from snapflow.core.function import InputExhaustedException
 
         graph = self.prepare_graph(graph)
         logger.debug(f"Running: {node}")
         flattened_nodes = self.translate_node_to_flattened_nodes(node, graph)
-        result = None
+        results = []
         for n in flattened_nodes:
             try:
                 n = n.resolve(self.library)
-                result = execute_to_exhaustion(
-                    self,
-                    self.get_executable(n, graph=graph, **execution_kwargs),
-                    to_exhaustion=to_exhaustion,
-                )
-            except ImproperlyConfigured as e:
+                try:
+                    results = run(
+                        self,
+                        self.get_executable(n.key, graph=graph, **execution_kwargs),
+                        to_exhaustion=to_exhaustion,
+                    )
+                except InputExhaustedException:
+                    pass
+            except ImproperlyConfigured:
                 logger.error(f"Improperly configured node {n}")
-        return result
+        return results
 
     def run_graph(
         self,
@@ -333,28 +339,30 @@ class Environment:
         to_exhaustion: bool = True,
         **execution_kwargs: Any,
     ):
-        from snapflow.core.execution import execute_to_exhaustion
+        from snapflow.core.execution.run import run
         from snapflow.core.declarative.graph import ImproperlyConfigured
 
         graph = self.prepare_graph(graph)
         nodes = graph.get_all_nodes_in_execution_order()
         for node in nodes:
             try:
-                execute_to_exhaustion(
+                run(
                     self,
-                    self.get_executable(node, graph=graph, **execution_kwargs),
+                    self.get_executable(node.key, graph=graph, **execution_kwargs),
                     to_exhaustion=to_exhaustion,
                 )
-            except ImproperlyConfigured as e:
+            except ImproperlyConfigured:
                 logger.error(f"Improperly configured node {node}")
 
     def get_latest_output(self, node: GraphCfg) -> Optional[DataBlock]:
-        from snapflow.core.execution import get_latest_output
+        from snapflow.core.execution.run import get_latest_output
 
         return get_latest_output(self, node)
 
     def reset_node(
-        self, node: Union[GraphCfg, str], graph: Optional[GraphCfg] = None,
+        self,
+        node: Union[GraphCfg, str],
+        graph: Optional[GraphCfg] = None,
     ):
         from snapflow.core.state import reset
 
@@ -365,20 +373,20 @@ class Environment:
             reset(self, n.key)
 
 
-# Shortcuts
-def produce(
-    node: Union[str, GraphCfg],
-    graph: Optional[GraphCfg] = None,
-    env: Optional[Environment] = None,
-    modules: Optional[List[SnapflowModule]] = None,
-    **kwargs: Any,
-) -> List[DataBlock]:
-    if env is None:
-        env = Environment()
-    if modules is not None:
-        for module in modules:
-            env.add_module(module)
-    return env.produce(node, graph=graph, **kwargs)
+# # Shortcuts
+# def produce(
+#     node: Union[str, GraphCfg],
+#     graph: Optional[GraphCfg] = None,
+#     env: Optional[Environment] = None,
+#     modules: Optional[List[SnapflowModule]] = None,
+#     **kwargs: Any,
+# ) -> List[DataBlock]:
+#     if env is None:
+#         env = Environment()
+#     if modules is not None:
+#         for module in modules:
+#             env.add_module(module)
+#     return env.produce(node, graph=graph, **kwargs)
 
 
 def run_node(
@@ -387,7 +395,7 @@ def run_node(
     env: Optional[Environment] = None,
     modules: Optional[List[SnapflowModule]] = None,
     **kwargs: Any,
-) -> Optional[CumulativeExecutionResult]:
+) -> List[ExecutionResult]:
     if env is None:
         env = Environment()
     if modules is not None:

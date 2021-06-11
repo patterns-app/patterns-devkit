@@ -7,18 +7,18 @@ import pytest
 from dcp.data_format.formats.memory.records import Records
 from loguru import logger
 from pandas import DataFrame
-from snapflow.core.data_block import Alias, DataBlock, DataBlockMetadata, Reference
+from snapflow.core.data_block import Reference, as_managed
+from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.execution import ExecutionManager
+from snapflow.core.execution.execution import ExecutionManager
 from snapflow.core.function import Input, datafunction
-from snapflow.core.state import DataBlockLog, DataFunctionLog, Direction
+from snapflow.core.persistence.data_block import Alias
+from snapflow.core.persistence.state import DataBlockLog, DataFunctionLog, Direction
 from snapflow.modules import core
 from sqlalchemy.sql.expression import select
 from tests.utils import (
     TestSchema1,
     TestSchema4,
-    function_generic,
-    function_t1_sink,
     function_t1_source,
     function_t1_to_t2,
     make_test_env,
@@ -49,11 +49,13 @@ def never_stop(input: Optional[Reference] = None) -> DataFrame:
 def test_exe():
     env = make_test_env()
     node = GraphCfg(key="node", function="function_t1_source")
-    g = GraphCfg(nodes=[node])
-    exe = env.get_executable(node, graph=g)
-    result = ExecutionManager(env, exe).execute()
+    g = GraphCfg(nodes=[node]).resolve_and_flatten(env.library)
+    exe = env.get_executable(node.key, graph=g)
+    results = ExecutionManager(exe).execute()
+    assert len(results) == 1
+    result = results[0]
     with env.md_api.begin():
-        assert not result.output_blocks
+        assert not result.output_blocks_emitted
         assert env.md_api.count(select(DataFunctionLog)) == 1
         pl = env.md_api.execute(select(DataFunctionLog)).scalar_one_or_none()
         assert pl.node_key == node.key
@@ -74,25 +76,30 @@ def test_exe_output():
     # ec = env.get_run_context(g, current_runtime=rt, target_storage=rt.as_storage())
     output_alias = "node_output"
     node = GraphCfg(key="node", function="function_dl_source", alias=output_alias)
-    g = GraphCfg(nodes=[node])
-    exe = env.get_executable(node, graph=g)
-    result = ExecutionManager(env, exe).execute()
+    g = GraphCfg(nodes=[node]).resolve_and_flatten(env.library)
+    exe = env.get_executable(node.key, graph=g)
+    results = ExecutionManager(exe).execute()
+    assert len(results) == 1
+    result = results[0]
     with env.md_api.begin():
-        block = result.get_output_block(env)
+        block = result.stdout()
         assert block is not None
         assert block.as_records() == mock_dl_output
-        assert block.nominal_schema is TestSchema4
-        assert len(block.realized_schema.fields) == len(TestSchema4.fields)
+        assert block.nominal_schema_key == TestSchema4.key
+        assert len(env.get_schema(block.realized_schema_key).fields) == len(
+            TestSchema4.fields
+        )
         # Test alias was created correctly
         assert (
             env.md_api.execute(select(Alias).filter(Alias.name == output_alias))
             .scalar_one_or_none()
             .data_block_id
-            == block.data_block_id
+            == block.id
         )
         assert env.md_api.count(select(DataBlockLog)) == 1
         dbl = env.md_api.execute(select(DataBlockLog)).scalar_one_or_none()
-        assert dbl.data_block_id == block.data_block_id
+        assert dbl.stream_name == DEFAULT_OUTPUT_NAME
+        assert dbl.data_block_id == block.id
         assert dbl.direction == Direction.OUTPUT
 
 
@@ -100,10 +107,12 @@ def test_non_terminating_function():
     env = make_test_env()
     env.add_function(never_stop)
     node = GraphCfg(key="node", function="never_stop")
-    g = GraphCfg(nodes=[node])
-    exe = env.get_executable(node, graph=g)
-    result = ExecutionManager(env, exe).execute()
-    assert result.get_output_block(env) is None
+    g = GraphCfg(nodes=[node]).resolve_and_flatten(env.library)
+    exe = env.get_executable(node.key, graph=g)
+    results = ExecutionManager(exe).execute()
+    assert len(results) == 1
+    result = results[0]
+    assert not result.output_blocks_emitted
 
 
 def test_non_terminating_function_with_reference_input():
@@ -115,12 +124,14 @@ def test_non_terminating_function_with_reference_input():
         params={"dataframe": pd.DataFrame({"a": range(10)})},
     )
     node = GraphCfg(key="node", function="never_stop", input=source.key)
-    g = GraphCfg(nodes=[source, node])
-    exe = env.get_executable(source, graph=g)
-    result = ExecutionManager(env, exe).execute()
+    g = GraphCfg(nodes=[source, node]).resolve_and_flatten(env.library)
+    exe = env.get_executable(source.key, graph=g)
+    result = ExecutionManager(exe).execute()
     # TODO: reference inputs need to log too? (So they know when to update)
     # with env.md_api.begin():
     #     assert env.md_api.count(select(DataBlockLog)) == 1
-    exe = env.get_executable(node, graph=g)
-    result = ExecutionManager(env, exe).execute()
-    assert result.get_output_block(env) is None
+    exe = env.get_executable(node.key, graph=g)
+    results = ExecutionManager(exe).execute()
+    assert len(results) == 1
+    result = results[0]
+    assert not result.output_blocks_emitted

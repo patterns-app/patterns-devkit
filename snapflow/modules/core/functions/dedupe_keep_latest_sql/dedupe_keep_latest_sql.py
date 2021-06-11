@@ -1,10 +1,11 @@
 from __future__ import annotations
-from snapflow.core.sql.sql_function import SqlDataFunctionWrapper
+
 from typing import Optional
 
 from commonmodel.base import Schema
-
-from snapflow import datafunction, DataFunctionContext, DataBlock
+from dcp.utils.common import T
+from snapflow import DataBlock, DataFunctionContext, datafunction
+from snapflow.core.sql.sql_function import SqlDataFunctionWrapper
 
 
 @datafunction(
@@ -19,11 +20,11 @@ def dedupe_keep_latest_sql(
     # return "dedupe_keep_latest_sql.sql"
     nominal: Optional[Schema] = None
     if input.nominal_schema_key:
-        nominal = input.nominal_schema
+        nominal = ctx.library.get_schema(input.nominal_schema_key)
     distinct_clause = ""
     if nominal and nominal.unique_on:
         distinct_clause = f" distinct on ({', '.join(nominal.unique_on)})"
-    realized: Schema = input.realized_schema
+    realized: Schema = ctx.library.get_schema(input.realized_schema_key)
     cols = ", ".join(realized.field_names())
 
     orderby_clause = ""
