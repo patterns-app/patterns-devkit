@@ -3,7 +3,7 @@ authors = ["Ken Van Haren <kenvanharen@gmail.com>"]
 description = "DataFunctional Data Pipelines"
 license = "BSD-3-Clause"
 name = "snapflow"
-version = "0.6.0"
+version = "0.7.0a1"
 
 [tool.poetry.dependencies]
 alembic = "^1.5.5"
@@ -20,13 +20,13 @@ networkx = "^2.4"
 pandas = "^1.0.1"
 pyarrow = "^3.0.0"
 pydantic = "^1.8.1"
+pydantic-sqlalchemy = "^0.0.9"
 python = "^3.7.4"
 ratelimit = "^2.2.1"
 requests = "^2.23.0"
 sqlalchemy = "^1.4.1"
 sqlparse = "^0.3.1"
 strictyaml = "^1.0.6"
-pydantic-sqlalchemy = "^0.0.9"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
