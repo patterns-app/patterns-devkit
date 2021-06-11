@@ -10,7 +10,7 @@ from snapflow.core.data_block import SelfReference, Stream
 from snapflow.core.function import datafunction
 from snapflow.core.sql.sql_function import SqlDataFunctionWrapper, sql_datafunction
 from snapflow.utils.typing import T
-from sqlalchemy.sql import cast
+from sqlalchemy.sql import cast, select
 
 
 def merge_field_types(ft_base: FieldType, ft_new: FieldType) -> FieldType:
@@ -23,20 +23,23 @@ def merge_field_types(ft_base: FieldType, ft_new: FieldType) -> FieldType:
 
 def field_sql_with_cast(name: str, ftype: FieldType, dialect=None) -> str:
     sa_type = field_type_to_sqlalchemy_type(ftype)
-    return str(cast("placeholder", sa_type).compile(dialect=dialect)) % {
-        "param_1": name
-    }
+    sa_dialect_type = sa_type.compile(dialect=dialect)
+    return f"cast({name} as {sa_dialect_type})"
+    # s = str(cast("placeholder", sa_type).compile(dialect=dialect))
+    # if "% " in s:
+    #     s = s.replace("%", name)
+    # elif "? " in s:
+    #     s = s.replace("?", name)
+    # return s
 
 
 @datafunction(namespace="core", display_name="Accumulate sql tables")
 def accumulator_sql(
-    ctx: DataFunctionContext,
-    input: Stream[T],
-    previous: SelfReference[T] = None,
+    ctx: DataFunctionContext, input: Stream[T], previous: SelfReference[T] = None,
 ) -> T:
     """
     Critical core data function. Handles a scary operation: merging a stream of data blocks
-    into one. Main difficulty is that these data blocks can have arbitrary realized schemas, so
+    into one. These data blocks can have arbitrary realized schemas, so
     we have to handle field name and data type differences gracefully.
     """
     cols: List[str] = []
@@ -46,6 +49,7 @@ def accumulator_sql(
         blocks.append(previous)
     blocks.extend(input)
     target_storage = ctx.execution_config.get_target_storage()
+    as_identifer = target_storage.get_api().get_quoted_identifier
     select_stmts = []
     for block in blocks:
         for f in block.realized_schema.fields:
@@ -65,10 +69,12 @@ def accumulator_sql(
                 # else:
                 # TODO: Always cast?
                 dialect = target_storage.get_api().get_engine().dialect
-                cast_sql = field_sql_with_cast(f.name, col_types[f.name], dialect)
-                col_sql.append(cast_sql)
+                cast_sql = field_sql_with_cast(
+                    as_identifer(f.name), col_types[f.name], dialect
+                )
+                col_sql.append(f"{cast_sql} as {as_identifer(col)}")
             else:
-                col_sql.append("null as " + col)
+                col_sql.append("null as " + as_identifer(col))
         select_stmts.append(
             "select "
             + ",\n".join(col_sql)

@@ -36,7 +36,7 @@ from tests.utils import get_stdout_block
 logger.enable("snapflow")
 
 Customer = create_quick_schema(
-    "Customer", [("name", "Text"), ("joined", "DateTime"), ("metadata", "Json")]
+    "Customer", [("name", "Text"), ("joined", "DateTime"), ("Meta data", "Json")]
 )
 Metric = create_quick_schema("Metric", [("metric", "Text"), ("value", "Decimal(12,2)")])
 
@@ -91,7 +91,7 @@ def customer_source(
                 {
                     "name": f"name{n}",
                     "joined": datetime(2000, 1, n + 1),
-                    "metadata": {"idx": n},
+                    "Meta data": {"idx": n},
                 }
             )
             n += 1

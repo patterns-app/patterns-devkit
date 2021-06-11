@@ -27,7 +27,7 @@ from tests.utils import get_stdout_block
 
 IS_CI = os.environ.get("CI")
 
-logger.enable("snapflow")
+# logger.enable("snapflow")
 
 
 @datafunction
@@ -37,11 +37,7 @@ def funky_source(
     # Gives different schema on each call
     runs = ctx.get_state_value("run_number", 0)
     records = [
-        {
-            "name": f"name{n}",
-            "joined": datetime(2000, 1, n + 1),
-            "metadata": None,
-        }
+        {"name": f"name{n}", "joined": datetime(2000, 1, n + 1), "Meta data": None,}
         for n in range(10)
     ]
     if runs == 1:
@@ -50,7 +46,7 @@ def funky_source(
             {
                 "name": f"name{n}",
                 "joined": datetime(2000, 1, n + 1),
-                "metadata": {"idx": n},
+                "Meta data": {"idx": n},
                 "new_field": "suprise!",
             }
             for n in range(10)
@@ -61,7 +57,7 @@ def funky_source(
             {
                 "name": f"name{n}",
                 "joined": None,
-                "metadata": {"idx": n},
+                "Meta data": {"idx": n},
                 "new_field": "suprise!",
             }
             for n in range(10)
@@ -72,7 +68,7 @@ def funky_source(
             {
                 "name": None,
                 "joined": datetime(2000, 1, n + 1),
-                "metadata": {"idx": n},
+                "Meta data": {"idx": n},
                 "new_field": "suprise!",
             }
             for n in range(10)
@@ -80,10 +76,7 @@ def funky_source(
     if runs > 3:
         # missing field
         records = [
-            {
-                "joined": datetime(2000, 1, n + 1),
-                "metadata": {"idx": n},
-            }
+            {"joined": datetime(2000, 1, n + 1), "Meta data": {"idx": n},}
             for n in range(10)
         ]
     ctx.emit_state_value("run_number", runs + 1)
@@ -91,8 +84,8 @@ def funky_source(
 
 
 @contextmanager
-def get_env(key="_test"):
-    if not IS_CI:
+def get_env(key="_test", use_sqlite=False):
+    if not use_sqlite or not IS_CI:
         with PostgresDatabaseStorageApi.temp_local_database() as db_url:
             env = Environment(
                 DataspaceCfg(
@@ -166,9 +159,17 @@ def test_accumulate():
         assert len(records) == 40
         assert len(records[0]) == 4
 
+    # Test python version
     with get_env() as env:
         s = env._local_python_storage
         run_accumulate(env, GraphCfg(nodes=[source, accumulate]), s)
+    # Test database version (sqlite if CI, postgres if local dev)
     with get_env() as env:
         dbs = env.get_storages()[0]
         run_accumulate(env, GraphCfg(nodes=[source, accumulate_sql]), dbs)
+    if not IS_CI:
+        # If local, also test sqlite!
+        with get_env(use_sqlite=True) as env:
+            dbs = env.get_storages()[0]
+            run_accumulate(env, GraphCfg(nodes=[source, accumulate_sql]), dbs)
+
