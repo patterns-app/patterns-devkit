@@ -321,10 +321,9 @@ def save_state(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
         state = NodeState(node_key=exe.node_key)
     state.state = exe.function_log.node_end_state
     state.latest_log_id = exe.function_log.id
-    stdout = result.stdout_block_emitted()
-    if stdout:
-        state.latest_block_id = stdout.id
-    state.alias = exe.node.get_alias()
+    state.alias = (
+        exe.node.get_alias()
+    )  # TODO: not an actual attribute, this gets dropped
     env.md_api.add(state)
 
 
