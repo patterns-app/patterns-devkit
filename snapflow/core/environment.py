@@ -292,9 +292,7 @@ class Environment:
         return results
 
     def translate_node_to_flattened_nodes(
-        self,
-        node: Union[GraphCfg, str],
-        flattened_graph: Optional[GraphCfg] = None,
+        self, node: Union[GraphCfg, str], flattened_graph: Optional[GraphCfg] = None,
     ) -> List[GraphCfg]:
         # Return in execution order
         assert flattened_graph.is_flattened()
@@ -360,17 +358,16 @@ class Environment:
         return get_latest_output(self, node)
 
     def reset_node(
-        self,
-        node: Union[GraphCfg, str],
-        graph: Optional[GraphCfg] = None,
+        self, node: Union[GraphCfg, str], graph: Optional[GraphCfg] = None,
     ):
-        from snapflow.core.state import reset
+        from snapflow.core.persistence.state import reset
 
         graph = self.prepare_graph(graph)
         logger.debug(f"Resetting: {node}")
         flattened_nodes = self.translate_node_to_flattened_nodes(node, graph)
-        for n in flattened_nodes:
-            reset(self, n.key)
+        with self.md_api.begin():
+            for n in flattened_nodes:
+                reset(self, n.key)
 
 
 # # Shortcuts

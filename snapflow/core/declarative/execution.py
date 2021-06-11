@@ -91,7 +91,8 @@ class MetadataExecutionResultListener:
     def __call__(self, result: ExecutionResult):
         from snapflow.core.execution.run import save_result
 
-        save_result(self.env, self.exe, result)
+        with self.env.md_api.begin():
+            save_result(self.env, self.exe, result)
 
 
 # Used for local python runtime

@@ -309,11 +309,11 @@ def save_result(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
     )
     for s in result.schemas_generated or []:
         env.add_new_generated_schema(s)
-    save_state(env, exe)
+    save_state(env, exe, result)
     ensure_aliases(env, exe, result)
 
 
-def save_state(env: Environment, exe: ExecutableCfg):
+def save_state(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
     state = env.md_api.execute(
         select(NodeState).filter(NodeState.node_key == exe.node_key)
     ).scalar_one_or_none()
@@ -321,6 +321,9 @@ def save_state(env: Environment, exe: ExecutableCfg):
         state = NodeState(node_key=exe.node_key)
     state.state = exe.function_log.node_end_state
     state.latest_log_id = exe.function_log.id
+    stdout = result.stdout_block_emitted()
+    if stdout:
+        state.latest_block_id = stdout.id
     state.alias = exe.node.get_alias()
     env.md_api.add(state)
 
