@@ -85,17 +85,7 @@ def funky_source(
 
 @contextmanager
 def get_env(key="_test", use_sqlite=False):
-    if not use_sqlite or not IS_CI:
-        with PostgresDatabaseStorageApi.temp_local_database() as db_url:
-            env = Environment(
-                DataspaceCfg(
-                    key=key, metadata_storage=get_tmp_sqlite_db_url(), storages=[db_url]
-                )
-            )
-            env.add_module(core)
-            env.add_schema(Customer)
-            yield env
-    else:
+    if use_sqlite or IS_CI:
         db_url = get_tmp_sqlite_db_url()
         env = Environment(
             DataspaceCfg(
@@ -105,6 +95,16 @@ def get_env(key="_test", use_sqlite=False):
         env.add_module(core)
         env.add_schema(Customer)
         yield env
+    else:
+        with PostgresDatabaseStorageApi.temp_local_database() as db_url:
+            env = Environment(
+                DataspaceCfg(
+                    key=key, metadata_storage=get_tmp_sqlite_db_url(), storages=[db_url]
+                )
+            )
+            env.add_module(core)
+            env.add_schema(Customer)
+            yield env
 
 
 def test_source():
