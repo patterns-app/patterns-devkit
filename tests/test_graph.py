@@ -207,6 +207,7 @@ def test_augmentations():
               function: core.accumulator_sql
               accumulate: true
               dedupe: true
+              alias: alias_step1
             - key: step2
               function: core.dedupe_keep_latest_sql
               input: step1
@@ -233,6 +234,7 @@ def test_augmentations():
                 path: "*****"
               accumulate: true
               dedupe: true
+              alias: alias_import_csv
             - key: stripe_charges
               flow: myflow
               input: import_csv
@@ -290,7 +292,7 @@ nodes:
   function: core.dedupe_keep_latest
   inputs:
     stdin: import_csv.accumulate
-  alias: import_csv
+  alias: alias_import_csv
 - key: stripe_charges.step1.source
   function: core.accumulator_sql
   inputs:
@@ -310,6 +312,7 @@ nodes:
     stdin: stripe_charges.step1.dedupe
   alias: stripe_charges
 """
+    # TODO: we lost the alias on the inner step? Is that ok? What is ideal behavior? Nested aliases kinda tricky anyways?
     exp = GraphCfg(**load_yaml(expected))
     assert flat.key == exp.key
     for n in flat.nodes:

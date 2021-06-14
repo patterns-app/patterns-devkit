@@ -1,19 +1,18 @@
 from typing import Dict, Union
 
 from snapflow.core.declarative.base import update
+from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import DedupeBehavior, GraphCfg
 
 
-def flatten_sub_node(
-    cfg: GraphCfg, parent_key: str, parent_stdout_key: Union[str, None]
-) -> GraphCfg:
-    sub_node_key = parent_key + "." + cfg.key
+def flatten_sub_node(cfg: GraphCfg, parent: GraphCfg) -> GraphCfg:
+    sub_node_key = parent.key + "." + cfg.key
     new_inputs = {}
     for input_name, node_key in cfg.get_inputs().items():
-        new_inputs[input_name] = parent_key + "." + node_key
+        new_inputs[input_name] = parent.key + "." + node_key
     alias = None
-    if cfg.key == parent_stdout_key:
-        alias = parent_key
+    if cfg.key == parent.stdout_key:
+        alias = parent.get_aliases().get(DEFAULT_OUTPUT_NAME) or parent.key
     return update(cfg, key=sub_node_key, inputs=new_inputs, input=None, alias=alias,)
 
 
@@ -125,9 +124,7 @@ def flatten_graph_config(config: GraphCfg) -> GraphCfg:
                 if parent.stdout_key:
                     stdout_lookup[parent.key] = parent.key + "." + parent.stdout_key
                 for sub_node in parent.nodes:
-                    new_sub_node = flatten_sub_node(
-                        sub_node, parent.key, parent.stdout_key
-                    )
+                    new_sub_node = flatten_sub_node(sub_node, parent)
                     flattened_nodes[new_sub_node.key] = new_sub_node
             else:
                 flattened_nodes[parent.key] = parent
