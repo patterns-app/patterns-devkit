@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from snapflow.core.function import DataFunction
     from snapflow.core.data_block import DataBlock
     from snapflow.core.declarative.graph import GraphCfg
+    from snapflow.core.declarative.dataspace import ComponentLibraryCfg
     from snapflow.core.declarative.execution import ExecutableCfg, ExecutionCfg
     from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
     from snapflow.core.declarative.execution import ExecutionResult
@@ -193,6 +194,18 @@ class Environment:
             return s
         return ensure_storage(self.dataspace.storages[0])
 
+    def build_library_cfg(self) -> ComponentLibraryCfg:
+        from snapflow.core.declarative.dataspace import ComponentLibraryCfg
+
+        # TODO: only do necessary ones for graph
+        schemas = [
+            s for s in self.library.schemas.values() if s.key.startswith("__auto")
+        ]
+        with self.md_api.begin():
+            for gs in self.md_api.execute(select(GeneratedSchema)).scalars():
+                schemas.append(gs.as_schema())
+        return ComponentLibraryCfg(schemas=schemas)
+
     def get_execution_config(
         self, target_storage: Union[Storage, str] = None, **kwargs
     ) -> ExecutionCfg:
@@ -212,7 +225,8 @@ class Environment:
             dataspace=self.dataspace,
             local_storage=self._local_python_storage.url,
             target_storage=target_storage.url,
-            storages=[s.url for s in self.get_storages()] + [target_storage.url]
+            storages=[s.url for s in self.get_storages()] + [target_storage.url],
+            library_cfg=self.build_library_cfg()
             # abort_on_function_error=self.settings.abort_on_function_error,
         )
         args.update(**kwargs)
