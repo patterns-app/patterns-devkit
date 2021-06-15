@@ -71,7 +71,7 @@ class BoundInputCfg(FrozenPydanticBase):
         assert self.input.is_reference
         if not self.bound_stream:
             return None
-        return self.bound_stream[0]
+        return self.bound_stream[-1]  # TODO: It will only be one right?
 
     def get_bound_block_property(self, prop: str):
         if self.bound_stream:
@@ -165,6 +165,7 @@ class BoundInterfaceCfg(FrozenPydanticBase):
     #     raise Exception(f"Unable to resolve generic '{output_generic}'")
 
     def resolve_nominal_output_schema(self) -> Optional[str]:
+        # TODO: extend to other output streams
         output = self.interface.get_default_output()
         if not output:
             return None

@@ -109,6 +109,12 @@ class DataFunctionContext:
         function_kwargs = {
             n: self.wrap_input_block(i) for n, i in self.inputs.copy().items()
         }
+        optional_function_kwargs = {
+            n: None
+            for n, i in self.executable.bound_interface.interface.inputs.items()
+            if not i.required and n not in function_kwargs
+        }
+        function_kwargs.update(optional_function_kwargs)
         function_params = self.get_params()
         assert not (
             set(function_params) & set(self.inputs)

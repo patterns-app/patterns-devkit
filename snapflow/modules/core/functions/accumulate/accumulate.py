@@ -17,10 +17,8 @@ from snapflow.utils.typing import T
 
 @datafunction(namespace="core", display_name="Accumulate successive outputs")
 def accumulate(
-    ctx: DataFunctionContext,
-    input: Stream[T],
-    previous: SelfReference[T] = None,
-) -> T:
+    ctx: DataFunctionContext, input: Stream[T], previous: SelfReference[T] = None,
+) -> DataBlock[T]:
     """Adaptive to storages.
     TODO: is this the right pattern for handling different storage classes / engines? No probably not,
     but good hack for now, lots of flexibility.

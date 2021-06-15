@@ -148,9 +148,7 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=sql_with_jinja_vars,
-        found_params=params,
+        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
     )
 
 
@@ -263,9 +261,7 @@ def extract_tables(  # noqa: C901
     new_sql_str = "".join(new_sql)
     new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", r"as \1", new_sql_str, flags=re.I)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=new_sql_str,
-        found_tables=found_tables,
+        original_sql=sql, sql_with_jinja_vars=new_sql_str, found_tables=found_tables,
     )
 
 
@@ -358,9 +354,10 @@ class SqlDataFunctionWrapper:
         sql = self.get_compiled_sql(ctx, storage, inputs)
 
         db_api = storage.get_api()
-        logger.debug(
-            f"Resolved in sql function {ctx.executable.bound_interface.resolve_nominal_output_schema()}"
+        resolved_nominal_key = (
+            ctx.executable.bound_interface.resolve_nominal_output_schema()
         )
+        logger.debug(f"Resolved in sql function {resolved_nominal_key}")
         tmp_name = f"_tmp_{rand_str(10)}".lower()
         sql = db_api.clean_sub_sql(sql)
         create_sql = f"""
@@ -372,7 +369,12 @@ class SqlDataFunctionWrapper:
         ) as __sub
         """
         db_api.execute_sql(create_sql)
-        ctx.emit(name=tmp_name, storage=storage, data_format=DatabaseTableFormat)
+        ctx.emit(
+            name=tmp_name,
+            storage=storage,
+            data_format=DatabaseTableFormat,
+            schema=resolved_nominal_key,
+        )
         # block, sdb = create_data_block_from_sql(
         #     ctx.env,
         #     sql,
@@ -510,11 +512,7 @@ def sql_function_decorator(
     else:
         name = sql_fn_or_function.__name__
     return sql_function_factory(
-        name=name,
-        sql=sql,
-        file=file,
-        autodetect_inputs=autodetect_inputs,
-        **kwargs,
+        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
     )
 
 

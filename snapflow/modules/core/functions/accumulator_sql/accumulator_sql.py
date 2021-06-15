@@ -36,7 +36,7 @@ def field_sql_with_cast(name: str, ftype: FieldType, dialect=None) -> str:
 @datafunction(namespace="core", display_name="Accumulate sql tables")
 def accumulator_sql(
     ctx: DataFunctionContext, input: Stream[T], previous: SelfReference[T] = None,
-) -> T:
+) -> DatabaseTable[T]:
     """
     Critical core data function. Handles a scary operation: merging a stream of data blocks
     into one. These data blocks can have arbitrary realized schemas, so

@@ -11,7 +11,7 @@ from snapflow.core.sql.sql_function import SqlDataFunctionWrapper
 @datafunction(
     namespace="core",
     display_name="Dedupe Table (keep latest)",
-    required_storage_engines=["postgres"],
+    required_storage_engines=["postgresql"],
     # TODO: requires postgres StorageEngine
 )
 def dedupe_keep_latest_sql(
