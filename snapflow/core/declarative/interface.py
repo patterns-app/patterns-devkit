@@ -22,8 +22,7 @@ class NodeInputCfg(FrozenPydanticBase):
     schema_translation: Optional[Dict[str, str]] = None
 
     def as_bound_input(
-        self,
-        bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
+        self, bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
     ) -> BoundInputCfg:
 
         return BoundInputCfg(
@@ -108,24 +107,18 @@ class BoundInterfaceCfg(FrozenPydanticBase):
         input_sources = {n: inpt.get_bound_input() for n, inpt in self.inputs.items()}
         while True:
             input_kwargs = {}
-            logger.debug("INPUTSSSSS")
             for iname, src in input_sources.items():
                 logger.debug(f"{iname}, {type(src)}, {src}")
                 if isinstance(src, Iterator) and not self.inputs[iname].input.is_stream:
-                    logger.debug("iter")
                     try:
                         block_input = next(src)
                     except StopIteration:
                         return
-                    block_input = as_managed(block_input)
                 else:
                     block_input = src
                     if isinstance(src, Iterable) and self.inputs[iname].input.is_stream:
-                        logger.debug("iterb")
-                        block_input = [as_managed(b) for b in block_input]
-                    else:
-                        logger.debug("nope")
-                        block_input = as_managed(block_input)
+                        # Ensure list
+                        block_input = list(block_input)
                 input_kwargs[iname] = block_input
             # print(
             #     {

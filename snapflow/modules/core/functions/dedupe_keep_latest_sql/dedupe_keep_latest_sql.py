@@ -19,12 +19,17 @@ def dedupe_keep_latest_sql(
 ) -> DataBlock[T]:
     # return "dedupe_keep_latest_sql.sql"
     nominal: Optional[Schema] = None
+    realized: Schema = ctx.library.get_schema(input.realized_schema_key)
+    distinct_on_cols = []
     if input.nominal_schema_key:
         nominal = ctx.library.get_schema(input.nominal_schema_key)
+        if nominal.unique_on:
+            distinct_on_cols = nominal.unique_on
+    if not distinct_on_cols:
+        distinct_on_cols = realized.field_names()
     distinct_clause = ""
-    if nominal and nominal.unique_on:
-        distinct_clause = f" distinct on ({', '.join(nominal.unique_on)})"
-    realized: Schema = ctx.library.get_schema(input.realized_schema_key)
+    if distinct_on_cols:
+        distinct_clause = f" distinct on ({', '.join(distinct_on_cols)})"
     cols = ", ".join(realized.field_names())
 
     orderby_clause = ""

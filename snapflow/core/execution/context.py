@@ -29,7 +29,7 @@ from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from snapflow.core.component import ComponentLibrary, global_library
-from snapflow.core.data_block import DataBlock, DataBlockStream
+from snapflow.core.data_block import DataBlock, DataBlockStream, as_managed
 from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
 from snapflow.core.declarative.dataspace import ComponentLibraryCfg, DataspaceCfg
 from snapflow.core.declarative.execution import (
@@ -51,6 +51,7 @@ from snapflow.core.persistence.data_block import (
 )
 from snapflow.core.persistence.pydantic import (
     DataBlockMetadataCfg,
+    DataBlockWithStoredBlocksCfg,
     DataFunctionLogCfg,
     StoredDataBlockMetadataCfg,
 )
@@ -70,7 +71,9 @@ class DataFunctionContext:
     function: DataFunction
     node: GraphCfg
     executable: ExecutableCfg
-    inputs: Dict[str, Union[DataBlock, DataBlockStream]]
+    inputs: Dict[
+        str, Union[DataBlockWithStoredBlocksCfg, List[DataBlockWithStoredBlocksCfg]]
+    ]
     result: ExecutionResult
     execution_start_time: Optional[datetime] = None
     library: Optional[ComponentLibrary] = None
@@ -93,11 +96,19 @@ class DataFunctionContext:
         yield tmp_name
         self.execution_config.get_local_storage.get_api().remove(tmp_name)
 
+    def wrap_input_block(self, inp):
+        if isinstance(inp, list):
+            return [as_managed(b, ctx=self) for b in inp]
+        else:
+            return as_managed(inp, ctx=self)
+
     def get_function_args(self) -> Tuple[List, Dict]:
         function_args = []
         if self.executable.bound_interface.interface.uses_context:
             function_args.append(self)
-        function_kwargs = self.inputs.copy()
+        function_kwargs = {
+            n: self.wrap_input_block(i) for n, i in self.inputs.copy().items()
+        }
         function_params = self.get_params()
         assert not (
             set(function_params) & set(self.inputs)
@@ -181,7 +192,7 @@ class DataFunctionContext:
 
     def log_inputs(self):
         for name, input_blocks in self.inputs.items():
-            if isinstance(input_blocks, DataBlock):
+            if isinstance(input_blocks, DataBlockWithStoredBlocksCfg):
                 input_blocks = [input_blocks]
             for db in input_blocks:
                 self.result.input_blocks_consumed.setdefault(name, []).append(db)

@@ -10,12 +10,13 @@ from snapflow.utils.typing import T
 
 
 @datafunction(
-    namespace="core",
-    display_name="Dedupe DataFrame (keep latest)",
+    namespace="core", display_name="Dedupe DataFrame (keep latest)",
 )
 def dedupe_keep_latest_dataframe(input: DataBlock[T]) -> DataFrame[T]:
     if input.nominal_schema is None or not input.nominal_schema.unique_on:
-        return input.as_dataframe()  # TODO: make this a no-op
+        return (
+            input.as_dataframe().drop_duplicates()
+        )  # If no unique columns than just dedupe identical rows
     records = input.as_dataframe()
     # TODO: parameterize this too (so user can override)
     if input.nominal_schema.field_roles.modification_ordering:
