@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import requests
 import traceback
 from dataclasses import dataclass
 from datetime import datetime
@@ -102,16 +103,13 @@ class ExecutionResult(PydanticBase):
         )
 
     def compute_record_counts(self):
-        cnts = {}
-        for sdbs in self.stored_blocks_created.values():
-            if not sdbs:
-                continue
-            sdb = sdbs[0]  # TODO: choose cheapest sdb?
-            cnts[sdb.data_block_id] = (
-                Storage(sdb.storage_url).get_api().record_count(sdb.name)
-            )
         for db in self.output_blocks_emitted.values():
-            db.record_count = cnts.get(db.id)
+            if not db.data_is_written:
+                continue
+            sdbs = self.stored_blocks_created[db.id]
+            assert sdbs
+            sdb = sdbs[0]
+            db.record_count = Storage(sdb.storage_url).get_api().record_count(sdb.name)
 
 
 @dataclass
@@ -139,6 +137,21 @@ def set_global_metadata_result_listener(listener: MetadataExecutionResultListene
     global_metadata_result_listener = listener
 
 
+@dataclass
+class DebugMetadataExecutionResultListener:
+    def __call__(self, result: ExecutionResult):
+        print(result.dict())
+
+
+@dataclass
+class RemoteCallbackMetadataExecutionResultListener:
+    callback_url: str
+    headers: Optional[Dict] = None
+
+    def __call__(self, result: ExecutionResult):
+        requests.post(self.callback_url, data=result.dict(), headers=self.headers or {})
+
+
 class ExecutableCfg(FrozenPydanticBase):
     node_key: str
     graph: GraphCfg
@@ -146,6 +159,7 @@ class ExecutableCfg(FrozenPydanticBase):
     bound_interface: BoundInterfaceCfg
     function_log: DataFunctionLogCfg
     result_listener_type: str = MetadataExecutionResultListener.__name__
+    result_listener_cfg: Dict = {}
 
     @property
     def node(self) -> GraphCfg:

@@ -11,10 +11,12 @@ from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.execution import (
+    DebugMetadataExecutionResultListener,
     ExecutableCfg,
     ExecutionResult,
     MetadataExecutionResultListener,
     PythonException,
+    RemoteCallbackMetadataExecutionResultListener,
     get_global_metadata_result_listener,
 )
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
@@ -145,6 +147,18 @@ class ExecutionManager:
         result = result.finalize()  # TODO: pretty important step!
         if self.exe.result_listener_type == MetadataExecutionResultListener.__name__:
             get_global_metadata_result_listener()(result)
+        elif (
+            self.exe.result_listener_type
+            == DebugMetadataExecutionResultListener.__name__
+        ):
+            DebugMetadataExecutionResultListener()(result)
+        elif (
+            self.exe.result_listener_type
+            == RemoteCallbackMetadataExecutionResultListener.__name__
+        ):
+            RemoteCallbackMetadataExecutionResultListener(
+                **self.exe.result_listener_cfg
+            )(result)
         else:
             raise NotImplementedError(self.exe.result_listener_type)
 
