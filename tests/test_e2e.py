@@ -1,10 +1,11 @@
 from __future__ import annotations
 import os
 from snapflow.core.declarative.execution import (
+    ExecutableCfg,
     ExecutionResult,
-    RemoteCallbackMetadataExecutionResultListener,
+    RemoteCallbackMetadataExecutionResultHandler,
     ResultHandler,
-    get_global_metadata_result_listener,
+    get_global_metadata_result_handler,
 )
 
 import sys
@@ -557,8 +558,9 @@ def test_remote_callback_listener():
     @app.route("/", methods=["POST"])
     def handle_result():
         j = request.get_json()
-        result = ExecutionResult(**j)
-        get_global_metadata_result_listener()(result)
+        exe = ExecutableCfg(**j["executable"])
+        result = ExecutionResult(**j["result"])
+        get_global_metadata_result_handler()(exe, result)
         calls.append(j)
         return "Ok"
 
@@ -589,7 +591,7 @@ def test_remote_callback_listener():
         graph=GraphCfg(nodes=[n]),
         target_storage=storage,
         result_handler=ResultHandler(
-            type=RemoteCallbackMetadataExecutionResultListener.__name__,
+            type=RemoteCallbackMetadataExecutionResultHandler.__name__,
             cfg=dict(callback_url=f"http://localhost:{port}/"),
         ),
     )

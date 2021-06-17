@@ -28,7 +28,7 @@ from sqlalchemy.sql.expression import select
 
 
 class ResultHandler(FrozenPydanticBase):
-    type: str = "MetadataExecutionResultListener"
+    type: str = "MetadataExecutionResultHandler"
     cfg: Dict = {}
 
 
