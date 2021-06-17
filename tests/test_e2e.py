@@ -1,4 +1,11 @@
 from __future__ import annotations
+import os
+from snapflow.core.declarative.execution import (
+    ExecutionResult,
+    RemoteCallbackMetadataExecutionResultListener,
+    ResultHandler,
+    get_global_metadata_result_listener,
+)
 
 import sys
 from datetime import datetime
@@ -18,7 +25,7 @@ from snapflow.core.data_block import Consumable, Reference
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
-from snapflow.core.persistence.data_block import Alias
+from snapflow.core.persistence.data_block import Alias, DataBlockMetadata
 from snapflow.core.persistence.state import (
     DataBlockLog,
     DataFunctionLog,
@@ -538,3 +545,56 @@ def test_multi_env():
     with env2.md_api.begin():
         assert env2.md_api.count(select(DataFunctionLog)) == 2
         assert env2.md_api.count(select(DataBlockLog)) == 3
+
+
+def test_remote_callback_listener():
+    from flask import Flask, request
+
+    app = Flask(__name__)
+
+    calls = []
+
+    @app.route("/", methods=["POST"])
+    def handle_result():
+        j = request.get_json()
+        result = ExecutionResult(**j)
+        get_global_metadata_result_listener()(result)
+        calls.append(j)
+        return "Ok"
+
+    port = 1618
+
+    def run():
+        app.run(port=port)
+
+    import threading
+
+    server = threading.Thread(target=run, daemon=True)
+    server.start()
+
+    dburl = get_tmp_sqlite_db_url()
+    storage = get_tmp_sqlite_db_url()
+    env = Environment(DataspaceCfg(metadata_storage=dburl, storages=[storage]))
+    env.add_module(core)
+
+    with env.md_api.begin():
+        assert env.md_api.count(select(DataFunctionLog)) == 0
+        assert env.md_api.count(select(DataBlockLog)) == 0
+        assert env.md_api.count(select(DataBlockMetadata)) == 0
+
+    df = pd.DataFrame({"a": range(10), "b": range(10)})
+    n = GraphCfg(key="n1", function="import_dataframe", params={"dataframe": df},)
+    env.produce(
+        "n1",
+        graph=GraphCfg(nodes=[n]),
+        target_storage=storage,
+        result_handler=ResultHandler(
+            type=RemoteCallbackMetadataExecutionResultListener.__name__,
+            cfg=dict(callback_url=f"http://localhost:{port}/"),
+        ),
+    )
+
+    with env.md_api.begin():
+        assert env.md_api.count(select(DataFunctionLog)) == 1
+        assert env.md_api.count(select(DataBlockLog)) == 1
+        assert env.md_api.count(select(DataBlockMetadata)) == 1

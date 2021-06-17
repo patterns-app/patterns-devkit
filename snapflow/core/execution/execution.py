@@ -145,22 +145,15 @@ class ExecutionManager:
     def publish_result(self, result: ExecutionResult):
         # TODO: support alternate reporters
         result = result.finalize()  # TODO: pretty important step!
-        if self.exe.result_listener_type == MetadataExecutionResultListener.__name__:
+        handler = self.exe.execution_config.result_handler
+        if handler.type == MetadataExecutionResultListener.__name__:
             get_global_metadata_result_listener()(result)
-        elif (
-            self.exe.result_listener_type
-            == DebugMetadataExecutionResultListener.__name__
-        ):
+        elif handler.type == DebugMetadataExecutionResultListener.__name__:
             DebugMetadataExecutionResultListener()(result)
-        elif (
-            self.exe.result_listener_type
-            == RemoteCallbackMetadataExecutionResultListener.__name__
-        ):
-            RemoteCallbackMetadataExecutionResultListener(
-                **self.exe.result_listener_cfg
-            )(result)
+        elif handler.type == RemoteCallbackMetadataExecutionResultListener.__name__:
+            RemoteCallbackMetadataExecutionResultListener(**handler.cfg)(result)
         else:
-            raise NotImplementedError(self.exe.result_listener_type)
+            raise NotImplementedError(handler.type)
 
     def prepare_context(self, inputs) -> DataFunctionContext:
         return DataFunctionContext(

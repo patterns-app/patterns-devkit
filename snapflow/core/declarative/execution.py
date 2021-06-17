@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dcp.utils.common import to_json
 
 import requests
 import traceback
@@ -26,6 +27,11 @@ from snapflow.core.persistence.pydantic import (
 from sqlalchemy.sql.expression import select
 
 
+class ResultHandler(FrozenPydanticBase):
+    type: str = "MetadataExecutionResultListener"
+    cfg: Dict = {}
+
+
 class ExecutionCfg(FrozenPydanticBase):
     dataspace: DataspaceCfg
     target_storage: str
@@ -36,6 +42,7 @@ class ExecutionCfg(FrozenPydanticBase):
     run_until_inputs_exhausted: bool = True
     # TODO: this is a "soft" limit, could imagine a "hard" one too
     execution_timelimit_seconds: Optional[int] = None
+    result_handler: ResultHandler = ResultHandler()
 
     def get_target_storage(self) -> Storage:
         return Storage(self.target_storage)
@@ -149,7 +156,9 @@ class RemoteCallbackMetadataExecutionResultListener:
     headers: Optional[Dict] = None
 
     def __call__(self, result: ExecutionResult):
-        requests.post(self.callback_url, data=result.dict(), headers=self.headers or {})
+        headers = {"Content-Type": "application/json"}
+        headers.update(self.headers or {})
+        requests.post(self.callback_url, data=to_json(result.dict()), headers=headers)
 
 
 class ExecutableCfg(FrozenPydanticBase):
@@ -158,8 +167,6 @@ class ExecutableCfg(FrozenPydanticBase):
     execution_config: ExecutionCfg
     bound_interface: BoundInterfaceCfg
     function_log: DataFunctionLogCfg
-    result_listener_type: str = MetadataExecutionResultListener.__name__
-    result_listener_cfg: Dict = {}
 
     @property
     def node(self) -> GraphCfg:
