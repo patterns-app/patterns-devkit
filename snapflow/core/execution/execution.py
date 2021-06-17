@@ -11,13 +11,13 @@ from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from snapflow.core.declarative.dataspace import DataspaceCfg
 from snapflow.core.declarative.execution import (
-    DebugMetadataExecutionResultListener,
+    DebugMetadataExecutionResultHandler,
     ExecutableCfg,
     ExecutionResult,
-    MetadataExecutionResultListener,
+    MetadataExecutionResultHandler,
     PythonException,
-    RemoteCallbackMetadataExecutionResultListener,
-    get_global_metadata_result_listener,
+    RemoteCallbackMetadataExecutionResultHandler,
+    get_global_metadata_result_handler,
 )
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
@@ -146,12 +146,14 @@ class ExecutionManager:
         # TODO: support alternate reporters
         result = result.finalize()  # TODO: pretty important step!
         handler = self.exe.execution_config.result_handler
-        if handler.type == MetadataExecutionResultListener.__name__:
-            get_global_metadata_result_listener()(result)
-        elif handler.type == DebugMetadataExecutionResultListener.__name__:
-            DebugMetadataExecutionResultListener()(result)
-        elif handler.type == RemoteCallbackMetadataExecutionResultListener.__name__:
-            RemoteCallbackMetadataExecutionResultListener(**handler.cfg)(result)
+        if handler.type == MetadataExecutionResultHandler.__name__:
+            get_global_metadata_result_handler()(self.exe, result)
+        elif handler.type == DebugMetadataExecutionResultHandler.__name__:
+            DebugMetadataExecutionResultHandler()(self.exe, result)
+        elif handler.type == RemoteCallbackMetadataExecutionResultHandler.__name__:
+            RemoteCallbackMetadataExecutionResultHandler(**handler.cfg)(
+                self.exe, result
+            )
         else:
             raise NotImplementedError(handler.type)
 

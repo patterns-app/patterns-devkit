@@ -10,8 +10,8 @@ from snapflow.core.declarative.execution import (
     ExecutableCfg,
     ExecutionCfg,
     ExecutionResult,
-    MetadataExecutionResultListener,
-    set_global_metadata_result_listener,
+    MetadataExecutionResultHandler,
+    set_global_metadata_result_handler,
 )
 from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
 from snapflow.core.declarative.graph import GraphCfg
@@ -70,7 +70,7 @@ class ImproperlyStoredDataBlockException(Exception):
 def prepare_executable(
     env: Environment, cfg: ExecutionCfg, node: GraphCfg, graph: GraphCfg
 ) -> ExecutableCfg:
-    global global_metadata_result_listener
+    global global_metadata_result_handler
 
     with env.md_api.begin():
         md = env.md_api
@@ -100,7 +100,7 @@ def prepare_executable(
         md.add(node_state_obj)
         md.flush([function_log, node_state_obj])
 
-        # TODO: runtime and result listener
+        # TODO: runtime and result handler
 
         exe = ExecutableCfg(
             node_key=node.key,
@@ -109,7 +109,7 @@ def prepare_executable(
             bound_interface=bound_interface,
             function_log=function_log,
         )
-        set_global_metadata_result_listener(MetadataExecutionResultListener(env, exe))
+        set_global_metadata_result_handler(MetadataExecutionResultHandler(env))
         return exe
 
         # Validate local memory objects: Did we leave any non-storeables hanging?
@@ -197,9 +197,7 @@ def prepare_executable(
     #         self.logger.log_token("None\n")
 
 
-def run(
-    env: Environment, exe: ExecutableCfg, to_exhaustion: bool = True
-) -> List[ExecutionResult]:
+def run(exe: ExecutableCfg, to_exhaustion: bool = True) -> List[ExecutionResult]:
     # TODO: support other runtimes
     results = []
     try:

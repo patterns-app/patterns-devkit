@@ -4,7 +4,17 @@ import logging
 import os
 from importlib import import_module
 from types import ModuleType
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import (
+    Callable,
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+    Union,
+)
 
 from alembic import command
 from alembic.config import Config
@@ -320,6 +330,7 @@ class Environment:
         node: Union[GraphCfg, str],
         graph: Optional[GraphCfg] = None,
         to_exhaustion: bool = True,
+        runner: Optional[Callable] = None,
         **execution_kwargs: Any,
     ) -> List[ExecutionResult]:
         from snapflow.core.execution.run import run
@@ -330,12 +341,13 @@ class Environment:
         logger.debug(f"Running: {node}")
         flattened_nodes = self.translate_node_to_flattened_nodes(node, graph)
         results = []
+        if runner is None:
+            runner = run
         for n in flattened_nodes:
             try:
                 n = n.resolve(self.library)  # TODO: Isn't this already resolved?
                 try:
-                    results = run(
-                        self,
+                    results = runner(
                         self.get_executable(n.key, graph=graph, **execution_kwargs),
                         to_exhaustion=to_exhaustion,
                     )
@@ -349,6 +361,7 @@ class Environment:
         self,
         graph: Optional[GraphCfg] = None,
         to_exhaustion: bool = True,
+        runner: Optional[Callable] = None,
         **execution_kwargs: Any,
     ):
         from snapflow.core.execution.run import run
@@ -356,10 +369,11 @@ class Environment:
 
         graph = self.prepare_graph(graph)
         nodes = graph.get_all_nodes_in_execution_order()
+        if runner is None:
+            runner = run
         for node in nodes:
             try:
                 run(
-                    self,
                     self.get_executable(node.key, graph=graph, **execution_kwargs),
                     to_exhaustion=to_exhaustion,
                 )

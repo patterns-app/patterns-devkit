@@ -120,45 +120,45 @@ class ExecutionResult(PydanticBase):
 
 
 @dataclass
-class MetadataExecutionResultListener:
+class MetadataExecutionResultHandler:
     env: Environment
-    exe: ExecutableCfg
 
-    def __call__(self, result: ExecutionResult):
+    def __call__(self, exe: ExecutableCfg, result: ExecutionResult):
         from snapflow.core.execution.run import save_result
 
         with self.env.md_api.begin():
-            save_result(self.env, self.exe, result)
+            save_result(self.env, exe, result)
 
 
 # Used for local python runtime
-global_metadata_result_listener: Optional[MetadataExecutionResultListener] = None
+global_metadata_result_handler: Optional[MetadataExecutionResultHandler] = None
 
 
-def get_global_metadata_result_listener() -> Optional[MetadataExecutionResultListener]:
-    return global_metadata_result_listener
+def get_global_metadata_result_handler() -> Optional[MetadataExecutionResultHandler]:
+    return global_metadata_result_handler
 
 
-def set_global_metadata_result_listener(listener: MetadataExecutionResultListener):
-    global global_metadata_result_listener
-    global_metadata_result_listener = listener
+def set_global_metadata_result_handler(handler: MetadataExecutionResultHandler):
+    global global_metadata_result_handler
+    global_metadata_result_handler = handler
 
 
 @dataclass
-class DebugMetadataExecutionResultListener:
-    def __call__(self, result: ExecutionResult):
+class DebugMetadataExecutionResultHandler:
+    def __call__(self, exe: ExecutableCfg, result: ExecutionResult):
         print(result.dict())
 
 
 @dataclass
-class RemoteCallbackMetadataExecutionResultListener:
+class RemoteCallbackMetadataExecutionResultHandler:
     callback_url: str
     headers: Optional[Dict] = None
 
-    def __call__(self, result: ExecutionResult):
+    def __call__(self, exe: ExecutableCfg, result: ExecutionResult):
         headers = {"Content-Type": "application/json"}
         headers.update(self.headers or {})
-        requests.post(self.callback_url, data=to_json(result.dict()), headers=headers)
+        data = {"executable": exe.dict(), "result": result.dict()}
+        requests.post(self.callback_url, data=to_json(data), headers=headers)
 
 
 class ExecutableCfg(FrozenPydanticBase):

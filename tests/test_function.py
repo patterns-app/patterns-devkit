@@ -109,11 +109,7 @@ def function_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     pass
 
 
-def df4(
-    input: DataBlock[T],
-    dr2: DataBlock[U],
-    dr3: DataBlock[U],
-) -> DataFrame[T]:
+def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
     pass
 
 
@@ -253,8 +249,7 @@ def test_declared_schema_translation():
     pi = n1.resolve(global_library).get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
@@ -284,8 +279,7 @@ def test_natural_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     with env.md_api.begin():
         schema_translation = get_schema_translation(
