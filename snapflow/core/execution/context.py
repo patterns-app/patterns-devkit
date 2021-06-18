@@ -448,6 +448,7 @@ class DataFunctionContext:
         seconds_elapsed = (utcnow() - self.execution_start_time).total_seconds()
         should = seconds_elapsed < self.execution_config.execution_timelimit_seconds
         if not should:
+            self.result.timed_out = True
             logger.debug(
                 f"Execution timed out after {self.execution_config.execution_timelimit_seconds} seconds"
             )

@@ -276,19 +276,7 @@ def save_result(
     result: ExecutionResult,
 ):
     # TODO: this should be inside one roll-backable transaction
-    if result.function_error:
-        exe.function_log.error = result.function_error.dict()
-    if (
-        exe.function_log.function_params
-        and "dataframe" in exe.function_log.function_params
-    ):
-        # TODO / FIXME: special case hack (don't support dataframe parameters in general!)
-        del exe.function_log.function_params["dataframe"]
-    if exe.function_log.completed_at is None:
-        # TODO: completed at should happen inside the execution? what about multiple inputs?
-        exe.function_log.completed_at = utcnow()
-    function_log = env.md_api.merge(DataFunctionLog.from_pydantic(exe.function_log))
-    env.md_api.add(function_log)
+    function_log = save_function_log(env, exe, result)
     dbms: List[DataBlockMetadata] = []
     for input_name, blocks in result.input_blocks_consumed.items():
         for block in blocks:
@@ -316,6 +304,28 @@ def save_result(
         env.add_new_generated_schema(s)
     save_state(env, exe, result)
     ensure_aliases(env, exe, result)
+
+
+def save_function_log(
+    env: Environment, exe: ExecutableCfg, result: ExecutionResult
+) -> DataFunctionLog:
+    if result.function_error:
+        exe.function_log.error = result.function_error.dict()
+    if (
+        exe.function_log.function_params
+        and "dataframe" in exe.function_log.function_params
+    ):
+        # TODO / FIXME: special case hack (don't support dataframe parameters in general!)
+        del exe.function_log.function_params["dataframe"]
+    if exe.function_log.completed_at is None:
+        # TODO: completed at should happen inside the execution? what about multiple inputs?
+        exe.function_log.completed_at = utcnow()
+    if result.timed_out:
+        exe.function_log.timed_out = True
+    function_log = env.md_api.merge(DataFunctionLog.from_pydantic(exe.function_log))
+
+    env.md_api.add(function_log)
+    return function_log
 
 
 def save_state(env: Environment, exe: ExecutableCfg, result: ExecutionResult):

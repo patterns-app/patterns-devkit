@@ -28,6 +28,7 @@ class DataFunctionLog(BaseModel):
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
+    timed_out = Column(Boolean, default=False)
     error = Column(JSON, nullable=True)
     data_block_logs: RelationshipProperty = relationship(
         "DataBlockLog", backref="function_log"
@@ -139,9 +140,7 @@ class NodeState(BaseModel):
 
     def __repr__(self):
         return self._repr(
-            node_key=self.node_key,
-            state=self.state,
-            latest_log_id=self.latest_log_id,
+            node_key=self.node_key, state=self.state, latest_log_id=self.latest_log_id,
         )
 
 

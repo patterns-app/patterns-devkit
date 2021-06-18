@@ -78,6 +78,7 @@ class ExecutionResult(PydanticBase):
     schemas_generated: List[Schema] = []
     function_error: Optional[PythonException] = None
     framework_error: Optional[PythonException] = None  # TODO: do we ever use this?
+    timed_out: bool = False
 
     def has_error(self) -> bool:
         return self.function_error is not None or self.framework_error is not None
@@ -107,6 +108,7 @@ class ExecutionResult(PydanticBase):
             schemas_generated=self.schemas_generated,
             function_error=self.function_error,
             framework_error=self.framework_error,
+            timed_out=self.timed_out,
         )
 
     def compute_record_counts(self):
