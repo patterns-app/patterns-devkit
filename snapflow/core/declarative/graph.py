@@ -14,11 +14,11 @@ from typing import (
     TypeVar,
     Union,
 )
-from loguru import logger
 
 import networkx as nx
 from commonmodel import Schema
 from dcp.utils.common import as_identifier, remove_dupes
+from loguru import logger
 from pydantic import validator
 from pydantic.class_validators import root_validator
 from snapflow.core.component import ComponentLibrary, global_library

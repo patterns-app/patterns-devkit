@@ -345,7 +345,11 @@ class DataFunctionContext:
         storage: Storage,
     ):
         # TODO expensive to infer schema every time, so just do first time
-        if db.realized_schema_key in (None, "Any", "core.Any",):
+        if db.realized_schema_key in (
+            None,
+            "Any",
+            "core.Any",
+        ):
             handler = get_handler_for_name(name, storage)
             inferred_schema = handler().infer_schema(name, storage)
             logger.debug(

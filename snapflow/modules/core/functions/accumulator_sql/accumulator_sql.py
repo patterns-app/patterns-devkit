@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Dict, List
 
 from commonmodel import DEFAULT_FIELD_TYPE, FieldType
+from dcp.data_format.formats import DatabaseTable
 from dcp.data_format.formats.database.base import field_type_to_sqlalchemy_type
 from dcp.data_format.handler import get_handler_for_name
 from snapflow import DataFunctionContext
@@ -35,7 +36,9 @@ def field_sql_with_cast(name: str, ftype: FieldType, dialect=None) -> str:
 
 @datafunction(namespace="core", display_name="Accumulate sql tables")
 def accumulator_sql(
-    ctx: DataFunctionContext, input: Stream[T], previous: SelfReference[T] = None,
+    ctx: DataFunctionContext,
+    input: Stream[T],
+    previous: SelfReference[T] = None,
 ) -> DatabaseTable[T]:
     """
     Critical core data function. Handles a scary operation: merging a stream of data blocks

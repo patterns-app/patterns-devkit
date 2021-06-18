@@ -1,13 +1,6 @@
 from __future__ import annotations
-import os
-from snapflow.core.declarative.execution import (
-    ExecutableCfg,
-    ExecutionResult,
-    RemoteCallbackMetadataExecutionResultHandler,
-    ResultHandler,
-    get_global_metadata_result_handler,
-)
 
+import os
 import sys
 from datetime import datetime
 from typing import Generator, Iterator, Optional
@@ -24,6 +17,13 @@ from pandas._testing import assert_almost_equal
 from snapflow import DataBlock, DataFunctionContext, datafunction
 from snapflow.core.data_block import Consumable, Reference
 from snapflow.core.declarative.dataspace import DataspaceCfg
+from snapflow.core.declarative.execution import (
+    ExecutableCfg,
+    ExecutionResult,
+    RemoteCallbackMetadataExecutionResultHandler,
+    ResultHandler,
+    get_global_metadata_result_handler,
+)
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 from snapflow.core.persistence.data_block import Alias, DataBlockMetadata
@@ -585,7 +585,11 @@ def test_remote_callback_listener():
         assert env.md_api.count(select(DataBlockMetadata)) == 0
 
     df = pd.DataFrame({"a": range(10), "b": range(10)})
-    n = GraphCfg(key="n1", function="import_dataframe", params={"dataframe": df},)
+    n = GraphCfg(
+        key="n1",
+        function="import_dataframe",
+        params={"dataframe": df},
+    )
     env.produce(
         "n1",
         graph=GraphCfg(nodes=[n]),

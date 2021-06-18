@@ -171,7 +171,10 @@ class ExecutionManager:
 
     def _call_data_function(self, ctx: DataFunctionContext):
         function_args, function_kwargs = ctx.get_function_args()
-        output_obj = self.function.function_callable(*function_args, **function_kwargs,)
+        output_obj = self.function.function_callable(
+            *function_args,
+            **function_kwargs,
+        )
         if output_obj is not None:
             self.emit_output_object(ctx, output_obj)
             # TODO: update node state block counts?

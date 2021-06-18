@@ -37,7 +37,11 @@ def funky_source(
     # Gives different schema on each call
     runs = ctx.get_state_value("run_number", 0)
     records = [
-        {"name": f"name{n}", "joined": datetime(2000, 1, n + 1), "Meta data": None,}
+        {
+            "name": f"name{n}",
+            "joined": datetime(2000, 1, n + 1),
+            "Meta data": None,
+        }
         for n in range(10)
     ]
     if runs == 1:
@@ -76,7 +80,10 @@ def funky_source(
     if runs > 3:
         # missing field
         records = [
-            {"joined": datetime(2000, 1, n + 1), "Meta data": {"idx": n},}
+            {
+                "joined": datetime(2000, 1, n + 1),
+                "Meta data": {"idx": n},
+            }
             for n in range(10)
         ]
     ctx.emit_state_value("run_number", runs + 1)
@@ -172,4 +179,3 @@ def test_accumulate():
         with get_env(use_sqlite=True) as env:
             dbs = env.get_storages()[0]
             run_accumulate(env, GraphCfg(nodes=[source, accumulate_sql]), dbs)
-

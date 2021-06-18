@@ -271,7 +271,9 @@ def ensure_log(
 
 
 def save_result(
-    env: Environment, exe: ExecutableCfg, result: ExecutionResult,
+    env: Environment,
+    exe: ExecutableCfg,
+    result: ExecutionResult,
 ):
     # TODO: this should be inside one roll-backable transaction
     if result.function_error:
@@ -338,4 +340,3 @@ def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult
     for sdbc in result.stored_blocks_created[db.id]:
         sdb = StoredDataBlockMetadata.from_pydantic(sdbc)
         sdb.create_alias(env, exe.node.get_alias())
-
