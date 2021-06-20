@@ -24,7 +24,12 @@ import dcp
 import sqlalchemy
 from commonmodel.base import Schema
 from dcp.data_format import get_handler_for_name
-from dcp.data_format.base import DataFormat, DataFormatBase, get_format_for_nickname
+from dcp.data_format.base import (
+    DataFormat,
+    DataFormatBase,
+    get_format_for_nickname,
+    UnknownFormat,
+)
 from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
@@ -57,12 +62,6 @@ from snapflow.core.persistence.pydantic import (
 )
 from snapflow.core.storage import ensure_data_block_on_storage_cfg
 from snapflow.core.typing.casting import cast_to_realized_schema
-
-
-class UnknownFormat(DataFormatBase):
-    nickname = "unknown"
-    natural_storage_class = None
-    natural_storage_engine = None
 
 
 @dataclass(frozen=True)
@@ -345,11 +344,7 @@ class DataFunctionContext:
         storage: Storage,
     ):
         # TODO expensive to infer schema every time, so just do first time
-        if db.realized_schema_key in (
-            None,
-            "Any",
-            "core.Any",
-        ):
+        if db.realized_schema_key in (None, "Any", "core.Any",):
             handler = get_handler_for_name(name, storage)
             inferred_schema = handler().infer_schema(name, storage)
             logger.debug(

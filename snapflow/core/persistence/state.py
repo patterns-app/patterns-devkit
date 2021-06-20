@@ -28,7 +28,7 @@ class DataFunctionLog(BaseModel):
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
     completed_at = Column(DateTime, nullable=True)
-    timed_out = Column(Boolean, default=False)
+    timed_out = Column(Boolean, default=False, nullable=True)
     error = Column(JSON, nullable=True)
     data_block_logs: RelationshipProperty = relationship(
         "DataBlockLog", backref="function_log"
