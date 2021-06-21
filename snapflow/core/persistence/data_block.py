@@ -82,6 +82,9 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         "DataBlockLog", backref="data_block"
     )
     data_is_written: bool = False
+    aliases: RelationshipProperty = relationship(
+        "Alias", backref="data_block", lazy="dynamic"
+    )
 
     def __repr__(self):
         return self._repr(
@@ -109,9 +112,7 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         # return DataBlockWithStoredBlocksCfg.from_orm(self)
 
     def as_managed_data_block(
-        self,
-        env: Environment,
-        schema_translation: Optional[SchemaTranslation] = None,
+        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
     ) -> DataBlock:
         from snapflow.core.data_block import DataBlockManager
 

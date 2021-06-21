@@ -40,6 +40,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
+    from snapflow.core.persistence.state import DataFunctionLog
+    from snapflow.core.persistence.state import DataBlockLog, Direction
     from snapflow.core.function import DataFunction
     from snapflow.core.data_block import DataBlock
     from snapflow.core.declarative.graph import GraphCfg
@@ -316,9 +318,7 @@ class Environment:
         return results
 
     def translate_node_to_flattened_nodes(
-        self,
-        node: Union[GraphCfg, str],
-        flattened_graph: Optional[GraphCfg] = None,
+        self, node: Union[GraphCfg, str], flattened_graph: Optional[GraphCfg] = None,
     ) -> List[GraphCfg]:
         # Return in execution order
         assert flattened_graph.is_flattened()
@@ -388,9 +388,7 @@ class Environment:
         return get_latest_output(self, node)
 
     def reset_node(
-        self,
-        node: Union[GraphCfg, str],
-        graph: Optional[GraphCfg] = None,
+        self, node: Union[GraphCfg, str], graph: Optional[GraphCfg] = None,
     ):
         from snapflow.core.persistence.state import reset
 
@@ -400,6 +398,99 @@ class Environment:
         with self.md_api.begin():
             for n in flattened_nodes:
                 reset(self, n.key)
+
+    def permanently_delete_invalidated_blocks(self) -> int:
+        from snapflow.core.persistence.state import DataBlockLog, Direction
+
+        cnt = 0
+        with self.md_api.begin():
+            for dbl in self.md_api.execute(
+                select(DataBlockLog)
+                .filter(DataBlockLog.invalidated == True)
+                .filter(DataBlockLog.direction == Direction.OUTPUT)
+            ).scalars():
+                db = dbl.data_block
+                if list(db.aliases.all()):
+                    logger.info(f"Not deleting db {db.id}, still has alias")
+                    continue
+                for sdb in db.stored_data_blocks:
+                    # print(db, sdb)
+                    sdb.storage.get_api().remove(sdb.name)
+                    self.md_api.delete(sdb)
+                db.deleted = True
+                self.md_api.add(db)
+                cnt += 1
+        return cnt
+
+    def invalidate_stale_blocks(
+        self, all_nodes: bool = False, eligible_function_keys: List[str] = None
+    ) -> int:
+        """
+        Invalidate data block logs that are 
+        intermediate and stale. For now, this 
+        just means all-but-most-recent and not-aliased
+        data blocks.
+        """
+        from snapflow.core.persistence.state import (
+            DataFunctionLog,
+            DataBlockLog,
+            Direction,
+        )
+
+        cnt = 0
+        eligible_function_keys = eligible_function_keys or [
+            "core.accumulate",
+            "core.accumulator",
+            "core.accumulator_sql",
+            "core.dedupe_keep_latest",
+            "core.dedupe_keep_latest_sql",
+            "core.dedupe_keep_latest_dataframe",
+        ]
+        # for dbl in self.md_api.execute(select(DataBlockLog)).scalars():
+        #     print(
+        #         dbl.function_log.node_key,
+        #         dbl.data_block_id,
+        #         dbl.direction,
+        #         dbl.invalidated,
+        #     )
+        query = (
+            select(DataBlockLog)
+            .join(DataFunctionLog)
+            .filter(DataBlockLog.invalidated == False)
+            .filter(DataBlockLog.direction == Direction.OUTPUT)
+        )
+        if not all_nodes:
+            query = query.filter(
+                DataFunctionLog.function_key.in_(eligible_function_keys)
+            )
+
+        with self.md_api.begin():
+            for dbl in self.md_api.execute(query).scalars():
+                db = dbl.data_block
+                if list(db.aliases.all()):
+                    logger.info(f"Not invalidating db {db.id}, still has alias")
+                    continue
+                if self.md_api.execute(
+                    select(DataBlockLog)
+                    .join(DataFunctionLog)
+                    .filter(DataBlockLog.direction == Direction.OUTPUT)
+                    .filter(DataBlockLog.created_at > dbl.created_at)
+                    .filter(DataFunctionLog.node_key == dbl.function_log.node_key)
+                ).scalar():
+                    # There's a more recent version, so we can throw this one out
+                    if self.md_api.execute(
+                        select(DataBlockLog)
+                        .join(DataFunctionLog)
+                        .filter(DataBlockLog.direction == Direction.INPUT)
+                        .filter(DataFunctionLog.node_key == dbl.function_log.node_key)
+                    ).scalar():
+                        # AND it's not a source, so we can always recreate downstream stuff
+                        dbl.invalidated = True
+                        self.md_api.add(dbl)
+                        cnt += 1
+                else:
+                    logger.info(f"Not invalidating db {db.id}, it is latest output")
+        return cnt
 
 
 # # Shortcuts

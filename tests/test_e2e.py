@@ -4,6 +4,7 @@ import os
 import sys
 from datetime import datetime
 from typing import Generator, Iterator, Optional
+import time
 
 import pandas as pd
 import pytest
@@ -26,7 +27,11 @@ from snapflow.core.declarative.execution import (
 )
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
-from snapflow.core.persistence.data_block import Alias, DataBlockMetadata
+from snapflow.core.persistence.data_block import (
+    Alias,
+    DataBlockMetadata,
+    StoredDataBlockMetadata,
+)
 from snapflow.core.persistence.state import (
     DataBlockLog,
     DataFunctionLog,
@@ -41,7 +46,7 @@ from snapflow.modules import core
 from sqlalchemy import select
 from tests.utils import get_stdout_block
 
-logger.enable("snapflow")
+# logger.enable("snapflow")
 
 Customer = create_quick_schema(
     "Customer", [("name", "Text"), ("joined", "DateTime"), ("Meta data", "Json")]
@@ -436,11 +441,11 @@ def test_node_reset():
     cfg = {"batches": batches}
     source = GraphCfg(key="source", function=customer_source.key, params=cfg)
     accum = GraphCfg(key="accum", function="core.accumulator", input="source")
-    metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="source")
+    metrics = GraphCfg(key="metrics", function=shape_metrics.key, input="accum")
     g = GraphCfg(nodes=[source, accum, metrics])
     # Run first time
-    env.produce(node=source, graph=g, target_storage=s)
-
+    results = env.produce(node=source, graph=g, target_storage=s)
+    og_block = get_stdout_block(results)
     # Now reset node
     with env.md_api.begin():
         state = get_or_create_state(env, "source")
@@ -459,6 +464,58 @@ def test_node_reset():
         {"metric": "col_count", "value": 3},
     ]
     assert records == expected_records
+
+    # Test deleting invalidated blocks
+    # Run once more, so we have some stale blocks
+    time.sleep(1.5)
+    results = env.produce(node=metrics, graph=g, target_storage=s)
+    with env.md_api.begin():
+        assert env.md_api.count(select(DataBlockLog)) == 12
+        assert env.md_api.count(select(DataBlockMetadata)) == 7
+        assert env.md_api.count(select(StoredDataBlockMetadata)) == 12
+        # Invalidate
+        reset(env, "source")
+    # Delete
+    sdb = og_block.stored_data_blocks[0]
+    assert s.get_api().exists(sdb.name)
+    env.permanently_delete_invalidated_blocks()
+    assert not s.get_api().exists(sdb.name)
+    with env.md_api.begin():
+        assert env.md_api.count(select(DataBlockLog)) == 12
+        assert (
+            env.md_api.count(
+                select(DataBlockLog).filter(DataBlockLog.invalidated == True)
+            )
+            == 3
+        )
+        assert env.md_api.count(select(DataBlockMetadata)) == 7
+        assert (
+            env.md_api.count(
+                select(DataBlockMetadata).filter(DataBlockMetadata.deleted == False)
+            )
+            == 5
+        )
+        assert env.md_api.count(select(StoredDataBlockMetadata)) == 9
+
+        # Invalidate old accums and dedupes
+        # Which is just the first accum in this case
+        cnt = env.invalidate_stale_blocks()
+        assert cnt == 1
+        assert (
+            env.md_api.count(
+                select(DataBlockLog).filter(DataBlockLog.invalidated == True)
+            )
+            == 4
+        )
+        # Invalidate metric node too now
+        cnt = env.invalidate_stale_blocks(all_nodes=True)
+        assert cnt == 1
+        assert (
+            env.md_api.count(
+                select(DataBlockLog).filter(DataBlockLog.invalidated == True)
+            )
+            == 5
+        )
 
 
 @datafunction
