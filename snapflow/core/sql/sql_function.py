@@ -148,9 +148,7 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=sql_with_jinja_vars,
-        found_params=params,
+        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
     )
 
 
@@ -263,9 +261,7 @@ def extract_tables(  # noqa: C901
     new_sql_str = "".join(new_sql)
     new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", r"as \1", new_sql_str, flags=re.I)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=new_sql_str,
-        found_tables=found_tables,
+        original_sql=sql, sql_with_jinja_vars=new_sql_str, found_tables=found_tables,
     )
 
 
@@ -305,7 +301,10 @@ def params_as_sql(ctx: DataFunctionContext) -> Dict[str, Any]:
 
 
 def apply_schema_translation_as_sql(
-    lib: ComponentLibrary, name: str, translation: SchemaTranslation
+    lib: ComponentLibrary,
+    name: str,
+    translation: SchemaTranslation,
+    quote_identifier: Callable = None,
 ) -> str:
     if not translation.from_schema_key:
         raise NotImplementedError(
@@ -315,6 +314,7 @@ def apply_schema_translation_as_sql(
         name,
         lib.get_schema(translation.from_schema_key).field_names(),
         translation.as_dict(),
+        quote_identifier=quote_identifier,
     )
     table_stmt = f"""
         (
@@ -516,11 +516,7 @@ def sql_function_decorator(
     else:
         name = sql_fn_or_function.__name__
     return sql_function_factory(
-        name=name,
-        sql=sql,
-        file=file,
-        autodetect_inputs=autodetect_inputs,
-        **kwargs,
+        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
     )
 
 

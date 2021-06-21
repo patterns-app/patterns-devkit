@@ -1,0 +1,20 @@
+name: CoreTestNamesSchema
+version: 1
+description: All-purpose testing schema
+unique_on:
+  - k1
+fields:
+  k1:
+    type: Integer
+    validators:
+      - NotNull
+  FIELD:
+    type: Text
+  json:
+    type: Json
+  Split name:
+    type: Text
+  order:
+    type: Integer
+field_roles:
+  modification_ordering: order

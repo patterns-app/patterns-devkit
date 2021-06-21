@@ -571,7 +571,9 @@ def test_remote_callback_listener():
 
     import threading
 
-    server = threading.Thread(target=run, daemon=True)
+    server = threading.Thread(
+        target=run, daemon=True
+    )  # Daemon so it dies with this process
     server.start()
 
     dburl = get_tmp_sqlite_db_url()
@@ -585,11 +587,7 @@ def test_remote_callback_listener():
         assert env.md_api.count(select(DataBlockMetadata)) == 0
 
     df = pd.DataFrame({"a": range(10), "b": range(10)})
-    n = GraphCfg(
-        key="n1",
-        function="import_dataframe",
-        params={"dataframe": df},
-    )
+    n = GraphCfg(key="n1", function="import_dataframe", params={"dataframe": df},)
     env.produce(
         "n1",
         graph=GraphCfg(nodes=[n]),

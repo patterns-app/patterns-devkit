@@ -21,6 +21,9 @@ def dedupe_keep_latest_sql(
     nominal: Optional[Schema] = None
     realized: Schema = ctx.library.get_schema(input.realized_schema_key)
     distinct_on_cols = []
+    target_storage = ctx.execution_config.get_target_storage()
+    as_identifier = target_storage.get_api().get_quoted_identifier
+    identifiers = lambda i: [as_identifier(s) for s in i]
     if input.nominal_schema_key:
         nominal = ctx.library.get_schema(input.nominal_schema_key)
         if nominal.unique_on:
@@ -29,17 +32,18 @@ def dedupe_keep_latest_sql(
         distinct_on_cols = realized.field_names()
     distinct_clause = ""
     if distinct_on_cols:
-        distinct_clause = f" distinct on ({', '.join(distinct_on_cols)})"
-    cols = ", ".join(realized.field_names())
+        distinct_clause = f" distinct on ({', '.join(identifiers(distinct_on_cols))})"
+    cols = ", ".join(identifiers(realized.field_names()))
 
     orderby_clause = ""
     if nominal and nominal.field_roles.modification_ordering:
 
         orderby_clause = "order by "
         if nominal.unique_on:
-            orderby_clause += ", ".join(nominal.unique_on) + ", \n"
+            orderby_clause += ", ".join(identifiers(nominal.unique_on)) + ", \n"
         orderby_clause += (
-            " desc, ".join(nominal.field_roles.modification_ordering) + " desc"
+            " desc, ".join(identifiers(nominal.field_roles.modification_ordering))
+            + " desc"
         )
 
     target_storage = ctx.execution_config.get_target_storage()

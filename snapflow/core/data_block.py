@@ -147,10 +147,14 @@ class DataBlockManager:
         from snapflow.core.sql.sql_function import apply_schema_translation_as_sql
 
         # TODO: this feels pretty forced -- how do we do schema transations in a general way for non-memory storages / runtimes?
+        quote_identifier = storage.get_api().get_quoted_identifier
         sql = self.as_table(storage)
         if self.schema_translation:
             sql = apply_schema_translation_as_sql(
-                self.library, sql, self.schema_translation
+                self.library,
+                sql,
+                self.schema_translation,
+                quote_identifier=quote_identifier,
             )
         return sql
 
