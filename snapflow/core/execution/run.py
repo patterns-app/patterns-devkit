@@ -345,6 +345,11 @@ def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult
     db = result.stdout_block_emitted()
     if db is None:
         return
+    if db.id not in result.stored_blocks_created:
+        logger.warning(
+            f"Missing stored blocks for block: {db.id}, {result.stored_blocks_created}"
+        )
+        return
     for sdbc in result.stored_blocks_created[db.id]:
         sdb = StoredDataBlockMetadata.from_pydantic(sdbc)
         sdb.create_alias(env, exe.node.get_alias())
