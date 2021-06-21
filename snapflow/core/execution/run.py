@@ -93,7 +93,7 @@ def prepare_executable(
             function_key=node.function,
             function_params=node.params,
             # runtime_url=self.current_runtime.url,
-            # started_at=utcnow(),
+            queued_at=utcnow(),
         )
         node_state_obj.latest_log = function_log
         md.add(function_log)
@@ -271,9 +271,7 @@ def ensure_log(
 
 
 def save_result(
-    env: Environment,
-    exe: ExecutableCfg,
-    result: ExecutionResult,
+    env: Environment, exe: ExecutableCfg, result: ExecutionResult,
 ):
     # TODO: this should be inside one roll-backable transaction
     function_log = save_function_log(env, exe, result)
