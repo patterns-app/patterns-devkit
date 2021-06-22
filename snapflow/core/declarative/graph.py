@@ -85,6 +85,10 @@ class GraphCfg(FrozenPydanticBase):
     conform_to_schema: Optional[str] = None
     schema_translation: Optional[Dict[str, str]] = None
     schema_translations: Dict[str, Dict[str, str]] = {}
+    schedule: Optional[str] = None
+    output_storage: Optional[str] = None
+    output_data_format: Optional[str] = None
+    # persist_output: Optional[bool] = False
 
     @validator("nodes")
     def check_unique_nodes(cls, nodes: List[GraphCfg]) -> List[GraphCfg]:

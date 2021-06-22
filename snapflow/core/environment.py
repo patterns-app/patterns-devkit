@@ -415,7 +415,8 @@ class Environment:
                     continue
                 for sdb in db.stored_data_blocks:
                     # print(db, sdb)
-                    sdb.storage.get_api().remove(sdb.name)
+                    if sdb.storage.storage_class != MemoryStorageClass:
+                        sdb.storage.get_api().remove(sdb.name)
                     self.md_api.delete(sdb)
                 db.deleted = True
                 self.md_api.add(db)
