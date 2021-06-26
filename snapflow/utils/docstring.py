@@ -3,12 +3,11 @@ Adapted from docstring-parser, Copyright (c) 2018 Marcin Kurczewski, License MIT
 """
 
 import enum
-import typing as T
 import inspect
 import re
+import typing as T
 from collections import OrderedDict, namedtuple
 from enum import IntEnum
-
 
 PARAM_KEYWORDS = {
     "param",
@@ -135,7 +134,10 @@ class DocstringDeprecated(DocstringMeta):
     """DocstringMeta symbolizing deprecation metadata."""
 
     def __init__(
-        self, args: T.List[str], description: T.Optional[str], version: T.Optional[str],
+        self,
+        args: T.List[str],
+        description: T.Optional[str],
+        version: T.Optional[str],
     ) -> None:
         """Initialize self."""
         super().__init__(args, description)
@@ -147,7 +149,8 @@ class Docstring:
     """Docstring object representation."""
 
     def __init__(
-        self, style=None,  # type: T.Optional[DocstringStyle]
+        self,
+        style=None,  # type: T.Optional[DocstringStyle]
     ) -> None:
         """Initialize self."""
         self.short_description = None  # type: T.Optional[str]
@@ -443,4 +446,3 @@ class BasisParser:
                 ret.meta.append(self._build_meta(part, title))
 
         return ret
-

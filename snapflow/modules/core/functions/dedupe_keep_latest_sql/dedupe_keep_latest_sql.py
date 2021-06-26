@@ -23,7 +23,10 @@ def dedupe_keep_latest_sql(
     distinct_on_cols = []
     target_storage = ctx.execution_config.get_target_storage()
     as_identifier = target_storage.get_api().get_quoted_identifier
-    identifiers = lambda i: [as_identifier(s) for s in i]
+
+    def identifiers(i):
+        return [as_identifier(s) for s in i]
+
     if input.nominal_schema_key:
         nominal = ctx.library.get_schema(input.nominal_schema_key)
         if nominal.unique_on:

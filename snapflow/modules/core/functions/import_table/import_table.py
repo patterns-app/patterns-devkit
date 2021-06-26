@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-from snapflow.core.sql.sql_function import SqlDataFunctionWrapper
 from typing import Optional
 
 from snapflow import DataFunctionContext
 from snapflow.core.function import datafunction
+from snapflow.core.sql.sql_function import SqlDataFunctionWrapper
 
 
 @datafunction(

@@ -318,7 +318,9 @@ class Environment:
         return results
 
     def translate_node_to_flattened_nodes(
-        self, node: Union[GraphCfg, str], flattened_graph: Optional[GraphCfg] = None,
+        self,
+        node: Union[GraphCfg, str],
+        flattened_graph: Optional[GraphCfg] = None,
     ) -> List[GraphCfg]:
         # Return in execution order
         assert flattened_graph.is_flattened()
@@ -388,7 +390,9 @@ class Environment:
         return get_latest_output(self, node)
 
     def reset_node(
-        self, node: Union[GraphCfg, str], graph: Optional[GraphCfg] = None,
+        self,
+        node: Union[GraphCfg, str],
+        graph: Optional[GraphCfg] = None,
     ):
         from snapflow.core.persistence.state import reset
 
@@ -406,7 +410,7 @@ class Environment:
         with self.md_api.begin():
             for dbl in self.md_api.execute(
                 select(DataBlockLog)
-                .filter(DataBlockLog.invalidated == True)
+                .filter(DataBlockLog.invalidated == True)  # noqa
                 .filter(DataBlockLog.direction == Direction.OUTPUT)
             ).scalars():
                 db = dbl.data_block
@@ -427,8 +431,8 @@ class Environment:
         self, all_nodes: bool = False, eligible_function_keys: List[str] = None
     ) -> int:
         """
-        Invalidate data block logs that are 
-        intermediate and stale. For now, this 
+        Invalidate data block logs that are
+        intermediate and stale. For now, this
         just means all-but-most-recent and not-aliased
         data blocks.
         """
@@ -457,7 +461,7 @@ class Environment:
         query = (
             select(DataBlockLog)
             .join(DataFunctionLog)
-            .filter(DataBlockLog.invalidated == False)
+            .filter(DataBlockLog.invalidated == False)  # noqa
             .filter(DataBlockLog.direction == Direction.OUTPUT)
         )
         if not all_nodes:

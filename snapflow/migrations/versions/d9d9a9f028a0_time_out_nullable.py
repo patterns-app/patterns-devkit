@@ -5,14 +5,13 @@ Revises: dc54046cb677
 Create Date: 2021-06-20 18:52:53.396230
 
 """
-from alembic import op
-import sqlalchemy as sa
 import snapflow
-
+import sqlalchemy as sa
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'd9d9a9f028a0'
-down_revision = 'dc54046cb677'
+revision = "d9d9a9f028a0"
+down_revision = "dc54046cb677"
 branch_labels = None
 depends_on = None
 

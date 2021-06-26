@@ -27,8 +27,8 @@ from dcp.data_format import get_handler_for_name
 from dcp.data_format.base import (
     DataFormat,
     DataFormatBase,
-    get_format_for_nickname,
     UnknownFormat,
+    get_format_for_nickname,
 )
 from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
 from dcp.utils.common import rand_str, utcnow
@@ -344,7 +344,11 @@ class DataFunctionContext:
         storage: Storage,
     ):
         # TODO expensive to infer schema every time, so just do first time
-        if db.realized_schema_key in (None, "Any", "core.Any",):
+        if db.realized_schema_key in (
+            None,
+            "Any",
+            "core.Any",
+        ):
             handler = get_handler_for_name(name, storage)
             inferred_schema = handler().infer_schema(name, storage)
             logger.debug(

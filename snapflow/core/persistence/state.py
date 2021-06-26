@@ -140,7 +140,9 @@ class NodeState(BaseModel):
 
     def __repr__(self):
         return self._repr(
-            node_key=self.node_key, state=self.state, latest_log_id=self.latest_log_id,
+            node_key=self.node_key,
+            state=self.state,
+            latest_log_id=self.latest_log_id,
         )
 
 

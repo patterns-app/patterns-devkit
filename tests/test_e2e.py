@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from datetime import datetime
 from typing import Generator, Iterator, Optional
-import time
 
 import pandas as pd
 import pytest
@@ -484,14 +484,16 @@ def test_node_reset():
         assert env.md_api.count(select(DataBlockLog)) == 12
         assert (
             env.md_api.count(
-                select(DataBlockLog).filter(DataBlockLog.invalidated == True)
+                select(DataBlockLog).filter(DataBlockLog.invalidated == True)  # noqa
             )
             == 3
         )
         assert env.md_api.count(select(DataBlockMetadata)) == 7
         assert (
             env.md_api.count(
-                select(DataBlockMetadata).filter(DataBlockMetadata.deleted == False)
+                select(DataBlockMetadata).filter(
+                    DataBlockMetadata.deleted == False  # noqa
+                )
             )
             == 5
         )
@@ -503,7 +505,7 @@ def test_node_reset():
         assert cnt == 1
         assert (
             env.md_api.count(
-                select(DataBlockLog).filter(DataBlockLog.invalidated == True)
+                select(DataBlockLog).filter(DataBlockLog.invalidated == True)  # noqa
             )
             == 4
         )
@@ -512,7 +514,7 @@ def test_node_reset():
         assert cnt == 1
         assert (
             env.md_api.count(
-                select(DataBlockLog).filter(DataBlockLog.invalidated == True)
+                select(DataBlockLog).filter(DataBlockLog.invalidated == True)  # noqa
             )
             == 5
         )
@@ -644,7 +646,11 @@ def test_remote_callback_listener():
         assert env.md_api.count(select(DataBlockMetadata)) == 0
 
     df = pd.DataFrame({"a": range(10), "b": range(10)})
-    n = GraphCfg(key="n1", function="import_dataframe", params={"dataframe": df},)
+    n = GraphCfg(
+        key="n1",
+        function="import_dataframe",
+        params={"dataframe": df},
+    )
     env.produce(
         "n1",
         graph=GraphCfg(nodes=[n]),
@@ -673,8 +679,11 @@ def test_module_importers():
         f"create table {tablename} as select 1 as a, 2 as b"
     )
     # Now import it as snapflow datablock
-    n = GraphCfg(key="n1", function="import_table", params={"table_name": tablename},)
+    n = GraphCfg(
+        key="n1",
+        function="import_table",
+        params={"table_name": tablename},
+    )
     results = env.produce("n1", graph=GraphCfg(nodes=[n]), target_storage=storage)
     block = get_stdout_block(results)
     assert_almost_equal(block.as_records(), [{"a": "1", "b": "2"}], check_dtype=False)
-

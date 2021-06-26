@@ -271,10 +271,12 @@ def ensure_log(
 
 
 def save_result(
-    env: Environment, exe: ExecutableCfg, result: ExecutionResult,
+    env: Environment,
+    exe: ExecutableCfg,
+    result: ExecutionResult,
 ):
     # TODO: this should be inside one roll-backable transaction
-    function_log = save_function_log(env, exe, result)
+    save_function_log(env, exe, result)
     dbms: List[DataBlockMetadata] = []
     for input_name, blocks in result.input_blocks_consumed.items():
         for block in blocks:
