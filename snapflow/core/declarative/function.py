@@ -53,7 +53,7 @@ class Parameter(FrozenPydanticBase):
     datatype: str
     required: bool = False
     default: Any = None
-    help: str = ""
+    description: str = ""
 
 
 class FunctionIoBase(FrozenPydanticBase):

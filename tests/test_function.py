@@ -15,6 +15,7 @@ from snapflow.core.declarative.function import (
     DataFunctionInterfaceCfg,
     DataFunctionOutputCfg,
     InputType,
+    Parameter,
 )
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.declarative.interface import BoundInterfaceCfg
@@ -38,6 +39,7 @@ from tests.utils import (
     TestSchema1,
     function_chain_t1_to_t2,
     function_generic,
+    function_kitchen_sink,
     function_multiple_input,
     function_self,
     function_stream,
@@ -109,11 +111,7 @@ def function_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
     pass
 
 
-def df4(
-    input: DataBlock[T],
-    dr2: DataBlock[U],
-    dr3: DataBlock[U],
-) -> DataFrame[T]:
+def df4(input: DataBlock[T], dr2: DataBlock[U], dr3: DataBlock[U],) -> DataFrame[T]:
     pass
 
 
@@ -202,6 +200,42 @@ def df4(
                 uses_context=False,
             ),
         ),
+        (
+            function_kitchen_sink,
+            DataFunctionInterfaceCfg(
+                inputs={
+                    "input": DataFunctionInputCfg(
+                        name="input",
+                        input_type=InputType("DataBlock"),
+                        schema_key="T",
+                        required=True,
+                        description="input desc",
+                    ),
+                    "other_t2": DataFunctionInputCfg(
+                        name="other_t2",
+                        input_type=InputType("DataBlock"),
+                        schema_key="TestSchema2",
+                        required=False,
+                        description="other_t2 desc",
+                    ),
+                },
+                outputs={
+                    DEFAULT_OUTPUT_NAME: DataFunctionOutputCfg(
+                        data_format="DataFrame", schema_key="T"
+                    )
+                },
+                parameters={
+                    "param1": Parameter(
+                        name="param1",
+                        datatype="str",
+                        required=False,
+                        default="default",
+                        description="param1 desc",
+                    )
+                },
+                uses_context=False,
+            ),
+        ),
     ],
 )
 def test_function_interface(
@@ -253,8 +287,7 @@ def test_declared_schema_translation():
     pi = n1.resolve(global_library).get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
@@ -284,8 +317,7 @@ def test_natural_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     with env.md_api.begin():
         schema_translation = get_schema_translation(

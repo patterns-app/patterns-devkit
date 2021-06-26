@@ -4,6 +4,8 @@ import inspect
 import re
 from dataclasses import asdict, dataclass, field
 from enum import Enum
+from snapflow.core.declarative.base import update
+from snapflow.utils.docstring import BasisParser, Docstring
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from commonmodel.base import SchemaLike
@@ -34,12 +36,7 @@ re_output_type_hint = re.compile(
 
 
 def normalize_parameter_type(pt: str) -> str:
-    return dict(
-        text="str",
-        boolean="bool",
-        number="float",
-        integer="int",
-    ).get(pt, pt)
+    return dict(text="str", boolean="bool", number="float", integer="int",).get(pt, pt)
 
 
 @dataclass
@@ -101,11 +98,12 @@ def parse_output_annotation(a: str) -> ParsedAnnotation:
     return parsed
 
 
+def parse_docstring(d: str) -> Docstring:
+    return BasisParser().parse(d)
+
+
 DEFAULT_INPUT_ANNOTATION = "DataBlock"
-DEFAULT_OUTPUT = DataFunctionOutputCfg(
-    schema_key="Any",
-    name=DEFAULT_OUTPUT_NAME,
-)
+DEFAULT_OUTPUT = DataFunctionOutputCfg(schema_key="Any", name=DEFAULT_OUTPUT_NAME,)
 DEFAULT_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
 DEFAULT_STATE_OUTPUT = DataFunctionOutputCfg(
@@ -180,14 +178,34 @@ def function_interface_from_callable(
             p = parameter_from_annotation(parsed, name=name, default=default)
             params[p.name] = p
         else:
-            i = function_input_from_annotation(
-                parsed,
-                name=param.name,
-            )
+            i = function_input_from_annotation(parsed, name=param.name,)
             inputs[i.name] = i
-    return DataFunctionInterfaceCfg(
+    cfg = DataFunctionInterfaceCfg(
         inputs=inputs, outputs=outputs, parameters=params, uses_context=uses_context
     )
+    if function.__doc__:
+        cfg = update_interface_with_docstring(cfg, function.__doc__)
+    return cfg
+
+
+def update_interface_with_docstring(
+    cfg: DataFunctionInterfaceCfg, doc: str
+) -> DataFunctionInterfaceCfg:
+    docstring = parse_docstring(doc)
+    for p in docstring.params:
+        if p.arg_name in cfg.parameters:
+            cfg.parameters[p.arg_name] = update(
+                cfg.parameters[p.arg_name], description=p.description
+            )
+    for i in docstring.inputs:
+        if i.input_name in cfg.inputs:
+            cfg.inputs[i.input_name] = update(
+                cfg.inputs[i.input_name], description=i.description
+            )
+    # TODO: this belongs on data function itself?
+    # if docstring.short_description:
+    #     cfg = update(cfg, description=docstring.short_description)
+    return cfg
 
 
 def function_input_from_parameter(param: inspect.Parameter) -> DataFunctionInputCfg:
@@ -203,10 +221,7 @@ def function_input_from_parameter(param: inspect.Parameter) -> DataFunctionInput
             annotation = DEFAULT_INPUT_ANNOTATION
     # is_optional = param.default != inspect.Parameter.empty
     parsed = parse_input_annotation(annotation)
-    return function_input_from_annotation(
-        parsed,
-        name=param.name,
-    )
+    return function_input_from_annotation(parsed, name=param.name,)
 
 
 def function_input_from_annotation(
@@ -238,7 +253,7 @@ def function_output_from_annotation(
 
 
 def parameter_from_annotation(
-    parsed: ParsedAnnotation, name: str, default: Any, help: str = None
+    parsed: ParsedAnnotation, name: str, default: Any, description: str = None
 ) -> Parameter:
     return Parameter(
         name=name,
@@ -247,5 +262,5 @@ def parameter_from_annotation(
         ).value,  # TODO: standardize param datatype to enum
         required=(not parsed.optional),
         default=default,
-        help=help or "",
+        description=description or "",
     )

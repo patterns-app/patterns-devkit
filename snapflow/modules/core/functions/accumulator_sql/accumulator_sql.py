@@ -36,9 +36,7 @@ def field_sql_with_cast(name: str, ftype: FieldType, dialect=None) -> str:
 
 @datafunction(namespace="core", display_name="Accumulate sql tables")
 def accumulator_sql(
-    ctx: DataFunctionContext,
-    input: Stream[T],
-    previous: SelfReference[T] = None,
+    ctx: DataFunctionContext, input: Stream[T], previous: SelfReference[T] = None,
 ) -> DatabaseTable[T]:
     """
     Critical core data function. Handles a scary operation: merging a stream of data blocks
@@ -52,7 +50,7 @@ def accumulator_sql(
         blocks.append(previous)
     blocks.extend(input)
     target_storage = ctx.execution_config.get_target_storage()
-    as_identifer = target_storage.get_api().get_quoted_identifier
+    as_identifier = target_storage.get_api().get_quoted_identifier
     select_stmts = []
     for block in blocks:
         for f in block.realized_schema.fields:
@@ -73,11 +71,11 @@ def accumulator_sql(
                 # TODO: Always cast?
                 dialect = target_storage.get_api().get_engine().dialect
                 cast_sql = field_sql_with_cast(
-                    as_identifer(f.name), col_types[f.name], dialect
+                    as_identifier(f.name), col_types[f.name], dialect
                 )
-                col_sql.append(f"{cast_sql} as {as_identifer(col)}")
+                col_sql.append(f"{cast_sql} as {as_identifier(col)}")
             else:
-                col_sql.append("null as " + as_identifer(col))
+                col_sql.append("null as " + as_identifier(col))
         select_stmts.append(
             "select "
             + ",\n".join(col_sql)

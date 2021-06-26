@@ -39,9 +39,7 @@ def make_test_env(**kwargs) -> Environment:
     ds_args.update(**kwargs)
     ds = DataspaceCfg(**ds_args)
     env = Environment(dataspace=ds)
-    test_module = SnapflowModule(
-        "_test",
-    )
+    test_module = SnapflowModule("_test",)
     for schema in [TestSchema1, TestSchema2, TestSchema3, TestSchema4]:
         env.add_schema(schema)
     for fn in all_functions:
@@ -54,10 +52,7 @@ def make_test_run_context(env: Environment = None, **kwargs) -> ExecutionCfg:
     s = f"python://_test_default_{rand_str(6)}"
     env = env or make_test_env()
     args = dict(
-        dataspace=env.dataspace,
-        local_storage=s,
-        target_storage=s,
-        storages=[s],
+        dataspace=env.dataspace, local_storage=s, target_storage=s, storages=[s],
     )
     args.update(**kwargs)
     return ExecutionCfg(**args)
@@ -93,6 +88,21 @@ def function_self(input: DataBlock[T], previous: SelfReference[T]) -> DataFrame[
 def function_multiple_input(
     input: DataBlock[T], other_t2: Optional[DataBlock[TestSchema2]]
 ) -> DataFrame[T]:
+    pass
+
+
+def function_kitchen_sink(
+    input: DataBlock[T],
+    other_t2: Optional[DataBlock[TestSchema2]],
+    param1: Optional[str] = "default",
+) -> DataFrame[T]:
+    """
+    Inputs:
+        input: input desc
+        other_t2: other_t2 desc
+    Params:
+        param1: param1 desc
+    """
     pass
 
 
