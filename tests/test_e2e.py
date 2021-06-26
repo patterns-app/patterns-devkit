@@ -659,3 +659,22 @@ def test_remote_callback_listener():
         assert env.md_api.count(select(DataFunctionLog)) == 1
         assert env.md_api.count(select(DataBlockLog)) == 1
         assert env.md_api.count(select(DataBlockMetadata)) == 1
+
+
+def test_module_importers():
+    # TODO: how to do these concisely as part of function tests?
+    dburl = get_tmp_sqlite_db_url()
+    storage = get_tmp_sqlite_db_url()
+    env = Environment(DataspaceCfg(metadata_storage=dburl, storages=[storage]))
+    env.add_module(core)
+    tablename = "t1"
+    # Create "external" table
+    Storage(storage).get_api().execute_sql(
+        f"create table {tablename} as select 1 as a, 2 as b"
+    )
+    # Now import it as snapflow datablock
+    n = GraphCfg(key="n1", function="import_table", params={"table_name": tablename},)
+    results = env.produce("n1", graph=GraphCfg(nodes=[n]), target_storage=storage)
+    block = get_stdout_block(results)
+    assert_almost_equal(block.as_records(), [{"a": "1", "b": "2"}], check_dtype=False)
+
