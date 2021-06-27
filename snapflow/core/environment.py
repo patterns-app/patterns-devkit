@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from importlib import import_module
+from snapflow.core.declarative.function import DataFunctionSourceFileCfg
 from types import ModuleType
 from typing import (
     TYPE_CHECKING,
@@ -292,6 +293,7 @@ class Environment:
         node_key: str,
         graph: GraphCfg,
         target_storage: Union[Storage, str] = None,
+        source_file_functions: List[DataFunctionSourceFileCfg] = [],
         **kwargs,
     ) -> ExecutableCfg:
         from snapflow.core.execution.run import prepare_executable
@@ -303,7 +305,13 @@ class Environment:
         assert graph.is_flattened()
         # graph = self.prepare_graph(graph)
         node = graph.get_node(node_key)
-        return prepare_executable(self, execution_config, node, graph)
+        return prepare_executable(
+            self,
+            cfg=execution_config,
+            node=node,
+            graph=graph,
+            source_file_functions=source_file_functions,
+        )
 
     def produce(
         self,
