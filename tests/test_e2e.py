@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import os
+from snapflow.core.declarative.function import DataFunctionSourceFileCfg
 import sys
 import time
+import inspect
 from datetime import datetime
 from typing import Generator, Iterator, Optional
 
 import pandas as pd
 import pytest
 from commonmodel.base import create_quick_schema
-from dcp.data_format.formats.memory.dataframe import DataFrameFormat
-from dcp.data_format.formats.memory.records import Records, RecordsFormat
 from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from loguru import logger
@@ -645,20 +645,56 @@ def test_remote_callback_listener():
         assert env.md_api.count(select(DataBlockLog)) == 0
         assert env.md_api.count(select(DataBlockMetadata)) == 0
 
+    from snapflow.modules.core.functions.import_dataframe import import_dataframe
+
+    idf_src = """
+from __future__ import annotations
+
+from dcp.data_format.formats import DataFrameFormat
+from typing import Optional
+
+from pandas.core.frame import DataFrame
+from snapflow import DataFunctionContext, datafunction
+
+
+@datafunction(
+    namespace="core",
+    display_name="Import Pandas DataFrame",
+)
+def import_df(
+    ctx: DataFunctionContext, dataframe: str, schema: Optional[str] = None
+):
+    ctx.emit(dataframe, data_format=DataFrameFormat, schema=schema)
+    """
+    src = DataFunctionSourceFileCfg(
+        name="import_df", namespace="core", source=idf_src, source_language="python",
+    )
+    schema = create_quick_schema(
+        "__auto__.AutoSchema1", [("a", "Integer"), ("b", "Integer")]
+    )
+    env.add_new_generated_schema(schema)
+
+    logger.enable("snapflow")
+
     df = pd.DataFrame({"a": range(10), "b": range(10)})
     n = GraphCfg(
-        key="n1",
-        function="import_dataframe",
-        params={"dataframe": df},
+        key="n1", function="import_df", params={"dataframe": df, "schema": schema.key},
     )
+    # Test that auto schema is packaged
+    g = GraphCfg(nodes=[n])
+    # TODO
+    # pg = env.prepare_graph(g)
+    # exe = env.get_executable(node_key="n1", graph=pg)
+    # assert exe.get_library().get_schema(schema.key) is not None
     env.produce(
         "n1",
-        graph=GraphCfg(nodes=[n]),
+        graph=g,
         target_storage=storage,
         result_handler=ResultHandler(
             type=RemoteCallbackMetadataExecutionResultHandler.__name__,
             cfg=dict(callback_url=f"http://localhost:{port}/"),
         ),
+        source_file_functions=[src],
     )
 
     with env.md_api.begin():
@@ -667,7 +703,7 @@ def test_remote_callback_listener():
         assert env.md_api.count(select(DataBlockMetadata)) == 1
 
 
-def test_module_importers():
+def test_core_importers():
     # TODO: how to do these concisely as part of function tests?
     dburl = get_tmp_sqlite_db_url()
     storage = get_tmp_sqlite_db_url()
@@ -679,11 +715,7 @@ def test_module_importers():
         f"create table {tablename} as select 1 as a, 2 as b"
     )
     # Now import it as snapflow datablock
-    n = GraphCfg(
-        key="n1",
-        function="import_table",
-        params={"table_name": tablename},
-    )
+    n = GraphCfg(key="n1", function="import_table", params={"table_name": tablename},)
     results = env.produce("n1", graph=GraphCfg(nodes=[n]), target_storage=storage)
     block = get_stdout_block(results)
     assert_almost_equal(block.as_records(), [{"a": "1", "b": "2"}], check_dtype=False)

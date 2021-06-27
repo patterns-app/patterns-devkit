@@ -354,12 +354,17 @@ class Environment:
         graph: Optional[GraphCfg] = None,
         to_exhaustion: bool = True,
         runner: Optional[Callable] = None,
+        source_file_functions: List[DataFunctionSourceFileCfg] = [],
         **execution_kwargs: Any,
     ) -> List[ExecutionResult]:
         from snapflow.core.execution.run import run
         from snapflow.core.declarative.graph import ImproperlyConfigured
         from snapflow.core.function import InputExhaustedException
+        from snapflow.core.function_package import load_function_from_source_file
 
+        # TODO: put this somewhere else?
+        for fn in source_file_functions:
+            self.library.add_function(load_function_from_source_file(fn))
         graph = self.prepare_graph(graph)
         logger.debug(f"Running: {node}")
         flattened_nodes = self.translate_node_to_flattened_nodes(node, graph)
@@ -371,7 +376,12 @@ class Environment:
                 n = n.resolve(self.library)  # TODO: Isn't this already resolved?
                 try:
                     results = runner(
-                        self.get_executable(n.key, graph=graph, **execution_kwargs),
+                        self.get_executable(
+                            n.key,
+                            graph=graph,
+                            source_file_functions=source_file_functions,
+                            **execution_kwargs,
+                        ),
                         to_exhaustion=to_exhaustion,
                     )
                 except InputExhaustedException:
