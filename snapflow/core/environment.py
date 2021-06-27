@@ -49,6 +49,7 @@ if TYPE_CHECKING:
     from snapflow.core.declarative.execution import ExecutableCfg, ExecutionCfg
     from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
     from snapflow.core.declarative.execution import ExecutionResult
+    from snapflow.core.declarative.interface import BoundInterfaceCfg
 
 DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
 
@@ -206,15 +207,28 @@ class Environment:
             return s
         return ensure_storage(self.dataspace.storages[0])
 
-    def build_library_cfg(self) -> ComponentLibraryCfg:
+    def build_library_cfg(
+        self,
+        graph: Optional[GraphCfg] = None,
+        interface: Optional[BoundInterfaceCfg] = None,
+    ) -> ComponentLibraryCfg:
+        # Load auto-schemas from db
         from snapflow.core.declarative.dataspace import ComponentLibraryCfg
 
-        # TODO: only do necessary ones for graph
-        schemas = [
-            s for s in self.library.schemas.values() if s.key.startswith("__auto")
-        ]
+        schemas = []
+        all_schemas = []
+        if graph:
+            all_schemas = graph.get_all_schema_keys()
+        if interface:
+            all_schemas.extend(interface.get_all_schema_keys())
+        if graph is None and interface is None:
+            all_schemas = [
+                s for s in self.library.schemas.values() if s.key.startswith("__auto")
+            ]
         with self.md_api.begin():
-            for gs in self.md_api.execute(select(GeneratedSchema)).scalars():
+            for gs in self.md_api.execute(
+                select(GeneratedSchema).filter(GeneratedSchema.key.in_(all_schemas))
+            ).scalars():
                 schemas.append(gs.as_schema())
         return ComponentLibraryCfg(schemas=schemas)
 
@@ -238,7 +252,6 @@ class Environment:
             local_storage=self._local_python_storage.url,
             target_storage=target_storage.url,
             storages=[s.url for s in self.get_storages()] + [target_storage.url],
-            library_cfg=self.build_library_cfg()
             # abort_on_function_error=self.settings.abort_on_function_error,
         )
         args.update(**kwargs)
@@ -318,9 +331,7 @@ class Environment:
         return results
 
     def translate_node_to_flattened_nodes(
-        self,
-        node: Union[GraphCfg, str],
-        flattened_graph: Optional[GraphCfg] = None,
+        self, node: Union[GraphCfg, str], flattened_graph: Optional[GraphCfg] = None,
     ) -> List[GraphCfg]:
         # Return in execution order
         assert flattened_graph.is_flattened()
@@ -390,9 +401,7 @@ class Environment:
         return get_latest_output(self, node)
 
     def reset_node(
-        self,
-        node: Union[GraphCfg, str],
-        graph: Optional[GraphCfg] = None,
+        self, node: Union[GraphCfg, str], graph: Optional[GraphCfg] = None,
     ):
         from snapflow.core.persistence.state import reset
 

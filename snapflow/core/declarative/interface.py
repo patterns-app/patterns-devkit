@@ -22,8 +22,7 @@ class NodeInputCfg(FrozenPydanticBase):
     schema_translation: Optional[Dict[str, str]] = None
 
     def as_bound_input(
-        self,
-        bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
+        self, bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
     ) -> BoundInputCfg:
 
         return BoundInputCfg(
@@ -147,6 +146,18 @@ class BoundInterfaceCfg(FrozenPydanticBase):
             for i in self.inputs.values()
             if i.bound_stream is not None and not i.input.is_reference
         ]
+
+    def get_all_schema_keys(self) -> List[str]:
+        schemas = []
+        for i in self.inputs.values():
+            for b in i.bound_stream or []:
+                if b.nominal_schema_key:
+                    schemas.append(b.nominal_schema_key)
+                if b.realized_schema_key:
+                    schemas.append(b.realized_schema_key)
+                if b.inferred_schema_key:
+                    schemas.append(b.inferred_schema_key)
+        return schemas
 
     # def resolve_nominal_output_schema(self) -> Optional[str]:
     #     output = self.interface.get_default_output()

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+from snapflow.core.declarative.function import DataFunctionSourceFileCfg
 import sys
+import importlib
 import tempfile
 from dataclasses import asdict, dataclass, field
 from functools import partial
@@ -262,3 +264,26 @@ def get_module_abs_path(obj: Any) -> Path:
 def load_file(file_path: str, fname: str) -> str:
     pth = Path(file_path).resolve() / fname
     return open(pth).read()
+
+
+def import_source_as_module(src: str, module_name: str) -> ModuleType:
+    spec = importlib.util.spec_from_loader(module_name, loader=None)
+    py_module = importlib.util.module_from_spec(spec)
+    exec(src, py_module.__dict__)
+    sys.modules[module_name] = py_module
+    return py_module
+
+
+def load_function_from_source_file(source: DataFunctionSourceFileCfg) -> DataFunction:
+    from snapflow.core.sql.sql_function import sql_function_factory
+
+    if source.source_language == "python":
+        mod = import_source_as_module(source.source, module_name=source.name)
+        fn = find_single_datafunction(mod)
+        return fn
+    if source.source_language == "sql":
+        # TODO: other DF attrs
+        return sql_function_factory(
+            name=source.name, sql=source.source, namespace=source.namespace
+        )
+    raise NotImplementedError(source.source_language)

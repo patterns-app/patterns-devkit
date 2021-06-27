@@ -13,7 +13,10 @@ from snapflow.core.component import ComponentLibrary, global_library
 from snapflow.core.data_block import DataBlock, as_managed
 from snapflow.core.declarative.base import FrozenPydanticBase, PydanticBase
 from snapflow.core.declarative.dataspace import ComponentLibraryCfg, DataspaceCfg
-from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
+from snapflow.core.declarative.function import (
+    DEFAULT_OUTPUT_NAME,
+    DataFunctionSourceFileCfg,
+)
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.declarative.interface import BoundInterfaceCfg
 from snapflow.core.environment import Environment
@@ -38,7 +41,6 @@ class ExecutionCfg(FrozenPydanticBase):
     local_storage: Optional[str] = None
     target_data_format: Optional[str] = None
     storages: List[str] = []
-    library_cfg: Optional[ComponentLibraryCfg] = None
     run_until_inputs_exhausted: bool = True
     # TODO: this is a "soft" limit, could imagine a "hard" one too
     execution_timelimit_seconds: Optional[int] = None
@@ -169,15 +171,23 @@ class ExecutableCfg(FrozenPydanticBase):
     execution_config: ExecutionCfg
     bound_interface: BoundInterfaceCfg
     function_log: DataFunctionLogCfg
+    library_cfg: Optional[ComponentLibraryCfg] = None
+    source_file_functions: List[DataFunctionSourceFileCfg] = []
 
     @property
     def node(self) -> GraphCfg:
         return self.graph.get_node(self.node_key)
 
     def get_library(self) -> ComponentLibrary:
-        if self.execution_config.library_cfg is None:
+        from snapflow.core.function_package import load_function_from_source_file
+
+        if self.library_cfg is None:
             lib = global_library
         else:
-            lib = ComponentLibrary.from_config(self.execution_config.library_cfg)
+            lib = ComponentLibrary.from_config(self.library_cfg)
             lib.merge(global_library)
+        for src in self.source_file_functions:
+            fn = load_function_from_source_file(src)
+            lib.add_function(fn)
         return lib
+

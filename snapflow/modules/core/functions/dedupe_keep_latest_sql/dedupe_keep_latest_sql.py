@@ -12,7 +12,7 @@ from snapflow.core.sql.sql_function import SqlDataFunctionWrapper
     namespace="core",
     display_name="Dedupe Table (keep latest)",
     required_storage_engines=["postgresql"],
-    # TODO: requires postgres StorageEngine
+    # TODO: requires postgres StorageEngine, is there a generic version?
 )
 def dedupe_keep_latest_sql(
     ctx: DataFunctionContext, input: DataBlock[T]

@@ -13,7 +13,10 @@ from snapflow.core.declarative.execution import (
     MetadataExecutionResultHandler,
     set_global_metadata_result_handler,
 )
-from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
+from snapflow.core.declarative.function import (
+    DEFAULT_OUTPUT_NAME,
+    DataFunctionSourceFileCfg,
+)
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 from snapflow.core.execution.execution import ExecutionManager
@@ -68,7 +71,11 @@ class ImproperlyStoredDataBlockException(Exception):
 
 
 def prepare_executable(
-    env: Environment, cfg: ExecutionCfg, node: GraphCfg, graph: GraphCfg
+    env: Environment,
+    cfg: ExecutionCfg,
+    node: GraphCfg,
+    graph: GraphCfg,
+    source_file_functions: List[DataFunctionSourceFileCfg] = [],
 ) -> ExecutableCfg:
     global global_metadata_result_handler
 
@@ -102,12 +109,15 @@ def prepare_executable(
 
         # TODO: runtime and result handler
 
+        lib_cfg = env.build_library_cfg(graph=graph, interface=bound_interface)
         exe = ExecutableCfg(
             node_key=node.key,
             graph=graph,
             execution_config=cfg,
             bound_interface=bound_interface,
             function_log=function_log,
+            library_cfg=lib_cfg,
+            source_file_functions=source_file_functions,
         )
         set_global_metadata_result_handler(MetadataExecutionResultHandler(env))
         return exe
@@ -271,9 +281,7 @@ def ensure_log(
 
 
 def save_result(
-    env: Environment,
-    exe: ExecutableCfg,
-    result: ExecutionResult,
+    env: Environment, exe: ExecutableCfg, result: ExecutionResult,
 ):
     # TODO: this should be inside one roll-backable transaction
     save_function_log(env, exe, result)

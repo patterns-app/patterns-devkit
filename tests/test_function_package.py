@@ -4,8 +4,14 @@ from pathlib import Path
 
 from loguru import logger
 from snapflow import DataFunctionContext, datafunction
-from snapflow.core.declarative.function import DataFunctionInterfaceCfg
-from snapflow.core.function_package import DataFunctionPackage
+from snapflow.core.declarative.function import (
+    DataFunctionInterfaceCfg,
+    DataFunctionSourceFileCfg,
+)
+from snapflow.core.function_package import (
+    DataFunctionPackage,
+    load_function_from_source_file,
+)
 
 logger.enable("snapflow")
 
@@ -51,3 +57,28 @@ def test_sql_function():
     assert i.uses_context
     readme = mffunction.load_readme()
     assert len(readme) > 5
+
+
+def test_load_from_source_sql():
+    src = DataFunctionSourceFileCfg(
+        name="fn1", namespace="ns1", source="select * from t1", source_language="sql"
+    )
+    fn = load_function_from_source_file(src)
+    assert fn.name == src.name
+
+
+def test_load_from_source_py():
+    src = DataFunctionSourceFileCfg(
+        name="fn1",
+        namespace="ns1",
+        source="""
+from snapflow import datafunction
+
+@datafunction
+def fn1():
+    pass
+        """,
+        source_language="python",
+    )
+    fn = load_function_from_source_file(src)
+    assert fn.name == src.name

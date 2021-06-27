@@ -178,6 +178,15 @@ class DataFunctionInterfaceCfg(FrozenPydanticBase):
     def get_default_output(self) -> Optional[DataFunctionOutputCfg]:
         return self.outputs.get(DEFAULT_OUTPUT_NAME)
 
+    def get_all_schema_keys(self) -> List[str]:
+        schemas = []
+        for i in self.inputs.values():
+            schemas.append(i.schema_key)
+        for o in self.outputs.values():
+            schemas.append(o.schema_key)
+        # TODO: for flow
+        return schemas
+
 
 class DataFunctionCfg(FrozenPydanticBase):
     name: str
@@ -218,3 +227,11 @@ class DataFunctionPackageCfg(FrozenPydanticBase):
     readme_name: str = "README.md"
     # python_requirements_path: str = None
     # docker_file_path: str = None
+
+
+class DataFunctionSourceFileCfg(FrozenPydanticBase):
+    name: str
+    namespace: str
+    source: str
+    source_language: str = "python"
+

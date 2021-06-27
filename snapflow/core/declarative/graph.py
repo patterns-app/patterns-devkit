@@ -251,6 +251,15 @@ class GraphCfg(FrozenPydanticBase):
             return {"stdin": self.schema_translation}
         return self.schema_translations
 
+    def get_all_schema_keys(self) -> List[str]:
+        if self.is_function_node():
+            return self.get_interface().get_all_schema_keys()
+        schemas = []
+        if self.nodes:
+            for n in self.nodes:
+                schemas.extend(n.get_all_schema_keys())
+        return schemas
+
     def node_dict(self) -> Dict[str, GraphCfg]:
         return {n.key: n for n in self.nodes if n.key}
 
