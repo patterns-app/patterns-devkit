@@ -234,4 +234,3 @@ class DataFunctionSourceFileCfg(FrozenPydanticBase):
     namespace: str
     source: str
     source_language: str = "python"
-

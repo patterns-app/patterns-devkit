@@ -190,4 +190,3 @@ class ExecutableCfg(FrozenPydanticBase):
             fn = load_function_from_source_file(src)
             lib.add_function(fn)
         return lib
-

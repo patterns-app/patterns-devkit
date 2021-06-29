@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import os
-from snapflow.core.declarative.function import DataFunctionSourceFileCfg
-import sys
 import importlib
+import os
+import sys
 import tempfile
 from dataclasses import asdict, dataclass, field
 from functools import partial
@@ -14,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Uni
 
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
+from snapflow.core.declarative.function import DataFunctionSourceFileCfg
 from snapflow.core.function import DataFunction, ensure_function, make_function
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,

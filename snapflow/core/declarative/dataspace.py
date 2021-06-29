@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from enum import Enum
-from snapflow.core.declarative.interface import BoundInterfaceCfg
 from typing import Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 from commonmodel import Schema
@@ -11,6 +10,7 @@ from snapflow.core.declarative.base import FrozenPydanticBase
 from snapflow.core.declarative.flow import FlowCfg
 from snapflow.core.declarative.function import DataFunctionCfg
 from snapflow.core.declarative.graph import GraphCfg
+from snapflow.core.declarative.interface import BoundInterfaceCfg
 
 NxNode = Tuple[str, Dict[str, Dict]]
 NxAdjacencyList = List[NxNode]
@@ -49,4 +49,3 @@ class ComponentLibraryCfg(FrozenPydanticBase):
     schemas: List[Schema] = []
     flows: List[FlowCfg] = []
     namespace_precedence: List[str] = []
-

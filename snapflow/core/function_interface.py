@@ -36,7 +36,12 @@ re_output_type_hint = re.compile(
 
 
 def normalize_parameter_type(pt: str) -> str:
-    return dict(text="str", boolean="bool", number="float", integer="int",).get(pt, pt)
+    return dict(
+        text="str",
+        boolean="bool",
+        number="float",
+        integer="int",
+    ).get(pt, pt)
 
 
 @dataclass
@@ -103,7 +108,10 @@ def parse_docstring(d: str) -> Docstring:
 
 
 DEFAULT_INPUT_ANNOTATION = "DataBlock"
-DEFAULT_OUTPUT = DataFunctionOutputCfg(schema_key="Any", name=DEFAULT_OUTPUT_NAME,)
+DEFAULT_OUTPUT = DataFunctionOutputCfg(
+    schema_key="Any",
+    name=DEFAULT_OUTPUT_NAME,
+)
 DEFAULT_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
 DEFAULT_STATE_OUTPUT = DataFunctionOutputCfg(
@@ -178,7 +186,10 @@ def function_interface_from_callable(
             p = parameter_from_annotation(parsed, name=name, default=default)
             params[p.name] = p
         else:
-            i = function_input_from_annotation(parsed, name=param.name,)
+            i = function_input_from_annotation(
+                parsed,
+                name=param.name,
+            )
             inputs[i.name] = i
     cfg = DataFunctionInterfaceCfg(
         inputs=inputs, outputs=outputs, parameters=params, uses_context=uses_context
@@ -225,7 +236,10 @@ def function_input_from_parameter(param: inspect.Parameter) -> DataFunctionInput
             annotation = DEFAULT_INPUT_ANNOTATION
     # is_optional = param.default != inspect.Parameter.empty
     parsed = parse_input_annotation(annotation)
-    return function_input_from_annotation(parsed, name=param.name,)
+    return function_input_from_annotation(
+        parsed,
+        name=param.name,
+    )
 
 
 def function_input_from_annotation(

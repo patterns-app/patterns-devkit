@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 import os
 from importlib import import_module
-from snapflow.core.declarative.function import DataFunctionSourceFileCfg
 from types import ModuleType
 from typing import (
     TYPE_CHECKING,
@@ -26,6 +25,7 @@ from dcp.storage.memory.engines.python import new_local_python_storage
 from dcp.utils.common import AttrDict
 from loguru import logger
 from snapflow.core.component import ComponentLibrary, global_library
+from snapflow.core.declarative.function import DataFunctionSourceFileCfg
 from snapflow.core.module import (
     DEFAULT_LOCAL_MODULE,
     DEFAULT_LOCAL_NAMESPACE,
@@ -339,7 +339,9 @@ class Environment:
         return results
 
     def translate_node_to_flattened_nodes(
-        self, node: Union[GraphCfg, str], flattened_graph: Optional[GraphCfg] = None,
+        self,
+        node: Union[GraphCfg, str],
+        flattened_graph: Optional[GraphCfg] = None,
     ) -> List[GraphCfg]:
         # Return in execution order
         assert flattened_graph.is_flattened()
@@ -419,7 +421,9 @@ class Environment:
         return get_latest_output(self, node)
 
     def reset_node(
-        self, node: Union[GraphCfg, str], graph: Optional[GraphCfg] = None,
+        self,
+        node: Union[GraphCfg, str],
+        graph: Optional[GraphCfg] = None,
     ):
         from snapflow.core.persistence.state import reset
 

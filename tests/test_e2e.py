@@ -1,16 +1,16 @@
 from __future__ import annotations
 
+import inspect
 import os
-from snapflow.core.declarative.function import DataFunctionSourceFileCfg
 import sys
 import time
-import inspect
 from datetime import datetime
 from typing import Generator, Iterator, Optional
 
 import pandas as pd
 import pytest
 from commonmodel.base import create_quick_schema
+from dcp.data_format import Records
 from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from loguru import logger
@@ -25,6 +25,7 @@ from snapflow.core.declarative.execution import (
     ResultHandler,
     get_global_metadata_result_handler,
 )
+from snapflow.core.declarative.function import DataFunctionSourceFileCfg
 from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 from snapflow.core.persistence.data_block import (
@@ -667,7 +668,10 @@ def import_df(
     ctx.emit(dataframe, data_format=DataFrameFormat, schema=schema)
     """
     src = DataFunctionSourceFileCfg(
-        name="import_df", namespace="core", source=idf_src, source_language="python",
+        name="import_df",
+        namespace="core",
+        source=idf_src,
+        source_language="python",
     )
     schema = create_quick_schema(
         "__auto__.AutoSchema1", [("a", "Integer"), ("b", "Integer")]
@@ -678,7 +682,9 @@ def import_df(
 
     df = pd.DataFrame({"a": range(10), "b": range(10)})
     n = GraphCfg(
-        key="n1", function="import_df", params={"dataframe": df, "schema": schema.key},
+        key="n1",
+        function="import_df",
+        params={"dataframe": df, "schema": schema.key},
     )
     # Test that auto schema is packaged
     g = GraphCfg(nodes=[n])
@@ -715,7 +721,11 @@ def test_core_importers():
         f"create table {tablename} as select 1 as a, 2 as b"
     )
     # Now import it as snapflow datablock
-    n = GraphCfg(key="n1", function="import_table", params={"table_name": tablename},)
+    n = GraphCfg(
+        key="n1",
+        function="import_table",
+        params={"table_name": tablename},
+    )
     results = env.produce("n1", graph=GraphCfg(nodes=[n]), target_storage=storage)
     block = get_stdout_block(results)
     assert_almost_equal(block.as_records(), [{"a": "1", "b": "2"}], check_dtype=False)

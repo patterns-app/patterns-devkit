@@ -22,7 +22,8 @@ class NodeInputCfg(FrozenPydanticBase):
     schema_translation: Optional[Dict[str, str]] = None
 
     def as_bound_input(
-        self, bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
+        self,
+        bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
     ) -> BoundInputCfg:
 
         return BoundInputCfg(
