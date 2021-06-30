@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import os
+from snapflow.utils.modules import find_all_of_type_in_module
 import sys
 import tempfile
 from dataclasses import asdict, dataclass, field
@@ -242,11 +243,7 @@ def load_functions_from_file(pth: str, **local_vars: Any) -> List[DataFunction]:
 
 
 def load_functions_from_module(module: ModuleType) -> List[DataFunction]:
-    return [
-        getattr(module, n)
-        for n in dir(module)
-        if isinstance(getattr(module, n), DataFunction)
-    ]
+    return find_all_of_type_in_module(module, DataFunction)
 
 
 def find_single_datafunction(module: ModuleType) -> DataFunction:

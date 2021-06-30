@@ -1,4 +1,5 @@
 from __future__ import annotations
+from snapflow.utils.modules import find_all_of_type_in_module
 
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, List, Union
@@ -7,10 +8,7 @@ from commonmodel import Schema
 
 if TYPE_CHECKING:
     from snapflow.core.declarative.dataspace import ComponentLibraryCfg
-    from snapflow.core.function import (
-        DataFunctionLike,
-        DataFunction,
-    )
+    from snapflow.core.function import DataFunction
     from snapflow.core.module import SnapflowModule
     from snapflow.core.declarative.flow import FlowCfg
 
@@ -57,9 +55,14 @@ class ComponentLibrary:
             self.namespace_precedence.append(k)
 
     def add_module(self, module: Union[SnapflowModule, ModuleType]):
+        from snapflow.core.module import SnapflowModule
+
         if isinstance(module, ModuleType):
-            # TODO: hack?
-            module = module.module
+            sf_modules = find_all_of_type_in_module(module, SnapflowModule)
+            if len(sf_modules) == 0:
+                return self.find_and_add_from_module(module)
+            else:
+                module = sf_modules[0].module
         self.merge(module.library)
 
     def add_function(self, f: DataFunction):
@@ -73,6 +76,17 @@ class ComponentLibrary:
     def add_flow(self, f: FlowCfg):
         self.add_namespace(f.key)
         self.flows[f.key] = f
+
+    def find_and_add_from_module(self, module: ModuleType):
+        from snapflow.core.function import DataFunction
+        from snapflow.core.declarative.flow import FlowCfg
+
+        for fn in find_all_of_type_in_module(module, DataFunction):
+            self.add_function(fn)
+        for s in find_all_of_type_in_module(module, Schema):
+            self.add_schema(s)
+        for f in find_all_of_type_in_module(module, FlowCfg):
+            self.add_flow(f)
 
     def remove_function(self, function_like: Union[DataFunction, str]):
         from snapflow.core.function import DataFunction
