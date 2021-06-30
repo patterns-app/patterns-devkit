@@ -70,7 +70,7 @@ class SnapflowCommandBase:
         self.insert_into_current_init_file(insert, after)
 
     def insert_schema_into_current_init_file(self, schema_name: str):
-        insert = f'{schema_name} = schema_from_yaml_file(Path(__file__).parent / "schemas/{schema_name}.yml"))'
+        insert = f'{schema_name} = schema_from_yaml_file(Path(__file__).parent / "schemas/{schema_name}.yml")'
         after = r".*schema_from_yaml.*"
         self.insert_into_current_init_file(insert, after)
 
