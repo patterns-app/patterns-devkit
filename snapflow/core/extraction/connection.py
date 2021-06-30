@@ -51,7 +51,10 @@ class JsonHttpApiConnection:
             if self.remove_none_params and v is None:
                 continue
             if isinstance(v, datetime) or isinstance(v, date):
-                v = v.strftime(self.date_format)
+                if self.date_format == "isoformat":
+                    v = v.isoformat()
+                else:
+                    v = v.strftime(self.date_format)
             formatted[k] = v
         return formatted
 
