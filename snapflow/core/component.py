@@ -62,7 +62,7 @@ class ComponentLibrary:
             if len(sf_modules) == 0:
                 return self.find_and_add_from_module(module)
             else:
-                module = sf_modules[0].module
+                module = sf_modules[0]
         self.merge(module.library)
 
     def add_function(self, f: DataFunction):
