@@ -59,8 +59,14 @@ def has_subset_nonnull_fields(sub: Schema, supr: Schema) -> bool:
 
 
 def update_matching_field_definitions(
-    schema: Schema, update_with_schema: Schema
+    schema: Schema, update_with_schema: Schema, add_missing_fields=True
 ) -> Schema:
+    """
+    Takes schema and for any matching field in update_with_schema,
+    uses the field definition from update_with_schema.
+    Additionally, if add_missing_fields is True then add fields from
+    update_with_schema that are missing from schema.
+    """
     fields = []
     modified = False
     for f in schema.fields:
@@ -71,6 +77,14 @@ def update_matching_field_definitions(
         except NameError:
             pass
         fields.append(new_f)
+    if add_missing_fields:
+        for f in update_with_schema.fields:
+            try:
+                old_f = schema.get_field(f.name)
+            except NameError:
+                # Missing, so append to fields
+                modified = True
+                fields.append(f)
     if not modified:
         return schema
     schema_dict = schema.dict()
