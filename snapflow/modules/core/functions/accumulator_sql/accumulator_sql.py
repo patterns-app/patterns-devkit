@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pprint import pprint
 from typing import Dict, List
 
 from commonmodel import DEFAULT_FIELD_TYPE, FieldType
@@ -15,6 +16,10 @@ from sqlalchemy.sql import cast, select
 
 
 def merge_field_types(ft_base: FieldType, ft_new: FieldType) -> FieldType:
+    assert isinstance(ft_base, FieldType)
+    assert isinstance(ft_new, FieldType)
+    if ft_base.name == ft_new.name:
+        return ft_base
     if ft_base.name in ft_new.castable_to_types:
         return ft_base
     if ft_new.name in ft_base.castable_to_types:
@@ -36,9 +41,7 @@ def field_sql_with_cast(name: str, ftype: FieldType, dialect=None) -> str:
 
 @datafunction(namespace="core", display_name="Accumulate sql tables")
 def accumulator_sql(
-    ctx: DataFunctionContext,
-    input: Stream[T],
-    previous: SelfReference[T] = None,
+    ctx: DataFunctionContext, input: Stream[T], previous: SelfReference[T] = None,
 ) -> DatabaseTable[T]:
     """
     Critical core data function. Handles a scary operation: merging a stream of data blocks
@@ -52,6 +55,7 @@ def accumulator_sql(
         blocks.append(previous)
     blocks.extend(input)
     target_storage = ctx.execution_config.get_target_storage()
+    dialect = target_storage.get_api().get_engine().dialect
     as_identifier = target_storage.get_api().get_quoted_identifier
     select_stmts = []
     for block in blocks:
@@ -66,18 +70,11 @@ def accumulator_sql(
         col_sql = []
         for col in cols:
             if col in block.realized_schema.field_names():
-                f = block.realized_schema.get_field(col)
-                # if f.field_type == col_types[f.name]:
-                #     cast_sql = col
-                # else:
-                # TODO: Always cast?
-                dialect = target_storage.get_api().get_engine().dialect
-                cast_sql = field_sql_with_cast(
-                    as_identifier(f.name), col_types[f.name], dialect
-                )
-                col_sql.append(f"{cast_sql} as {as_identifier(col)}")
+                val = as_identifier(col)
             else:
-                col_sql.append("null as " + as_identifier(col))
+                val = "null"
+            cast_sql = field_sql_with_cast(val, col_types[col], dialect)
+            col_sql.append(f"{cast_sql} as {as_identifier(col)}")
         select_stmts.append(
             "select "
             + ",\n".join(col_sql)

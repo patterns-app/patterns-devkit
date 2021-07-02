@@ -5,6 +5,7 @@ import sys
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Generator, Iterator, Optional
+from commonmodel.field_types import DateTime, Float, Integer, Text
 
 import pandas as pd
 import pytest
@@ -21,6 +22,9 @@ from snapflow.core.declarative.graph import GraphCfg
 from snapflow.core.environment import Environment
 from snapflow.core.sql.sql_function import sql_function_factory
 from snapflow.modules import core
+from snapflow.modules.core.functions.accumulator_sql.accumulator_sql import (
+    merge_field_types,
+)
 from sqlalchemy import select
 from tests.test_e2e import Customer
 from tests.utils import get_stdout_block
@@ -37,11 +41,7 @@ def funky_source(
     # Gives different schema on each call
     runs = ctx.get_state_value("run_number", 0)
     records = [
-        {
-            "name": f"name{n}",
-            "joined": datetime(2000, 1, n + 1),
-            "Meta data": None,
-        }
+        {"name": f"name{n}", "joined": datetime(2000, 1, n + 1), "Meta data": None,}
         for n in range(10)
     ]
     if runs == 1:
@@ -80,10 +80,7 @@ def funky_source(
     if runs > 3:
         # missing field
         records = [
-            {
-                "joined": datetime(2000, 1, n + 1),
-                "Meta data": {"idx": n},
-            }
+            {"joined": datetime(2000, 1, n + 1), "Meta data": {"idx": n},}
             for n in range(10)
         ]
     ctx.emit_state_value("run_number", runs + 1)
@@ -179,3 +176,10 @@ def test_accumulate():
         with get_env(use_sqlite=True) as env:
             dbs = env.get_storages()[0]
             run_accumulate(env, GraphCfg(nodes=[source, accumulate_sql]), dbs)
+
+
+def test_merge_field_types():
+    assert merge_field_types(Integer(), Text()) == Text()
+    assert merge_field_types(Integer(), Integer()) == Integer()
+    assert merge_field_types(DateTime(), Integer()) == Text()
+    assert merge_field_types(Float(), Integer()) == Float()

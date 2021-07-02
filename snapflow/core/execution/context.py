@@ -330,6 +330,7 @@ class DataFunctionContext:
         return name, storage
 
     def add_schema(self, schema: Schema):
+        self.library.add_schema(schema)
         if schema not in self.result.schemas_generated:
             self.result.schemas_generated.append(schema)
 
@@ -343,12 +344,8 @@ class DataFunctionContext:
         name: str,
         storage: Storage,
     ):
-        # TODO expensive to infer schema every time, so just do first time
-        if db.realized_schema_key in (
-            None,
-            "Any",
-            "core.Any",
-        ):
+        # TODO: expensive to infer schema every time, so just do first time
+        if db.realized_schema_key in (None, "Any", "core.Any",):
             handler = get_handler_for_name(name, storage)
             inferred_schema = handler().infer_schema(name, storage)
             logger.debug(
@@ -427,6 +424,7 @@ class DataFunctionContext:
             to_name=sdb.name,
             to_storage=Storage(sdb.storage_url),
             to_format=sdb.data_format,
+            schema=self.library.get_schema(db.realized_schema_key),
             available_storages=self.execution_config.get_storages(),
             if_exists="append",
         )
