@@ -57,7 +57,7 @@ scale from laptop to AWS cluster.
 
 Install core library and the Stripe module:
 
-`pip install basis basis-modules` or `poetry add basis basis-modules`
+`pip install basis-core basis-modules` or `poetry add basis-core basis-modules`
 
 Start a new dataspace named 'quickstart':
 
