@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from snapflow import DataFunctionContext, datafunction
+from basis import DataFunctionContext, datafunction
 
 
 @datafunction(namespace="_test_module")

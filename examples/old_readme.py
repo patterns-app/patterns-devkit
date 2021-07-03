@@ -1,13 +1,13 @@
 # flake8: noqa F402
 import sys
 
-from snapflow import Environment, datafunction, sql_datafunction
-from snapflow.core.declarative.base import load_yaml
-from snapflow.core.declarative.dataspace import DataspaceCfg
-from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.environment import run_graph
-from snapflow.core.module import DEFAULT_LOCAL_MODULE
-from snapflow_stripe import module as stripe
+from basis import Environment, datafunction, sql_datafunction
+from basis.core.declarative.base import load_yaml
+from basis.core.declarative.dataspace import DataspaceCfg
+from basis.core.declarative.graph import GraphCfg
+from basis.core.environment import run_graph
+from basis.core.module import DEFAULT_LOCAL_MODULE
+from basis_stripe import module as stripe
 
 sys.path.append(".")
 

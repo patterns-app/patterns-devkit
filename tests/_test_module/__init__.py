@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from snapflow import DataFunctionContext
-from snapflow.core.data_block import DataBlock
-from snapflow.core.module import SnapflowModule
-from snapflow.utils.typing import T
+from basis import DataFunctionContext
+from basis.core.data_block import DataBlock
+from basis.core.module import BasisModule
+from basis.utils.typing import T
 
 
 def df1(ctx: DataFunctionContext) -> DataBlock[T]:
     pass
 
 
-module = SnapflowModule(
+module = BasisModule(
     namespace="_test_module",
     py_module_path=__file__,
     py_module_name=__name__,

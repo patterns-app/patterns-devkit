@@ -3,14 +3,14 @@ from __future__ import annotations
 from pprint import pprint
 
 import pytest
+from basis.core.component import global_library
+from basis.core.declarative.base import dump_yaml, load_yaml, update
+from basis.core.declarative.dataspace import DataspaceCfg
+from basis.core.declarative.flow import FlowCfg
+from basis.core.declarative.graph import GraphCfg
+from basis.core.flattener import flatten_graph_config
+from basis.modules import core
 from pydantic.error_wrappers import ValidationError
-from snapflow.core.component import global_library
-from snapflow.core.declarative.base import dump_yaml, load_yaml, update
-from snapflow.core.declarative.dataspace import DataspaceCfg
-from snapflow.core.declarative.flow import FlowCfg
-from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.flattener import flatten_graph_config
-from snapflow.modules import core
 from tests.utils import (
     function_chain_t1_to_t2,
     function_generic,
@@ -135,11 +135,11 @@ def test_graph_from_yaml():
 
 
 basic_graph = """
-snapflow:
+basis:
   initialize_metadata_storage: false
-metadata_storage: sqlite://.snapflow.db
+metadata_storage: sqlite://.basis.db
 storages:
-  - postgres://localhost:5432/snapflow
+  - postgres://localhost:5432/basis
 namespaces:
   - stripe
 graph:
@@ -157,8 +157,8 @@ graph:
     #   function: core.email_records
     #   input: import_csv.stderr
     #   params:
-    #     from_email: automated@snapflow.ai
-    #     to_email: snapflow-errors@snapflow.ai
+    #     from_email: automated@basis.ai
+    #     to_email: basis-errors@basis.ai
     #     max_records: 100
     """
 
@@ -231,11 +231,11 @@ def test_augmentations():
     global_library.add_flow(ad)
 
     g = """
-        snapflow:
+        basis:
           initialize_metadata_storage: false
-        metadata_storage: sqlite://.snapflow.db
+        metadata_storage: sqlite://.basis.db
         storages:
-          - postgres://localhost:5432/snapflow
+          - postgres://localhost:5432/basis
         namespaces:
           - stripe
         graph:

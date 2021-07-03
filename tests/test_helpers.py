@@ -1,8 +1,8 @@
 from datetime import datetime, timedelta
 from time import time
 
-from snapflow.helpers.connectors.connection import HttpApiConnection
-from snapflow.helpers.connectors.mock_data_source import GenericJsonObjectDataSource
+from basis.helpers.connectors.connection import HttpApiConnection
+from basis.helpers.connectors.mock_data_source import GenericJsonObjectDataSource
 
 
 def test_http_conn():

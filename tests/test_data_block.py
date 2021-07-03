@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from dcp.data_format.formats.memory.records import RecordsFormat
-from snapflow.core.persistence.data_block import (
+from basis.core.persistence.data_block import (
     DataBlockMetadata,
     StoredDataBlockMetadata,
     get_datablock_id,
     get_stored_datablock_id,
 )
+from dcp.data_format.formats.memory.records import RecordsFormat
 from tests.utils import TestSchema1, TestSchema2, TestSchema3, make_test_env
 
 

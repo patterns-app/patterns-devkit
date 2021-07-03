@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import logging
 
+from basis.core.environment import Environment
+from basis.core.function import datafunction
+from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
+from basis.modules.core import module as core
 from loguru import logger
-from snapflow.core.environment import Environment
-from snapflow.core.function import datafunction
-from snapflow.core.module import DEFAULT_LOCAL_MODULE, SnapflowModule
-from snapflow.modules.core import module as core
 
-# logger.enable("snapflow")
+# logger.enable("basis")
 
 
 def test_module_init():
     from ._test_module import module as _test_module
 
-    assert isinstance(_test_module, SnapflowModule)
+    assert isinstance(_test_module, BasisModule)
     assert len(_test_module.schemas) >= 1
     assert len(_test_module.functions) >= 2
 

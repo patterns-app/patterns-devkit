@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from snapflow import sql_datafunction
+from basis import sql_datafunction
 
 
 @sql_datafunction(namespace="_test_module", file=__file__)

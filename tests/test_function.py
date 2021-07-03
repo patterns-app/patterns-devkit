@@ -3,13 +3,12 @@ from __future__ import annotations
 from typing import Any, Callable
 
 import pytest
-from pandas import DataFrame
-from snapflow import DataFunctionContext
-from snapflow.core.component import global_library
-from snapflow.core.data_block import DataBlock
-from snapflow.core.declarative.base import update
-from snapflow.core.declarative.execution import ExecutableCfg
-from snapflow.core.declarative.function import (
+from basis import DataFunctionContext
+from basis.core.component import global_library
+from basis.core.data_block import DataBlock
+from basis.core.declarative.base import update
+from basis.core.declarative.execution import ExecutableCfg
+from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     DataFunctionInputCfg,
     DataFunctionInterfaceCfg,
@@ -17,24 +16,25 @@ from snapflow.core.declarative.function import (
     InputType,
     Parameter,
 )
-from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.declarative.interface import BoundInterfaceCfg
-from snapflow.core.execution.run import prepare_executable
-from snapflow.core.function import DataFunctionLike, datafunction
-from snapflow.core.function_interface import (
+from basis.core.declarative.graph import GraphCfg
+from basis.core.declarative.interface import BoundInterfaceCfg
+from basis.core.execution.run import prepare_executable
+from basis.core.function import DataFunctionLike, datafunction
+from basis.core.function_interface import (
     DEFAULT_OUTPUT,
     DEFAULT_OUTPUTS,
     ParsedAnnotation,
     parse_input_annotation,
 )
-from snapflow.core.function_interface_manager import (
+from basis.core.function_interface_manager import (
     get_bound_interface,
     get_schema_translation,
 )
-from snapflow.core.module import DEFAULT_LOCAL_NAMESPACE
-from snapflow.core.persistence.data_block import DataBlockMetadata
-from snapflow.modules import core
-from snapflow.utils.typing import T, U
+from basis.core.module import DEFAULT_LOCAL_NAMESPACE
+from basis.core.persistence.data_block import DataBlockMetadata
+from basis.modules import core
+from basis.utils.typing import T, U
+from pandas import DataFrame
 from tests.utils import (
     TestSchema1,
     function_chain_t1_to_t2,

@@ -2,21 +2,21 @@ from __future__ import annotations
 
 from typing import List, Optional
 
+from basis.core.data_block import DataBlock, SelfReference, Stream
+from basis.core.declarative.dataspace import BasisCfg, DataspaceCfg
+from basis.core.declarative.execution import ExecutionCfg, ExecutionResult
+from basis.core.declarative.graph import GraphCfg
+from basis.core.environment import Environment
+from basis.core.execution.context import DataFunctionContext
+from basis.core.function import datafunction
+from basis.core.module import BasisModule
+from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
+from basis.utils.typing import T
 from commonmodel.base import create_quick_schema
 from dcp.storage.base import Storage
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from pandas import DataFrame
-from snapflow.core.data_block import DataBlock, SelfReference, Stream
-from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
-from snapflow.core.declarative.execution import ExecutionCfg, ExecutionResult
-from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.environment import Environment
-from snapflow.core.execution.context import DataFunctionContext
-from snapflow.core.function import datafunction
-from snapflow.core.module import SnapflowModule
-from snapflow.core.runtime import Runtime, RuntimeClass, RuntimeEngine
-from snapflow.utils.typing import T
 
 TestSchema1 = create_quick_schema("TestSchema1", [("f1", "Text")], namespace="_test")
 TestSchema2 = create_quick_schema("TestSchema2", [("f1", "Text")], namespace="_test")
@@ -34,12 +34,12 @@ def make_test_env(**kwargs) -> Environment:
         url = get_tmp_sqlite_db_url()
         kwargs["metadata_storage"] = url
     ds_args = dict(
-        graph=GraphCfg(key="_test"), snapflow=SnapflowCfg(abort_on_function_error=True)
+        graph=GraphCfg(key="_test"), basis=BasisCfg(abort_on_function_error=True)
     )
     ds_args.update(**kwargs)
     ds = DataspaceCfg(**ds_args)
     env = Environment(dataspace=ds)
-    test_module = SnapflowModule(
+    test_module = BasisModule(
         "_test",
     )
     for schema in [TestSchema1, TestSchema2, TestSchema3, TestSchema4]:

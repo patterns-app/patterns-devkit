@@ -4,17 +4,17 @@ from typing import Optional
 
 import pandas as pd
 import pytest
+from basis.core.data_block import Reference, as_managed
+from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
+from basis.core.declarative.graph import GraphCfg
+from basis.core.execution.execution import ExecutionManager
+from basis.core.function import Input, datafunction
+from basis.core.persistence.data_block import Alias
+from basis.core.persistence.state import DataBlockLog, DataFunctionLog, Direction
+from basis.modules import core
 from dcp.data_format.formats.memory.records import Records
 from loguru import logger
 from pandas import DataFrame
-from snapflow.core.data_block import Reference, as_managed
-from snapflow.core.declarative.function import DEFAULT_OUTPUT_NAME
-from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.execution.execution import ExecutionManager
-from snapflow.core.function import Input, datafunction
-from snapflow.core.persistence.data_block import Alias
-from snapflow.core.persistence.state import DataBlockLog, DataFunctionLog, Direction
-from snapflow.modules import core
 from sqlalchemy.sql.expression import select
 from tests.utils import (
     TestSchema1,
@@ -25,7 +25,7 @@ from tests.utils import (
     make_test_run_context,
 )
 
-# logger.enable("snapflow")
+# logger.enable("basis")
 
 mock_dl_output = [{"f1": "2"}, {"f2": 3}]
 

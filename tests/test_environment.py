@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from basis.core.declarative.dataspace import BasisCfg, DataspaceCfg
+from basis.core.environment import Environment
+from basis.core.persistence.data_block import DataBlockMetadata
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from loguru import logger
-from snapflow.core.declarative.dataspace import DataspaceCfg, SnapflowCfg
-from snapflow.core.environment import Environment
-from snapflow.core.persistence.data_block import DataBlockMetadata
 from sqlalchemy.sql.expression import select
 
-# logger.enable("snapflow")
+# logger.enable("basis")
 
 
 def env_init(env: Environment):
@@ -38,7 +38,7 @@ def test_env_init():
         dataspace=DataspaceCfg(
             key=f"_test_{rand_str()}",
             metadata_storage="sqlite://",
-            snapflow=SnapflowCfg(use_global_library=False),
+            basis=BasisCfg(use_global_library=False),
         )
     )
     env_init(env)
@@ -49,7 +49,7 @@ def test_multi_env():
     cfg = DataspaceCfg(
         key=f"_test_{rand_str()}",
         metadata_storage=db_url,
-        snapflow=SnapflowCfg(use_global_library=False),
+        basis=BasisCfg(use_global_library=False),
     )
     env1 = Environment(dataspace=cfg)
     with env1.md_api.begin():
@@ -59,7 +59,7 @@ def test_multi_env():
     cfg = DataspaceCfg(
         key=f"_test_{rand_str()}",
         metadata_storage=db_url,
-        snapflow=SnapflowCfg(use_global_library=False),
+        basis=BasisCfg(use_global_library=False),
     )
     env2 = Environment(dataspace=cfg)
     with env2.md_api.begin():

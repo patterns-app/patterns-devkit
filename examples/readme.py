@@ -4,9 +4,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+from basis.cli.app import app
+from basis_modules.modules import stripe
 from cleo import CommandTester
-from snapflow.cli.app import app
-from snapflow_stripe import module as stripe
 
 sys.path.append(".")
 
@@ -27,7 +27,7 @@ print(pth)
 fn = """
 from __future__ import annotations
 from pandas import DataFrame
-from snapflow import datafunction, DataBlock
+from basis import datafunction, DataBlock
 
 
 @datafunction
@@ -41,7 +41,7 @@ with open(pth, "w") as f:
 ds = (
     """
 storages:
-  - sqlite:///%s/.snapflow.db
+  - sqlite:///%s/.basis.db
 graph:
   nodes:
     - key: stripe_charges
@@ -54,7 +54,7 @@ graph:
 """
     % dirpath
 )
-with open(Path(dirpath) / "snapflow.yml", "w") as f:
+with open(Path(dirpath) / "basis.yml", "w") as f:
     f.write(ds)
 
 cmd = app.find("run")

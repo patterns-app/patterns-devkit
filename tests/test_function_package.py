@@ -2,18 +2,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from loguru import logger
-from snapflow import DataFunctionContext, datafunction
-from snapflow.core.declarative.function import (
+from basis import DataFunctionContext, datafunction
+from basis.core.declarative.function import (
     DataFunctionInterfaceCfg,
     DataFunctionSourceFileCfg,
 )
-from snapflow.core.function_package import (
+from basis.core.function_package import (
     DataFunctionPackage,
     load_function_from_source_file,
 )
+from loguru import logger
 
-logger.enable("snapflow")
+logger.enable("basis")
 
 
 def test_from_path():
@@ -72,7 +72,7 @@ def test_load_from_source_py():
         name="fn1",
         namespace="ns1",
         source="""
-from snapflow import datafunction
+from basis import datafunction
 
 @datafunction
 def fn1():

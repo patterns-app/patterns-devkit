@@ -9,31 +9,25 @@ from typing import Generator, Iterator, Optional
 
 import pandas as pd
 import pytest
-from commonmodel.base import create_quick_schema
-from dcp.data_format import Records
-from dcp.storage.base import Storage
-from dcp.storage.database.utils import get_tmp_sqlite_db_url
-from loguru import logger
-from pandas._testing import assert_almost_equal
-from snapflow import DataBlock, DataFunctionContext, datafunction
-from snapflow.core.data_block import Consumable, Reference
-from snapflow.core.declarative.dataspace import DataspaceCfg
-from snapflow.core.declarative.execution import (
+from basis import DataBlock, DataFunctionContext, datafunction
+from basis.core.data_block import Consumable, Reference
+from basis.core.declarative.dataspace import DataspaceCfg
+from basis.core.declarative.execution import (
     ExecutableCfg,
     ExecutionResult,
     RemoteCallbackMetadataExecutionResultHandler,
     ResultHandler,
     get_global_metadata_result_handler,
 )
-from snapflow.core.declarative.function import DataFunctionSourceFileCfg
-from snapflow.core.declarative.graph import GraphCfg
-from snapflow.core.environment import Environment
-from snapflow.core.persistence.data_block import (
+from basis.core.declarative.function import DataFunctionSourceFileCfg
+from basis.core.declarative.graph import GraphCfg
+from basis.core.environment import Environment
+from basis.core.persistence.data_block import (
     Alias,
     DataBlockMetadata,
     StoredDataBlockMetadata,
 )
-from snapflow.core.persistence.state import (
+from basis.core.persistence.state import (
     DataBlockLog,
     DataFunctionLog,
     Direction,
@@ -42,12 +36,18 @@ from snapflow.core.persistence.state import (
     get_or_create_state,
     reset,
 )
-from snapflow.core.sql.sql_function import sql_function_factory
-from snapflow.modules import core
+from basis.core.sql.sql_function import sql_function_factory
+from basis.modules import core
+from commonmodel.base import create_quick_schema
+from dcp.data_format import Records
+from dcp.storage.base import Storage
+from dcp.storage.database.utils import get_tmp_sqlite_db_url
+from loguru import logger
+from pandas._testing import assert_almost_equal
 from sqlalchemy import select
 from tests.utils import get_stdout_block
 
-# logger.enable("snapflow")
+# logger.enable("basis")
 
 Customer = create_quick_schema(
     "Customer", [("name", "Text"), ("joined", "DateTime"), ("Meta data", "Json")]
@@ -646,7 +646,7 @@ def test_remote_callback_listener():
         assert env.md_api.count(select(DataBlockLog)) == 0
         assert env.md_api.count(select(DataBlockMetadata)) == 0
 
-    from snapflow.modules.core.functions.import_dataframe import import_dataframe
+    from basis.modules.core.functions.import_dataframe import import_dataframe
 
     idf_src = """
 from __future__ import annotations
@@ -655,7 +655,7 @@ from dcp.data_format.formats import DataFrameFormat
 from typing import Optional
 
 from pandas.core.frame import DataFrame
-from snapflow import DataFunctionContext, datafunction
+from basis import DataFunctionContext, datafunction
 
 
 @datafunction(
@@ -678,7 +678,7 @@ def import_df(
     )
     env.add_new_generated_schema(schema)
 
-    logger.enable("snapflow")
+    logger.enable("basis")
 
     df = pd.DataFrame({"a": range(10), "b": range(10)})
     n = GraphCfg(
@@ -720,7 +720,7 @@ def test_core_importers():
     Storage(storage).get_api().execute_sql(
         f"create table {tablename} as select 1 as a, 2 as b"
     )
-    # Now import it as snapflow datablock
+    # Now import it as basis datablock
     n = GraphCfg(
         key="n1",
         function="import_table",

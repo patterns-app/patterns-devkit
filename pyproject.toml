@@ -1,9 +1,9 @@
 [tool.poetry]
 authors = ["Ken Van Haren <kenvanharen@gmail.com>"]
-description = "DataFunctional Data Pipelines"
+description = "Functional Data Pipelines"
 license = "BSD-3-Clause"
-name = "snapflow"
-version = "0.7.1"
+name = "basis-core"
+version = "0.1.0"
 
 [tool.poetry.dependencies]
 alembic = "^1.5.5"
@@ -32,7 +32,6 @@ strictyaml = "^1.0.6"
 black = "^19.10b0"
 # common-model = {path = "../common-model/python", develop = true}
 # datacopy = {path = "../dcp", develop = true}
-# snapflow-stripe = {path = "../snapflow-modules/snapflow-stripe", develop = true}
 Flask = "^2.0.1"
 flake8 = "^3.8.1"
 ipython = "^7.13.0"
@@ -48,7 +47,7 @@ pytest-cov = "^2.8.1"
 sqlalchemy-stubs = "^0.3"
 
 [tool.poetry.scripts]
-snapflow = "snapflow.cli:app"
+basis = "basis.cli:app"
 
 [tool.black]
 exclude = '''
@@ -60,7 +59,7 @@ exclude = '''
   | \.venv
   | build
   | dist
-  | snapflow/templates/templates
+  | basis/templates/templates
 )/
 '''
 

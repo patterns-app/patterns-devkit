@@ -1,42 +1,39 @@
-![snapflow](https://github.com/kvh/snapflow/workflows/snapflow/badge.svg)
+![basis](https://github.com/kvh/basis/workflows/basis/badge.svg)
 
 <p>&nbsp;</p>
 <p align="center">
-  <img width="650" src="assets/snapflow.svg">
+  <img width="650" src="assets/basis.svg">
 </p>
-<h3 align="center">Composable data functions</h3>
+<h3 align="center">The Data Operating System</h3>
 <p>&nbsp;</p>
 
-**Snapflow** is a framework for building **functional reactive data pipelines** from modular
-components. It lets developers write gradually-typed pure `datafunctions` in **Python or SQL**
+**Basis** is the one tool you need to power your entire data stack. At its core, Basis is
+a framework for building **functional reactive data systems** from modular
+components. It lets developers write pure `datafunctions` in **Python or SQL**
 that operate reactively on `datablocks`, immutable sets of data records whose
-structure and semantics are described by flexible `schemas`.
+structure are described by flexible `schemas`.
 These functions can be composed into simple or complex data
-pipelines that tackle every step of the data processing pipeline, from API ingestion to transformation
-to analysis and modeling.
+flows that power all operations of a data system, including:
+  - API ingestion
+  - SQL transformation
+  - Machine learning training and prediction
+  - Webhooks, event streams, and triggers
+  - Visualization
+  - Export and callbacks
 
-This functional reactive framework provides several benefits:
+The functional reactive paradigm enables powerful benefits:
 
 - **Declarative data flows** — Trade the tangled, stateful messes of traditional ETLs
   for clean declarative flows of data. Mix full rebuilds and incremental updates
   easily and safely.
 
 - **Reusable components** — `datafunctions` and `flows` -- pre-built cloneable graphs -- can be easily plugged together, shared and
-  reused across projects. Some examples:
+  reused across projects.
 
-  - [Stripe](https://github.com/kvh/snapflow-stripe.git)
-    - Ingest Stripe Charge records (using the `StripeCharge` schema)
-    - Conform `StripeCharge` objects to the standard `Transaction` schema
-  - [Shopify](https://github.com/kvh/snapflow-shopify.git)
-    - Ingest Shopify Order records (using the `ShopifyOrder` schema)
-    - Conform `ShopifyOrder` objects to the standard `Transaction` schema
-  - [BI](https://github.com/kvh/snapflow-bi.git) (business intelligence)
-    - Compute Customer Lifetime Values for standard `Transaction` data
-  - [Stocks](https://github.com/kvh/snapflow-stocks.git)
-    - Ingest `Ticker`s and pipe them to `EodStockPrice` data
-  - [FRED](https://github.com/kvh/snapflow-fred.git) (Federal Reserve Economic Data)
+- **Operational data** - Basis isn't just an ETL tool, its reactive nature and generic abstractions enable developers
+to build operational data flows that put their data to work.
 
-- **Total reproducibility** — Every data record at every pipeline step is preserved in snapflow,
+- **Total reproducibility** — Every data record at every pipeline step is preserved in basis,
   along with the code that produced it and the inputs it used. Enables auditing, debugging, and reproducing pipelines.
 
 - **Portability** — Modular and testable functions means it is easy and safe to
@@ -46,36 +43,36 @@ This functional reactive framework provides several benefits:
 - **Testability** — Data functions provide explicit test
   inputs and the expected output under various data scenarios — a **data pipeline unit test**.
 
-- **High performance** — Datablock immutability means snapflow can
+- **High performance** — Datablock immutability means basis can
   optimize data storage operations. It uses [dcp](https://github.com/kvh/dcp) under the hood
   to handle transfer and conversion.
 
-Snapflow brings the best practices learned over the last 60 years in software to the world of data,
+Basis brings the best practices learned over the last 60 years in software to the world of data,
 with the goal of global collaboration, reproducible byte-perfect results, and performance at any
 scale from laptop to AWS cluster.
 
-> 🚨️ &nbsp; snapflow is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️
+> 🚨️ &nbsp; basis is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️
 
 ## Quick start
 
 Install core library and the Stripe module:
 
-`pip install snapflow snapflow-stripe` or `poetry add snapflow snapflow-stripe`
+`pip install basis basis-modules` or `poetry add basis basis-modules`
 
 Start a new dataspace named 'quickstart':
 
-`snapflow new dataspace quickstart`
+`basis new dataspace quickstart`
 
 Create our own custom data function:
 
-`snapflow new function customer_lifetime_sales`
+`basis new function customer_lifetime_sales`
 
 Edit `quickstart/functions/customer_lifetime_sales/customer_lifetime_sales.py`:
 
 ```python
 from __future__ import annotations
 from pandas import DataFrame
-from snapflow import datafunction, DataBlock
+from basis import datafunction, DataBlock
 
 
 @datafunction
@@ -85,13 +82,13 @@ def customer_lifetime_sales(txs: DataBlock) -> DataFrame:
 ```
 
 Next, we specify our graph, leveraging the existing
-`import_charges` function of the `snapflow-stripe` module.
+`import_charges` function of the `basis-stripe` module.
 
-Edit `snapflow.yml`:
+Edit `basis.yml`:
 
 ```yaml
 storages:
-  - sqlite:///.snapflow_demo.db
+  - sqlite:///.basis_demo.db
 graph:
   nodes:
     - key: stripe_charges
@@ -105,38 +102,38 @@ graph:
 
 Now run the dataspace (give a run time limit of 5 seconds for demo purposes):
 
-`snapflow run --timelimit=5`
+`basis run --timelimit=5`
 
 And preview the output:
 
-`snapflow output stripe_customer_lifetime_sales`
+`basis output stripe_customer_lifetime_sales`
 
 ## Architecture overview
 
-All snapflow pipelines are directed graphs of `datafunction` nodes, consisting of one or more "source" nodes
+All basis pipelines are directed graphs of `datafunction` nodes, consisting of one or more "source" nodes
 that create and emit datablocks when run. This stream of blocks is
 then consumed by downstream nodes, which each in turn may emit their own blocks. Source nodes can be scheduled
 to run as needed, downstream nodes will automatically ingest upstream datablocks reactively.
 
-![Architecture](assets/architecture.svg)
+<!-- ![Architecture](assets/architecture.svg) -->
 
-Below are more details on the key components of snapflow.
+Below are more details on the key components of basis.
 
 ### Datablocks
 
 A `datablock` is an immutable set of data records of uniform `schema` -- think csv file, pandas
-dataframe, or database table. `datablocks` are the basic data unit of snapflow, the unit that `datafunctions` take
+dataframe, or database table. `datablocks` are the basic data unit of basis, the unit that `datafunctions` take
 as input and produce as output. Once created, a datablock's data will never change: no records will
 be added or deleted, or data points modified. More precisely, `datablocks` are a reference to an
 abstract ideal of a set of records, and will have one or more `StoredDataBlocks` persisting those
 records on a specific `storage` medium in a specific `dataformat` -- a CSV on the
-local file, a JSON string in memory, or a table in Postgres. Snapflow abstracts over specific
+local file, a JSON string in memory, or a table in Postgres. Basis abstracts over specific
 formats and storage engines, and provides conversion and i/o between them while
 maintaining byte-perfect consistency -- to the extent possible for given formats and storages.
 
 ### DataFunctions
 
-Data `datafunctions` are the core computational unit of snapflow. They are pure functions that operate on
+Data `datafunctions` are the core computational unit of basis. They are pure functions that operate on
 `datablocks` and are added as nodes to a function graph, linking one node's output to another's
 input via `streams`. DataFunctions are written in python or sql.
 
@@ -183,7 +180,7 @@ provide a natural place for field descriptions, validation logic, uniqueness con
 default deduplication behavior, relations to other schemas, and other metadata associated with
 a specific type of data record.
 
-`Schemas` behave like _interfaces_ in other typed languages. The snapflow type system is structurally and
+`Schemas` behave like _interfaces_ in other typed languages. The basis type system is structurally and
 gradually typed -- schemas are both optional and inferred, there is no explicit type hierarchy, and
 type compatibility can be inspected at runtime. A type is a subtype of, or "compatible" with, another
 type if it defines a superset of compatible fields or if it provides an `implementation`
@@ -268,7 +265,7 @@ n = node(
 ```
 
 Typing is always optional, our original function definitions were valid with
-no annotated `schemas`. Snapflow `schemas` are a powerful mechanism for producing reusable
+no annotated `schemas`. Basis `schemas` are a powerful mechanism for producing reusable
 components and building maintainable large-scale data projects and ecosystems. They are always
 optional though, and should be used when the utility they provide out-weighs any friction.
 
@@ -276,26 +273,26 @@ optional though, and should be used when the utility they provide out-weighs any
 
 ### Consistency and Immutability
 
-To the extent possible, snapflow maintains the same data and byte representation of `datablock`
+To the extent possible, basis maintains the same data and byte representation of `datablock`
 records across formats and storages. Not all formats and storages support all data representations,
 though -- for instance, datetime support differs
 significantly across common data formats, runtimes, and storage engines. When it notices a
-conversion or storage operation may produce data loss or corruption, snapflow will try to emit a
+conversion or storage operation may produce data loss or corruption, basis will try to emit a
 warning or, if serious enough, fail with an error. (Partially implemented, see #24)
 
 ### Environment and metadata
 
-A snapflow `environment` tracks the function graph, and acts as a registry for the `modules`,
+A basis `environment` tracks the function graph, and acts as a registry for the `modules`,
 `runtimes`, and `storages` available to functions. It is associated one-to-one with a single
 `metadata database`. The primary responsibility of the metadata database is to track which
 nodes have processed which DataBlocks, and the state of nodes. In this sense, the environment and
-its associated metadata database contain all the "state" of a snapflow project. If you delete the
-metadata database, you will have effectively "reset" your snapflow project. (You will
+its associated metadata database contain all the "state" of a basis project. If you delete the
+metadata database, you will have effectively "reset" your basis project. (You will
 NOT have deleted any actual data produced by the pipeline, though it will be "orphaned".)
 
 ### Component Development
 
-Developing new snapflow components is straightforward and can be done as part of a snapflow
+Developing new basis components is straightforward and can be done as part of a basis
 `module` or as a standalone component. Module development guide and tools coming soon.
 
 ### Type system details

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from snapflow.api import Input
-from snapflow.core.declarative.function import (
+from basis.api import Input
+from basis.core.declarative.function import (
     DataFunctionInputCfg,
     DataFunctionInterfaceCfg,
 )
-from snapflow.core.function_interface import DEFAULT_OUTPUTS, InputType, Parameter
-from snapflow.core.sql.parser import parse_interface_from_sql, render_sql
-from snapflow.core.sql.sql_function import (
+from basis.core.function_interface import DEFAULT_OUTPUTS, InputType, Parameter
+from basis.core.sql.parser import parse_interface_from_sql, render_sql
+from basis.core.sql.sql_function import (
     AnnotatedParam,
     AnnotatedSqlTable,
     ParsedSqlStatement,

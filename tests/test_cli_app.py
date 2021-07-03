@@ -4,11 +4,11 @@ from pathlib import Path
 from typing import Tuple
 
 import pytest
+from basis.cli.app import app
+from basis.cli.commands.generate import GenerateCommand
 from cleo import Application, CommandTester
 from cleo.testers import command_tester
 from dcp.utils.common import rand_str
-from snapflow.cli.app import app
-from snapflow.cli.commands.generate import GenerateCommand
 
 IS_CI = os.environ.get("CI")
 
@@ -31,7 +31,7 @@ def test_generate():
         command_tester = get_test_command("new", dr)
         name = f"testspace_{rand_str(4)}".lower()
         command_tester.execute(f"dataspace {name}")
-        assert os.path.exists(Path(dr) / "snapflow.yml")
+        assert os.path.exists(Path(dr) / "basis.yml")
         assert os.path.exists(Path(dr) / name)
         assert os.path.exists(Path(dr) / name / "__init__.py")
         assert os.path.exists(Path(dr) / name / "functions")
@@ -50,7 +50,7 @@ def test_run():
         ds = (
             """
         storages:
-          - sqlite:///%s/.snapflow.db
+          - sqlite:///%s/.basis.db
         graph:
           nodes:
             - key: import_records
@@ -60,7 +60,7 @@ def test_run():
         """
             % dr
         )
-        with open(Path(dr) / "snapflow.yml", "w") as f:
+        with open(Path(dr) / "basis.yml", "w") as f:
             f.write(ds)
         command_tester = get_test_command("run", dr)
         command_tester.execute()

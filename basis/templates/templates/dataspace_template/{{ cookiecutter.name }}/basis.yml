@@ -1,0 +1,32 @@
+key: { { cookiecutter.module_name } }
+namespace: { { cookiecutter.namespace } }
+basis:
+  # initialize_metadata_storage: true
+  # abort_on_function_error: false
+  # execution_timelimit_seconds: None
+  # fail_on_downcast: false
+  # warn_on_downcast: true
+  # add_core_module: true
+metadata_storage: sqlite://.basis.db
+# storages:
+#   - postgres://localhost:5432/basis
+graph:
+  nodes:
+    - key: stripe_charges_stream
+      function: stripe.extract_charges
+      params:
+        api_key: "*****"
+    - key: stripe_charges
+      flow: core.accumulate_and_dedupe_sql
+      input: stripe_charges_stream
+      params:
+        dedupe: KeepLatestRecord # Default
+    - key: email_errors
+      function: core.email_records
+      input: stripe_charges.stderr
+      params:
+        from_email: automated@basis.ai
+        to_email: basis-errors@basis.ai
+        max_records: 100
+  stdout: accumulate_charges
+  stderr: stripe_charges.stderr
