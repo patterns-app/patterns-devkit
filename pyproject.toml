@@ -3,6 +3,9 @@ authors = ["Ken Van Haren <kenvanharen@gmail.com>"]
 description = "Functional Data Pipelines"
 license = "BSD-3-Clause"
 name = "basis-core"
+packages = [
+  {include = "basis"},
+]
 version = "0.1.0"
 
 [tool.poetry.dependencies]
