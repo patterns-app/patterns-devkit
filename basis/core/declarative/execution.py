@@ -73,7 +73,7 @@ class PythonException(FrozenPydanticBase):
 
 class ExecutionResult(PydanticBase):
     input_blocks_consumed: Dict[str, List[DataBlockMetadataCfg]] = {}
-    output_blocks_emitted: Dict[str, DataBlockMetadataCfg] = {}
+    output_blocks_emitted: Dict[str, List[DataBlockMetadataCfg]] = {}
     stored_blocks_created: Dict[
         str, List[StoredDataBlockMetadataCfg]
     ] = {}  # Keyed on data block ID
@@ -85,11 +85,12 @@ class ExecutionResult(PydanticBase):
     def has_error(self) -> bool:
         return self.function_error is not None or self.framework_error is not None
 
-    def stdout_block_emitted(self) -> Optional[DataBlockMetadataCfg]:
-        return self.output_blocks_emitted.get(DEFAULT_OUTPUT_NAME)
+    def latest_stdout_block_emitted(self) -> Optional[DataBlockMetadataCfg]:
+        blocks = self.output_blocks_emitted.get(DEFAULT_OUTPUT_NAME, [])
+        return blocks[-1] if blocks else None
 
     def stdout(self) -> Optional[DataBlock]:
-        dbc = self.stdout_block_emitted()
+        dbc = self.latest_stdout_block_emitted()
         dbws = DataBlockWithStoredBlocksCfg(
             **dbc.dict(), stored_data_blocks=self.stored_blocks_created.get(dbc.id, [])
         )
@@ -101,7 +102,8 @@ class ExecutionResult(PydanticBase):
         return ExecutionResult(
             input_blocks_consumed=self.input_blocks_consumed,
             output_blocks_emitted={
-                n: b for n, b in self.output_blocks_emitted.items() if b.data_is_written
+                n: [b for b in blocks if b.data_is_written]
+                for n, blocks in self.output_blocks_emitted.items()
             },
             stored_blocks_created={
                 bid: [b for b in blocks if b.data_is_written]
@@ -114,13 +116,26 @@ class ExecutionResult(PydanticBase):
         )
 
     def compute_record_counts(self):
-        for db in self.output_blocks_emitted.values():
-            if not db.data_is_written:
-                continue
-            sdbs = self.stored_blocks_created[db.id]
-            assert sdbs
-            sdb = sdbs[0]
-            db.record_count = Storage(sdb.storage_url).get_api().record_count(sdb.name)
+        for blocks in self.output_blocks_emitted.values():
+            for db in blocks:
+                if not db.data_is_written:
+                    continue
+                sdbs = self.stored_blocks_created[db.id]
+                assert sdbs
+                sdb = sdbs[0]  # TODO: pick most efficient sdb for count?
+                db.record_count = (
+                    Storage(sdb.storage_url).get_api().record_count(sdb.name)
+                )
+
+    def total_record_count_for_output(
+        self, stream_name: str = DEFAULT_OUTPUT_NAME
+    ) -> Optional[int]:
+        cnt = 0
+        for db in self.output_blocks_emitted.get(stream_name, []):
+            if db.record_count is None:
+                return None
+            cnt += db.record_count
+        return cnt
 
 
 @dataclass

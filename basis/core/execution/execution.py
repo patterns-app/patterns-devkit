@@ -213,12 +213,14 @@ class ExecutionManager:
         if result.output_blocks_emitted:
             self.logger.log("\n")
             with self.logger.indent():
-                for output_name, block in result.output_blocks_emitted.items():
+                for output_name, blocks in result.output_blocks_emitted.items():
                     self.logger.log(f"{output_name}: ")
-                    cnt = block.record_count
+                    cnt = result.total_record_count_for_output(output_name)
                     # alias = block.alias
-                    if cnt is not None:
-                        self.logger.log_token(f" {cnt} records ")
-                    self.logger.log_token(cf.dimmed(f"{block.id}\n"))  # type: ignore
+                    if cnt is None:
+                        cnt = "Unknown num. of"
+                    self.logger.log_token(f"{cnt} records in {len(blocks)} blocks ")
+                    if blocks:
+                        self.logger.log_token(cf.dimmed(f"(last: {blocks[-1].id})\n"))  # type: ignore
         else:
             self.logger.log_token("None\n")

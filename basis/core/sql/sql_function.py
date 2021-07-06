@@ -353,7 +353,7 @@ class SqlDataFunctionWrapper:
             if storage.storage_engine.storage_class == DatabaseStorageClass:
                 break
         else:
-            raise Exception("No database storage found, cannot exeucte function sql")
+            raise Exception("No database storage found, cannot execute function sql")
 
         sql = self.get_compiled_sql(ctx, storage, inputs)
 

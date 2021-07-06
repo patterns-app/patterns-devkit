@@ -30,7 +30,12 @@ from dcp.data_format.base import (
     UnknownFormat,
     get_format_for_nickname,
 )
-from dcp.storage.base import FileSystemStorageClass, MemoryStorageClass, Storage
+from dcp.storage.base import (
+    FileSystemStorageClass,
+    MemoryStorageClass,
+    Storage,
+    ensure_storage,
+)
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from basis.core.component import ComponentLibrary, global_library
@@ -62,6 +67,16 @@ from basis.core.persistence.pydantic import (
 )
 from basis.core.storage import ensure_data_block_on_storage_cfg
 from basis.core.typing.casting import cast_to_realized_schema
+
+
+@dataclass
+class RawOutput:
+    records_obj: Optional[Any] = None
+    name: Optional[str] = None
+    storage: Optional[Storage] = None
+    output: str = DEFAULT_OUTPUT_NAME
+    data_format: Optional[DataFormat] = None
+    nominal_schema: Optional[str] = None
 
 
 @dataclass(frozen=True)
@@ -203,14 +218,14 @@ class DataFunctionContext:
                 self.result.input_blocks_consumed.setdefault(name, []).append(db)
 
     def create_stored_datablock(
-        self,
+        self, raw_output: RawOutput
     ) -> Tuple[DataBlockMetadataCfg, StoredDataBlockMetadataCfg]:
         block = DataBlockMetadataCfg(
             id=get_datablock_id(),
             created_at=utcnow(),
             updated_at=utcnow(),
             inferred_schema_key=None,
-            nominal_schema_key=None,
+            nominal_schema_key=self.get_nominal_schema(raw_output.nominal_schema),
             realized_schema_key="Any",
             record_count=None,
             created_by_node_key=self.node.key,
@@ -230,18 +245,42 @@ class DataFunctionContext:
         return block, sdb
 
     def get_stored_datablock_for_output(
-        self, output: str
+        self, raw_output: RawOutput
     ) -> Tuple[DataBlockMetadataCfg, StoredDataBlockMetadataCfg]:
-        db = self.result.output_blocks_emitted.get(output)
+        blocks = self.result.output_blocks_emitted.get(raw_output.output)
+        db = blocks[-1] if blocks else None
         if db is None:
-            db, sdb = self.create_stored_datablock()
-            self.result.output_blocks_emitted[output] = db
+            db, sdb = self.create_stored_datablock(raw_output)
+            self.result.output_blocks_emitted[raw_output.output] = [db]
             self.result.stored_blocks_created.setdefault(db.id, []).append(sdb)
         sdbs = self.result.stored_blocks_created[db.id]
         for sdb in sdbs:
             if sdb.storage_url == self.execution_config.target_storage:
                 return db, sdb
         return db, sdbs[0]
+
+    def get_next_stored_datablock_for_output(
+        self, raw_output: RawOutput
+    ) -> Tuple[DataBlockMetadataCfg, StoredDataBlockMetadataCfg]:
+        db, sdb = self.create_stored_datablock(raw_output)
+        self.result.output_blocks_emitted.setdefault(raw_output.output, []).append(db)
+        self.result.stored_blocks_created.setdefault(db.id, []).append(sdb)
+        return db, sdb
+
+    def get_nominal_schema(self, schema: Optional[Union[Schema, str]]) -> str:
+        nominal_output_schema = schema
+        if nominal_output_schema is None:
+            nominal_output_schema = (
+                self.executable.bound_interface.resolve_nominal_output_schema()
+            )
+        if nominal_output_schema is not None:
+            nominal_output_schema = self.library.get_schema(nominal_output_schema)
+        return nominal_output_schema.key
+        # if db.nominal_schema_key and db.nominal_schema_key != nominal_output_schema.key:
+        #     raise Exception(
+        #         "Mismatch nominal schemas {db.nominal_schema_key} - {nominal_output_schema.key}"
+        #     )
+        # db.nominal_schema_key = nominal_output_schema.key
 
     def handle_emit(
         self,
@@ -252,6 +291,14 @@ class DataFunctionContext:
         data_format: DataFormat = None,
         schema: Union[Schema, str] = None,
     ):
+        raw_output = RawOutput(
+            records_obj=records_obj,
+            name=name,
+            storage=ensure_storage(storage),
+            output=output,
+            data_format=data_format,
+            nominal_schema=schema,
+        )
         logger.debug(
             f"HANDLING EMITTED OBJECT (of type '{type(records_obj).__name__}')"
         )
@@ -266,36 +313,23 @@ class DataFunctionContext:
             # Will need better solution for explicitly creating DB/SDBs inside of functions
             sdb = records_obj
             db = sdb.data_block
-            records_obj = None
-            name = sdb.name
-            storage = Storage(sdb.storage_url)
+            raw_output.records_obj = None
+            raw_output.name = sdb.name
+            raw_output.storage = Storage(sdb.storage_url)
         elif isinstance(records_obj, DataBlockMetadata):
             raise NotImplementedError
         elif isinstance(records_obj, DataBlock):
             raise NotImplementedError
         else:
-            db, sdb = self.get_stored_datablock_for_output(output)
-        nominal_output_schema = schema
-        if nominal_output_schema is None:
-            nominal_output_schema = (
-                self.executable.bound_interface.resolve_nominal_output_schema()
-            )
-        if nominal_output_schema is not None:
-            nominal_output_schema = self.library.get_schema(nominal_output_schema)
-        if db.nominal_schema_key and db.nominal_schema_key != nominal_output_schema.key:
-            raise Exception(
-                "Mismatch nominal schemas {db.nominal_schema_key} - {nominal_output_schema.key}"
-            )
-        db.nominal_schema_key = nominal_output_schema.key
+            db, sdb = self.get_stored_datablock_for_output(raw_output)
+
         if records_obj is not None:
-            name, storage = self.handle_python_object(records_obj)
-            if nominal_output_schema is not None:
-                # TODO: still unclear on when and why to do this cast
-                handler = get_handler_for_name(name, storage)
-                handler().cast_to_schema(name, storage, nominal_output_schema)
-        assert name is not None
-        assert storage is not None
-        self.append_records_to_stored_datablock(name, storage, db, sdb)
+            raw_output.name, raw_output.storage = self.handle_python_object(records_obj)
+            # if nominal_output_schema is not None:
+            #     # TODO: still unclear on when and why to do this cast
+            #     handler = get_handler_for_name(name, storage)
+            #     handler().cast_to_schema(name, storage, nominal_output_schema)
+        db, sdb = self.append_records_to_stored_datablock(raw_output, db, sdb)
         db.data_is_written = True
         sdb.data_is_written = True
         return sdb
@@ -339,15 +373,26 @@ class DataFunctionContext:
 
     def resolve_new_object_with_data_block(
         self,
+        raw_output: RawOutput,
         db: DataBlockMetadataCfg,
         sdb: StoredDataBlockMetadataCfg,
-        name: str,
-        storage: Storage,
-    ):
-        # TODO: expensive to infer schema every time, so just do first time
+    ) -> Tuple[DataBlockMetadataCfg, StoredDataBlockMetadataCfg]:
+        name = raw_output.name
+        storage = raw_output.storage
+        handler = get_handler_for_name(name, storage)()
+        # TODO: expensive to infer schema every time, so just do first time, and only check field name match on subsequent
+        if db.realized_schema_key not in (None, "Any", "core.Any",):
+            field_names = handler.infer_field_names(name, storage)
+            field_names_match = set(field_names) == set(
+                self.library.get_schema(db.realized_schema_key).field_names()
+            )
+            if not field_names_match:
+                # We have a new schema... so
+                # Close out old blocks and get new ones
+                # Will then be processed in next step to infer new schema
+                db, sdb = self.get_next_stored_datablock_for_output(raw_output)
         if db.realized_schema_key in (None, "Any", "core.Any",):
-            handler = get_handler_for_name(name, storage)
-            inferred_schema = handler().infer_schema(name, storage)
+            inferred_schema = handler.infer_schema(name, storage)
             logger.debug(
                 f"Inferred schema: {inferred_schema.key} {inferred_schema.fields_summary()}"
             )
@@ -373,15 +418,19 @@ class DataFunctionContext:
             logger.debug(
                 f"Nominal schema: {db.nominal_schema_key} {self.library.get_schema(db.nominal_schema_key).fields_summary()}"
             )
+        return db, sdb
 
     def append_records_to_stored_datablock(
         self,
-        name: str,
-        storage: Storage,
+        raw_output: RawOutput,
         db: DataBlockMetadataCfg,
         sdb: StoredDataBlockMetadataCfg,
-    ):
-        self.resolve_new_object_with_data_block(db, sdb, name, storage)
+    ) -> Tuple[DataBlockMetadataCfg, StoredDataBlockMetadataCfg]:
+        assert raw_output.name is not None
+        assert raw_output.storage is not None
+        name = raw_output.name
+        storage = raw_output.storage
+        db, sdb = self.resolve_new_object_with_data_block(raw_output, db, sdb)
         if (
             sdb.data_format == UnknownFormat
             or sdb.data_format == UnknownFormat.nickname
@@ -394,27 +443,6 @@ class DataFunctionContext:
                 sdb.data_format = Storage(
                     sdb.storage_url
                 ).storage_engine.get_natural_format()
-            # fmt = infer_format_for_name(name, storage)
-            # # if sdb.data_format and sdb.data_format != fmt:
-            # #     raise Exception(f"Format mismatch {fmt} - {sdb.data_format}")
-            # if fmt is None:
-            #     raise Exception(f"Could not infer format {name} on {storage}")
-            # sdb.data_format = fmt
-        # TODO: make sure this handles no-ops (empty object, same storage)
-        # TODO: copy or alias? sometimes we are just moving temp obj to new name, dont need copy
-        # to_name = sdb.name
-        # if storage == sdb.storage:
-        #     # Same storage
-        #     if name == to_name:
-        #         # Nothing to do
-        #         logger.debug("Output already on storage with same name, nothing to do")
-        #         return
-        #     else:
-        #         # Same storage, just new name
-        #         # TODO: should be "rename" ideally (as it is if tmp gets deleted we lose it)
-        #         logger.debug("Output already on storage, creating alias")
-        #         storage.get_api().create_alias(name, to_name)
-        #         return
         logger.debug(
             f"Copying output from {name} {storage} to {sdb.name} {sdb.storage_url} ({sdb.data_format})"
         )
@@ -431,6 +459,7 @@ class DataFunctionContext:
         logger.debug(f"Copied {result}")
         logger.debug(f"REMOVING NAME {name}")
         storage.get_api().remove(name)
+        return db, sdb
 
     def should_continue(self) -> bool:
         """
@@ -451,31 +480,3 @@ class DataFunctionContext:
             )
         return should
 
-    # def as_execution_result(self) -> ExecutionResult:
-    #     input_block_counts = {}
-    #     for input_name, dbs in self.input_blocks_processed.items():
-    #         input_block_counts[input_name] = len(dbs)
-    #     output_blocks = {}
-    #     for output_name, sdb in self.output_blocks_emitted.items():
-    #         if not sdb.data_is_written:
-    #             continue
-    #         alias = sdb.get_alias(self.env)
-    #         output_blocks[output_name] = {
-    #             "id": sdb.data_block_id,
-    #             "record_count": sdb.record_count(),
-    #             "alias": alias.name if alias else None,
-    #         }
-    #     return ExecutionResult(
-    #         inputs_bound=list(self.bound_interface.inputs_as_kwargs().keys()),
-    #         non_reference_inputs_bound=[
-    #             i.name for i in self.bound_interface.non_reference_bound_inputs()
-    #         ],
-    #         input_block_counts=input_block_counts,
-    #         output_blocks=output_blocks,
-    #         error=self.function_log.error.get("error")
-    #         if isinstance(self.function_log.error, dict)
-    #         else None,
-    #         traceback=self.function_log.error.get("traceback")
-    #         if isinstance(self.function_log.error, dict)
-    #         else None,
-    #     )

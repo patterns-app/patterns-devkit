@@ -285,22 +285,23 @@ def save_result(
 ):
     # TODO: this should be inside one roll-backable transaction
     save_function_log(env, exe, result)
-    dbms: List[DataBlockMetadata] = []
+    # dbms: List[DataBlockMetadata] = []
     for input_name, blocks in result.input_blocks_consumed.items():
         for block in blocks:
             ensure_log(env, exe.function_log, block, Direction.INPUT, input_name)
             logger.debug(f"Input logged: {block}")
-    for output_name, block in result.output_blocks_emitted.items():
+    for output_name, blocks in result.output_blocks_emitted.items():
         # if not block.data_is_written:
         #     # TODO: this means we didn't actually ever write an output
         #     # object (usually because we hit an error during output handling)
         #     # TODO: did we really process the inputs then? this is more of a framework-level error
         #     continue
-        dbm = DataBlockMetadata(**block.dict())
-        dbms.append(dbm)
-        env.md_api.add(dbm)
-        logger.debug(f"Output logged: {block}")
-        ensure_log(env, exe.function_log, block, Direction.OUTPUT, output_name)
+        for block in blocks:
+            dbm = DataBlockMetadata(**block.dict())
+            # dbms.append(dbm)
+            env.md_api.add(dbm)
+            logger.debug(f"Output logged: {block}")
+            ensure_log(env, exe.function_log, block, Direction.OUTPUT, output_name)
     env.md_api.add_all(
         [
             StoredDataBlockMetadata(**s.dict())
@@ -352,7 +353,7 @@ def save_state(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
 
 def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
     # TODO: do for all output streams
-    db = result.stdout_block_emitted()
+    db = result.latest_stdout_block_emitted()
     if db is None:
         return
     if db.id not in result.stored_blocks_created:
