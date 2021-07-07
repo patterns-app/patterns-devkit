@@ -132,6 +132,8 @@ class ExecutionResult(PydanticBase):
     ) -> Optional[int]:
         cnt = 0
         for db in self.output_blocks_emitted.get(stream_name, []):
+            if not db.data_is_written:
+                continue
             if db.record_count is None:
                 return None
             cnt += db.record_count
