@@ -213,7 +213,9 @@ def run(exe: ExecutableCfg, to_exhaustion: bool = True) -> List[ExecutionResult]
     try:
         results = ExecutionManager(exe).execute()
     except InputExhaustedException:
-        pass
+        # This never happens here? It happens at bind_inputs()
+        # TODO: reduce to warn once we track this better
+        logger.error(f"Exhausted inputs for {exe.node_key}")
     return results
     # while True:
     #     try:
@@ -281,7 +283,9 @@ def ensure_log(
 
 
 def save_result(
-    env: Environment, exe: ExecutableCfg, result: ExecutionResult,
+    env: Environment,
+    exe: ExecutableCfg,
+    result: ExecutionResult,
 ):
     # TODO: this should be inside one roll-backable transaction
     save_function_log(env, exe, result)
