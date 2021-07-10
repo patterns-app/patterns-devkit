@@ -477,8 +477,10 @@ class DataFunctionContext:
             if_exists="append",
         )
         logger.debug(f"Copied {result}")
-        logger.debug(f"REMOVING NAME {name}")
-        storage.get_api().remove(name)
+        if name.startswith("_tmp"):
+            # TODO: hack! what's better way to check if tmp?
+            logger.debug(f"REMOVING NAME {name}")
+            storage.get_api().remove(name)
         return db, sdb
 
     def should_continue(self) -> bool:
