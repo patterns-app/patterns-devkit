@@ -334,24 +334,28 @@ class DataFunctionContext:
         sdb.data_is_written = True
         return sdb
 
+    def get_file_storage(self) -> Storage:
+        file_storages = [
+            s
+            for s in self.executable.execution_config.get_storages()
+            if s.storage_engine.storage_class == FileSystemStorageClass
+        ]
+        if not file_storages:
+            raise Exception(
+                "File-like object returned but no file storage provided."
+                "Add a file storage to the environment: `env.add_storage('file:///....')`"
+            )
+        if self.executable.execution_config.get_target_storage() in file_storages:
+            storage = self.executable.execution_config.get_target_storage()
+        else:
+            storage = file_storages[0]
+        return storage
+
     def handle_python_object(self, obj: Any) -> Tuple[str, Storage]:
         name = "_tmp_obj_" + rand_str(10)
         if isinstance(obj, IOBase):
             # Handle file-like by writing to disk first
-            file_storages = [
-                s
-                for s in self.executable.execution_config.get_storages()
-                if s.storage_engine.storage_class == FileSystemStorageClass
-            ]
-            if not file_storages:
-                raise Exception(
-                    "File-like object returned but no file storage provided."
-                    "Add a file storage to the environment: `env.add_storage('file:///....')`"
-                )
-            if self.executable.execution_config.get_target_storage() in file_storages:
-                storage = self.executable.execution_config.get_target_storage()
-            else:
-                storage = file_storages[0]
+            storage = self.get_file_storage()
             mode = "w"
             if isinstance(obj, (RawIOBase, BufferedIOBase)):
                 mode = "wb"
@@ -381,7 +385,11 @@ class DataFunctionContext:
         storage = raw_output.storage
         handler = get_handler_for_name(name, storage)()
         # TODO: expensive to infer schema every time, so just do first time, and only check field name match on subsequent
-        if db.realized_schema_key not in (None, "Any", "core.Any",):
+        if db.realized_schema_key not in (
+            None,
+            "Any",
+            "core.Any",
+        ):
             field_names = handler.infer_field_names(name, storage)
             field_names_match = set(field_names) == set(
                 self.library.get_schema(db.realized_schema_key).field_names()
@@ -391,7 +399,11 @@ class DataFunctionContext:
                 # Close out old blocks and get new ones
                 # Will then be processed in next step to infer new schema
                 db, sdb = self.get_next_stored_datablock_for_output(raw_output)
-        if db.realized_schema_key in (None, "Any", "core.Any",):
+        if db.realized_schema_key in (
+            None,
+            "Any",
+            "core.Any",
+        ):
             inferred_schema = handler.infer_schema(name, storage)
             logger.debug(
                 f"Inferred schema: {inferred_schema.key} {inferred_schema.fields_summary()}"
@@ -446,13 +458,21 @@ class DataFunctionContext:
         logger.debug(
             f"Copying output from {name} {storage} to {sdb.name} {sdb.storage_url} ({sdb.data_format})"
         )
+        # TODO: horrible hack until dcp supports from_schema and to_schema (inferred_schema, realized_schema)
+        if storage.storage_engine.storage_class == FileSystemStorageClass:
+            # File -> DB bulk_insert_file requires the _from_ object's schema exactly or it will error on bad columns
+            # So we must use the inferred schema (even better would be realized schema BUT with only inferred fields)
+            schema = self.library.get_schema(db.inferred_schema_key)
+        else:
+            # For all others, we want to create the object with the realized schema!
+            schema = self.library.get_schema(db.realized_schema_key)
         result = dcp.copy(
             from_name=name,
             from_storage=storage,
             to_name=sdb.name,
             to_storage=Storage(sdb.storage_url),
             to_format=sdb.data_format,
-            schema=self.library.get_schema(db.realized_schema_key),
+            schema=schema,
             available_storages=self.execution_config.get_storages(),
             if_exists="append",
         )
@@ -479,4 +499,3 @@ class DataFunctionContext:
                 f"Execution timed out after {self.execution_config.execution_timelimit_seconds} seconds"
             )
         return should
-

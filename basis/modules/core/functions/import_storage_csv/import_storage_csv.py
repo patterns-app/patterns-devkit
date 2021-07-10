@@ -16,6 +16,5 @@ def import_storage_csv(
         return
         # Static resource, if already emitted, return
     fs_api = Storage(storage_url).get_api()
-    f = fs_api.open_name(name)
     ctx.emit_state_value("imported", True)
-    ctx.emit(f, data_format=CsvFileFormat, schema=schema)
+    ctx.emit(name=name, storage=storage_url, data_format=CsvFileFormat, schema=schema)
