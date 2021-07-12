@@ -18,6 +18,7 @@ def import_from_storage(
         name: The name of the object on the storage (e.g. file name, table name)
         storage_url: The url to the storage (e.g. postgresql://35.12....., gs://bucket-name/path)
         data_format: The format of the object (e.g. csv, table, jsonl)
+        schema: An optional CommonModel Schema describing the data structure (e.g. StripeCharge or bi.Transaction)
         static: True if object won't change and should be imported just once
     """
     if static:
