@@ -10,7 +10,7 @@ from basis.core.sql.sql_function import SqlDataFunctionWrapper
 
 @datafunction(
     namespace="core",
-    display_name="Import external database table (one not produced by basis)",
+    display_name="Import non-basis database table",
     required_storage_classes=["database"],
 )
 def import_table(ctx: DataFunctionContext, table_name: str):

@@ -11,10 +11,10 @@ from basis import DataFunctionContext, datafunction
 def import_storage_csv(
     ctx: DataFunctionContext, name: str, storage_url: str, schema: Optional[str] = None
 ):
+    """DEPRECATED: Use import_from_storage instead"""
     imported = ctx.get_state_value("imported")
     if imported:
         return
         # Static resource, if already emitted, return
-    fs_api = Storage(storage_url).get_api()
     ctx.emit_state_value("imported", True)
     ctx.emit(name=name, storage=storage_url, data_format=CsvFileFormat, schema=schema)
