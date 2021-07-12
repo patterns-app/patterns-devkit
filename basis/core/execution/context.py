@@ -77,6 +77,7 @@ class RawOutput:
     output: str = DEFAULT_OUTPUT_NAME
     data_format: Optional[DataFormat] = None
     nominal_schema: Optional[str] = None
+    create_alias_only: bool = False
 
 
 @dataclass(frozen=True)
@@ -177,6 +178,7 @@ class DataFunctionContext:
         schema: Union[Schema, str] = None,
         update_state: Dict[str, Any] = None,
         replace_state: Dict[str, Any] = None,
+        create_alias_only: bool = False,  # If true, will not copied named object on storage
     ):
         assert records_obj is not None or (
             name is not None and storage is not None
@@ -193,6 +195,7 @@ class DataFunctionContext:
             output=stream,
             data_format=data_format,
             schema=schema,
+            create_alias_only=create_alias_only,
         )
         if update_state is not None:
             raise NotImplementedError
@@ -290,6 +293,7 @@ class DataFunctionContext:
         output: str = DEFAULT_OUTPUT_NAME,
         data_format: DataFormat = None,
         schema: Union[Schema, str] = None,
+        create_alias_only: bool = False,
     ):
         raw_output = RawOutput(
             records_obj=records_obj,
@@ -298,6 +302,7 @@ class DataFunctionContext:
             output=output,
             data_format=data_format,
             nominal_schema=schema,
+            create_alias_only=create_alias_only,
         )
         logger.debug(
             f"HANDLING EMITTED OBJECT (of type '{type(records_obj).__name__}')"
@@ -329,7 +334,11 @@ class DataFunctionContext:
             #     # TODO: still unclear on when and why to do this cast
             #     handler = get_handler_for_name(name, storage)
             #     handler().cast_to_schema(name, storage, nominal_output_schema)
-        db, sdb = self.append_records_to_stored_datablock(raw_output, db, sdb)
+        if raw_output.create_alias_only:
+            logger.debug(f"Creating alias only: from {raw_output.name} to {sdb.name}")
+            raw_output.storage.get_api().create_alias(raw_output.name, sdb.name)
+        else:
+            db, sdb = self.append_records_to_stored_datablock(raw_output, db, sdb)
         db.data_is_written = True
         sdb.data_is_written = True
         return sdb
