@@ -305,7 +305,12 @@ class DataFunctionContext:
             create_alias_only=create_alias_only,
         )
         logger.debug(
-            f"HANDLING EMITTED OBJECT (of type '{type(records_obj).__name__}')"
+            f"HANDLING EMITTED OBJECT "
+            + (
+                f"(of type '{type(records_obj).__name__}')"
+                if records_obj is not None
+                else f"({name} on {storage})"
+            )
         )
         # TODO: can i return an existing DataBlock? Or do I need to create a "clone"?
         #   Answer: ok to return as is (just mark it as 'output' in DBL)
@@ -328,12 +333,18 @@ class DataFunctionContext:
         else:
             db, sdb = self.get_stored_datablock_for_output(raw_output)
 
-        if records_obj is not None:
-            raw_output.name, raw_output.storage = self.handle_python_object(records_obj)
+        # First, handle raw python output object, if it exists
+        if raw_output.records_obj is not None:
+            self.handle_python_object(raw_output)
             # if nominal_output_schema is not None:
             #     # TODO: still unclear on when and why to do this cast
             #     handler = get_handler_for_name(name, storage)
             #     handler().cast_to_schema(name, storage, nominal_output_schema)
+
+        # Second, infer schema of this output and reconcile w any existing output
+        db, sdb = self.infer_and_reconcile_schemas(raw_output, db, sdb)
+
+        # Third, write the data
         if raw_output.create_alias_only:
             logger.debug(f"Creating alias only: from {raw_output.name} to {sdb.name}")
             raw_output.storage.get_api().create_alias(raw_output.name, sdb.name)
@@ -360,7 +371,10 @@ class DataFunctionContext:
             storage = file_storages[0]
         return storage
 
-    def handle_python_object(self, obj: Any) -> Tuple[str, Storage]:
+    def handle_python_object(self, raw_output: RawOutput):
+        obj = raw_output.records_obj
+        if obj is None:
+            return
         name = "_tmp_obj_" + rand_str(10)
         if isinstance(obj, IOBase):
             # Handle file-like by writing to disk first
@@ -374,7 +388,8 @@ class DataFunctionContext:
         else:
             storage = self.executable.execution_config.get_local_storage()
             storage.get_api().put(name, obj)
-        return name, storage
+        raw_output.name = name
+        raw_output.storage = storage
 
     def add_schema(self, schema: Schema):
         self.library.add_schema(schema)
@@ -384,7 +399,7 @@ class DataFunctionContext:
     def add_stored_data_block(self, sdb: StoredDataBlockMetadataCfg):
         self.result.stored_blocks_created.setdefault(sdb.data_block_id, []).append(sdb)
 
-    def resolve_new_object_with_data_block(
+    def infer_and_reconcile_schemas(
         self,
         raw_output: RawOutput,
         db: DataBlockMetadataCfg,
@@ -451,7 +466,6 @@ class DataFunctionContext:
         assert raw_output.storage is not None
         name = raw_output.name
         storage = raw_output.storage
-        db, sdb = self.resolve_new_object_with_data_block(raw_output, db, sdb)
         if (
             sdb.data_format == UnknownFormat
             or sdb.data_format == UnknownFormat.nickname

@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from typing import Optional
 
+from dcp.utils.common import ensure_bool
+
 from basis import DataFunctionContext
 from basis.core.function import datafunction
 from basis.core.sql.sql_function import SqlDataFunctionWrapper
@@ -24,7 +26,7 @@ def import_table(ctx: DataFunctionContext, table_name: str, copy: bool = True):
         copy: If true, make a copy snapshot of the table, otherwise import as an alias
     """
     target_storage = ctx.execution_config.get_target_storage()
-    if copy:
+    if ensure_bool(copy):
         as_identifier = target_storage.get_api().get_quoted_identifier
         sql = f"select * from {as_identifier(table_name)}"
         # TODO: DRY this pattern
