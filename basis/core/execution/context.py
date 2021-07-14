@@ -347,12 +347,26 @@ class DataFunctionContext:
         # Third, write the data
         if raw_output.create_alias_only:
             logger.debug(f"Creating alias only: from {raw_output.name} to {sdb.name}")
-            raw_output.storage.get_api().create_alias(raw_output.name, sdb.name)
+            self.create_alias_only(raw_output, db, sdb)
         else:
             db, sdb = self.append_records_to_stored_datablock(raw_output, db, sdb)
         db.data_is_written = True
         sdb.data_is_written = True
         return sdb
+
+    def create_alias_only(
+        self,
+        raw_output: RawOutput,
+        db: DataBlockMetadataCfg,
+        sdb: StoredDataBlockMetadataCfg,
+    ):
+        raw_output.storage.get_api().create_alias(raw_output.name, sdb.name)
+        if raw_output.data_format:
+            sdb.data_format = raw_output.data_format
+        else:
+            sdb.data_format = Storage(
+                sdb.storage_url
+            ).storage_engine.get_natural_format()
 
     def get_file_storage(self) -> Storage:
         file_storages = [
