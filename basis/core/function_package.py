@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import importlib
 import os
-from basis.utils.modules import find_all_of_type_in_module
 import sys
 import tempfile
 from dataclasses import asdict, dataclass, field
@@ -12,15 +11,12 @@ from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
-from dcp.data_format.formats.memory.records import Records
-from pandas import DataFrame
 from basis.core.declarative.function import DataFunctionSourceFileCfg
 from basis.core.function import DataFunction, ensure_function, make_function
-from basis.core.module import (
-    DEFAULT_LOCAL_MODULE,
-    DEFAULT_LOCAL_NAMESPACE,
-    BasisModule,
-)
+from basis.core.module import DEFAULT_LOCAL_MODULE, DEFAULT_LOCAL_NAMESPACE, BasisModule
+from basis.utils.modules import find_all_of_type_in_module
+from dcp.data_format.formats.memory.records import Records
+from pandas import DataFrame
 
 if TYPE_CHECKING:
     from basis.testing.utils import TestCase

@@ -671,7 +671,10 @@ def import_df(
     ctx.emit(dataframe, data_format=DataFrameFormat, schema=schema)
     """
     src = DataFunctionSourceFileCfg(
-        name="import_df", namespace="core", source=idf_src, source_language="python",
+        name="import_df",
+        namespace="core",
+        source=idf_src,
+        source_language="python",
     )
     schema = create_quick_schema(
         "__auto__.AutoSchema1", [("a", "Integer"), ("b", "Integer")]
@@ -682,7 +685,9 @@ def import_df(
 
     df = pd.DataFrame({"a": range(10), "b": range(10)})
     n = GraphCfg(
-        key="n1", function="import_df", params={"dataframe": df, "schema": schema.key},
+        key="n1",
+        function="import_df",
+        params={"dataframe": df, "schema": schema.key},
     )
     # Test that auto schema is packaged
     g = GraphCfg(nodes=[n])
@@ -719,7 +724,11 @@ def test_core_importers():
         f"create table {tablename} as select 1 as a, 2 as b"
     )
     # Now import it as basis datablock
-    n = GraphCfg(key="n1", function="import_table", params={"table_name": tablename},)
+    n = GraphCfg(
+        key="n1",
+        function="import_table",
+        params={"table_name": tablename},
+    )
     results = env.produce("n1", graph=GraphCfg(nodes=[n]), target_storage=storage)
     block = get_stdout_block(results)
     assert_almost_equal(block.as_records(), [{"a": "1", "b": "2"}], check_dtype=False)
@@ -740,7 +749,10 @@ def test_inconsistent_schema_import():
 
     env.add_function(df_inconsistent)
 
-    n = GraphCfg(key="n1", function="df_inconsistent",)
+    n = GraphCfg(
+        key="n1",
+        function="df_inconsistent",
+    )
     results = env.produce("n1", graph=GraphCfg(nodes=[n]), target_storage=storage)
     result = results[0]
     assert len(result.output_blocks_emitted[DEFAULT_OUTPUT_NAME]) == 3

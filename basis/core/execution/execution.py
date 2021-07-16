@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, List
 
 import dcp
 import sqlalchemy
-from dcp.utils.common import rand_str, utcnow
-from loguru import logger
 from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.execution import (
     DebugMetadataExecutionResultHandler,
@@ -23,12 +21,10 @@ from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 from basis.core.declarative.graph import GraphCfg
 from basis.core.environment import Environment
 from basis.core.execution.context import DataFunctionContext
-from basis.core.function import (
-    DataFunction,
-    DataInterfaceType,
-    InputExhaustedException,
-)
+from basis.core.function import DataFunction, DataInterfaceType, InputExhaustedException
 from basis.utils.output import cf, error_symbol, success_symbol
+from dcp.utils.common import rand_str, utcnow
+from loguru import logger
 from sqlalchemy.sql.expression import select
 
 
@@ -171,7 +167,10 @@ class ExecutionManager:
 
     def _call_data_function(self, ctx: DataFunctionContext):
         function_args, function_kwargs = ctx.get_function_args()
-        output_obj = self.function.function_callable(*function_args, **function_kwargs,)
+        output_obj = self.function.function_callable(
+            *function_args,
+            **function_kwargs,
+        )
         if output_obj is not None:
             self.emit_output_object(ctx, output_obj)
             # TODO: update node state block counts?

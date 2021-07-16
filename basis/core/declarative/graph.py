@@ -16,11 +16,6 @@ from typing import (
 )
 
 import networkx as nx
-from commonmodel import Schema
-from dcp.utils.common import as_identifier, remove_dupes
-from loguru import logger
-from pydantic import validator
-from pydantic.class_validators import root_validator
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase
 from basis.core.declarative.function import (
@@ -28,6 +23,11 @@ from basis.core.declarative.function import (
     DataFunctionInputCfg,
     DataFunctionInterfaceCfg,
 )
+from commonmodel import Schema
+from dcp.utils.common import as_identifier, remove_dupes
+from loguru import logger
+from pydantic import validator
+from pydantic.class_validators import root_validator
 
 if TYPE_CHECKING:
     from basis.core.declarative.flow import FlowCfg

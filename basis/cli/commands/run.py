@@ -5,12 +5,12 @@ import os
 from pathlib import Path
 
 import yaml
-from cleo import Command
 from basis.cli.commands.base import BasisCommandBase
 from basis.core.component import global_library
 from basis.core.declarative.base import load_yaml
 from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.environment import Environment, run_graph, run_node
+from cleo import Command
 
 
 class RunCommand(BasisCommandBase, Command):

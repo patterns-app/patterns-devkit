@@ -3,11 +3,10 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from dcp.utils.common import ensure_bool
-
 from basis import DataFunctionContext
 from basis.core.function import datafunction
 from basis.core.sql.sql_function import SqlDataFunctionWrapper
+from dcp.utils.common import ensure_bool
 
 
 @datafunction(

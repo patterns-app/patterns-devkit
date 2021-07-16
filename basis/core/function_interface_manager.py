@@ -3,9 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
-from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
-from dcp.storage.base import Storage
-from loguru import logger
 from basis.core.declarative.graph import GraphCfg
 from basis.core.declarative.interface import (
     BoundInputCfg,
@@ -13,11 +10,11 @@ from basis.core.declarative.interface import (
     NodeInputCfg,
 )
 from basis.core.environment import Environment
-from basis.core.persistence.data_block import (
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
-)
+from basis.core.persistence.data_block import DataBlockMetadata, StoredDataBlockMetadata
 from basis.core.persistence.state import DataBlockLog, DataFunctionLog, Direction
+from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
+from dcp.storage.base import Storage
+from loguru import logger
 from sqlalchemy.orm.query import Query
 from sqlalchemy.sql.elements import not_
 from sqlalchemy.sql.expression import and_, select
@@ -36,7 +33,8 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation, from_schema_key=source_schema.key,
+            translation=declared_schema_translation,
+            from_schema_key=source_schema.key,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed
@@ -50,7 +48,10 @@ def get_bound_interface(
 ) -> BoundInterfaceCfg:
     node_inputs = node.get_node_inputs(graph)
     bound_inputs = bind_inputs(env, cfg, node, node_inputs)
-    return BoundInterfaceCfg(inputs=bound_inputs, interface=node.get_interface(),)
+    return BoundInterfaceCfg(
+        inputs=bound_inputs,
+        interface=node.get_interface(),
+    )
 
 
 def bind_inputs(
@@ -107,7 +108,10 @@ def bind_inputs(
 
 
 def _filter_blocks(
-    env: Environment, node: GraphCfg, node_input: NodeInputCfg, cfg: ExecutionCfg,
+    env: Environment,
+    node: GraphCfg,
+    node_input: NodeInputCfg,
+    cfg: ExecutionCfg,
 ) -> Select:
     node = node
     eligible_input_dbs = select(DataBlockMetadata)

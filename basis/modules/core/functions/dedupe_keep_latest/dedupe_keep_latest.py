@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dcp.storage.base import DatabaseStorageClass
-from pandas import DataFrame
 from basis import DataBlock, DataFunctionContext
 from basis.core.function import datafunction
 from basis.modules.core.functions.dedupe_keep_latest_dataframe.dedupe_keep_latest_dataframe import (
@@ -11,13 +9,16 @@ from basis.modules.core.functions.dedupe_keep_latest_sql.dedupe_keep_latest_sql 
     dedupe_keep_latest_sql,
 )
 from basis.utils.typing import T
+from dcp.storage.base import DatabaseStorageClass
+from pandas import DataFrame
 
 # TODO: currently no-op when no unique columns specified.
 #  In general any deduping on non-indexed columns will be costly.
 
 
 @datafunction(
-    namespace="core", display_name="Dedupe records (keep latest)",
+    namespace="core",
+    display_name="Dedupe records (keep latest)",
 )
 def dedupe_keep_latest(ctx: DataFunctionContext, input: DataBlock[T]) -> DataFrame[T]:
     """Adaptive to storages.

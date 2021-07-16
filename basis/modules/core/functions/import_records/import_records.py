@@ -3,13 +3,14 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from dcp.data_format.formats.memory.records import RecordsFormat
 from basis import DataFunctionContext
 from basis.core.function import datafunction
+from dcp.data_format.formats.memory.records import RecordsFormat
 
 
 @datafunction(
-    namespace="core", display_name="Import Records (List of dicts)",
+    namespace="core",
+    display_name="Import Records (List of dicts)",
 )
 def import_records(
     ctx: DataFunctionContext, records: str, schema: Optional[str] = None

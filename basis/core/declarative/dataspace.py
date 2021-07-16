@@ -3,14 +3,14 @@ from __future__ import annotations
 from enum import Enum
 from typing import Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
-from commonmodel import Schema
-from networkx.classes.graph import Graph
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase
 from basis.core.declarative.flow import FlowCfg
 from basis.core.declarative.function import DataFunctionCfg
 from basis.core.declarative.graph import GraphCfg
 from basis.core.declarative.interface import BoundInterfaceCfg
+from commonmodel import Schema
+from networkx.classes.graph import Graph
 
 NxNode = Tuple[str, Dict[str, Dict]]
 NxAdjacencyList = List[NxNode]

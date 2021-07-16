@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from typing import Any, List
 
-from dcp.data_format.base import DataFormat, get_format_for_nickname
-from dcp.storage.base import Storage
-from pydantic import validator
-from pydantic_sqlalchemy.main import sqlalchemy_to_pydantic
 from basis.core.persistence.data_block import (
     Alias,
     DataBlockMetadata,
     StoredDataBlockMetadata,
 )
 from basis.core.persistence.state import DataBlockLog, DataFunctionLog, NodeState
+from dcp.data_format.base import DataFormat, get_format_for_nickname
+from dcp.storage.base import Storage
+from pydantic import validator
+from pydantic_sqlalchemy.main import sqlalchemy_to_pydantic
 
 _DataBlockMetadataCfg = sqlalchemy_to_pydantic(DataBlockMetadata)
 _StoredDataBlockMetadataCfg = sqlalchemy_to_pydantic(StoredDataBlockMetadata)

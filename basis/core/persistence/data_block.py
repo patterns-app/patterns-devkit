@@ -13,6 +13,15 @@ from typing import (
     Union,
 )
 
+from basis.core.component import ComponentLibrary
+from basis.core.environment import Environment
+from basis.core.persistence.base import (
+    BaseModel,
+    DataFormatType,
+    timestamp_increment_key,
+)
+from basis.utils.registry import ClassBasedEnumSqlalchemyType
+from basis.utils.typing import T
 from commonmodel.base import Schema, SchemaKey, SchemaTranslation
 from dcp.data_copy.graph import StorageFormat
 from dcp.data_format.base import DataFormat
@@ -26,15 +35,6 @@ from dcp.utils.common import as_identifier, rand_str
 from loguru import logger
 from pandas import DataFrame
 from pydantic_sqlalchemy import sqlalchemy_to_pydantic
-from basis.core.component import ComponentLibrary
-from basis.core.environment import Environment
-from basis.core.persistence.base import (
-    BaseModel,
-    DataFormatType,
-    timestamp_increment_key,
-)
-from basis.utils.registry import ClassBasedEnumSqlalchemyType
-from basis.utils.typing import T
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, select
 from sqlalchemy.orm import RelationshipProperty, Session, relationship
 from sqlalchemy.sql.schema import UniqueConstraint
@@ -112,7 +112,9 @@ class DataBlockMetadata(BaseModel):  # , Generic[DT]):
         # return DataBlockWithStoredBlocksCfg.from_orm(self)
 
     def as_managed_data_block(
-        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
+        self,
+        env: Environment,
+        schema_translation: Optional[SchemaTranslation] = None,
     ) -> DataBlock:
         from basis.core.data_block import DataBlockManager
 

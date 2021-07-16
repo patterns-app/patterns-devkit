@@ -20,12 +20,12 @@ from typing import (
 
 import requests
 from backoff import expo, on_exception
+from basis.utils.typing import T, V
 from loguru import logger
 from ratelimit import RateLimitException, limits, sleep_and_retry
 from requests import Response
 from requests.exceptions import RequestException
 from requests.models import Request
-from basis.utils.typing import T, V
 
 
 """

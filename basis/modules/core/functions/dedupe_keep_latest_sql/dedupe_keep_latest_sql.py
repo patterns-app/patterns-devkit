@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from commonmodel.base import Schema
-from dcp.utils.common import T
 from basis import DataBlock, DataFunctionContext, datafunction
 from basis.core.sql.sql_function import SqlDataFunctionWrapper
+from commonmodel.base import Schema
+from dcp.utils.common import T
 
 
 @datafunction(

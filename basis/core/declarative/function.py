@@ -15,13 +15,13 @@ from typing import (
 )
 
 import networkx as nx
+from basis.core.component import ComponentLibrary, global_library
+from basis.core.declarative.base import FrozenPydanticBase
+from basis.core.persistence.schema import is_generic
 from commonmodel import Schema
 from dcp.utils.common import remove_dupes
 from loguru import logger
 from pydantic import Field
-from basis.core.component import ComponentLibrary, global_library
-from basis.core.declarative.base import FrozenPydanticBase
-from basis.core.persistence.schema import is_generic
 
 DEFAULT_OUTPUT_NAME = "stdout"
 DEFAULT_INPUT_NAME = "stdin"

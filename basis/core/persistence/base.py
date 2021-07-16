@@ -1,10 +1,10 @@
 from collections import OrderedDict
 from typing import Any
 
+from basis.utils.output import cf
 from commonmodel import Schema
 from dcp.data_format.base import DataFormat, DataFormatBase, get_format_for_nickname
 from dcp.utils.common import rand_str, title_to_snake_case, utcnow
-from basis.utils.output import cf
 from sqlalchemy import Column, DateTime, Integer, String, func, types
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm.exc import DetachedInstanceError

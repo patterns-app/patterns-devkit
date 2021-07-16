@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Dict, Iterable, Iterator, List, Optional, Set, Union
 
-from loguru import logger
 from basis.core.data_block import as_managed
 from basis.core.declarative.base import FrozenPydanticBase
 from basis.core.declarative.function import (
@@ -13,6 +12,7 @@ from basis.core.declarative.function import (
 )
 from basis.core.declarative.graph import GraphCfg
 from basis.core.persistence.pydantic import DataBlockWithStoredBlocksCfg
+from loguru import logger
 
 
 class NodeInputCfg(FrozenPydanticBase):
@@ -22,7 +22,8 @@ class NodeInputCfg(FrozenPydanticBase):
     schema_translation: Optional[Dict[str, str]] = None
 
     def as_bound_input(
-        self, bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
+        self,
+        bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
     ) -> BoundInputCfg:
 
         return BoundInputCfg(

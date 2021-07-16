@@ -6,8 +6,8 @@ from enum import Enum
 from functools import total_ordering
 from typing import TYPE_CHECKING, Any, Iterable
 
-from commonmodel import Field, FieldType, Schema
 from basis.core.declarative.dataspace import BasisCfg
+from commonmodel import Field, FieldType, Schema
 
 if TYPE_CHECKING:
     from basis import Environment
@@ -80,7 +80,7 @@ def update_matching_field_definitions(
     if add_missing_fields:
         for f in update_with_schema.fields:
             try:
-                old_f = schema.get_field(f.name)
+                schema.get_field(f.name)
             except NameError:
                 # Missing, so append to fields
                 modified = True

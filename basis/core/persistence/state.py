@@ -4,11 +4,11 @@ import enum
 import traceback
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
-from pydantic_sqlalchemy.main import sqlalchemy_to_pydantic
 from basis.core.declarative.base import PydanticBase
 from basis.core.environment import Environment
 from basis.core.persistence.base import BASIS_METADATA_TABLE_PREFIX, BaseModel
 from basis.core.persistence.data_block import DataBlockMetadata
+from pydantic_sqlalchemy.main import sqlalchemy_to_pydantic
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
 from sqlalchemy.sql.expression import select, update
@@ -140,7 +140,9 @@ class NodeState(BaseModel):
 
     def __repr__(self):
         return self._repr(
-            node_key=self.node_key, state=self.state, latest_log_id=self.latest_log_id,
+            node_key=self.node_key,
+            state=self.state,
+            latest_log_id=self.latest_log_id,
         )
 
 

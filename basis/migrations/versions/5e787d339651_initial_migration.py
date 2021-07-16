@@ -86,8 +86,14 @@ def upgrade():
         ),
         sa.Column("processed_at", sa.DateTime(), nullable=False),
         sa.Column("invalidated", sa.Boolean(), nullable=True),
-        sa.ForeignKeyConstraint(["data_block_id"], ["_basis_data_block_metadata.id"],),
-        sa.ForeignKeyConstraint(["function_log_id"], ["_basis_data_function_log.id"],),
+        sa.ForeignKeyConstraint(
+            ["data_block_id"],
+            ["_basis_data_block_metadata.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["function_log_id"],
+            ["_basis_data_function_log.id"],
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(
@@ -104,7 +110,10 @@ def upgrade():
             basis.core.persistence.base.DataFormatType(length=128),
             nullable=False,
         ),
-        sa.ForeignKeyConstraint(["data_block_id"], ["_basis_data_block_metadata.id"],),
+        sa.ForeignKeyConstraint(
+            ["data_block_id"],
+            ["_basis_data_block_metadata.id"],
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(
@@ -116,9 +125,13 @@ def upgrade():
         sa.Column("name", sa.String(length=128), nullable=True),
         sa.Column("data_block_id", sa.String(length=128), nullable=False),
         sa.Column("stored_data_block_id", sa.String(length=128), nullable=False),
-        sa.ForeignKeyConstraint(["data_block_id"], ["_basis_data_block_metadata.id"],),
         sa.ForeignKeyConstraint(
-            ["stored_data_block_id"], ["_basis_stored_data_block_metadata.id"],
+            ["data_block_id"],
+            ["_basis_data_block_metadata.id"],
+        ),
+        sa.ForeignKeyConstraint(
+            ["stored_data_block_id"],
+            ["_basis_stored_data_block_metadata.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("dataspace_key", "name"),

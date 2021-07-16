@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Optional
 
-from dcp.data_format.formats.file_system.csv_file import CsvFileFormat
 from basis import DataFunctionContext, datafunction
 from basis.utils.typing import T
+from dcp.data_format.formats.file_system.csv_file import CsvFileFormat
 
 
 @datafunction(namespace="core", display_name="Import local CSV")

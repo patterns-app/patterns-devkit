@@ -1,16 +1,17 @@
 from __future__ import annotations
 
-from pandas import DataFrame
 from basis import DataBlock
 from basis.core.function import datafunction
 from basis.utils.typing import T
+from pandas import DataFrame
 
 # TODO: currently no-op when no unique columns specified.
 #  In general any deduping on non-indexed columns will be costly.
 
 
 @datafunction(
-    namespace="core", display_name="Dedupe DataFrame (keep latest)",
+    namespace="core",
+    display_name="Dedupe DataFrame (keep latest)",
 )
 def dedupe_keep_latest_dataframe(input: DataBlock[T]) -> DataFrame[T]:
     if input.nominal_schema is None or not input.nominal_schema.unique_on:

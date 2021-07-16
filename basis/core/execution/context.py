@@ -22,22 +22,6 @@ from typing import (
 
 import dcp
 import sqlalchemy
-from commonmodel.base import Schema
-from dcp.data_format import get_handler_for_name
-from dcp.data_format.base import (
-    DataFormat,
-    DataFormatBase,
-    UnknownFormat,
-    get_format_for_nickname,
-)
-from dcp.storage.base import (
-    FileSystemStorageClass,
-    MemoryStorageClass,
-    Storage,
-    ensure_storage,
-)
-from dcp.utils.common import rand_str, utcnow
-from loguru import logger
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.data_block import DataBlock, DataBlockStream, as_managed
 from basis.core.declarative.base import FrozenPydanticBase, PydanticBase
@@ -67,6 +51,22 @@ from basis.core.persistence.pydantic import (
 )
 from basis.core.storage import ensure_data_block_on_storage_cfg
 from basis.core.typing.casting import cast_to_realized_schema
+from commonmodel.base import Schema
+from dcp.data_format import get_handler_for_name
+from dcp.data_format.base import (
+    DataFormat,
+    DataFormatBase,
+    UnknownFormat,
+    get_format_for_nickname,
+)
+from dcp.storage.base import (
+    FileSystemStorageClass,
+    MemoryStorageClass,
+    Storage,
+    ensure_storage,
+)
+from dcp.utils.common import rand_str, utcnow
+from loguru import logger
 
 
 @dataclass
@@ -305,7 +305,7 @@ class DataFunctionContext:
             create_alias_only=create_alias_only,
         )
         logger.debug(
-            f"HANDLING EMITTED OBJECT "
+            "HANDLING EMITTED OBJECT "
             + (
                 f"(of type '{type(records_obj).__name__}')"
                 if records_obj is not None

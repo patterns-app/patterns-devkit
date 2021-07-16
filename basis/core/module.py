@@ -7,8 +7,6 @@ from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, List, Optional, Union
 
-from commonmodel.base import Schema, SchemaLike, schema_from_yaml
-from loguru import logger
 from basis.core.component import (
     DEFAULT_LOCAL_NAMESPACE,
     DEFAULT_NAMESPACE,
@@ -16,6 +14,8 @@ from basis.core.component import (
     DictView,
     global_library,
 )
+from commonmodel.base import Schema, SchemaLike, schema_from_yaml
+from loguru import logger
 
 if TYPE_CHECKING:
     from basis.core.function import (

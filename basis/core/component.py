@@ -1,9 +1,9 @@
 from __future__ import annotations
-from basis.utils.modules import find_all_of_type_in_module
 
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, List, Union
 
+from basis.utils.modules import find_all_of_type_in_module
 from commonmodel import Schema
 
 if TYPE_CHECKING:

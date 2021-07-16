@@ -1,7 +1,11 @@
-from commonmodel.base import AnySchema
 from basis.core.module import BasisModule
+from commonmodel.base import AnySchema
 
-module = BasisModule("core", py_module_path=__file__, py_module_name=__name__,)
+module = BasisModule(
+    "core",
+    py_module_path=__file__,
+    py_module_name=__name__,
+)
 module.add_schema(AnySchema)
 # module.export()
 # namespace = module.namespace
