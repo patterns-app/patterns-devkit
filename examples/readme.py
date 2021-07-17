@@ -42,6 +42,8 @@ ds = (
     """
 storages:
   - sqlite:///%s/.basis.db
+modules:
+  - basis_modules.modules.stripe
 graph:
   nodes:
     - key: stripe_charges

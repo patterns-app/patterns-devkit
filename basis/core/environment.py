@@ -96,6 +96,12 @@ class Environment:
             self.library = library
         self.add_module(self._local_module)
         self._local_python_storage = new_local_python_storage()
+        for module in self.dataspace.modules:
+            try:
+                pymodule = import_module(module)
+                self.add_module(pymodule)
+            except ImportError:
+                logger.error(f"No module {module}")
         # self.add_storage(self._local_python_storage)
 
     def get_metadata_api(self) -> MetadataApi:
@@ -335,9 +341,7 @@ class Environment:
         return results
 
     def translate_node_to_flattened_nodes(
-        self,
-        node: Union[GraphCfg, str],
-        flattened_graph: Optional[GraphCfg] = None,
+        self, node: Union[GraphCfg, str], flattened_graph: Optional[GraphCfg] = None,
     ) -> List[GraphCfg]:
         # Return in execution order
         assert flattened_graph.is_flattened()
@@ -417,9 +421,7 @@ class Environment:
         return get_latest_output(self, node)
 
     def reset_node(
-        self,
-        node: Union[GraphCfg, str],
-        graph: Optional[GraphCfg] = None,
+        self, node: Union[GraphCfg, str], graph: Optional[GraphCfg] = None,
     ):
         from basis.core.persistence.state import reset
 

@@ -29,6 +29,7 @@ class DataspaceCfg(FrozenPydanticBase):
     key: Optional[str] = None
     namespaces: List[str] = []
     # library: Optional[ComponentLibraryCfg] = None
+    modules: List[str] = []
     metadata_storage: Optional[str] = None
     default_storage: Optional[str] = None
     storages: List[str] = []
