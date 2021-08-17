@@ -25,24 +25,16 @@ class BasisCfg(FrozenPydanticBase):
     use_global_library: bool = True
 
 
-class DataspaceCfg(FrozenPydanticBase):
+class EnvironmentCfg(FrozenPydanticBase):
     key: Optional[str] = None
-    namespaces: List[str] = []
     # library: Optional[ComponentLibraryCfg] = None
     modules: List[str] = []
     metadata_storage: Optional[str] = None
     default_storage: Optional[str] = None
+    default_runtime: Optional[str] = None
     storages: List[str] = []
+    runtimes: List[str] = []
     basis: BasisCfg = BasisCfg()
-    graph: GraphCfg = GraphCfg()
-
-    def resolve(self, lib: ComponentLibrary = None) -> DataspaceCfg:
-        if lib is None:
-            lib = global_library
-        d = self.dict()
-        d["graph"] = self.graph.resolve(lib)
-        # d["library"] = lib.to_config() # TODO: too big to serialize? And for what reason?
-        return DataspaceCfg(**d)
 
 
 class ComponentLibraryCfg(FrozenPydanticBase):

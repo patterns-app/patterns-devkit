@@ -3,8 +3,7 @@ from __future__ import annotations
 import json
 from typing import Optional
 
-from basis import DataFunctionContext
-from basis.core.function import datafunction
+from basis import Context, basis
 from basis.core.sql.sql_function import SqlDataFunctionWrapper
 from dcp.utils.common import ensure_bool
 
@@ -43,3 +42,12 @@ def import_table(ctx: DataFunctionContext, table_name: str, copy: bool = True):
             data_format="table",
             create_alias_only=True,
         )
+
+
+@basis(
+    namespace="core",
+    display_name="Import non-basis database table",
+    required_storage_classes=["database"],
+)
+def import_table(ctx: Context, table_name: str, copy: bool = True):
+    pass

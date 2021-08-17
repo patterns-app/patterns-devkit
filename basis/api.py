@@ -26,4 +26,5 @@ from .core.module import BasisModule
 from .core.sql.sql_function import Sql, SqlFunction, sql_datafunction, sql_function
 
 Context = DataFunctionContext
+basis = datafunction
 # Deprecated names

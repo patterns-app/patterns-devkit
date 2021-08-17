@@ -1,4 +1,5 @@
 from __future__ import annotations
+from basis.core.declarative.environment import EnvironmentCfg
 
 import traceback
 from dataclasses import dataclass
@@ -9,7 +10,6 @@ import requests
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.data_block import DataBlock, as_managed
 from basis.core.declarative.base import FrozenPydanticBase, PydanticBase
-from basis.core.declarative.dataspace import ComponentLibraryCfg, DataspaceCfg
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     DataFunctionSourceFileCfg,
@@ -36,7 +36,7 @@ class ResultHandler(FrozenPydanticBase):
 
 
 class ExecutionCfg(FrozenPydanticBase):
-    dataspace: DataspaceCfg
+    environment: EnvironmentCfg
     target_storage: str
     local_storage: Optional[str] = None
     target_data_format: Optional[str] = None

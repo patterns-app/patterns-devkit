@@ -15,8 +15,9 @@ from typing import (
 )
 
 import networkx as nx
+from pydantic.class_validators import root_validator
 from basis.core.component import ComponentLibrary, global_library
-from basis.core.declarative.base import FrozenPydanticBase
+from basis.core.declarative.base import FrozenPydanticBase, update
 from basis.core.persistence.schema import is_generic
 from commonmodel import Schema
 from dcp.utils.common import remove_dupes
@@ -29,12 +30,49 @@ DEFAULT_ERROR_NAME = "stderr"
 DEFAULT_STATE_NAME = "state"
 
 
-class InputType(str, Enum):
-    DataBlock = "DataBlock"
-    Reference = "Reference"
-    Stream = "Stream"
-    SelfReference = "SelfReference"
-    Consumable = "Consumable"
+class BlockType(str, Enum):
+    Record = "Record"
+    Table = "Table"
+    Generic = "Generic"
+
+
+class IoBase(FrozenPydanticBase):
+    name: str
+    schema: Union[str, Schema] = "Any"
+    description: Optional[str] = None
+    required: bool = True
+    block_type: BlockType = BlockType.Record
+    stream: Optional[bool] = False
+    data_format: Optional[str] = None
+    is_error: bool = False
+    is_state: bool = False
+
+    def resolve(self, lib: ComponentLibrary) -> IoBase:
+        return update(self, _schema=lib.get_schema(self.schema))
+
+    @property
+    def is_generic(self) -> bool:
+        return is_generic(self.schema)
+
+
+class Record(IoBase):
+    block_type: BlockType = BlockType.Record
+
+
+class Table(IoBase):
+    block_type: BlockType = BlockType.Table
+
+
+class Generic(IoBase):
+    block_type: BlockType = BlockType.Generic
+
+
+# class Error(Record):
+#     is_error: bool = True
+
+
+# class State(Record):
+#     is_state: bool = True
 
 
 class ParameterType(str, Enum):
@@ -56,134 +94,117 @@ class Parameter(FrozenPydanticBase):
     description: str = ""
 
 
-class FunctionIoBase(FrozenPydanticBase):
-    schema_key: str
-    _schema: Optional[Schema] = Field(None, alias="schema")
+# class DataFunctionInputCfg(FunctionIoBase):
+#     name: str
+#     input_type: InputType = InputType.DataBlock
+#     required: bool = True
+#     description: Optional[str] = None
 
-    def resolve(self, lib: ComponentLibrary) -> FunctionIoBase:
-        d = self.dict()
-        if self.schema_key:
-            d["_schema"] = lib.get_schema(self.schema_key)
-        return type(self)(**d)
+#     @property
+#     def is_stream(self) -> bool:
+#         return self.input_type == InputType.Stream
 
-    @property
-    def is_generic(self) -> bool:
-        return is_generic(self.schema_key)
+#     @property
+#     def is_self_reference(self) -> bool:
+#         return self.input_type == InputType.SelfReference
 
+#     @property
+#     def is_reference(self) -> bool:
+#         return self.input_type in (InputType.Reference, InputType.SelfReference)
 
-class DataFunctionInputCfg(FunctionIoBase):
-    name: str
-    input_type: InputType = InputType.DataBlock
-    required: bool = True
-    description: Optional[str] = None
-
-    @property
-    def is_stream(self) -> bool:
-        return self.input_type == InputType.Stream
-
-    @property
-    def is_self_reference(self) -> bool:
-        return self.input_type == InputType.SelfReference
-
-    @property
-    def is_reference(self) -> bool:
-        return self.input_type in (InputType.Reference, InputType.SelfReference)
-
-    @property
-    def is_consumable(self) -> bool:
-        return self.input_type in (InputType.DataBlock, InputType.Stream)
+#     @property
+#     def is_consumable(self) -> bool:
+#         return self.input_type in (InputType.DataBlock, InputType.Stream)
 
 
-class DataFunctionOutputCfg(FunctionIoBase):
-    name: str = DEFAULT_OUTPUT_NAME
-    data_format: Optional[str] = None
-    # reference: bool = False # TODO: not a thing right? that's up to downstream to decide
-    # optional: bool = False
-    is_iterator: bool = False
-    is_default: bool = True  # TODO: not here
-    # stream: bool = False # TODO: do we ever need this?
-    description: Optional[str] = None
+# class DataFunctionOutputCfg(FunctionIoBase):
+#     name: str = DEFAULT_OUTPUT_NAME
+#     data_format: Optional[str] = None
+#     # reference: bool = False # TODO: not a thing right? that's up to downstream to decide
+#     # optional: bool = False
+#     is_iterator: bool = False
+#     is_default: bool = True  # TODO: not here
+#     # stream: bool = False # TODO: do we ever need this?
+#     description: Optional[str] = None
 
 
-class DataFunctionInterfaceCfg(FrozenPydanticBase):
-    inputs: Dict[str, DataFunctionInputCfg]
-    outputs: Dict[str, DataFunctionOutputCfg]
+class FunctionInterfaceCfg(FrozenPydanticBase):
+    inputs: Dict[str, IoBase]
+    outputs: Dict[str, IoBase]
     parameters: Dict[str, Parameter]
     stdin: Optional[str] = None
     stdout: Optional[str] = None
     stderr: Optional[str] = None
-    uses_context: bool = False
-    uses_state: bool = False
-    uses_error: bool = False
-    none_output: bool = (
-        False  # When return explicitly set to None (for identifying exporters) #TODO
-    )
 
-    def resolve(self, lib: ComponentLibrary) -> DataFunctionInterfaceCfg:
+    @root_validator
+    def check_single_input_stream(cls, values: Dict) -> Dict:
+        inputs = values.get("inputs", [])
+        assert (
+            len([i for i in inputs if i.block_type == BlockType.Record]) <= 1
+        ), f"At most one input may be streaming. ({inputs})"
+        return values
+
+    @root_validator
+    def check_generics(cls, values: Dict) -> Dict:
+        generic_outputs = [
+            o for o in values.get("outputs", []) if o.block_type == BlockType.Generic
+        ]
+        generic_inputs = [
+            o for o in values.get("inputs", []) if o.block_type == BlockType.Generic
+        ]
+        if generic_outputs:
+            assert (
+                generic_inputs
+            ), f"Generic output block type found, but no respective generic input declared."
+        return values
+
+    def resolve(self, lib: ComponentLibrary) -> FunctionInterfaceCfg:
         d = self.dict()
         for n, i in self.inputs.items():
             d["inputs"][n] = i.resolve(lib)
         for n, i in self.outputs.items():
             d["outputs"][n] = i.resolve(lib)
-        return DataFunctionInterfaceCfg(**d)
+        return FunctionInterfaceCfg(**d)
 
-    def get_input(self, name: str) -> DataFunctionInputCfg:
+    def get_input(self, name: str) -> IoBase:
         return self.inputs[name]
 
-    def get_single_input(self) -> DataFunctionInputCfg:
+    def get_single_input(self) -> IoBase:
         assert len(self.inputs) == 1, self.inputs
         return self.inputs[list(self.inputs)[0]]
 
-    def get_single_non_reference_input(self) -> DataFunctionInputCfg:
-        inpts = self.get_non_reference_inputs()
+    def get_single_streaming_input(self) -> IoBase:
+        inpts = self.get_streaming_inputs()
         assert len(inpts) == 1, inpts
         return inpts[list(inpts)[0]]
 
-    def get_non_reference_inputs(self) -> Dict[str, DataFunctionInputCfg]:
-        # TODO: should only ever be one of these
-        return {n: i for n, i in self.inputs.items() if not i.is_reference}
+    def get_streaming_inputs(self) -> Dict[str, IoBase]:
+        return {n: i for n, i in self.inputs.items() if i.block_type == "Record"}
 
     def get_stdin_name(self) -> Optional[str]:
         if self.stdin:
             return self.stdin
         try:
-            nonref = self.get_single_non_reference_input()
+            nonref = self.get_single_streaming_input()
             return nonref.name
         except AssertionError:
             pass
-        inp = self.get_single_input()
-        if inp:
+        try:
+            inp = self.get_single_input()
             return inp.name
+        except AssertionError:
+            pass
         return None
 
-    # def assign_translations(
-    #     self,
-    #     declared_schema_translation: Optional[Dict[str, Union[Dict[str, str], str]]],
-    # ) -> Optional[Dict[str, Dict[str, str]]]:
-    #     if not declared_schema_translation:
-    #         return None
-    #     v = list(declared_schema_translation.values())[0]
-    #     if isinstance(v, str):
-    #         # Just one translation, so should be one input
-    #         assert (
-    #             len(self.get_non_recursive_inputs()) == 1
-    #         ), "Wrong number of translations"
-    #         return {
-    #             self.get_single_non_recursive_input().name: declared_schema_translation
-    #         }
-    #     if isinstance(v, dict):
-    #         return declared_schema_translation
-    #     raise TypeError(declared_schema_translation)
-
-    def get_default_output(self) -> Optional[DataFunctionOutputCfg]:
+    def get_default_output(self) -> Optional[IoBase]:
         return self.outputs.get(DEFAULT_OUTPUT_NAME)
 
     def get_all_schema_keys(self) -> List[str]:
         schemas = []
         for i in self.inputs.values():
-            schemas.append(i.schema_key)
+            schemas.append(i.schema)
         for o in self.outputs.values():
-            schemas.append(o.schema_key)
+            schemas.append(o.schema)
         # TODO: for flow
         return schemas
 
@@ -191,7 +212,7 @@ class DataFunctionInterfaceCfg(FrozenPydanticBase):
 class DataFunctionCfg(FrozenPydanticBase):
     name: str
     namespace: str
-    interface: Optional[DataFunctionInterfaceCfg] = None
+    interface: Optional[FunctionInterfaceCfg] = None
     required_storage_classes: List[str] = []
     required_storage_engines: List[str] = []
     ignore_signature: bool = (

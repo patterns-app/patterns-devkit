@@ -5,22 +5,23 @@
   <img width="800" src="assets/linear-basis.svg">
   <img width="650" src="assets/basis.svg">
 </p>
-<h3 align="center">The Data Operating System</h3>
+<h3 align="center">Serverless Data Science</h3>
 <p>&nbsp;</p>
 
-**Basis** is the one tool you need to power your entire data stack. At its core, Basis is
-a framework for building **functional reactive data systems** from modular
+**Basis** is the one tool you need to power your entire data science pipeline. At its core, Basis is
+a framework for building **functional reactive data flow** from modular
 components. It lets developers write pure `datafunctions` in **Python or SQL**
 that operate reactively on `datablocks`, immutable sets of data records whose
 structure are described by flexible `schemas`.
 These functions can be composed into simple or complex data
 flows that power all operations of a data system, including:
-  - API ingestion
-  - SQL transformation
-  - Machine learning training and prediction
-  - Webhooks, event streams, and triggers
-  - Visualization
-  - Export and callbacks
+
+- API ingestion
+- SQL transformation
+- Machine learning training and prediction
+- Webhooks, event streams, and triggers
+- Visualization
+- Export and callbacks
 
 The functional reactive paradigm enables powerful benefits:
 
@@ -32,7 +33,7 @@ The functional reactive paradigm enables powerful benefits:
   reused across projects.
 
 - **Operational data** - Basis isn't just an ETL tool, its reactive nature and generic abstractions enable developers
-to build operational data flows that put their data to work.
+  to build operational data flows that put their data to work.
 
 - **Total reproducibility** — Every data record at every pipeline step is preserved in basis,
   along with the code that produced it and the inputs it used. Enables auditing, debugging, and reproducing pipelines.
@@ -89,16 +90,24 @@ Edit `basis.yml`:
 
 ```yaml
 storages:
-  - sqlite:///.basis_demo.db
+  - key: sqlite
+    url: sqlite:///.basis_demo.db
+runtimes:
+  - key: gcf_medium
+    url:
+default_storage: sqlite
+default_runtime: gcf_medium
 graph:
   nodes:
-    - key: stripe_charges
-      function: stripe.import_charges
+    - key: import_stripe
+      function: basis_modules.stripe.import
+      params:
+        endpoints: [charges, invoices, subscriptions, subscription_items]
       params:
         api_key: sk_test_4eC39HqLyjWDarjtT1zdp7dc
     - key: stripe_customer_lifetime_sales
       function: customer_lifetime_sales
-      input: stripe_charges
+      input: import_stripe#charges
 ```
 
 Now run the dataspace (give a run time limit of 5 seconds for demo purposes):
