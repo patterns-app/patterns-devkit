@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from basis import DataFunctionContext, datafunction
+from basis import FunctionContext, datafunction
 from basis.core.declarative.function import (
-    DataFunctionInterfaceCfg,
-    DataFunctionSourceFileCfg,
+    FunctionInterfaceCfg,
+    FunctionSourceFileCfg,
 )
 from basis.core.function_package import (
-    DataFunctionPackage,
+    FunctionPackage,
     load_function_from_source_file,
 )
 from loguru import logger
@@ -18,10 +18,10 @@ logger.enable("basis")
 
 def test_from_path():
     pth = Path(__file__).resolve().parents[0] / "_test_module/functions/test_function"
-    mffunction = DataFunctionPackage.from_path(str(pth))
+    mffunction = FunctionPackage.from_path(str(pth))
     function = mffunction.function
     assert function.name == mffunction.name
-    i: DataFunctionInterfaceCfg = function.get_interface()
+    i: FunctionInterfaceCfg = function.get_interface()
     assert not i.inputs
     assert i.uses_context
     readme = mffunction.load_readme()
@@ -32,15 +32,15 @@ def test_from_path():
 
 def test_from_function():
     @datafunction
-    def function1(ctx: DataFunctionContext):
+    def function1(ctx: FunctionContext):
         pass
 
-    mffunction = DataFunctionPackage.from_function(function1)
+    mffunction = FunctionPackage.from_function(function1)
     assert mffunction.root_path == Path(__file__).resolve()
     assert function1.name == mffunction.name
     function = mffunction.function
     assert function.name == "function1"
-    i: DataFunctionInterfaceCfg = function.get_interface()
+    i: FunctionInterfaceCfg = function.get_interface()
     assert not i.inputs
     assert i.uses_context
 
@@ -49,10 +49,10 @@ def test_sql_function():
     pth = (
         Path(__file__).resolve().parents[0] / "_test_module/functions/test_sql_function"
     )
-    mffunction = DataFunctionPackage.from_path(str(pth))
+    mffunction = FunctionPackage.from_path(str(pth))
     function = mffunction.function
     assert function.name == mffunction.name
-    i: DataFunctionInterfaceCfg = function.get_interface()
+    i: FunctionInterfaceCfg = function.get_interface()
     assert len(i.inputs) == 1
     assert i.uses_context
     readme = mffunction.load_readme()
@@ -60,7 +60,7 @@ def test_sql_function():
 
 
 def test_load_from_source_sql():
-    src = DataFunctionSourceFileCfg(
+    src = FunctionSourceFileCfg(
         name="fn1", namespace="ns1", source="select * from t1", source_language="sql"
     )
     fn = load_function_from_source_file(src)
@@ -68,7 +68,7 @@ def test_load_from_source_sql():
 
 
 def test_load_from_source_py():
-    src = DataFunctionSourceFileCfg(
+    src = FunctionSourceFileCfg(
         name="fn1",
         namespace="ns1",
         source="""

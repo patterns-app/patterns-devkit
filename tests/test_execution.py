@@ -4,13 +4,13 @@ from typing import Optional
 
 import pandas as pd
 import pytest
-from basis.core.data_block import Reference, as_managed
+from basis.core.block import Reference, as_managed
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 from basis.core.declarative.graph import GraphCfg
 from basis.core.execution.execution import ExecutionManager
 from basis.core.function import Input, datafunction
-from basis.core.persistence.data_block import Alias
-from basis.core.persistence.state import DataBlockLog, DataFunctionLog, Direction
+from basis.core.persistence.block import Alias
+from basis.core.persistence.state import BlockLog, FunctionLog, Direction
 from basis.modules import core
 from dcp.data_format.formats.memory.records import Records
 from loguru import logger
@@ -56,8 +56,8 @@ def test_exe():
     result = results[0]
     with env.md_api.begin():
         assert not result.output_blocks_emitted
-        assert env.md_api.count(select(DataFunctionLog)) == 1
-        pl = env.md_api.execute(select(DataFunctionLog)).scalar_one_or_none()
+        assert env.md_api.count(select(FunctionLog)) == 1
+        pl = env.md_api.execute(select(FunctionLog)).scalar_one_or_none()
         assert pl.node_key == node.key
         assert pl.node_start_state == {}
         assert pl.node_end_state == {}
@@ -93,13 +93,13 @@ def test_exe_output():
         assert (
             env.md_api.execute(select(Alias).filter(Alias.name == output_alias))
             .scalar_one_or_none()
-            .data_block_id
+            .block_id
             == block.id
         )
-        assert env.md_api.count(select(DataBlockLog)) == 1
-        dbl = env.md_api.execute(select(DataBlockLog)).scalar_one_or_none()
+        assert env.md_api.count(select(BlockLog)) == 1
+        dbl = env.md_api.execute(select(BlockLog)).scalar_one_or_none()
         assert dbl.stream_name == DEFAULT_OUTPUT_NAME
-        assert dbl.data_block_id == block.id
+        assert dbl.block_id == block.id
         assert dbl.direction == Direction.OUTPUT
 
 
@@ -129,7 +129,7 @@ def test_non_terminating_function_with_reference_input():
     result = ExecutionManager(exe).execute()
     # TODO: reference inputs need to log too? (So they know when to update)
     # with env.md_api.begin():
-    #     assert env.md_api.count(select(DataBlockLog)) == 1
+    #     assert env.md_api.count(select(BlockLog)) == 1
     exe = env.get_executable(node.key, graph=g)
     results = ExecutionManager(exe).execute()
     assert len(results) == 1

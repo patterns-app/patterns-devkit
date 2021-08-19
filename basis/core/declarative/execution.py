@@ -8,21 +8,21 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Set, Union
 
 import requests
 from basis.core.component import ComponentLibrary, global_library
-from basis.core.data_block import DataBlock, as_managed
+from basis.core.block import Block, as_managed
 from basis.core.declarative.base import FrozenPydanticBase, PydanticBase
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
-    DataFunctionSourceFileCfg,
+    FunctionSourceFileCfg,
 )
 from basis.core.declarative.graph import GraphCfg
 from basis.core.declarative.interface import BoundInterfaceCfg
 from basis.core.environment import Environment
 from basis.core.function_interface_manager import bind_inputs
 from basis.core.persistence.pydantic import (
-    DataBlockMetadataCfg,
-    DataBlockWithStoredBlocksCfg,
-    DataFunctionLogCfg,
-    StoredDataBlockMetadataCfg,
+    BlockMetadataCfg,
+    BlockWithStoredBlocksCfg,
+    FunctionLogCfg,
+    StoredBlockMetadataCfg,
 )
 from commonmodel.base import Schema
 from dcp.storage.base import Storage
@@ -71,11 +71,52 @@ class PythonException(FrozenPydanticBase):
         return PythonException(error=error, traceback=tback)
 
 
+class StreamStatus(PydanticBase):
+    start_block_id: Optional[str] = None
+    latest_block_id: Optional[str] = None
+    block_count: int = 0
+
+    def mark_latest_record_consumed(self, record: Record):
+        return self.mark_progress(record.block)
+
+    def mark_emitted(self, block: Block):
+        return self.mark_progress(block)
+
+    def mark_progress(self, block: Block):
+        if self.start_block_id is None:
+            self.start_block_id = block.id
+        self.latest_block_id = block.id
+
+
 class ExecutionResult(PydanticBase):
-    input_blocks_consumed: Dict[str, List[DataBlockMetadataCfg]] = {}
-    output_blocks_emitted: Dict[str, List[DataBlockMetadataCfg]] = {}
+    node_key: str
+    node_version: str  # TODO: hash of relevant node config (code, params, etc?)
+    # function_key: str = None # TODO: unique hash of code and path?
+    # params
+    stream_statuses: Dict[str, StreamStatus] = {}
+    runtime: str
+    queued_at: Optional[datetime] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    timed_out: bool = False
+    schemas_generated: List[Schema] = []
+    function_error: Optional[PythonException] = None
+    framework_error: Optional[PythonException] = None  # TODO: do we ever use this?
+    # records_emitted: Dict[str, List[Dict]] = {}
+    # tables_emitted: Dict[str, List[Any]] = {}
+    # errors_emitted: Dict[str, List[Any]] = {}
+    # states_emitted: Dict[str, List[Dict]] = {}
+    # latest_table_emitted: Dict[str, str] = {}
+    # latest_record_emitted: Dict[str, str] = {}
+    # latest_record_consumed: Dict[str, str] = {}
+    # current_state: Dict = {}
+
+
+class ExecutionResult(PydanticBase):
+    input_blocks_consumed: Dict[str, List[BlockMetadataCfg]] = {}
+    output_blocks_emitted: Dict[str, List[BlockMetadataCfg]] = {}
     stored_blocks_created: Dict[
-        str, List[StoredDataBlockMetadataCfg]
+        str, List[StoredBlockMetadataCfg]
     ] = {}  # Keyed on data block ID
     schemas_generated: List[Schema] = []
     function_error: Optional[PythonException] = None
@@ -85,14 +126,14 @@ class ExecutionResult(PydanticBase):
     def has_error(self) -> bool:
         return self.function_error is not None or self.framework_error is not None
 
-    def latest_stdout_block_emitted(self) -> Optional[DataBlockMetadataCfg]:
+    def latest_stdout_block_emitted(self) -> Optional[BlockMetadataCfg]:
         blocks = self.output_blocks_emitted.get(DEFAULT_OUTPUT_NAME, [])
         return blocks[-1] if blocks else None
 
-    def stdout(self) -> Optional[DataBlock]:
+    def stdout(self) -> Optional[Block]:
         dbc = self.latest_stdout_block_emitted()
-        dbws = DataBlockWithStoredBlocksCfg(
-            **dbc.dict(), stored_data_blocks=self.stored_blocks_created.get(dbc.id, [])
+        dbws = BlockWithStoredBlocksCfg(
+            **dbc.dict(), stored_blocks=self.stored_blocks_created.get(dbc.id, [])
         )
         return as_managed(dbws)
 
@@ -187,9 +228,9 @@ class ExecutableCfg(FrozenPydanticBase):
     graph: GraphCfg
     execution_config: ExecutionCfg
     bound_interface: BoundInterfaceCfg
-    function_log: DataFunctionLogCfg
+    function_log: FunctionLogCfg
     library_cfg: Optional[ComponentLibraryCfg] = None
-    source_file_functions: List[DataFunctionSourceFileCfg] = []
+    source_file_functions: List[FunctionSourceFileCfg] = []
 
     @property
     def node(self) -> GraphCfg:

@@ -5,15 +5,15 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
-from basis import DataBlock, DataFunction, Environment
+from basis import Block, Function, Environment
 from basis.core.component import ComponentLibrary
 from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.execution import ExecutionResult
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 from basis.core.declarative.graph import GraphCfg
-from basis.core.function_package import DataFunctionPackage
+from basis.core.function_package import FunctionPackage
 from basis.core.module import BasisModule
-from basis.core.persistence.state import DataBlockLog
+from basis.core.persistence.state import BlockLog
 from commonmodel.base import Schema, SchemaLike
 from dcp.data_format.formats.memory.records import PythonRecordsHandler
 from dcp.data_format.handler import get_handler_for_name, infer_schema_for_name
@@ -32,18 +32,14 @@ from tests.utils import get_stdout_block
 
 
 def display_function_log(env: Environment):
-    for dbl in env.md_api.execute(
-        select(DataBlockLog).order_by(DataBlockLog.created_at)
-    ):
-        print(
-            f"{dbl.function_log.function_key:30} {dbl.data_block_id:4} {dbl.direction}"
-        )
+    for dbl in env.md_api.execute(select(BlockLog).order_by(BlockLog.created_at)):
+        print(f"{dbl.function_log.function_key:30} {dbl.block_id:4} {dbl.direction}")
 
 
 def str_as_dataframe(
     env: Environment,
     test_data: str,
-    package: Optional[DataFunctionPackage] = None,
+    package: Optional[FunctionPackage] = None,
     nominal_schema: Optional[Schema] = None,
 ) -> DataFrame:
     # TODO: add conform_dataframe_to_schema option
@@ -78,7 +74,7 @@ def str_as_dataframe(
 class DataInput:
     data: str
     schema: Optional[SchemaLike] = None
-    package: Optional[DataFunctionPackage] = None
+    package: Optional[FunctionPackage] = None
 
     def as_dataframe(self, env: Union[Environment, ComponentLibrary]):
         schema = None
@@ -96,9 +92,7 @@ class DataInput:
         return self.schema.key
 
     @classmethod
-    def from_input(
-        cls, input: Union[str, Dict], package: DataFunctionPackage
-    ) -> DataInput:
+    def from_input(cls, input: Union[str, Dict], package: FunctionPackage) -> DataInput:
         data = None
         schema = None
         if isinstance(input, str):
@@ -116,10 +110,10 @@ class TestCase:
     name: str
     inputs: Dict[str, DataInput]
     outputs: Dict[str, DataInput]
-    package: Optional[DataFunctionPackage] = None
+    package: Optional[FunctionPackage] = None
 
     @classmethod
-    def from_test(cls, name: str, test: Dict, package: DataFunctionPackage) -> TestCase:
+    def from_test(cls, name: str, test: Dict, package: FunctionPackage) -> TestCase:
         inputs = {}
         for input_name, i in test.get("inputs", {}).items():
             inputs[input_name] = DataInput.from_input(i, package)
@@ -154,7 +148,7 @@ class TestFeatureNotImplementedError(Exception):
 
 @contextmanager
 def provide_test_storages(
-    function: DataFunction, target_storage: Storage
+    function: Function, target_storage: Storage
 ) -> Iterator[Optional[Storage]]:
     if target_storage:
         yield target_storage  # TODO
@@ -179,7 +173,7 @@ def provide_test_storages(
 
 @contextmanager
 def produce_function_output_for_static_input(
-    function: DataFunction,
+    function: Function,
     params: Dict[str, Any] = None,
     input: Any = None,
     inputs: Any = None,

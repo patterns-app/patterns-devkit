@@ -9,8 +9,8 @@ from typing import Generator, Iterator, Optional
 
 import pandas as pd
 import pytest
-from basis import DataBlock, DataFunctionContext, datafunction
-from basis.core.data_block import Consumable, Reference
+from basis import Block, FunctionContext, datafunction
+from basis.core.block import Consumable, Reference
 from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.execution import (
     ExecutableCfg,
@@ -21,18 +21,18 @@ from basis.core.declarative.execution import (
 )
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
-    DataFunctionSourceFileCfg,
+    FunctionSourceFileCfg,
 )
 from basis.core.declarative.graph import GraphCfg
 from basis.core.environment import Environment
-from basis.core.persistence.data_block import (
+from basis.core.persistence.block import (
     Alias,
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
+    BlockMetadata,
+    StoredBlockMetadata,
 )
 from basis.core.persistence.state import (
-    DataBlockLog,
-    DataFunctionLog,
+    BlockLog,
+    FunctionLog,
     Direction,
     NodeState,
     _reset_state,
@@ -59,7 +59,7 @@ Metric = create_quick_schema("Metric", [("metric", "Text"), ("value", "Decimal(1
 
 
 @datafunction
-def shape_metrics(i1: DataBlock) -> Records[Metric]:
+def shape_metrics(i1: Block) -> Records[Metric]:
     df = i1.as_dataframe()
     return [
         {"metric": "row_count", "value": len(df)},
@@ -68,9 +68,7 @@ def shape_metrics(i1: DataBlock) -> Records[Metric]:
 
 
 @datafunction
-def aggregate_metrics(
-    i1: DataBlock, this: Optional[DataBlock] = None
-) -> Records[Metric]:
+def aggregate_metrics(i1: Block, this: Optional[Block] = None) -> Records[Metric]:
     if this is not None:
         metrics = this.as_records()
     else:
@@ -95,7 +93,7 @@ chunk_size = 2
 
 @datafunction
 def customer_source(
-    ctx: DataFunctionContext, batches: int, fail: bool = False
+    ctx: FunctionContext, batches: int, fail: bool = False
 ) -> Iterator[Records[Customer]]:
     n = ctx.get_state_value("records_imported", 0)
     N = batches * batch_size
@@ -154,7 +152,7 @@ mixed_inputs_sql = sql_function_factory(
     select
         'input' as tble
         , count(*) as row_count
-    from input -- :DataBlock
+    from input -- :Block
     union all
     select
         'metrics' as tble
@@ -204,11 +202,11 @@ def test_simple_import():
     assert block.created_by_node_key == n.key
     assert not block.deleted
     # Stored data block checks
-    assert len(block.stored_data_blocks) == 1
-    sdb = block.stored_data_blocks[0]
+    assert len(block.stored_blocks) == 1
+    sdb = block.stored_blocks[0]
     assert sdb.created_at is not None
     assert sdb.updated_at is not None
-    assert sdb.data_block_id == block.id
+    assert sdb.block_id == block.id
     assert sdb.name is not None
     assert sdb.storage_url == storage
     assert Storage(storage).get_api().exists(sdb.name)
@@ -218,8 +216,8 @@ def test_simple_import():
     ).scalar_one_or_none()
     assert alias is not None
     assert Storage(storage).get_api().exists(alias_name)
-    assert alias.data_block_id == block.id
-    assert alias.stored_data_block_id == block.stored_data_blocks[0].id
+    assert alias.block_id == block.id
+    assert alias.stored_block_id == block.stored_blocks[0].id
 
 
 def test_repeated_runs():
@@ -245,13 +243,13 @@ def test_repeated_runs():
     ]
     # Logs
     dfl = env.md_api.execute(
-        select(DataFunctionLog).filter(DataFunctionLog.node_key == metrics.key)
+        select(FunctionLog).filter(FunctionLog.node_key == metrics.key)
     ).scalar_one()
     dbls = list(
         env.md_api.execute(
-            select(DataBlockLog)
-            .filter(DataBlockLog.function_log_id == dfl.id)
-            .order_by(DataBlockLog.direction)
+            select(BlockLog)
+            .filter(BlockLog.function_log_id == dfl.id)
+            .order_by(BlockLog.direction)
         ).scalars()
     )
     assert len(dbls) == 2
@@ -259,7 +257,7 @@ def test_repeated_runs():
     output = dbls[1]
     assert inpt.direction == Direction.INPUT
     assert output.direction == Direction.OUTPUT
-    assert output.data_block_id == block.id
+    assert output.block_id == block.id
     # Records
     assert records == expected_records
 
@@ -329,9 +327,9 @@ def test_function_failure():
     records = block.as_records()
     assert len(records) == 2
     with env.md_api.begin():
-        assert env.md_api.count(select(DataFunctionLog)) == 1
-        assert env.md_api.count(select(DataBlockLog)) == 1
-        pl = env.md_api.execute(select(DataFunctionLog)).scalar_one_or_none()
+        assert env.md_api.count(select(FunctionLog)) == 1
+        assert env.md_api.count(select(BlockLog)) == 1
+        pl = env.md_api.execute(select(FunctionLog)).scalar_one_or_none()
         assert pl.node_key == source.key
         assert pl.node_start_state == {}
         assert pl.node_end_state == {"records_imported": chunk_size}
@@ -353,11 +351,11 @@ def test_function_failure():
     records = block.as_records()
     assert len(records) == batch_size
     with env.md_api.begin():
-        assert env.md_api.count(select(DataFunctionLog)) == 2
-        assert env.md_api.count(select(DataBlockLog)) == 2
+        assert env.md_api.count(select(FunctionLog)) == 2
+        assert env.md_api.count(select(BlockLog)) == 2
         pl = (
             env.md_api.execute(
-                select(DataFunctionLog).order_by(DataFunctionLog.completed_at.desc())
+                select(FunctionLog).order_by(FunctionLog.completed_at.desc())
             )
             .scalars()
             .first()
@@ -390,9 +388,9 @@ def test_function_failure():
 #     records = block.as_records()
 #     assert len(records) == 2
 #     with env.md_api.begin():
-#         assert env.md_api.count(select(DataFunctionLog)) == 1
-#         assert env.md_api.count(select(DataBlockLog)) == 1
-#         pl = env.md_api.execute(select(DataFunctionLog)).scalar_one_or_none()
+#         assert env.md_api.count(select(FunctionLog)) == 1
+#         assert env.md_api.count(select(BlockLog)) == 1
+#         pl = env.md_api.execute(select(FunctionLog)).scalar_one_or_none()
 #         assert pl.node_key == source.key
 #         assert pl.node_start_state == {}
 #         assert pl.node_end_state == {"records_imported": chunk_size}
@@ -414,11 +412,11 @@ def test_function_failure():
 #     records = block.as_records()
 #     assert len(records) == batch_size
 #     with env.md_api.begin():
-#         assert env.md_api.count(select(DataFunctionLog)) == 2
-#         assert env.md_api.count(select(DataBlockLog)) == 2
+#         assert env.md_api.count(select(FunctionLog)) == 2
+#         assert env.md_api.count(select(BlockLog)) == 2
 #         pl = (
 #             env.md_api.execute(
-#                 select(DataFunctionLog).order_by(DataFunctionLog.completed_at.desc())
+#                 select(FunctionLog).order_by(FunctionLog.completed_at.desc())
 #             )
 #             .scalars()
 #             .first()
@@ -474,34 +472,32 @@ def test_node_reset():
     time.sleep(1.5)
     results = env.produce(node=metrics, graph=g, target_storage=s)
     with env.md_api.begin():
-        assert env.md_api.count(select(DataBlockLog)) == 12
-        assert env.md_api.count(select(DataBlockMetadata)) == 7
-        assert env.md_api.count(select(StoredDataBlockMetadata)) == 12
+        assert env.md_api.count(select(BlockLog)) == 12
+        assert env.md_api.count(select(BlockMetadata)) == 7
+        assert env.md_api.count(select(StoredBlockMetadata)) == 12
         # Invalidate
         reset(env, "source")
     # Delete
-    sdb = og_block.stored_data_blocks[0]
+    sdb = og_block.stored_blocks[0]
     assert s.get_api().exists(sdb.name)
     env.permanently_delete_invalidated_blocks()
     assert not s.get_api().exists(sdb.name)
     with env.md_api.begin():
-        assert env.md_api.count(select(DataBlockLog)) == 12
+        assert env.md_api.count(select(BlockLog)) == 12
         assert (
             env.md_api.count(
-                select(DataBlockLog).filter(DataBlockLog.invalidated == True)  # noqa
+                select(BlockLog).filter(BlockLog.invalidated == True)  # noqa
             )
             == 3
         )
-        assert env.md_api.count(select(DataBlockMetadata)) == 7
+        assert env.md_api.count(select(BlockMetadata)) == 7
         assert (
             env.md_api.count(
-                select(DataBlockMetadata).filter(
-                    DataBlockMetadata.deleted == False  # noqa
-                )
+                select(BlockMetadata).filter(BlockMetadata.deleted == False)  # noqa
             )
             == 5
         )
-        assert env.md_api.count(select(StoredDataBlockMetadata)) == 9
+        assert env.md_api.count(select(StoredBlockMetadata)) == 9
 
         # Invalidate old accums and dedupes
         # Which is just the first accum in this case
@@ -509,7 +505,7 @@ def test_node_reset():
         assert cnt == 1
         assert (
             env.md_api.count(
-                select(DataBlockLog).filter(DataBlockLog.invalidated == True)  # noqa
+                select(BlockLog).filter(BlockLog.invalidated == True)  # noqa
             )
             == 4
         )
@@ -518,14 +514,14 @@ def test_node_reset():
         assert cnt == 1
         assert (
             env.md_api.count(
-                select(DataBlockLog).filter(DataBlockLog.invalidated == True)  # noqa
+                select(BlockLog).filter(BlockLog.invalidated == True)  # noqa
             )
             == 5
         )
 
 
 @datafunction
-def with_latest_metrics_no_ref(metrics: DataBlock[Metric], cust: DataBlock[Customer]):
+def with_latest_metrics_no_ref(metrics: Block[Metric], cust: Block[Customer]):
     m = metrics.as_dataframe()
     c = cust.as_dataframe()
     return pd.concat([m, c])
@@ -595,8 +591,8 @@ def test_multi_env():
     block = get_stdout_block(results)
     assert block
     with env1.md_api.begin():
-        assert env1.md_api.count(select(DataFunctionLog)) == 2
-        assert env1.md_api.count(select(DataBlockLog)) == 3
+        assert env1.md_api.count(select(FunctionLog)) == 2
+        assert env1.md_api.count(select(BlockLog)) == 3
 
     env2 = get_env(key="e2", db_url=env1.metadata_storage.url)
     s = env2._local_python_storage
@@ -607,8 +603,8 @@ def test_multi_env():
     block = get_stdout_block(results)
     assert block
     with env2.md_api.begin():
-        assert env2.md_api.count(select(DataFunctionLog)) == 2
-        assert env2.md_api.count(select(DataBlockLog)) == 3
+        assert env2.md_api.count(select(FunctionLog)) == 2
+        assert env2.md_api.count(select(BlockLog)) == 3
 
 
 def test_remote_callback_listener():
@@ -645,9 +641,9 @@ def test_remote_callback_listener():
     env.add_module(core)
 
     with env.md_api.begin():
-        assert env.md_api.count(select(DataFunctionLog)) == 0
-        assert env.md_api.count(select(DataBlockLog)) == 0
-        assert env.md_api.count(select(DataBlockMetadata)) == 0
+        assert env.md_api.count(select(FunctionLog)) == 0
+        assert env.md_api.count(select(BlockLog)) == 0
+        assert env.md_api.count(select(BlockMetadata)) == 0
 
     from basis.modules.core.functions.import_dataframe import import_dataframe
 
@@ -658,7 +654,7 @@ from dcp.data_format.formats import DataFrameFormat
 from typing import Optional
 
 from pandas.core.frame import DataFrame
-from basis import DataFunctionContext, datafunction
+from basis import FunctionContext, datafunction
 
 
 @datafunction(
@@ -666,15 +662,12 @@ from basis import DataFunctionContext, datafunction
     display_name="Import Pandas DataFrame",
 )
 def import_df(
-    ctx: DataFunctionContext, dataframe: str, schema: Optional[str] = None
+    ctx: FunctionContext, dataframe: str, schema: Optional[str] = None
 ):
     ctx.emit(dataframe, data_format=DataFrameFormat, schema=schema)
     """
-    src = DataFunctionSourceFileCfg(
-        name="import_df",
-        namespace="core",
-        source=idf_src,
-        source_language="python",
+    src = FunctionSourceFileCfg(
+        name="import_df", namespace="core", source=idf_src, source_language="python",
     )
     schema = create_quick_schema(
         "__auto__.AutoSchema1", [("a", "Integer"), ("b", "Integer")]
@@ -685,9 +678,7 @@ def import_df(
 
     df = pd.DataFrame({"a": range(10), "b": range(10)})
     n = GraphCfg(
-        key="n1",
-        function="import_df",
-        params={"dataframe": df, "schema": schema.key},
+        key="n1", function="import_df", params={"dataframe": df, "schema": schema.key},
     )
     # Test that auto schema is packaged
     g = GraphCfg(nodes=[n])
@@ -707,9 +698,9 @@ def import_df(
     )
 
     with env.md_api.begin():
-        assert env.md_api.count(select(DataFunctionLog)) == 1
-        assert env.md_api.count(select(DataBlockLog)) == 1
-        assert env.md_api.count(select(DataBlockMetadata)) == 1
+        assert env.md_api.count(select(FunctionLog)) == 1
+        assert env.md_api.count(select(BlockLog)) == 1
+        assert env.md_api.count(select(BlockMetadata)) == 1
 
 
 def test_core_importers():
@@ -723,12 +714,8 @@ def test_core_importers():
     Storage(storage).get_api().execute_sql(
         f"create table {tablename} as select 1 as a, 2 as b"
     )
-    # Now import it as basis datablock
-    n = GraphCfg(
-        key="n1",
-        function="import_table",
-        params={"table_name": tablename},
-    )
+    # Now import it as basis block
+    n = GraphCfg(key="n1", function="import_table", params={"table_name": tablename},)
     results = env.produce("n1", graph=GraphCfg(nodes=[n]), target_storage=storage)
     block = get_stdout_block(results)
     assert_almost_equal(block.as_records(), [{"a": "1", "b": "2"}], check_dtype=False)
@@ -749,10 +736,7 @@ def test_inconsistent_schema_import():
 
     env.add_function(df_inconsistent)
 
-    n = GraphCfg(
-        key="n1",
-        function="df_inconsistent",
-    )
+    n = GraphCfg(key="n1", function="df_inconsistent",)
     results = env.produce("n1", graph=GraphCfg(nodes=[n]), target_storage=storage)
     result = results[0]
     assert len(result.output_blocks_emitted[DEFAULT_OUTPUT_NAME]) == 3

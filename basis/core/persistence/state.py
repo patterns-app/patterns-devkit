@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from basis.core.declarative.base import PydanticBase
 from basis.core.environment import Environment
 from basis.core.persistence.base import BASIS_METADATA_TABLE_PREFIX, BaseModel
-from basis.core.persistence.data_block import DataBlockMetadata
+from basis.core.persistence.block import BlockMetadata
 from pydantic_sqlalchemy.main import sqlalchemy_to_pydantic
 from sqlalchemy.orm import Session, relationship
 from sqlalchemy.orm.relationships import RelationshipProperty
@@ -17,7 +17,7 @@ from sqlalchemy.sql.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
 
-class DataFunctionLog(BaseModel):
+class FunctionLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     node_key = Column(String(128), nullable=False)
     node_start_state = Column(JSON, nullable=True)
@@ -30,9 +30,7 @@ class DataFunctionLog(BaseModel):
     completed_at = Column(DateTime, nullable=True)
     timed_out = Column(Boolean, default=False, nullable=True)
     error = Column(JSON, nullable=True)
-    data_block_logs: RelationshipProperty = relationship(
-        "DataBlockLog", backref="function_log"
-    )
+    block_logs: RelationshipProperty = relationship("BlockLog", backref="function_log")
 
     def __repr__(self):
         return self._repr(
@@ -44,16 +42,14 @@ class DataFunctionLog(BaseModel):
         )
 
     @classmethod
-    def from_pydantic(cls, cfg: PydanticBase) -> DataFunctionLog:
-        return DataFunctionLog(**cfg.dict())
+    def from_pydantic(cls, cfg: PydanticBase) -> FunctionLog:
+        return FunctionLog(**cfg.dict())
 
-    def output_data_blocks(self) -> Iterable[DataBlockMetadata]:
-        return [
-            dbl for dbl in self.data_block_logs if dbl.direction == Direction.OUTPUT
-        ]
+    def output_blocks(self) -> Iterable[BlockMetadata]:
+        return [dbl for dbl in self.block_logs if dbl.direction == Direction.OUTPUT]
 
-    def input_data_blocks(self) -> Iterable[DataBlockMetadata]:
-        return [dbl for dbl in self.data_block_logs if dbl.direction == Direction.INPUT]
+    def input_blocks(self) -> Iterable[BlockMetadata]:
+        return [dbl for dbl in self.block_logs if dbl.direction == Direction.INPUT]
 
     def set_error(self, e: Exception):
         tback = traceback.format_exc()
@@ -90,12 +86,12 @@ class Direction(str, enum.Enum):
         return self.symbol + " " + s
 
 
-class DataBlockLog(BaseModel):
+class BlockLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
-    function_log_id = Column(Integer, ForeignKey(DataFunctionLog.id), nullable=False)
-    data_block_id = Column(
+    function_log_id = Column(Integer, ForeignKey(FunctionLog.id), nullable=False)
+    block_id = Column(
         String(128),
-        ForeignKey(f"{BASIS_METADATA_TABLE_PREFIX}data_block_metadata.id"),
+        ForeignKey(f"{BASIS_METADATA_TABLE_PREFIX}block_metadata.id"),
         nullable=False,
     )
     stream_name = Column(String(128), nullable=True)
@@ -103,14 +99,14 @@ class DataBlockLog(BaseModel):
     processed_at = Column(DateTime, default=func.now(), nullable=False)
     invalidated = Column(Boolean, default=False)
     # Hints
-    data_block: "DataBlockMetadata"
-    function_log: DataFunctionLog
+    block: "BlockMetadata"
+    function_log: FunctionLog
 
     def __repr__(self):
         return self._repr(
             id=self.id,
             function_log=self.function_log,
-            data_block=self.data_block,
+            block=self.block,
             direction=self.direction,
             processed_at=self.processed_at,
         )
@@ -118,12 +114,14 @@ class DataBlockLog(BaseModel):
     @classmethod
     def summary(cls, env: Environment) -> str:
         s = ""
-        for dbl in env.md_api.execute(select(DataBlockLog)).scalars().all():
+        for dbl in env.md_api.execute(select(BlockLog)).scalars().all():
             s += f"{dbl.function_log.node_key:50}"
-            s += f"{str(dbl.data_block_id):23}"
-            s += f"{str(dbl.data_block.record_count):6}"
-            s += f"{dbl.direction.value:9}{str(dbl.data_block.updated_at):22}"
-            s += f"{dbl.data_block.nominal_schema_key:20}{dbl.data_block.realized_schema_key:20}\n"
+            s += f"{str(dbl.block_id):23}"
+            s += f"{str(dbl.block.record_count):6}"
+            s += f"{dbl.direction.value:9}{str(dbl.block.updated_at):22}"
+            s += (
+                f"{dbl.block.nominal_schema_key:20}{dbl.block.realized_schema_key:20}\n"
+            )
         return s
 
 
@@ -131,18 +129,16 @@ class NodeState(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     node_key = Column(String(128))
     state = Column(JSON, nullable=True)
-    latest_log_id = Column(Integer, ForeignKey(DataFunctionLog.id), nullable=True)
+    latest_log_id = Column(Integer, ForeignKey(FunctionLog.id), nullable=True)
     blocks_output_stdout = Column(Integer, nullable=True)
     blocks_output_all = Column(Integer, nullable=True)
-    latest_log: RelationshipProperty = relationship("DataFunctionLog")
+    latest_log: RelationshipProperty = relationship("FunctionLog")
 
     __table_args__ = (UniqueConstraint("dataspace_key", "node_key"),)
 
     def __repr__(self):
         return self._repr(
-            node_key=self.node_key,
-            state=self.state,
-            latest_log_id=self.latest_log_id,
+            node_key=self.node_key, state=self.state, latest_log_id=self.latest_log_id,
         )
 
 
@@ -171,21 +167,21 @@ def _reset_state(env: Environment, node_key: str):
         env.md_api.delete(state)
 
 
-def _invalidate_datablocks(env: Environment, node_key: str):
+def _invalidate_blocks(env: Environment, node_key: str):
     """"""
     dbl_ids = [
         r
         for r in env.md_api.execute(
-            select(DataBlockLog.id)
-            .join(DataFunctionLog)
-            .filter(DataFunctionLog.node_key == node_key)
+            select(BlockLog.id)
+            .join(FunctionLog)
+            .filter(FunctionLog.node_key == node_key)
         )
         .scalars()
         .all()
     ]
     env.md_api.execute(
-        update(DataBlockLog)
-        .filter(DataBlockLog.id.in_(dbl_ids))
+        update(BlockLog)
+        .filter(BlockLog.id.in_(dbl_ids))
         .values({"invalidated": True})
         .execution_options(synchronize_session="fetch")  # TODO: or false?
     )
@@ -193,13 +189,13 @@ def _invalidate_datablocks(env: Environment, node_key: str):
 
 def reset(env: Environment, node_key: str):
     """
-    Resets the node, meaning all state is cleared, and all OUTPUT and INPUT datablock
-    logs are invalidated. Output datablocks are NOT deleted.
-    NB: If downstream nodes have already processed an output datablock,
+    Resets the node, meaning all state is cleared, and all OUTPUT and INPUT block
+    logs are invalidated. Output blocks are NOT deleted.
+    NB: If downstream nodes have already processed an output block,
     this will have no effect on them.
     TODO: consider "cascading reset" for downstream recursive functions (which will still have
     accumulated output from this node)
     TODO: especially augmentation nodes! (accum, dedupe)
     """
     _reset_state(env, node_key)
-    _invalidate_datablocks(env, node_key)
+    _invalidate_blocks(env, node_key)

@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from basis.core.declarative.base import update
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
-    DataFunctionInputCfg,
-    DataFunctionInterfaceCfg,
-    DataFunctionOutputCfg,
+    FunctionInputCfg,
+    FunctionInterfaceCfg,
+    FunctionOutputCfg,
     InputType,
     Parameter,
     ParameterType,
@@ -23,7 +23,7 @@ from commonmodel.base import SchemaLike
 if TYPE_CHECKING:
     from basis.core.function import (
         InputExhaustedException,
-        DataFunctionCallable,
+        FunctionCallable,
     )
 
 
@@ -36,12 +36,7 @@ re_output_type_hint = re.compile(
 
 
 def normalize_parameter_type(pt: str) -> str:
-    return dict(
-        text="str",
-        boolean="bool",
-        number="float",
-        integer="int",
-    ).get(pt, pt)
+    return dict(text="str", boolean="bool", number="float", integer="int",).get(pt, pt)
 
 
 @dataclass
@@ -65,12 +60,12 @@ def parse_input_annotation(a: str) -> ParsedAnnotation:
     parsed = ParsedAnnotation(original_annotation=a)
     m = re_input_type_hint.match(a)
     if m is None:
-        raise BadAnnotationException(f"Invalid DataFunction annotation '{a}'")
+        raise BadAnnotationException(f"Invalid Function annotation '{a}'")
     md = m.groupdict()
     if md.get("optional"):
         parsed.optional = True
     origin = md["origin"]
-    if origin in ("DataFunctionContext", "Context"):
+    if origin in ("FunctionContext", "Context"):
         parsed.is_context = True
     elif origin in [it.value for it in InputType]:
         parsed.input_type = InputType(origin)
@@ -88,7 +83,7 @@ def parse_output_annotation(a: str) -> ParsedAnnotation:
     parsed = ParsedAnnotation(original_annotation=a)
     m = re_output_type_hint.match(a)
     if m is None:
-        raise BadAnnotationException(f"Invalid DataFunction annotation '{a}'")
+        raise BadAnnotationException(f"Invalid Function annotation '{a}'")
     md = m.groupdict()
     if md.get("iterator"):
         parsed.iterator = True
@@ -107,18 +102,15 @@ def parse_docstring(d: str) -> Docstring:
     return BasisParser().parse(d)
 
 
-DEFAULT_INPUT_ANNOTATION = "DataBlock"
-DEFAULT_OUTPUT = DataFunctionOutputCfg(
-    schema_key="Any",
-    name=DEFAULT_OUTPUT_NAME,
-)
+DEFAULT_INPUT_ANNOTATION = "Block"
+DEFAULT_OUTPUT = FunctionOutputCfg(schema_key="Any", name=DEFAULT_OUTPUT_NAME,)
 DEFAULT_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
-DEFAULT_STATE_OUTPUT = DataFunctionOutputCfg(
+DEFAULT_STATE_OUTPUT = FunctionOutputCfg(
     schema_key="core.State", name=DEFAULT_STATE_OUTPUT_NAME, is_default=False
 )
 DEFAULT_ERROR_OUTPUT_NAME = "error"
-DEFAULT_ERROR_OUTPUT = DataFunctionOutputCfg(
+DEFAULT_ERROR_OUTPUT = FunctionOutputCfg(
     schema_key="Any",  # TODO: probably same as default output (how to parameterize tho?)
     name=DEFAULT_ERROR_OUTPUT_NAME,
     is_default=False,
@@ -134,8 +126,8 @@ class NonStringAnnotationException(Exception):
 
 
 def function_interface_from_callable(
-    function: DataFunctionCallable,
-) -> DataFunctionInterfaceCfg:
+    function: FunctionCallable,
+) -> FunctionInterfaceCfg:
     signature = inspect.signature(function)
     outputs = {}
     inputs = {}
@@ -146,7 +138,7 @@ def function_interface_from_callable(
     ret = signature.return_annotation
     if ret is inspect.Signature.empty:
         """
-        By default, we assume every DataFunction may return an output,
+        By default, we assume every Function may return an output,
         unless specifically annotated with '-> None'.
         """
         default_output = DEFAULT_OUTPUT
@@ -169,7 +161,7 @@ def function_interface_from_callable(
                 # TODO: handle un-annotated parameters?
                 if unannotated_found:
                     raise Exception(
-                        "Cannot have more than one un-annotated input to a DataFunction"
+                        "Cannot have more than one un-annotated input to a Function"
                     )
                 unannotated_found = True
                 a = DEFAULT_INPUT_ANNOTATION
@@ -189,12 +181,9 @@ def function_interface_from_callable(
             p = parameter_from_annotation(parsed, name=name, default=default)
             params[p.name] = p
         else:
-            i = function_input_from_annotation(
-                parsed,
-                name=param.name,
-            )
+            i = function_input_from_annotation(parsed, name=param.name,)
             inputs[i.name] = i
-    cfg = DataFunctionInterfaceCfg(
+    cfg = FunctionInterfaceCfg(
         inputs=inputs, outputs=outputs, parameters=params, uses_context=uses_context
     )
     if function.__doc__:
@@ -203,8 +192,8 @@ def function_interface_from_callable(
 
 
 def update_interface_with_docstring(
-    cfg: DataFunctionInterfaceCfg, doc: str
-) -> DataFunctionInterfaceCfg:
+    cfg: FunctionInterfaceCfg, doc: str
+) -> FunctionInterfaceCfg:
     docstring = parse_docstring(doc)
     for p in docstring.params:
         if p.arg_name in cfg.parameters:
@@ -226,7 +215,7 @@ def update_interface_with_docstring(
     return cfg
 
 
-def function_input_from_parameter(param: inspect.Parameter) -> DataFunctionInputCfg:
+def function_input_from_parameter(param: inspect.Parameter) -> FunctionInputCfg:
     a = param.annotation
     annotation_is_empty = a is inspect.Signature.empty
     if not annotation_is_empty and not isinstance(a, str):
@@ -234,24 +223,21 @@ def function_input_from_parameter(param: inspect.Parameter) -> DataFunctionInput
     annotation = param.annotation
     if annotation is inspect.Signature.empty:
         if param.name in ("ctx", "context"):  # TODO: hack
-            annotation = "DataFunctionContext"
+            annotation = "FunctionContext"
         else:
             annotation = DEFAULT_INPUT_ANNOTATION
     # is_optional = param.default != inspect.Parameter.empty
     parsed = parse_input_annotation(annotation)
-    return function_input_from_annotation(
-        parsed,
-        name=param.name,
-    )
+    return function_input_from_annotation(parsed, name=param.name,)
 
 
 def function_input_from_annotation(
     parsed: ParsedAnnotation, name: str
-) -> DataFunctionInputCfg:
-    return DataFunctionInputCfg(
+) -> FunctionInputCfg:
+    return FunctionInputCfg(
         name=name,
         schema_key=parsed.schema or "Any",
-        input_type=parsed.input_type or InputType.DataBlock,
+        input_type=parsed.input_type or InputType.Block,
         required=(not parsed.optional)
         and (parsed.input_type != InputType.SelfReference),
     )
@@ -259,14 +245,14 @@ def function_input_from_annotation(
 
 def function_output_from_annotation(
     annotation: Union[str, ParsedAnnotation]
-) -> Optional[DataFunctionOutputCfg]:
+) -> Optional[FunctionOutputCfg]:
     if isinstance(annotation, str):
         parsed = parse_output_annotation(annotation)
     else:
         parsed = annotation
     if parsed.is_none:
         return None
-    return DataFunctionOutputCfg(
+    return FunctionOutputCfg(
         schema_key=parsed.schema or "Any",
         data_format=parsed.output_type,
         is_iterator=parsed.iterator,

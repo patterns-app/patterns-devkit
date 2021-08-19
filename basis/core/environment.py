@@ -19,7 +19,7 @@ from typing import (
 from alembic import command
 from alembic.config import Config
 from basis.core.component import ComponentLibrary, global_library
-from basis.core.declarative.function import DataFunctionSourceFileCfg
+from basis.core.declarative.function import FunctionSourceFileCfg
 from basis.core.module import DEFAULT_LOCAL_MODULE, DEFAULT_LOCAL_NAMESPACE, BasisModule
 from basis.core.persistence.api import MetadataApi
 from basis.core.persistence.schema import (
@@ -29,6 +29,7 @@ from basis.core.persistence.schema import (
 )
 from commonmodel.base import Schema, SchemaLike
 from dcp import Storage
+from dcp.data_format.inference import is_generated_schema
 from dcp.storage.base import MemoryStorageClass, ensure_storage
 from dcp.storage.memory.engines.python import new_local_python_storage
 from dcp.utils.common import AttrDict
@@ -37,10 +38,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
-    from basis.core.persistence.state import DataFunctionLog
-    from basis.core.persistence.state import DataBlockLog, Direction
-    from basis.core.function import DataFunction
-    from basis.core.data_block import DataBlock
+    from basis.core.persistence.state import FunctionLog
+    from basis.core.persistence.state import BlockLog, Direction
+    from basis.core.function import Function
+    from basis.core.block import Block
     from basis.core.declarative.graph import GraphCfg
     from basis.core.declarative.dataspace import ComponentLibraryCfg
     from basis.core.declarative.execution import ExecutableCfg, ExecutionCfg
@@ -170,13 +171,13 @@ class Environment:
     def all_schemas(self) -> List[Schema]:
         return self.library.all_schemas()
 
-    def get_function(self, function_like: str) -> DataFunction:
+    def get_function(self, function_like: str) -> Function:
         return self.library.get_function(function_like)
 
-    def add_function(self, function: DataFunction):
+    def add_function(self, function: Function):
         self.library.add_function(function)
 
-    def all_functions(self) -> List[DataFunction]:
+    def all_functions(self) -> List[Function]:
         return self.library.all_functions()
 
     def add_module(self, *modules: Union[BasisModule, ModuleType, str]):
@@ -226,7 +227,7 @@ class Environment:
             all_schemas.extend(interface.get_all_schema_keys())
         if graph is None and interface is None:
             all_schemas = [
-                s for s in self.library.schemas.values() if s.key.startswith("__auto")
+                s for s in self.library.schemas.values() if is_generated_schema(s)
             ]
         with self.md_api.begin():
             for gs in self.md_api.execute(
@@ -281,7 +282,7 @@ class Environment:
     #         raise e
     #     finally:
     #         # TODO:
-    #         # self.validate_and_clean_data_blocks(delete_intermediate=True)
+    #         # self.validate_and_clean_blocks(delete_intermediate=True)
     #         pass
 
     def prepare_graph(self, graph: Optional[GraphCfg] = None) -> GraphCfg:
@@ -295,7 +296,7 @@ class Environment:
         node_key: str,
         graph: GraphCfg,
         target_storage: Union[Storage, str] = None,
-        source_file_functions: List[DataFunctionSourceFileCfg] = [],
+        source_file_functions: List[FunctionSourceFileCfg] = [],
         **kwargs,
     ) -> ExecutableCfg:
         from basis.core.execution.run import prepare_executable
@@ -356,7 +357,7 @@ class Environment:
         graph: Optional[GraphCfg] = None,
         to_exhaustion: bool = True,
         runner: Optional[Callable] = None,
-        source_file_functions: List[DataFunctionSourceFileCfg] = [],
+        source_file_functions: List[FunctionSourceFileCfg] = [],
         **execution_kwargs: Any,
     ) -> List[ExecutionResult]:
         from basis.core.execution.run import run
@@ -415,7 +416,7 @@ class Environment:
             except ImproperlyConfigured:
                 logger.error(f"Improperly configured node {node}")
 
-    def get_latest_output(self, node: GraphCfg) -> Optional[DataBlock]:
+    def get_latest_output(self, node: GraphCfg) -> Optional[Block]:
         from basis.core.execution.run import get_latest_output
 
         return get_latest_output(self, node)
@@ -433,20 +434,20 @@ class Environment:
                 reset(self, n.key)
 
     def permanently_delete_invalidated_blocks(self) -> int:
-        from basis.core.persistence.state import DataBlockLog, Direction
+        from basis.core.persistence.state import BlockLog, Direction
 
         cnt = 0
         with self.md_api.begin():
             for dbl in self.md_api.execute(
-                select(DataBlockLog)
-                .filter(DataBlockLog.invalidated == True)  # noqa
-                .filter(DataBlockLog.direction == Direction.OUTPUT)
+                select(BlockLog)
+                .filter(BlockLog.invalidated == True)  # noqa
+                .filter(BlockLog.direction == Direction.OUTPUT)
             ).scalars():
-                db = dbl.data_block
+                db = dbl.block
                 if list(db.aliases.all()):
                     logger.info(f"Not deleting db {db.id}, still has alias")
                     continue
-                for sdb in db.stored_data_blocks:
+                for sdb in db.stored_blocks:
                     # print(db, sdb)
                     # if sdb.storage.storage_engine.storage_class != MemoryStorageClass:
                     sdb.storage.get_api().remove(sdb.name)
@@ -466,8 +467,8 @@ class Environment:
         data blocks.
         """
         from basis.core.persistence.state import (
-            DataFunctionLog,
-            DataBlockLog,
+            FunctionLog,
+            BlockLog,
             Direction,
         )
 
@@ -480,43 +481,41 @@ class Environment:
             "core.dedupe_keep_latest_sql",
             "core.dedupe_keep_latest_dataframe",
         ]
-        # for dbl in self.md_api.execute(select(DataBlockLog)).scalars():
+        # for dbl in self.md_api.execute(select(BlockLog)).scalars():
         #     print(
         #         dbl.function_log.node_key,
-        #         dbl.data_block_id,
+        #         dbl.block_id,
         #         dbl.direction,
         #         dbl.invalidated,
         #     )
         query = (
-            select(DataBlockLog)
-            .join(DataFunctionLog)
-            .filter(DataBlockLog.invalidated == False)  # noqa
-            .filter(DataBlockLog.direction == Direction.OUTPUT)
+            select(BlockLog)
+            .join(FunctionLog)
+            .filter(BlockLog.invalidated == False)  # noqa
+            .filter(BlockLog.direction == Direction.OUTPUT)
         )
         if not all_nodes:
-            query = query.filter(
-                DataFunctionLog.function_key.in_(eligible_function_keys)
-            )
+            query = query.filter(FunctionLog.function_key.in_(eligible_function_keys))
 
         with self.md_api.begin():
             for dbl in self.md_api.execute(query).scalars():
-                db = dbl.data_block
+                db = dbl.block
                 if list(db.aliases.all()):
                     logger.info(f"Not invalidating db {db.id}, still has alias")
                     continue
                 if self.md_api.execute(
-                    select(DataBlockLog)
-                    .join(DataFunctionLog)
-                    .filter(DataBlockLog.direction == Direction.OUTPUT)
-                    .filter(DataBlockLog.created_at > dbl.created_at)
-                    .filter(DataFunctionLog.node_key == dbl.function_log.node_key)
+                    select(BlockLog)
+                    .join(FunctionLog)
+                    .filter(BlockLog.direction == Direction.OUTPUT)
+                    .filter(BlockLog.created_at > dbl.created_at)
+                    .filter(FunctionLog.node_key == dbl.function_log.node_key)
                 ).scalar():
                     # There's a more recent version, so we can throw this one out
                     if self.md_api.execute(
-                        select(DataBlockLog)
-                        .join(DataFunctionLog)
-                        .filter(DataBlockLog.direction == Direction.INPUT)
-                        .filter(DataFunctionLog.node_key == dbl.function_log.node_key)
+                        select(BlockLog)
+                        .join(FunctionLog)
+                        .filter(BlockLog.direction == Direction.INPUT)
+                        .filter(FunctionLog.node_key == dbl.function_log.node_key)
                     ).scalar():
                         # AND it's not a source, so we can always recreate downstream stuff
                         dbl.invalidated = True
@@ -534,7 +533,7 @@ class Environment:
 #     env: Optional[Environment] = None,
 #     modules: Optional[List[BasisModule]] = None,
 #     **kwargs: Any,
-# ) -> List[DataBlock]:
+# ) -> List[Block]:
 #     if env is None:
 #         env = Environment()
 #     if modules is not None:

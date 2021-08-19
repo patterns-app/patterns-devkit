@@ -2,27 +2,27 @@ from __future__ import annotations
 
 from typing import Any, List
 
-from basis.core.persistence.data_block import (
+from basis.core.persistence.block import (
     Alias,
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
+    BlockMetadata,
+    StoredBlockMetadata,
 )
-from basis.core.persistence.state import DataBlockLog, DataFunctionLog, NodeState
+from basis.core.persistence.state import BlockLog, FunctionLog, NodeState
 from dcp.data_format.base import DataFormat, get_format_for_nickname
 from dcp.storage.base import Storage
 from pydantic import validator
 from pydantic_sqlalchemy.main import sqlalchemy_to_pydantic
 
-_DataBlockMetadataCfg = sqlalchemy_to_pydantic(DataBlockMetadata)
-_StoredDataBlockMetadataCfg = sqlalchemy_to_pydantic(StoredDataBlockMetadata)
+_BlockMetadataCfg = sqlalchemy_to_pydantic(BlockMetadata)
+_StoredBlockMetadataCfg = sqlalchemy_to_pydantic(StoredBlockMetadata)
 AliasCfg = sqlalchemy_to_pydantic(Alias)
 
 
-class DataBlockMetadataCfg(_DataBlockMetadataCfg):
+class BlockMetadataCfg(_BlockMetadataCfg):
     data_is_written: bool = False
 
 
-class StoredDataBlockMetadataCfg(_StoredDataBlockMetadataCfg):
+class StoredBlockMetadataCfg(_StoredBlockMetadataCfg):
     data_format: DataFormat
     data_is_written: bool = False
 
@@ -37,10 +37,10 @@ class StoredDataBlockMetadataCfg(_StoredDataBlockMetadataCfg):
         return Storage(self.storage_url)
 
 
-class DataBlockWithStoredBlocksCfg(DataBlockMetadataCfg):
-    stored_data_blocks: List[StoredDataBlockMetadataCfg] = []
+class BlockWithStoredBlocksCfg(BlockMetadataCfg):
+    stored_blocks: List[StoredBlockMetadataCfg] = []
 
 
-DataFunctionLogCfg = sqlalchemy_to_pydantic(DataFunctionLog)
-DataBlockLogCfg = sqlalchemy_to_pydantic(DataBlockLog)
+FunctionLogCfg = sqlalchemy_to_pydantic(FunctionLog)
+BlockLogCfg = sqlalchemy_to_pydantic(BlockLog)
 NodeStateCfg = sqlalchemy_to_pydantic(NodeState)

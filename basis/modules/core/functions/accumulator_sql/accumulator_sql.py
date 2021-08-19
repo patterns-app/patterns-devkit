@@ -3,10 +3,10 @@ from __future__ import annotations
 from pprint import pprint
 from typing import Dict, List
 
-from basis import DataFunctionContext
-from basis.core.data_block import SelfReference, Stream
+from basis import FunctionContext
+from basis.core.block import SelfReference, Stream
 from basis.core.function import datafunction
-from basis.core.sql.sql_function import SqlDataFunctionWrapper, sql_datafunction
+from basis.core.sql.sql_function import SqlFunctionWrapper, sql_datafunction
 from basis.utils.typing import T
 from commonmodel import DEFAULT_FIELD_TYPE, FieldType
 from dcp.data_format.formats import DatabaseTable
@@ -41,9 +41,7 @@ def field_sql_with_cast(name: str, ftype: FieldType, dialect=None) -> str:
 
 @datafunction(namespace="core", display_name="Accumulate sql tables")
 def accumulator_sql(
-    ctx: DataFunctionContext,
-    input: Stream[T],
-    previous: SelfReference[T] = None,
+    ctx: FunctionContext, input: Stream[T], previous: SelfReference[T] = None,
 ) -> DatabaseTable[T]:
     """
     Critical core data function. Handles a scary operation: merging a stream of data blocks
@@ -84,7 +82,7 @@ def accumulator_sql(
             + block.as_sql_from_stmt(target_storage)
         )
     sql = " union all ".join(select_stmts)
-    sdf = SqlDataFunctionWrapper(sql)
+    sdf = SqlFunctionWrapper(sql)
 
     def noop(*args, **kwargs):
         return sql

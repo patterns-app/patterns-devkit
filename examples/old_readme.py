@@ -51,7 +51,7 @@ env = Environment(dataspace=ds)
 run_graph(g, env=env, execution_timelimit_seconds=1)
 
 # Get the final output block
-datablock = env.get_latest_output(g.get_node("stripe_customer_lifetime_sales"))
-df = datablock.as_dataframe()
+block = env.get_latest_output(g.get_node("stripe_customer_lifetime_sales"))
+df = block.as_dataframe()
 assert len(df.columns) == 2
 assert len(df) > 1 and len(df) <= 100  # Stripe data varies

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from datetime import datetime
 
-from basis.core.data_block import SelfReference, Stream
+from basis.core.block import SelfReference, Stream
 from basis.core.function import datafunction
 from basis.utils.typing import T
 from basis import basis, Stream, Table, Record
@@ -28,11 +28,11 @@ def aggregator(ctx: Context, p1: int):
     agg_records = ctx.get_table("aggregate").as_json()
     consumed = None
     for nxt in ctx.get_next_record("e", stream=True):
-        consumed = nxt
         nxt_records = nxt.as_json()
         if not_valid(nxt_records):
             ctx.emit_error(nxt_records, "Invalid record")
         agg_records.append(nxt_records)
+        consumed = nxt
     if consumed:
         ctx.emit_table(agg_records)
         ctx.mark_latest_consumed_record("e", consumed)
@@ -48,7 +48,7 @@ def stream_fn(ctx: Context, param1: int, param2: datetime):
     evnt = ctx.get_record("event").as_json()
     new_evnt = do_something_with_record(evnt, param1, param2)
     ctx.emit_record(new_evnt)
-    ctx.log_latest_consumed_record("event", evnt)
+    ctx.log_latest_record_consumed("event", evnt)
 
 
 @basis(

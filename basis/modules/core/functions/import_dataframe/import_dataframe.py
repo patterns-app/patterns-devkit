@@ -2,17 +2,16 @@ from __future__ import annotations
 
 from typing import Optional
 
-from basis import DataFunctionContext, datafunction
+from basis import FunctionContext, datafunction
 from dcp.data_format.formats import DataFrameFormat, JsonLinesFileObjectFormat
 from pandas.core.frame import DataFrame
 
 
 @datafunction(
-    namespace="core",
-    display_name="Import Pandas DataFrame",
+    namespace="core", display_name="Import Pandas DataFrame",
 )
 def import_dataframe(
-    ctx: DataFunctionContext, dataframe: str, schema: Optional[str] = None
+    ctx: FunctionContext, dataframe: str, schema: Optional[str] = None
 ):
     """
     Import pandas DataFrame

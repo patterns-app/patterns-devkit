@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from basis.core.data_block import DataBlock, SelfReference, Stream
+from basis.core.block import Block, SelfReference, Stream
 from basis.core.declarative.dataspace import BasisCfg, DataspaceCfg
 from basis.core.declarative.execution import ExecutionCfg, ExecutionResult
 from basis.core.declarative.graph import GraphCfg
 from basis.core.environment import Environment
-from basis.core.execution.context import DataFunctionContext
+from basis.core.execution.context import FunctionContext
 from basis.core.function import datafunction
 from basis.core.module import BasisModule
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
@@ -39,9 +39,7 @@ def make_test_env(**kwargs) -> Environment:
     ds_args.update(**kwargs)
     ds = DataspaceCfg(**ds_args)
     env = Environment(dataspace=ds)
-    test_module = BasisModule(
-        "_test",
-    )
+    test_module = BasisModule("_test",)
     for schema in [TestSchema1, TestSchema2, TestSchema3, TestSchema4]:
         env.add_schema(schema)
     for fn in all_functions:
@@ -54,51 +52,48 @@ def make_test_run_context(env: Environment = None, **kwargs) -> ExecutionCfg:
     s = f"python://_test_default_{rand_str(6)}"
     env = env or make_test_env()
     args = dict(
-        dataspace=env.dataspace,
-        local_storage=s,
-        target_storage=s,
-        storages=[s],
+        dataspace=env.dataspace, local_storage=s, target_storage=s, storages=[s],
     )
     args.update(**kwargs)
     return ExecutionCfg(**args)
 
 
-def function_t1_sink(ctx: DataFunctionContext, input: DataBlock[TestSchema1]):
+def function_t1_sink(ctx: FunctionContext, input: Block[TestSchema1]):
     pass
 
 
-def function_t1_to_t2(input: DataBlock[TestSchema1]) -> DataFrame[TestSchema2]:
+def function_t1_to_t2(input: Block[TestSchema1]) -> DataFrame[TestSchema2]:
     pass
 
 
-def function_generic(input: DataBlock[T]) -> DataFrame[T]:
+def function_generic(input: Block[T]) -> DataFrame[T]:
     pass
 
 
-def function_t1_source(ctx: DataFunctionContext) -> DataFrame[TestSchema1]:
+def function_t1_source(ctx: FunctionContext) -> DataFrame[TestSchema1]:
     pass
 
 
-def function_stream(input: Stream) -> DataBlock:
+def function_stream(input: Stream) -> Block:
     pass
 
 
 function_chain_t1_to_t2 = function_t1_to_t2  # function_chain("function_chain_t1_to_t2", [function_t1_to_t2, function_generic])
 
 
-def function_self(input: DataBlock[T], previous: SelfReference[T]) -> DataFrame[T]:
+def function_self(input: Block[T], previous: SelfReference[T]) -> DataFrame[T]:
     pass
 
 
 def function_multiple_input(
-    input: DataBlock[T], other_t2: Optional[DataBlock[TestSchema2]]
+    input: Block[T], other_t2: Optional[Block[TestSchema2]]
 ) -> DataFrame[T]:
     pass
 
 
 def function_kitchen_sink(
-    input: DataBlock[T],
-    other_t2: Optional[DataBlock[TestSchema2]],
+    input: Block[T],
+    other_t2: Optional[Block[TestSchema2]],
     param1: Optional[str] = "default",
 ) -> DataFrame[T]:
     """
@@ -113,7 +108,7 @@ def function_kitchen_sink(
     pass
 
 
-def get_stdout_block(results: List[ExecutionResult]) -> Optional[DataBlock]:
+def get_stdout_block(results: List[ExecutionResult]) -> Optional[Block]:
     assert len(results) == 1
     result = results[0]
     block = result.stdout()

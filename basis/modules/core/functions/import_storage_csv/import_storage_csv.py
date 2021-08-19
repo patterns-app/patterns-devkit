@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import Optional
 
-from basis import DataFunctionContext, datafunction
+from basis import FunctionContext, datafunction
 from dcp.data_format.formats.file_system.csv_file import CsvFileFormat
 from dcp.storage.base import Storage
 
 
 @datafunction(namespace="core", display_name="Import CSV from Storage")
 def import_storage_csv(
-    ctx: DataFunctionContext, name: str, storage_url: str, schema: Optional[str] = None
+    ctx: FunctionContext, name: str, storage_url: str, schema: Optional[str] = None
 ):
     """DEPRECATED: Use import_from_storage instead"""
     imported = ctx.get_state_value("imported")

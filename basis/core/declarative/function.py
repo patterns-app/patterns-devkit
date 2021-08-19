@@ -13,6 +13,7 @@ from typing import (
     TypeVar,
     Union,
 )
+from commonmodel.base import schema_like_to_key
 
 import networkx as nx
 from pydantic.class_validators import root_validator
@@ -20,9 +21,7 @@ from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase, update
 from basis.core.persistence.schema import is_generic
 from commonmodel import Schema
-from dcp.utils.common import remove_dupes
-from loguru import logger
-from pydantic import Field
+
 
 DEFAULT_OUTPUT_NAME = "stdout"
 DEFAULT_INPUT_NAME = "stdin"
@@ -94,9 +93,9 @@ class Parameter(FrozenPydanticBase):
     description: str = ""
 
 
-# class DataFunctionInputCfg(FunctionIoBase):
+# class FunctionInputCfg(FunctionIoBase):
 #     name: str
-#     input_type: InputType = InputType.DataBlock
+#     input_type: InputType = InputType.Block
 #     required: bool = True
 #     description: Optional[str] = None
 
@@ -114,10 +113,10 @@ class Parameter(FrozenPydanticBase):
 
 #     @property
 #     def is_consumable(self) -> bool:
-#         return self.input_type in (InputType.DataBlock, InputType.Stream)
+#         return self.input_type in (InputType.Block, InputType.Stream)
 
 
-# class DataFunctionOutputCfg(FunctionIoBase):
+# class FunctionOutputCfg(FunctionIoBase):
 #     name: str = DEFAULT_OUTPUT_NAME
 #     data_format: Optional[str] = None
 #     # reference: bool = False # TODO: not a thing right? that's up to downstream to decide
@@ -197,50 +196,47 @@ class FunctionInterfaceCfg(FrozenPydanticBase):
         return None
 
     def get_default_output(self) -> Optional[IoBase]:
+        if len(self.outputs) == 1:
+            return self.outputs[list(self.outputs)[0]]
         return self.outputs.get(DEFAULT_OUTPUT_NAME)
 
     def get_all_schema_keys(self) -> List[str]:
         schemas = []
         for i in self.inputs.values():
-            schemas.append(i.schema)
+            schemas.append(schema_like_to_key(i.schema))
         for o in self.outputs.values():
-            schemas.append(o.schema)
+            schemas.append(schema_like_to_key(o.schema))
         # TODO: for flow
         return schemas
 
 
-class DataFunctionCfg(FrozenPydanticBase):
+class FunctionCfg(FrozenPydanticBase):
     name: str
-    namespace: str
+    python_path: str
     interface: Optional[FunctionInterfaceCfg] = None
     required_storage_classes: List[str] = []
     required_storage_engines: List[str] = []
-    ignore_signature: bool = (
-        False  # Whether to ignore signature if there are any declared i/o
-    )
-    package_absolute_path: Optional[str] = None
+    # package_absolute_path: Optional[str] = None
     display_name: Optional[str] = None
     description: Optional[str] = None
-    _original_object: Any = None
+    # _original_object: Any = None
 
     @property
     def key(self) -> str:
-        assert self.name and self.namespace
-        return f"{self.namespace}.{self.name}"
+        assert self.python_path
+        return self.python_path
+        # assert self.name and self.python_path
+        # return f"{self.python_path}.{self.name}"
 
-    def resolve(self, lib: ComponentLibrary) -> DataFunctionCfg:
-        d = self.dict()
+    def resolve(self, lib: ComponentLibrary) -> FunctionCfg:
         if self.interface:
-            d["interface"] = self.interface.resolve(lib)
-        return DataFunctionCfg(**d)
-
-    # def to_function(self) -> DataFunction:
-    #     pass
+            return update(self, interface=self.interface.resolve(lib))
+        return self
 
 
-class DataFunctionPackageCfg(FrozenPydanticBase):
+class FunctionPackageCfg(FrozenPydanticBase):
     root_path: str
-    function: DataFunctionCfg
+    function: FunctionCfg
     # local_vars: Dict = None
     # root_module: ModuleType
     tests: List[Dict] = []
@@ -250,7 +246,7 @@ class DataFunctionPackageCfg(FrozenPydanticBase):
     # docker_file_path: str = None
 
 
-class DataFunctionSourceFileCfg(FrozenPydanticBase):
+class FunctionSourceFileCfg(FrozenPydanticBase):
     name: str
     namespace: str
     source: str

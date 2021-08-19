@@ -19,11 +19,11 @@ from loguru import logger
 
 if TYPE_CHECKING:
     from basis.core.function import (
-        DataFunctionLike,
-        DataFunction,
+        FunctionLike,
+        Function,
         make_function,
     )
-    from basis.core.function_package import DataFunctionPackage
+    from basis.core.function_package import FunctionPackage
 
 
 class ModuleException(Exception):
@@ -75,7 +75,7 @@ class BasisModule:
         global_library.add_module(self)
 
     def discover_functions(self):
-        from basis.core.function_package import DataFunctionPackage
+        from basis.core.function_package import FunctionPackage
 
         if not self.py_module_path:
             return
@@ -86,7 +86,7 @@ class BasisModule:
             # for loader, module_name, is_pkg in pkgutil.walk_packages(functions_root):
             #     _module = loader.find_module(module_name).load_module(module_name)
 
-            packages = DataFunctionPackage.all_from_root_path(
+            packages = FunctionPackage.all_from_root_path(
                 str(functions_root), namespace=self.namespace
             )
             for pkg in packages:
@@ -105,11 +105,11 @@ class BasisModule:
                         yml = f.read()
                         self.add_schema(yml)
 
-    def add_function_package(self, pkg: DataFunctionPackage):
+    def add_function_package(self, pkg: FunctionPackage):
         self.function_packages[pkg.name] = pkg
         self.add_function(pkg.function)
 
-    def add_function(self, function_like: Union[DataFunctionLike, str]) -> DataFunction:
+    def add_function(self, function_like: Union[FunctionLike, str]) -> Function:
         p = self.process_function(function_like)
         self.validate_key(p)
         self.library.add_function(p)
@@ -124,31 +124,31 @@ class BasisModule:
         return schema
 
     def process_function(
-        self, function_like: Union[DataFunctionLike, str, ModuleType]
-    ) -> DataFunction:
+        self, function_like: Union[FunctionLike, str, ModuleType]
+    ) -> Function:
         from basis.core.function import (
-            DataFunction,
+            Function,
             make_function,
-            PythonCodeDataFunctionWrapper,
+            PythonCodeFunctionWrapper,
         )
         from basis.core.sql.sql_function import sql_function
-        from basis.core.function_package import DataFunctionPackage
+        from basis.core.function_package import FunctionPackage
 
-        if isinstance(function_like, DataFunction):
+        if isinstance(function_like, Function):
             function = function_like
         else:
             if callable(function_like):
                 function = make_function(function_like, namespace=self.namespace)
             # elif isinstance(function_like, str):
             #     # Just a string, not a sql file, assume it is python? TODO
-            #     function = make_function(PythonCodeDataFunctionWrapper(function_like), namespaceself.name)
+            #     function = make_function(PythonCodeFunctionWrapper(function_like), namespaceself.name)
             elif isinstance(function_like, ModuleType):
                 # Module function (the new default)
-                pkg = DataFunctionPackage.from_module(function_like)
+                pkg = FunctionPackage.from_module(function_like)
                 self.add_function_package(pkg)
                 return pkg.function
                 # code = inspect.getsource(function_like)
-                # function = make_function(PythonCodeDataFunctionWrapper(code), namespaceself.name)
+                # function = make_function(PythonCodeFunctionWrapper(code), namespaceself.name)
             else:
                 raise TypeError(function_like)
         return function
@@ -167,10 +167,10 @@ class BasisModule:
             return schema_like
         return self.library.get_schema(schema_like)
 
-    def get_function(self, function_like: Union[DataFunction, str]) -> DataFunction:
-        from basis.core.function import DataFunction
+    def get_function(self, function_like: Union[Function, str]) -> Function:
+        from basis.core.function import Function
 
-        if isinstance(function_like, DataFunction):
+        if isinstance(function_like, Function):
             return function_like
         return self.library.get_function(function_like)
 
@@ -197,7 +197,7 @@ class BasisModule:
         return self.library.get_schemas_view()
 
     @property
-    def functions(self) -> DictView[str, DataFunction]:
+    def functions(self) -> DictView[str, Function]:
         return self.library.get_functions_view()
 
     def validate_key(self, obj: Any):
@@ -210,7 +210,7 @@ class BasisModule:
                     f"Component {obj} namespace `{obj.namespace}` does not match module namespace `{self.namespace}` to which it was added"
                 )
 
-    def remove_function(self, function_like: Union[DataFunctionLike, str]):
+    def remove_function(self, function_like: Union[FunctionLike, str]):
         self.library.remove_function(function_like)
 
     def run_tests(self):

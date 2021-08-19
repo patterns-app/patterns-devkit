@@ -8,7 +8,7 @@ from commonmodel import Schema
 
 if TYPE_CHECKING:
     from basis.core.declarative.dataspace import ComponentLibraryCfg
-    from basis.core.function import DataFunction
+    from basis.core.function import Function
     from basis.core.module import BasisModule
     from basis.core.declarative.flow import FlowCfg
 
@@ -24,7 +24,7 @@ class DictView(dict):
 
 
 class ComponentLibrary:
-    functions: Dict[str, DataFunction]
+    functions: Dict[str, Function]
     schemas: Dict[str, Schema]
     flows: Dict[str, FlowCfg]
     namespace_precedence: List[str]
@@ -65,7 +65,7 @@ class ComponentLibrary:
                 module = sf_modules[0]
         self.merge(module.library)
 
-    def add_function(self, f: DataFunction):
+    def add_function(self, f: Function):
         self.add_namespace(f.key)
         self.functions[f.key] = f
 
@@ -78,31 +78,31 @@ class ComponentLibrary:
         self.flows[f.key] = f
 
     def find_and_add_from_module(self, module: ModuleType):
-        from basis.core.function import DataFunction
+        from basis.core.function import Function
         from basis.core.declarative.flow import FlowCfg
 
-        for fn in find_all_of_type_in_module(module, DataFunction):
+        for fn in find_all_of_type_in_module(module, Function):
             self.add_function(fn)
         for s in find_all_of_type_in_module(module, Schema):
             self.add_schema(s)
         for f in find_all_of_type_in_module(module, FlowCfg):
             self.add_flow(f)
 
-    def remove_function(self, function_like: Union[DataFunction, str]):
-        from basis.core.function import DataFunction
+    def remove_function(self, function_like: Union[Function, str]):
+        from basis.core.function import Function
 
-        if isinstance(function_like, DataFunction):
+        if isinstance(function_like, Function):
             function_like = function_like.key
         if function_like not in self.functions:
             return
         del self.functions[function_like]
 
     def get_function(
-        self, function_like: Union[DataFunction, str], try_module_lookups=True
-    ) -> DataFunction:
-        from basis.core.function import DataFunction
+        self, function_like: Union[Function, str], try_module_lookups=True
+    ) -> Function:
+        from basis.core.function import Function
 
-        if isinstance(function_like, DataFunction):
+        if isinstance(function_like, Function):
             return function_like
         if not isinstance(function_like, str):
             raise TypeError(function_like)
@@ -154,7 +154,7 @@ class ComponentLibrary:
                 pass
         raise KeyError(f"`{k}` not found in modules {self.namespace_precedence}")
 
-    def all_functions(self) -> List[DataFunction]:
+    def all_functions(self) -> List[Function]:
         return list(self.functions.values())
 
     def all_schemas(self) -> List[Schema]:
@@ -174,7 +174,7 @@ class ComponentLibrary:
             ad[k.split(".")[-1]] = p  # TODO: module precedence
         return ad
 
-    def get_functions_view(self) -> DictView[str, DataFunction]:
+    def get_functions_view(self) -> DictView[str, Function]:
         return self.get_view(self.functions)
 
     def get_schemas_view(self) -> DictView[str, Schema]:

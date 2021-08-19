@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional, Set, Tuple
 
-from basis.core.data_block import DataBlock
+from basis.core.block import Block
 from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.execution import (
     ExecutableCfg,
@@ -13,24 +13,24 @@ from basis.core.declarative.execution import (
 )
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
-    DataFunctionSourceFileCfg,
+    FunctionSourceFileCfg,
 )
 from basis.core.declarative.graph import GraphCfg
 from basis.core.environment import Environment
 from basis.core.execution.execution import ExecutionManager
-from basis.core.function import DataFunction, DataInterfaceType, InputExhaustedException
+from basis.core.function import Function, DataInterfaceType, InputExhaustedException
 from basis.core.function_interface_manager import get_bound_interface
-from basis.core.persistence.data_block import (
+from basis.core.persistence.block import (
     Alias,
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
-    get_datablock_id,
-    get_stored_datablock_id,
+    BlockMetadata,
+    StoredBlockMetadata,
+    get_block_id,
+    get_stored_block_id,
 )
 from basis.core.persistence.schema import GeneratedSchema
 from basis.core.persistence.state import (
-    DataBlockLog,
-    DataFunctionLog,
+    BlockLog,
+    FunctionLog,
     Direction,
     NodeState,
     get_or_create_state,
@@ -47,22 +47,22 @@ def run_dataspace(ds: DataspaceCfg):
     env.run_graph(ds.graph)
 
 
-class ImproperlyStoredDataBlockException(Exception):
+class ImproperlyStoredBlockException(Exception):
     pass
 
 
 # # TODO: use this
-# def validate_data_blocks(env: Environment):
+# def validate_blocks(env: Environment):
 #     # TODO: More checks?
 #     env.md_api.flush()
 #     for obj in env.md_api.active_session.identity_map.values():
-#         if isinstance(obj, DataBlockMetadata):
-#             urls = set([sdb.storage_url for sdb in obj.stored_data_blocks])
+#         if isinstance(obj, BlockMetadata):
+#             urls = set([sdb.storage_url for sdb in obj.stored_blocks])
 #             if all(u.startswith("python") for u in urls):
-#                 fmts = set([sdb.data_format for sdb in obj.stored_data_blocks])
+#                 fmts = set([sdb.data_format for sdb in obj.stored_blocks])
 #                 if all(not f.is_storable() for f in fmts):
-#                     raise ImproperlyStoredDataBlockException(
-#                         f"DataBlock {obj} is not properly stored (no storeable format(s): {fmts})"
+#                     raise ImproperlyStoredBlockException(
+#                         f"Block {obj} is not properly stored (no storeable format(s): {fmts})"
 #                     )
 
 
@@ -71,7 +71,7 @@ def prepare_executable(
     cfg: ExecutionCfg,
     node: GraphCfg,
     graph: GraphCfg,
-    source_file_functions: List[DataFunctionSourceFileCfg] = [],
+    source_file_functions: List[FunctionSourceFileCfg] = [],
 ) -> ExecutableCfg:
     global global_metadata_result_handler
 
@@ -89,7 +89,7 @@ def prepare_executable(
         else:
             node_state = node_state_obj.state or {}
 
-        function_log = DataFunctionLog(  # type: ignore
+        function_log = FunctionLog(  # type: ignore
             node_key=node.key,
             node_start_state=node_state.copy(),  # {k: v for k, v in node_state.items()},
             node_end_state=node_state,
@@ -119,7 +119,7 @@ def prepare_executable(
         return exe
 
         # Validate local memory objects: Did we leave any non-storeables hanging?
-        # validate_data_blocks(self.env)
+        # validate_blocks(self.env)
 
     # # TODO: goes somewhere else
     #     except Exception as e:
@@ -161,7 +161,7 @@ def prepare_executable(
     # return result
 
     # def emit_output_object(
-    #     self, output_obj: DataInterfaceType, function_ctx: DataFunctionContext,
+    #     self, output_obj: DataInterfaceType, function_ctx: FunctionContext,
     # ):
     #     assert output_obj is not None
     #     if isinstance(output_obj, abc.Generator):
@@ -229,49 +229,49 @@ def run(exe: ExecutableCfg, to_exhaustion: bool = True) -> List[ExecutionResult]
     # return cum_result
 
 
-def get_latest_output(env: Environment, node: GraphCfg) -> Optional[DataBlock]:
-    from basis.core.persistence.data_block import DataBlockMetadata
+def get_latest_output(env: Environment, node: GraphCfg) -> Optional[Block]:
+    from basis.core.persistence.block import BlockMetadata
 
     with env.metadata_api.begin():
-        block: DataBlockMetadata = (
+        block: BlockMetadata = (
             env.md_api.execute(
-                select(DataBlockMetadata)
-                .join(DataBlockLog)
-                .join(DataFunctionLog)
+                select(BlockMetadata)
+                .join(BlockLog)
+                .join(FunctionLog)
                 .filter(
-                    DataBlockLog.direction == Direction.OUTPUT,
-                    DataFunctionLog.node_key == node.key,
+                    BlockLog.direction == Direction.OUTPUT,
+                    FunctionLog.node_key == node.key,
                 )
-                .order_by(DataBlockLog.created_at.desc())
+                .order_by(BlockLog.created_at.desc())
             )
             .scalars()
             .first()
         )
         if block is None:
             return None
-    return block.as_managed_data_block(env)
+    return block.as_managed_block(env)
 
 
 def ensure_log(
     env: Environment,
-    dfl: DataFunctionLog,
-    block: DataBlockMetadata,
+    dfl: FunctionLog,
+    block: BlockMetadata,
     direction: Direction,
     name: str,
 ):
     if env.md_api.execute(
-        select(DataBlockLog).filter_by(
+        select(BlockLog).filter_by(
             function_log_id=dfl.id,
             stream_name=name,
-            data_block_id=block.id,
+            block_id=block.id,
             direction=direction,
         )
     ).scalar_one_or_none():
         return
-    drl = DataBlockLog(  # type: ignore
+    drl = BlockLog(  # type: ignore
         function_log_id=dfl.id,
         stream_name=name,
-        data_block_id=block.id,
+        block_id=block.id,
         direction=direction,
         processed_at=block.created_at,
     )
@@ -279,13 +279,11 @@ def ensure_log(
 
 
 def save_result(
-    env: Environment,
-    exe: ExecutableCfg,
-    result: ExecutionResult,
+    env: Environment, exe: ExecutableCfg, result: ExecutionResult,
 ):
     # TODO: this should be inside one roll-backable transaction
     save_function_log(env, exe, result)
-    # dbms: List[DataBlockMetadata] = []
+    # dbms: List[BlockMetadata] = []
     for input_name, blocks in result.input_blocks_consumed.items():
         for block in blocks:
             ensure_log(env, exe.function_log, block, Direction.INPUT, input_name)
@@ -297,14 +295,14 @@ def save_result(
         #     # TODO: did we really process the inputs then? this is more of a framework-level error
         #     continue
         for block in blocks:
-            dbm = DataBlockMetadata(**block.dict())
+            dbm = BlockMetadata(**block.dict())
             # dbms.append(dbm)
             env.md_api.add(dbm)
             logger.debug(f"Output logged: {block}")
             ensure_log(env, exe.function_log, block, Direction.OUTPUT, output_name)
     env.md_api.add_all(
         [
-            StoredDataBlockMetadata(**s.dict())
+            StoredBlockMetadata(**s.dict())
             for v in result.stored_blocks_created.values()
             for s in v
         ]
@@ -317,7 +315,7 @@ def save_result(
 
 def save_function_log(
     env: Environment, exe: ExecutableCfg, result: ExecutionResult
-) -> DataFunctionLog:
+) -> FunctionLog:
     if result.function_error:
         exe.function_log.error = result.function_error.dict()
     if (
@@ -331,7 +329,7 @@ def save_function_log(
         exe.function_log.completed_at = utcnow()
     if result.timed_out:
         exe.function_log.timed_out = True
-    function_log = env.md_api.merge(DataFunctionLog.from_pydantic(exe.function_log))
+    function_log = env.md_api.merge(FunctionLog.from_pydantic(exe.function_log))
 
     env.md_api.add(function_log)
     return function_log
@@ -362,5 +360,5 @@ def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult
         )
         return
     for sdbc in result.stored_blocks_created[db.id]:
-        sdb = StoredDataBlockMetadata.from_pydantic(sdbc)
+        sdb = StoredBlockMetadata.from_pydantic(sdbc)
         sdb.create_alias(env, exe.node.get_alias())

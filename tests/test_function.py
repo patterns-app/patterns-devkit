@@ -3,23 +3,23 @@ from __future__ import annotations
 from typing import Any, Callable
 
 import pytest
-from basis import DataFunctionContext
+from basis import FunctionContext
 from basis.core.component import global_library
-from basis.core.data_block import DataBlock
+from basis.core.block import Block
 from basis.core.declarative.base import update
 from basis.core.declarative.execution import ExecutableCfg
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
-    DataFunctionInputCfg,
-    DataFunctionInterfaceCfg,
-    DataFunctionOutputCfg,
+    FunctionInputCfg,
+    FunctionInterfaceCfg,
+    FunctionOutputCfg,
     InputType,
     Parameter,
 )
 from basis.core.declarative.graph import GraphCfg
 from basis.core.declarative.interface import BoundInterfaceCfg
 from basis.core.execution.run import prepare_executable
-from basis.core.function import DataFunctionLike, datafunction
+from basis.core.function import FunctionLike, datafunction
 from basis.core.function_interface import (
     DEFAULT_OUTPUT,
     DEFAULT_OUTPUTS,
@@ -31,7 +31,7 @@ from basis.core.function_interface_manager import (
     get_schema_translation,
 )
 from basis.core.module import DEFAULT_LOCAL_NAMESPACE
-from basis.core.persistence.data_block import DataBlockMetadata
+from basis.core.persistence.block import BlockMetadata
 from basis.modules import core
 from basis.utils.typing import T, U
 from pandas import DataFrame
@@ -55,21 +55,21 @@ from tests.utils import (
     "annotation,expected",
     [
         (
-            "DataBlock[Type]",
+            "Block[Type]",
             ParsedAnnotation(
-                input_type=InputType("DataBlock"),
+                input_type=InputType("Block"),
                 schema="Type",
                 optional=False,
-                original_annotation="DataBlock[Type]",
+                original_annotation="Block[Type]",
             ),
         ),
         (
-            "Optional[DataBlock[Type]]",
+            "Optional[Block[Type]]",
             ParsedAnnotation(
-                input_type=InputType("DataBlock"),
+                input_type=InputType("Block"),
                 schema="Type",
                 optional=True,
-                original_annotation="Optional[DataBlock[Type]]",
+                original_annotation="Optional[Block[Type]]",
             ),
         ),
         (
@@ -106,16 +106,12 @@ def test_typed_annotation(annotation: str, expected: ParsedAnnotation):
     assert tda == expected
 
 
-def function_notworking(_1: int, _2: str, input: DataBlock[TestSchema1]):
+def function_notworking(_1: int, _2: str, input: Block[TestSchema1]):
     # Bad args
     pass
 
 
-def df4(
-    input: DataBlock[T],
-    dr2: DataBlock[U],
-    dr3: DataBlock[U],
-) -> DataFrame[T]:
+def df4(input: Block[T], dr2: Block[U], dr3: Block[U],) -> DataFrame[T]:
     pass
 
 
@@ -124,11 +120,11 @@ def df4(
     [
         (
             function_t1_sink,
-            DataFunctionInterfaceCfg(
+            FunctionInterfaceCfg(
                 inputs={
-                    "input": DataFunctionInputCfg(
+                    "input": FunctionInputCfg(
                         name="input",
-                        input_type=InputType("DataBlock"),
+                        input_type=InputType("Block"),
                         schema_key="TestSchema1",
                         required=True,
                     ),
@@ -140,17 +136,17 @@ def df4(
         ),
         (
             function_t1_to_t2,
-            DataFunctionInterfaceCfg(
+            FunctionInterfaceCfg(
                 inputs={
-                    "input": DataFunctionInputCfg(
+                    "input": FunctionInputCfg(
                         name="input",
-                        input_type=InputType("DataBlock"),
+                        input_type=InputType("Block"),
                         schema_key="TestSchema1",
                         required=True,
                     ),
                 },
                 outputs={
-                    DEFAULT_OUTPUT_NAME: DataFunctionOutputCfg(
+                    DEFAULT_OUTPUT_NAME: FunctionOutputCfg(
                         data_format="DataFrame", schema_key="TestSchema2"
                     )
                 },
@@ -160,17 +156,17 @@ def df4(
         ),
         (
             function_generic,
-            DataFunctionInterfaceCfg(
+            FunctionInterfaceCfg(
                 inputs={
-                    "input": DataFunctionInputCfg(
+                    "input": FunctionInputCfg(
                         name="input",
-                        input_type=InputType("DataBlock"),
+                        input_type=InputType("Block"),
                         schema_key="T",
                         required=True,
                     ),
                 },
                 outputs={
-                    DEFAULT_OUTPUT_NAME: DataFunctionOutputCfg(
+                    DEFAULT_OUTPUT_NAME: FunctionOutputCfg(
                         data_format="DataFrame", schema_key="T"
                     )
                 },
@@ -180,15 +176,15 @@ def df4(
         ),
         (
             function_self,
-            DataFunctionInterfaceCfg(
+            FunctionInterfaceCfg(
                 inputs={
-                    "input": DataFunctionInputCfg(
+                    "input": FunctionInputCfg(
                         name="input",
-                        input_type=InputType("DataBlock"),
+                        input_type=InputType("Block"),
                         schema_key="T",
                         required=True,
                     ),
-                    "previous": DataFunctionInputCfg(
+                    "previous": FunctionInputCfg(
                         name="previous",
                         input_type=InputType("SelfReference"),
                         schema_key="T",
@@ -196,7 +192,7 @@ def df4(
                     ),
                 },
                 outputs={
-                    DEFAULT_OUTPUT_NAME: DataFunctionOutputCfg(
+                    DEFAULT_OUTPUT_NAME: FunctionOutputCfg(
                         data_format="DataFrame", schema_key="T"
                     )
                 },
@@ -206,25 +202,25 @@ def df4(
         ),
         (
             function_kitchen_sink,
-            DataFunctionInterfaceCfg(
+            FunctionInterfaceCfg(
                 inputs={
-                    "input": DataFunctionInputCfg(
+                    "input": FunctionInputCfg(
                         name="input",
-                        input_type=InputType("DataBlock"),
+                        input_type=InputType("Block"),
                         schema_key="T",
                         required=True,
                         description="input desc",
                     ),
-                    "other_t2": DataFunctionInputCfg(
+                    "other_t2": FunctionInputCfg(
                         name="other_t2",
-                        input_type=InputType("DataBlock"),
+                        input_type=InputType("Block"),
                         schema_key="TestSchema2",
                         required=False,
                         description="other_t2 desc",
                     ),
                 },
                 outputs={
-                    DEFAULT_OUTPUT_NAME: DataFunctionOutputCfg(
+                    DEFAULT_OUTPUT_NAME: FunctionOutputCfg(
                         data_format="DataFrame",
                         schema_key="T",
                         # description="output desc",
@@ -245,7 +241,7 @@ def df4(
     ],
 )
 def test_function_interface(
-    function_like: DataFunctionLike, expected: DataFunctionInterfaceCfg
+    function_like: FunctionLike, expected: FunctionInterfaceCfg
 ):
     p = datafunction(function_like)
     val = p.get_interface()
@@ -266,7 +262,7 @@ def test_generic_schema_resolution():
     g = g.resolve(env.library)
     # pi = n1.get_interface()
     with env.md_api.begin():
-        block = DataBlockMetadata(
+        block = BlockMetadata(
             nominal_schema_key="_test.TestSchema1",
             realized_schema_key="_test.TestSchema2",
         )
@@ -292,9 +288,8 @@ def test_declared_schema_translation():
     )
     pi = n1.resolve(global_library).get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
-    block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+    block = BlockMetadata(
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
@@ -323,9 +318,8 @@ def test_natural_schema_translation():
     ).resolve(global_library)
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
-    block = DataBlockMetadata(
-        nominal_schema_key="_test.TestSchema1",
-        realized_schema_key="_test.TestSchema1",
+    block = BlockMetadata(
+        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
     )
     with env.md_api.begin():
         schema_translation = get_schema_translation(
@@ -412,7 +406,7 @@ def test_node_params():
     param_vals = []
 
     @datafunction
-    def function_ctx(ctx: DataFunctionContext, test: str):
+    def function_ctx(ctx: FunctionContext, test: str):
         param_vals.append(test)
 
     env.add_function(function_ctx)
@@ -428,7 +422,7 @@ def test_any_schema_interface():
     env.add_module(core)
 
     @datafunction
-    def function_any(input: DataBlock) -> DataFrame:
+    def function_any(input: Block) -> DataFrame:
         pass
 
     pi = function_any.get_interface()
@@ -442,15 +436,15 @@ def test_api():
         pass
 
     @datafunction("s1", namespace="module1")
-    def s2(ctx: DataFunctionContext, i1: DataBlock, p1: str = "default val"):
+    def s2(ctx: FunctionContext, i1: Block, p1: str = "default val"):
         pass
 
     @datafunction("s1")
-    def s3(ctx, i1: DataBlock[TestSchema1], p1: str):
+    def s3(ctx, i1: Block[TestSchema1], p1: str):
         pass
 
     # @datafunction(name="s1", params=[Parameter(name="p1", datatype="str")])
-    # def s4(ctx: DataFunctionContext, i1: DataBlock) -> Any:
+    # def s4(ctx: FunctionContext, i1: Block) -> Any:
     #     pass
 
     for snp in [s1, s2, s3]:  # , s4]:

@@ -9,15 +9,15 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import sqlparse
 from basis.core.component import ComponentLibrary
-from basis.core.data_block import DataBlock
+from basis.core.block import Block
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
-    DataFunctionInterfaceCfg,
+    FunctionInterfaceCfg,
     InputType,
 )
 from basis.core.environment import Environment
-from basis.core.execution.context import DataFunctionContext
-from basis.core.function import DataFunction, DataInterfaceType, function_factory
+from basis.core.execution.context import FunctionContext
+from basis.core.function import Function, DataInterfaceType, function_factory
 from basis.core.function_interface import (
     DEFAULT_OUTPUTS,
     ParsedAnnotation,
@@ -86,7 +86,7 @@ class ParsedSqlStatement:
     found_params: Optional[Dict[str, AnnotatedParam]] = None
     output_annotation: Optional[str] = None
 
-    def as_interface(self) -> DataFunctionInterfaceCfg:
+    def as_interface(self) -> FunctionInterfaceCfg:
         inputs = {}
         outputs = {}
         params = {}
@@ -115,7 +115,7 @@ class ParsedSqlStatement:
                     ap.default,
                 )
 
-        return DataFunctionInterfaceCfg(
+        return FunctionInterfaceCfg(
             inputs=inputs, outputs=outputs, uses_context=True, parameters=params
         )
 
@@ -148,9 +148,7 @@ def extract_param_annotations(sql: str) -> ParsedSqlStatement:
         jinja = " {{ params['%s'] }}" % d["name"]
         sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=sql_with_jinja_vars,
-        found_params=params,
+        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
     )
 
 
@@ -263,9 +261,7 @@ def extract_tables(  # noqa: C901
     new_sql_str = "".join(new_sql)
     new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", r"as \1", new_sql_str, flags=re.I)
     return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=new_sql_str,
-        found_tables=found_tables,
+        original_sql=sql, sql_with_jinja_vars=new_sql_str, found_tables=found_tables,
     )
 
 
@@ -284,7 +280,7 @@ def parse_sql_statement(sql: str, autodetect_tables: bool = True) -> ParsedSqlSt
     )
 
 
-def params_as_sql(ctx: DataFunctionContext) -> Dict[str, Any]:
+def params_as_sql(ctx: FunctionContext) -> Dict[str, Any]:
     param_values = ctx.get_params()
     sql_params = {}
     for k, v in param_values.items():
@@ -328,20 +324,20 @@ def apply_schema_translation_as_sql(
     return table_stmt
 
 
-class SqlDataFunctionWrapper:
+class SqlFunctionWrapper:
     def __init__(self, sql: str, autodetect_inputs: bool = True):
         self.sql = sql
         self.autodetect_inputs = autodetect_inputs
 
-    def __call__(self, *args: DataFunctionContext, **inputs: DataInterfaceType):
-        ctx: DataFunctionContext = args[0]
+    def __call__(self, *args: FunctionContext, **inputs: DataInterfaceType):
+        ctx: FunctionContext = args[0]
         # if ctx.run_context.current_runtime is None:
         #     raise Exception("Current runtime not set")
 
         # for input in inputs.values():
-        #     if isinstance(input, ManagedDataBlockStream):
+        #     if isinstance(input, ManagedBlockStream):
         #         dbs = input
-        #     elif isinstance(input, DataBlock):
+        #     elif isinstance(input, Block):
         #         dbs = [input]
         #     else:
         #         raise
@@ -383,7 +379,7 @@ class SqlDataFunctionWrapper:
             data_format=DatabaseTableFormat,
             schema=resolved_nominal_key,
         )
-        # block, sdb = create_data_block_from_sql(
+        # block, sdb = create_block_from_sql(
         #     ctx.env,
         #     sql,
         #     db_api=db_api,
@@ -392,24 +388,18 @@ class SqlDataFunctionWrapper:
         # )
 
     def get_input_table_stmts(
-        self,
-        ctx: DataFunctionContext,
-        storage: Storage,
-        inputs: Dict[str, DataBlock] = None,
+        self, ctx: FunctionContext, storage: Storage, inputs: Dict[str, Block] = None,
     ) -> Dict[str, str]:
         if inputs is None:
             return {}
         table_stmts = {}
         for input_name, block in inputs.items():
-            if isinstance(block, DataBlock):
+            if isinstance(block, Block):
                 table_stmts[input_name] = block.as_sql_from_stmt(storage)
         return table_stmts
 
     def get_compiled_sql(
-        self,
-        ctx: DataFunctionContext,
-        storage: Storage,
-        inputs: Dict[str, DataBlock] = None,
+        self, ctx: FunctionContext, storage: Storage, inputs: Dict[str, Block] = None,
     ):
         input_sql = self.get_input_table_stmts(ctx, storage, inputs)
         sql_ctx = dict(
@@ -439,7 +429,7 @@ class SqlDataFunctionWrapper:
     def is_new_style_jinja(self) -> bool:
         return "{% input " in self.sql or "{% param " in self.sql
 
-    def get_interface(self) -> DataFunctionInterfaceCfg:
+    def get_interface(self) -> FunctionInterfaceCfg:
         if self.is_new_style_jinja():
             return parse_interface_from_sql(self.sql)
         stmt = self.get_parsed_statement()
@@ -463,10 +453,10 @@ def sql_function_factory(
     file: str = None,
     namespace: Optional[Union[BasisModule, str]] = None,
     required_storage_classes: List[str] = None,
-    wrapper_cls: type = SqlDataFunctionWrapper,
+    wrapper_cls: type = SqlFunctionWrapper,
     autodetect_inputs: bool = True,
     **kwargs,  # TODO: explicit options
-) -> DataFunction:
+) -> Function:
     if not sql:
         raise ValueError("Must provide sql")
     sql = process_sql(sql, file)
@@ -485,11 +475,11 @@ sql_function = sql_function_factory
 
 
 def sql_function_decorator(
-    sql_fn_or_function: Union[DataFunction, Callable] = None,
+    sql_fn_or_function: Union[Function, Callable] = None,
     file: str = None,
     autodetect_inputs: bool = True,
     **kwargs,
-) -> Union[Callable, DataFunction]:
+) -> Union[Callable, Function]:
     if sql_fn_or_function is None:
         # handle bare decorator @sql_datafunction
         return partial(
@@ -498,14 +488,14 @@ def sql_function_decorator(
             autodetect_inputs=autodetect_inputs,
             **kwargs,
         )
-    if isinstance(sql_fn_or_function, DataFunction):
+    if isinstance(sql_fn_or_function, Function):
         sql = sql_fn_or_function.function_callable()
         sql = process_sql(sql, file)
-        sql_fn_or_function.function_callable = SqlDataFunctionWrapper(
+        sql_fn_or_function.function_callable = SqlFunctionWrapper(
             sql, autodetect_inputs=autodetect_inputs
         )
         # TODO / FIXME: this is dicey ... if we ever add / change args for function_factory
-        # will break this. (we're only taking a select few args from the exising DataFunction)
+        # will break this. (we're only taking a select few args from the exising Function)
         return function_factory(
             sql_fn_or_function,
             ignore_signature=True,
@@ -520,15 +510,11 @@ def sql_function_decorator(
     else:
         name = sql_fn_or_function.__name__
     return sql_function_factory(
-        name=name,
-        sql=sql,
-        file=file,
-        autodetect_inputs=autodetect_inputs,
-        **kwargs,
+        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
     )
 
 
-# SqlDataFunction = sql_function_decorator
+# SqlFunction = sql_function_decorator
 Sql = sql_function_decorator
 SqlFunction = sql_function_decorator
 # sql = sql_function_decorator

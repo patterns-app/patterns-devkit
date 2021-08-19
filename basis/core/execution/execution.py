@@ -20,8 +20,8 @@ from basis.core.declarative.execution import (
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 from basis.core.declarative.graph import GraphCfg
 from basis.core.environment import Environment
-from basis.core.execution.context import DataFunctionContext
-from basis.core.function import DataFunction, DataInterfaceType, InputExhaustedException
+from basis.core.execution.context import FunctionContext
+from basis.core.function import Function, DataInterfaceType, InputExhaustedException
 from basis.utils.output import cf, error_symbol, success_symbol
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
@@ -33,21 +33,21 @@ def run_dataspace(ds: DataspaceCfg):
     env.run_graph(ds.graph)
 
 
-class ImproperlyStoredDataBlockException(Exception):
+class ImproperlyStoredBlockException(Exception):
     pass
 
 
-# def validate_data_blocks(env: Environment):
+# def validate_blocks(env: Environment):
 #     # TODO: More checks?
 #     env.md_api.flush()
 #     for obj in env.md_api.active_session.identity_map.values():
-#         if isinstance(obj, DataBlockMetadata):
-#             urls = set([sdb.storage_url for sdb in obj.stored_data_blocks])
+#         if isinstance(obj, BlockMetadata):
+#             urls = set([sdb.storage_url for sdb in obj.stored_blocks])
 #             if all(u.startswith("python") for u in urls):
-#                 fmts = set([sdb.data_format for sdb in obj.stored_data_blocks])
+#                 fmts = set([sdb.data_format for sdb in obj.stored_blocks])
 #                 if all(not f.is_storable() for f in fmts):
-#                     raise ImproperlyStoredDataBlockException(
-#                         f"DataBlock {obj} is not properly stored (no storeable format(s): {fmts})"
+#                     raise ImproperlyStoredBlockException(
+#                         f"Block {obj} is not properly stored (no storeable format(s): {fmts})"
 #                     )
 
 
@@ -130,7 +130,7 @@ class ExecutionManager:
                 self.logger.log(cf.success("Ok " + success_symbol + "\n"))  # type: ignore
             else:
                 error = result.function_error or result.framework_error
-                error_msg = error.error or "DataFunction failed (unknown error)"
+                error_msg = error.error or "Function failed (unknown error)"
                 self.logger.log(cf.error("Error " + error_symbol + " " + cf.dimmed(error_msg[:80])) + "\n")  # type: ignore
                 if result.function_error.traceback:
                     self.logger.log(cf.dimmed(result.function_error.traceback), indent=2)  # type: ignore
@@ -153,8 +153,8 @@ class ExecutionManager:
         else:
             raise NotImplementedError(handler.type)
 
-    def prepare_context(self, inputs) -> DataFunctionContext:
-        return DataFunctionContext(
+    def prepare_context(self, inputs) -> FunctionContext:
+        return FunctionContext(
             dataspace=self.cfg.dataspace,
             function=self.function,
             node=self.node,
@@ -165,19 +165,14 @@ class ExecutionManager:
             library=self.exe.get_library(),
         )
 
-    def _call_data_function(self, ctx: DataFunctionContext):
+    def _call_data_function(self, ctx: FunctionContext):
         function_args, function_kwargs = ctx.get_function_args()
-        output_obj = self.function.function_callable(
-            *function_args,
-            **function_kwargs,
-        )
+        output_obj = self.function.function_callable(*function_args, **function_kwargs,)
         if output_obj is not None:
             self.emit_output_object(ctx, output_obj)
             # TODO: update node state block counts?
 
-    def emit_output_object(
-        self, ctx: DataFunctionContext, output_obj: DataInterfaceType
-    ):
+    def emit_output_object(self, ctx: FunctionContext, output_obj: DataInterfaceType):
         assert output_obj is not None
         if isinstance(output_obj, abc.Generator):
             output_iterator = output_obj

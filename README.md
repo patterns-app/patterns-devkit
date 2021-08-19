@@ -11,7 +11,7 @@
 **Basis** is the one tool you need to power your entire data science pipeline. At its core, Basis is
 a framework for building **functional reactive data flow** from modular
 components. It lets developers write pure `datafunctions` in **Python or SQL**
-that operate reactively on `datablocks`, immutable sets of data records whose
+that operate reactively on `blocks`, immutable sets of data records whose
 structure are described by flexible `schemas`.
 These functions can be composed into simple or complex data
 flows that power all operations of a data system, including:
@@ -74,11 +74,11 @@ Edit `quickstart/functions/customer_lifetime_sales/customer_lifetime_sales.py`:
 ```python
 from __future__ import annotations
 from pandas import DataFrame
-from basis import datafunction, DataBlock
+from basis import datafunction, Block
 
 
 @datafunction
-def customer_lifetime_sales(txs: DataBlock) -> DataFrame:
+def customer_lifetime_sales(txs: Block) -> DataFrame:
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
 ```
@@ -121,9 +121,9 @@ And preview the output:
 ## Architecture overview
 
 All basis pipelines are directed graphs of `datafunction` nodes, consisting of one or more "source" nodes
-that create and emit datablocks when run. This stream of blocks is
+that create and emit blocks when run. This stream of blocks is
 then consumed by downstream nodes, which each in turn may emit their own blocks. Source nodes can be scheduled
-to run as needed, downstream nodes will automatically ingest upstream datablocks reactively.
+to run as needed, downstream nodes will automatically ingest upstream blocks reactively.
 
 <!-- ![Architecture](assets/architecture.svg) -->
 
@@ -131,24 +131,24 @@ Below are more details on the key components of basis.
 
 ### Datablocks
 
-A `datablock` is an immutable set of data records of uniform `schema` -- think csv file, pandas
-dataframe, or database table. `datablocks` are the basic data unit of basis, the unit that `datafunctions` take
-as input and produce as output. Once created, a datablock's data will never change: no records will
-be added or deleted, or data points modified. More precisely, `datablocks` are a reference to an
-abstract ideal of a set of records, and will have one or more `StoredDataBlocks` persisting those
+A `block` is an immutable set of data records of uniform `schema` -- think csv file, pandas
+dataframe, or database table. `blocks` are the basic data unit of basis, the unit that `datafunctions` take
+as input and produce as output. Once created, a block's data will never change: no records will
+be added or deleted, or data points modified. More precisely, `blocks` are a reference to an
+abstract ideal of a set of records, and will have one or more `StoredBlocks` persisting those
 records on a specific `storage` medium in a specific `dataformat` -- a CSV on the
 local file, a JSON string in memory, or a table in Postgres. Basis abstracts over specific
 formats and storage engines, and provides conversion and i/o between them while
 maintaining byte-perfect consistency -- to the extent possible for given formats and storages.
 
-### DataFunctions
+### Functions
 
 Data `datafunctions` are the core computational unit of basis. They are pure functions that operate on
-`datablocks` and are added as nodes to a function graph, linking one node's output to another's
-input via `streams`. DataFunctions are written in python or sql.
+`blocks` and are added as nodes to a function graph, linking one node's output to another's
+input via `streams`. Functions are written in python or sql.
 
-DataFunctions may consume (or "reference") zero or more inputs, and may emit zero or more output streams.
-DataFunctions can also take parameters. Inputs (upstream nodes) and parameters (configuration)
+Functions may consume (or "reference") zero or more inputs, and may emit zero or more output streams.
+Functions can also take parameters. Inputs (upstream nodes) and parameters (configuration)
 are inferred automatically from a function's type annotations --
 the type of input, whether required or optional, and what schemas/types are expected.
 
@@ -159,11 +159,11 @@ sql:
 ```python
 @datafunction
 def customer_lifetime_sales(
-  ctx: DataFunctionContext,  # Inject a context object
-  txs: DataBlock[Transaction],  # Require an input stream conforming to schema "Transaction"
+  ctx: FunctionContext,  # Inject a context object
+  txs: Block[Transaction],  # Require an input stream conforming to schema "Transaction"
   metric: str = "amount" # Accept an optional string parameter, with default of "amount"
 ):
-    # DataFunctionContext object automatically injected if declared
+    # FunctionContext object automatically injected if declared
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")[metric].sum().reset_index()
 
@@ -227,7 +227,7 @@ fields:
 
 ```python
 # In python, use python's type annotations to specify expected schemas:
-def sales(txs: DataBlock[Transaction]) -> DataFrame[CustomerMetric]:
+def sales(txs: Block[Transaction]) -> DataFrame[CustomerMetric]:
     df = txs.as_dataframe()
     return df.groupby("customer_id").sum("amount").reset_index()
 ```
@@ -283,7 +283,7 @@ optional though, and should be used when the utility they provide out-weighs any
 
 ### Consistency and Immutability
 
-To the extent possible, basis maintains the same data and byte representation of `datablock`
+To the extent possible, basis maintains the same data and byte representation of `block`
 records across formats and storages. Not all formats and storages support all data representations,
 though -- for instance, datetime support differs
 significantly across common data formats, runtimes, and storage engines. When it notices a
@@ -295,7 +295,7 @@ warning or, if serious enough, fail with an error. (Partially implemented, see #
 A basis `environment` tracks the function graph, and acts as a registry for the `modules`,
 `runtimes`, and `storages` available to functions. It is associated one-to-one with a single
 `metadata database`. The primary responsibility of the metadata database is to track which
-nodes have processed which DataBlocks, and the state of nodes. In this sense, the environment and
+nodes have processed which Blocks, and the state of nodes. In this sense, the environment and
 its associated metadata database contain all the "state" of a basis project. If you delete the
 metadata database, you will have effectively "reset" your basis project. (You will
 NOT have deleted any actual data produced by the pipeline, though it will be "orphaned".)

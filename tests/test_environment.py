@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from basis.core.declarative.dataspace import BasisCfg, DataspaceCfg
 from basis.core.environment import Environment
-from basis.core.persistence.data_block import DataBlockMetadata
+from basis.core.persistence.block import BlockMetadata
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from loguru import logger
@@ -53,9 +53,9 @@ def test_multi_env():
     )
     env1 = Environment(dataspace=cfg)
     with env1.md_api.begin():
-        env1.md_api.add(DataBlockMetadata(realized_schema_key="Any"))
+        env1.md_api.add(BlockMetadata(realized_schema_key="Any"))
         env1.md_api.flush()
-        assert env1.md_api.count(select(DataBlockMetadata)) == 1
+        assert env1.md_api.count(select(BlockMetadata)) == 1
     cfg = DataspaceCfg(
         key=f"_test_{rand_str()}",
         metadata_storage=db_url,
@@ -63,7 +63,7 @@ def test_multi_env():
     )
     env2 = Environment(dataspace=cfg)
     with env2.md_api.begin():
-        assert env2.md_api.count(select(DataBlockMetadata)) == 0
-        env2.md_api.add(DataBlockMetadata(realized_schema_key="Any"))
+        assert env2.md_api.count(select(BlockMetadata)) == 0
+        env2.md_api.add(BlockMetadata(realized_schema_key="Any"))
         env2.md_api.flush()
-        assert env2.md_api.count(select(DataBlockMetadata)) == 1
+        assert env2.md_api.count(select(BlockMetadata)) == 1

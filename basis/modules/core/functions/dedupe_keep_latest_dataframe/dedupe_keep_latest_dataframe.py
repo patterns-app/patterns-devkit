@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from basis import DataBlock
+from basis import Block
 from basis.core.function import datafunction
 from basis.utils.typing import T
 from pandas import DataFrame
@@ -10,10 +10,9 @@ from pandas import DataFrame
 
 
 @datafunction(
-    namespace="core",
-    display_name="Dedupe DataFrame (keep latest)",
+    namespace="core", display_name="Dedupe DataFrame (keep latest)",
 )
-def dedupe_keep_latest_dataframe(input: DataBlock[T]) -> DataFrame[T]:
+def dedupe_keep_latest_dataframe(input: Block[T]) -> DataFrame[T]:
     if input.nominal_schema is None or not input.nominal_schema.unique_on:
         return (
             input.as_dataframe().drop_duplicates()

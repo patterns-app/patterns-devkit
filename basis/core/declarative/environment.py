@@ -6,7 +6,7 @@ from typing import Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase
 from basis.core.declarative.flow import FlowCfg
-from basis.core.declarative.function import DataFunctionCfg
+from basis.core.declarative.function import FunctionCfg
 from basis.core.declarative.graph import GraphCfg
 from basis.core.declarative.interface import BoundInterfaceCfg
 from commonmodel import Schema
@@ -38,7 +38,7 @@ class EnvironmentCfg(FrozenPydanticBase):
 
 
 class ComponentLibraryCfg(FrozenPydanticBase):
-    functions: List[DataFunctionCfg] = []
+    functions: List[FunctionCfg] = []
     schemas: List[Schema] = []
     flows: List[FlowCfg] = []
     namespace_precedence: List[str] = []

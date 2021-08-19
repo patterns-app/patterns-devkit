@@ -17,11 +17,10 @@ from typing import (
 
 import networkx as nx
 from basis.core.component import ComponentLibrary, global_library
-from basis.core.declarative.base import FrozenPydanticBase
+from basis.core.declarative.base import FrozenPydanticBase, PydanticBase
 from basis.core.declarative.function import (
-    DataFunctionCfg,
-    DataFunctionInputCfg,
-    DataFunctionInterfaceCfg,
+    FunctionCfg,
+    FunctionInterfaceCfg,
 )
 from commonmodel import Schema
 from dcp.utils.common import as_identifier, remove_dupes
@@ -59,36 +58,37 @@ class ImproperlyConfigured(Exception):
     pass
 
 
-class DedupeBehavior(str, Enum):
-    NONE = "None"
-    LATEST_RECORD = "LatestRecord"
-    FIRST_NON_NULL_VALUES = "FirstNonNullValues"
-    LATEST_NON_NULL_VALUES = "LatestNonNullValues"
+# class DedupeBehavior(str, Enum):
+#     NONE = "None"
+#     LATEST_RECORD = "LatestRecord"
+#     FIRST_NON_NULL_VALUES = "FirstNonNullValues"
+#     LATEST_NON_NULL_VALUES = "LatestNonNullValues"
 
 
-class GraphCfg(FrozenPydanticBase):
-    key: str = "default"
-    nodes: List[GraphCfg] = []
+class NodeOutputCfg(FrozenPydanticBase):
+    storage: Optional[str] = None
+    data_format: Optional[str] = None
+    # retention_policy: Optional[str] = None # TODO
+
+
+class NodeCfg(FrozenPydanticBase):
+    key: str  # = "default"
+    # nodes: List[GraphCfg] = []
     function: Optional[str] = None
-    function_cfg: Optional[DataFunctionCfg] = None
-    flow: Optional[str] = None
+    function_cfg: Optional[FunctionCfg] = None
     params: Dict[str, Any] = {}  # TODO: acceptable param types?
     stdin_key: Optional[str] = None
     stdout_key: Optional[str] = None
     stderr_key: Optional[str] = None
-    input: Optional[str] = None
     inputs: Dict[str, str] = {}
-    alias: Optional[str] = None
-    aliases: Dict[str, str] = {}
-    accumulate: Optional[bool] = False
-    dedupe: Optional[Union[bool, DedupeBehavior]] = False
-    conform_to_schema: Optional[str] = None
-    schema_translation: Optional[Dict[str, str]] = None
-    schema_translations: Dict[str, Dict[str, str]] = {}
+    outputs: Dict[str, NodeOutputCfg] = {}
+    # aliases: Dict[str, str] = {}
+    # conform_to_schema: Optional[str] = None
+    # schema_translations: Dict[str, Dict[str, str]] = {}
     schedule: Optional[str] = None
-    output_storage: Optional[str] = None
-    output_data_format: Optional[str] = None
-    # persist_output: Optional[bool] = False
+    runtime: Optional[str] = None
+    storage: Optional[str] = None
+    data_format: Optional[str] = None
 
     @validator("nodes")
     def check_unique_nodes(cls, nodes: List[GraphCfg]) -> List[GraphCfg]:
@@ -335,7 +335,7 @@ class GraphCfg(FrozenPydanticBase):
             ident
         )  # TODO: this logic should be storage api specific! and then shared back?
 
-    def get_interface(self) -> DataFunctionInterfaceCfg:
+    def get_interface(self) -> FunctionInterfaceCfg:
         assert self.is_function_node()  # TODO: can actually support for graph too!
         assert self.is_resolved()
         assert self.function_cfg.interface is not None
@@ -344,7 +344,6 @@ class GraphCfg(FrozenPydanticBase):
     def get_node_inputs(self, graph: GraphCfg) -> Dict[str, NodeInputCfg]:
         from basis.core.declarative.interface import NodeInputCfg
 
-        assert self.is_function_node()  # TODO: can actually support for graph too!
         assert self.is_resolved()
         declared_inputs = self.assign_inputs()
         node_inputs = {}
@@ -402,6 +401,10 @@ class GraphCfg(FrozenPydanticBase):
     #         n = dn.instantiate(env, g)
     #         g.add_node(n)
     #     return g
+
+
+class GraphCfg(PydanticBase):
+    nodes: List[NodeCfg] = []
 
 
 GraphCfg.update_forward_refs()

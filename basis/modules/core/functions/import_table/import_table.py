@@ -4,7 +4,7 @@ import json
 from typing import Optional
 
 from basis import Context, basis
-from basis.core.sql.sql_function import SqlDataFunctionWrapper
+from basis.core.sql.sql_function import SqlFunctionWrapper
 from dcp.utils.common import ensure_bool
 
 
@@ -13,7 +13,7 @@ from dcp.utils.common import ensure_bool
     display_name="Import non-basis database table",
     required_storage_classes=["database"],
 )
-def import_table(ctx: DataFunctionContext, table_name: str, copy: bool = True):
+def import_table(ctx: FunctionContext, table_name: str, copy: bool = True):
     """
     Imports a non-basis table from an existing storage, optionally making a copy
     or importing as-is. Warning: If you do not make a copy, potentially breaking
@@ -28,7 +28,7 @@ def import_table(ctx: DataFunctionContext, table_name: str, copy: bool = True):
         as_identifier = target_storage.get_api().get_quoted_identifier
         sql = f"select * from {as_identifier(table_name)}"
         # TODO: DRY this pattern
-        sdf = SqlDataFunctionWrapper(sql)
+        sdf = SqlFunctionWrapper(sql)
 
         def get_sql(*args, **kwargs):
             return sql

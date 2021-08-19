@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-from basis.core.declarative.function import DataFunctionInterfaceCfg
+from basis.core.declarative.function import FunctionInterfaceCfg
 from basis.core.function_interface import (
     DEFAULT_OUTPUTS,
     InputType,
@@ -116,7 +116,7 @@ def parse_sql_annotation(ann: str) -> ParsedAnnotation:
     return parsed
 
 
-def interface_from_jinja_env(env: SandboxedEnvironment) -> DataFunctionInterfaceCfg:
+def interface_from_jinja_env(env: SandboxedEnvironment) -> FunctionInterfaceCfg:
     inputs = {}
     outputs = {}
     params = {}
@@ -152,15 +152,13 @@ def interface_from_jinja_env(env: SandboxedEnvironment) -> DataFunctionInterface
             description=help_text,
         )
 
-    return DataFunctionInterfaceCfg(
+    return FunctionInterfaceCfg(
         inputs=inputs, outputs=outputs, uses_context=True, parameters=params
     )
 
 
 def get_base_jinja_ctx() -> Dict[str, Any]:
-    ctx = dict(
-        Optional=NamedGetItem("Optional"),
-    )
+    ctx = dict(Optional=NamedGetItem("Optional"),)
     for t in InputType:
         ctx[t.value] = NamedGetItem(t.value)
     return ctx
@@ -168,8 +166,7 @@ def get_base_jinja_ctx() -> Dict[str, Any]:
 
 def get_jinja_env() -> SandboxedEnvironment:
     return SandboxedEnvironment(
-        undefined=StringUndefined,
-        extensions=[NodeInputExtension, ParamExtension],
+        undefined=StringUndefined, extensions=[NodeInputExtension, ParamExtension],
     )
 
 
@@ -207,7 +204,5 @@ s = "select * from {% input orders %} where col = {% param p1 text 0 %}"
 parse_interface_from_sql(s)
 
 render_sql(
-    s,
-    dict(orders="orders_table"),
-    dict(p1="'val1'"),
+    s, dict(orders="orders_table"), dict(p1="'val1'"),
 )

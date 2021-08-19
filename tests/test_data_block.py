@@ -1,30 +1,30 @@
 from __future__ import annotations
 
-from basis.core.persistence.data_block import (
-    DataBlockMetadata,
-    StoredDataBlockMetadata,
-    get_datablock_id,
-    get_stored_datablock_id,
+from basis.core.persistence.block import (
+    BlockMetadata,
+    StoredBlockMetadata,
+    get_block_id,
+    get_stored_block_id,
 )
 from dcp.data_format.formats.memory.records import RecordsFormat
 from tests.utils import TestSchema1, TestSchema2, TestSchema3, make_test_env
 
 
-def test_data_block_methods():
+def test_block_methods():
     env = make_test_env()
-    db = DataBlockMetadata(
-        id=get_datablock_id(),
+    db = BlockMetadata(
+        id=get_block_id(),
         inferred_schema_key="_test.TestSchema1",
         nominal_schema_key="_test.TestSchema2",
         realized_schema_key="_test.TestSchema3",
     )
     strg = env.get_default_local_python_storage()
     records = [{"a": 1}]
-    sdb = StoredDataBlockMetadata(
-        id=get_stored_datablock_id(),
+    sdb = StoredBlockMetadata(
+        id=get_stored_block_id(),
         name="_test",
-        data_block_id=db.id,
-        data_block=db,
+        block_id=db.id,
+        block=db,
         storage_url=strg.url,
         data_format=RecordsFormat,
     )

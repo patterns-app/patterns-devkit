@@ -8,7 +8,7 @@ from typing import Generator, Iterator, Optional
 
 import pandas as pd
 import pytest
-from basis import DataBlock, DataFunctionContext, datafunction
+from basis import Block, FunctionContext, datafunction
 from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.graph import GraphCfg
 from basis.core.environment import Environment
@@ -36,16 +36,12 @@ IS_CI = os.environ.get("CI")
 
 @datafunction
 def funky_source(
-    ctx: DataFunctionContext, batches: int, fail: bool = False
+    ctx: FunctionContext, batches: int, fail: bool = False
 ) -> Records[Customer]:
     # Gives different schema on each call
     runs = ctx.get_state_value("run_number", 0)
     records = [
-        {
-            "name": f"name{n}",
-            "joined": datetime(2000, 1, n + 1),
-            "Meta data": None,
-        }
+        {"name": f"name{n}", "joined": datetime(2000, 1, n + 1), "Meta data": None,}
         for n in range(10)
     ]
     if runs == 1:
@@ -84,10 +80,7 @@ def funky_source(
     if runs > 3:
         # missing field
         records = [
-            {
-                "joined": datetime(2000, 1, n + 1),
-                "Meta data": {"idx": n},
-            }
+            {"joined": datetime(2000, 1, n + 1), "Meta data": {"idx": n},}
             for n in range(10)
         ]
     ctx.emit_state_value("run_number", runs + 1)

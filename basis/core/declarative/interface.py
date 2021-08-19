@@ -2,28 +2,27 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Dict, Iterable, Iterator, List, Optional, Set, Union
 
-from basis.core.data_block import as_managed
+from basis.core.block import as_managed
 from basis.core.declarative.base import FrozenPydanticBase
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
-    DataFunctionInputCfg,
-    DataFunctionInterfaceCfg,
+    FunctionInputCfg,
+    FunctionInterfaceCfg,
     InputType,
 )
 from basis.core.declarative.graph import GraphCfg
-from basis.core.persistence.pydantic import DataBlockWithStoredBlocksCfg
+from basis.core.persistence.pydantic import BlockWithStoredBlocksCfg
 from loguru import logger
 
 
 class NodeInputCfg(FrozenPydanticBase):
     name: str
-    input: DataFunctionInputCfg
+    input: FunctionInputCfg
     input_node: Optional[GraphCfg] = None
     schema_translation: Optional[Dict[str, str]] = None
 
     def as_bound_input(
-        self,
-        bound_stream: List[DataBlockWithStoredBlocksCfg] = None,
+        self, bound_stream: List[BlockWithStoredBlocksCfg] = None,
     ) -> BoundInputCfg:
 
         return BoundInputCfg(
@@ -37,17 +36,17 @@ class NodeInputCfg(FrozenPydanticBase):
 
 class BoundInputCfg(FrozenPydanticBase):
     name: str
-    input: DataFunctionInputCfg
+    input: FunctionInputCfg
     input_node: Optional[GraphCfg] = None
     schema_translation: Optional[Dict[str, str]] = None
-    bound_stream: Optional[List[DataBlockWithStoredBlocksCfg]] = None
+    bound_stream: Optional[List[BlockWithStoredBlocksCfg]] = None
 
     def get_bound_input(
         self,
     ) -> Union[
-        Iterator[DataBlockWithStoredBlocksCfg],
-        List[DataBlockWithStoredBlocksCfg],
-        DataBlockWithStoredBlocksCfg,
+        Iterator[BlockWithStoredBlocksCfg],
+        List[BlockWithStoredBlocksCfg],
+        BlockWithStoredBlocksCfg,
         None,
     ]:
         if self.input.is_stream:
@@ -56,19 +55,19 @@ class BoundInputCfg(FrozenPydanticBase):
             return self.get_bound_reference_block()
         return self.get_bound_block_iterator()
 
-    def get_bound_block_iterator(self) -> Iterator[DataBlockWithStoredBlocksCfg]:
+    def get_bound_block_iterator(self) -> Iterator[BlockWithStoredBlocksCfg]:
         assert not self.input.is_stream and not self.input.is_reference
         if not self.bound_stream:
             return (_ for _ in [])
         return (b for b in self.bound_stream)
 
-    def get_bound_stream(self) -> Optional[List[DataBlockWithStoredBlocksCfg]]:
+    def get_bound_stream(self) -> Optional[List[BlockWithStoredBlocksCfg]]:
         assert self.input.is_stream
         if not self.bound_stream:
             return None
         return self.bound_stream
 
-    def get_bound_reference_block(self) -> Optional[DataBlockWithStoredBlocksCfg]:
+    def get_bound_reference_block(self) -> Optional[BlockWithStoredBlocksCfg]:
         assert self.input.is_reference
         if not self.bound_stream:
             return None
@@ -96,14 +95,12 @@ class BoundInputCfg(FrozenPydanticBase):
 
 class BoundInterfaceCfg(FrozenPydanticBase):
     inputs: Dict[str, BoundInputCfg]
-    interface: DataFunctionInterfaceCfg
+    interface: FunctionInterfaceCfg
 
     def iter_as_function_kwarg_inputs(
         self,
     ) -> Iterator[
-        Dict[
-            str, Union[DataBlockWithStoredBlocksCfg, List[DataBlockWithStoredBlocksCfg]]
-        ]
+        Dict[str, Union[BlockWithStoredBlocksCfg, List[BlockWithStoredBlocksCfg]]]
     ]:
         input_sources = {n: inpt.get_bound_input() for n, inpt in self.inputs.items()}
         while True:
@@ -134,7 +131,7 @@ class BoundInterfaceCfg(FrozenPydanticBase):
     def has_consumable_input(self) -> bool:
         if any(
             [
-                i.input.input_type == InputType.DataBlock and i.bound_stream
+                i.input.input_type == InputType.Block and i.bound_stream
                 for i in self.inputs.values()
             ]
         ):

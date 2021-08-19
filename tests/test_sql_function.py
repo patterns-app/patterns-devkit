@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from basis.api import Input
 from basis.core.declarative.function import (
-    DataFunctionInputCfg,
-    DataFunctionInterfaceCfg,
+    FunctionInputCfg,
+    FunctionInterfaceCfg,
 )
 from basis.core.function_interface import DEFAULT_OUTPUTS, InputType, Parameter
 from basis.core.sql.parser import parse_interface_from_sql, render_sql
@@ -115,17 +115,13 @@ def test_sql_parse_new_style_jinja():
     where col = {% param p1 text 0 %}
     """
     dfi = parse_interface_from_sql(sql)
-    assert dfi == DataFunctionInterfaceCfg(
+    assert dfi == FunctionInterfaceCfg(
         inputs={
-            "orders": DataFunctionInputCfg(
-                name="orders",
-                schema_key="TestSchema",
-                input_type=InputType.Stream,
+            "orders": FunctionInputCfg(
+                name="orders", schema_key="TestSchema", input_type=InputType.Stream,
             ),
-            "customers": DataFunctionInputCfg(
-                name="customers",
-                schema_key="Any",
-                input_type=InputType.Reference,
+            "customers": FunctionInputCfg(
+                name="customers", schema_key="Any", input_type=InputType.Reference,
             ),
         },
         outputs=DEFAULT_OUTPUTS,
@@ -141,11 +137,7 @@ def test_sql_render_new_style_jinja():
     select * from {% input orders %}
     where col = {% param p1 text 0 %}
     """
-    rendered = render_sql(
-        sql,
-        dict(orders="orders_table"),
-        dict(p1="'val1'"),
-    )
+    rendered = render_sql(sql, dict(orders="orders_table"), dict(p1="'val1'"),)
     expected = """
     select * from orders_table
     where col = 'val1'
@@ -239,12 +231,12 @@ def test_sql_function_interface():
     t3 = pi.get_input("t3")
     assert t1.schema_key == "T1"
     assert t1.name == "t1"
-    assert t1.input_type == InputType("DataBlock")
+    assert t1.input_type == InputType("Block")
     assert t2.schema_key == "Any"
     assert t2.name == "t2"
     assert t3.schema_key == "T2"
     assert t3.name == "t3"
-    assert t3.input_type == InputType("DataBlock")
+    assert t3.input_type == InputType("Block")
     assert pi.get_default_output() is not None
 
 
@@ -265,12 +257,12 @@ def test_sql_function_interface_fn():
     t3 = pi.get_input("t3")
     assert t1.schema_key == "T1"
     assert t1.name == "t1"
-    assert t1.input_type == InputType("DataBlock")
+    assert t1.input_type == InputType("Block")
     assert t2.schema_key == "Any"
     assert t2.name == "t2"
     assert t3.schema_key == "T2"
     assert t3.name == "t3"
-    assert t3.input_type == InputType("DataBlock")
+    assert t3.input_type == InputType("Block")
     assert pi.get_default_output() is not None
 
 
@@ -317,7 +309,7 @@ def test_sql_function_interface_fn_function():
 
 
 def test_sql_function_interface_output():
-    sql = """select:DataBlock[T]
+    sql = """select:Block[T]
         1
         from -- comment inbetween
         input
@@ -335,7 +327,7 @@ def test_sql_function_interface_output():
 
 # Don't support aliases
 # def test_sql_function_interface_table_alias():
-#     sql = """select:DataBlock[T]
+#     sql = """select:Block[T]
 #         1
 #         from -- comment inbetween
 #         input as
@@ -347,7 +339,7 @@ def test_sql_function_interface_output():
 #     assert len(pi.inputs) == 2
 #     assert pi.get_default_output() is not None
 #     assert pi.get_default_output().schema_key == "T"
-#     assert pi.get_default_output().data_format == "DataBlock"
+#     assert pi.get_default_output().data_format == "Block"
 
 
 def test_sql_function_interface_comment_like_string():

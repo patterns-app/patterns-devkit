@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from basis import DataFunction, DataFunctionContext, DataBlock
+from basis import Function, FunctionContext, Block
 
 
-@DataFunction(namespace="{{ cookiecutter.namespace }}")
+@Function(namespace="{{ cookiecutter.namespace }}")
 # @Input("input", stream=True)
 # @Param("param1", datatype="int")
-def {{ cookiecutter.function_name }}(ctx: DataFunctionContext, input: DataBlock):
+def {{ cookiecutter.function_name }}(ctx: FunctionContext, input: Block):
     df = input.as_dataframe() # Or .as_records()
     return df

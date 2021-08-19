@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from basis import DataBlock, datafunction, Context
+from basis import Block, datafunction, Context
 
 {% if cookiecutter.namespace %}
 @datafunction(namespace="{{ cookiecutter.namespace }}")
@@ -9,7 +9,7 @@ from basis import DataBlock, datafunction, Context
 {% endif %}
 def {{ cookiecutter.function_name }}(
     ctx: Context,
-    input: DataBlock
+    input: Block
     # ref: Reference   # A reference input
     # param1: str = "default val"  # A parameter with default
 ):
