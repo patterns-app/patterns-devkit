@@ -7,7 +7,6 @@ from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase
 from basis.core.declarative.flow import FlowCfg
 from basis.core.declarative.function import FunctionCfg
-from basis.core.declarative.graph import GraphCfg
 from basis.core.declarative.interface import BoundInterfaceCfg
 from commonmodel import Schema
 from networkx.classes.graph import Graph
@@ -34,7 +33,7 @@ class EnvironmentCfg(FrozenPydanticBase):
     default_runtime: Optional[str] = None
     storages: List[str] = []
     runtimes: List[str] = []
-    basis: BasisCfg = BasisCfg()
+    basis_cfg: BasisCfg = BasisCfg()
 
 
 class ComponentLibraryCfg(FrozenPydanticBase):

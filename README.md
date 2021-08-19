@@ -5,53 +5,27 @@
   <img width="800" src="assets/linear-basis.svg">
   <img width="650" src="assets/basis.svg">
 </p>
-<h3 align="center">Serverless Data Science</h3>
+<h3 align="center">The First Data Operating System</h3>
 <p>&nbsp;</p>
 
-**Basis** is the one tool you need to power your entire data science pipeline. At its core, Basis is
-a framework for building **functional reactive data flow** from modular
-components. It lets developers write pure `datafunctions` in **Python or SQL**
-that operate reactively on `blocks`, immutable sets of data records whose
-structure are described by flexible `schemas`.
-These functions can be composed into simple or complex data
-flows that power all operations of a data system, including:
+**Basis** is a framework for programming data workflows via nodes. It's a foundational system
+for building integrated end-to-end data pipelines that power everything from ingestion, to ETL,
+machine learning modeling, automation, and "reverse ETL" in a unified framework.
 
-- API ingestion
-- SQL transformation
-- Machine learning training and prediction
-- Webhooks, event streams, and triggers
-- Visualization
-- Export and callbacks
+In the same way software operating systems like Linux abstracted over hardware and allowed
+software developers to build applications with clean abstractions, Basis
+abstracts over cloud data infrastructure to give data developers the same
+powers as software developers:
 
-The functional reactive paradigm enables powerful benefits:
+No more reinventing the wheel: Package manager and repository for reusable data components that can be mixed and matched
+No more bad data bugs: Data unit tests
+No more vendor lock-in: Portability
+No more sql monkeying: Build reactive data flows that power real business operations, not just charts for execs to misinterpret
 
-- **Declarative data flows** — Trade the tangled, stateful messes of traditional ETLs
-  for clean declarative flows of data. Mix full rebuilds and incremental updates
-  easily and safely.
-
-- **Reusable components** — `datafunctions` and `flows` -- pre-built cloneable graphs -- can be easily plugged together, shared and
-  reused across projects.
-
-- **Operational data** - Basis isn't just an ETL tool, its reactive nature and generic abstractions enable developers
-  to build operational data flows that put their data to work.
-
-- **Total reproducibility** — Every data record at every pipeline step is preserved in basis,
-  along with the code that produced it and the inputs it used. Enables auditing, debugging, and reproducing pipelines.
-
-- **Portability** — Modular and testable functions means it is easy and safe to
-  run the same data operation on many major database vendors (postgres, mysql, snowflake, bigquery, redshift),
-  and file systems (local, S3, etc), or data format, whether it's csv, json, or apache arrow.
-
-- **Testability** — Data functions provide explicit test
-  inputs and the expected output under various data scenarios — a **data pipeline unit test**.
-
-- **High performance** — Datablock immutability means basis can
-  optimize data storage operations. It uses [dcp](https://github.com/kvh/dcp) under the hood
-  to handle transfer and conversion.
-
-Basis brings the best practices learned over the last 60 years in software to the world of data,
-with the goal of global collaboration, reproducible byte-perfect results, and performance at any
-scale from laptop to AWS cluster.
+Technically, Basis is a framework for building **functional reactive data flows** from graphs
+of compute nodes that are programmed via **Python or SQL**
+to operate reactively on `blocks`, immutable sets of one or more data records whose
+structure are described by flexible `schemas`, and store their output anywhere -- Postgres, Snowflake, S3, or elsewhere.
 
 > 🚨️ &nbsp; basis is **ALPHA** software. Expect breaking changes to core APIs. &nbsp; 🚨️
 

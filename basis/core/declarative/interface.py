@@ -1,4 +1,5 @@
 from __future__ import annotations
+from basis.core.declarative.node import NodeCfg
 
 from typing import TYPE_CHECKING, Dict, Iterable, Iterator, List, Optional, Set, Union
 
@@ -6,20 +7,18 @@ from basis.core.block import as_managed
 from basis.core.declarative.base import FrozenPydanticBase
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
-    FunctionInputCfg,
     FunctionInterfaceCfg,
-    InputType,
+    IoBase,
 )
-from basis.core.declarative.graph import GraphCfg
 from basis.core.persistence.pydantic import BlockWithStoredBlocksCfg
 from loguru import logger
 
 
 class NodeInputCfg(FrozenPydanticBase):
     name: str
-    input: FunctionInputCfg
-    input_node: Optional[GraphCfg] = None
-    schema_translation: Optional[Dict[str, str]] = None
+    input: IoBase
+    input_node: Optional[NodeCfg] = None
+    # schema_translation: Optional[Dict[str, str]] = None
 
     def as_bound_input(
         self, bound_stream: List[BlockWithStoredBlocksCfg] = None,
@@ -29,15 +28,15 @@ class NodeInputCfg(FrozenPydanticBase):
             name=self.name,
             input=self.input,
             input_node=self.input_node,
-            schema_translation=self.schema_translation,
+            # schema_translation=self.schema_translation,
             bound_stream=bound_stream,
         )
 
 
 class BoundInputCfg(FrozenPydanticBase):
     name: str
-    input: FunctionInputCfg
-    input_node: Optional[GraphCfg] = None
+    input: IoBase
+    input_node: Optional[NodeCfg] = None
     schema_translation: Optional[Dict[str, str]] = None
     bound_stream: Optional[List[BlockWithStoredBlocksCfg]] = None
 

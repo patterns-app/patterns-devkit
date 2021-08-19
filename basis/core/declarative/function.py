@@ -93,40 +93,6 @@ class Parameter(FrozenPydanticBase):
     description: str = ""
 
 
-# class FunctionInputCfg(FunctionIoBase):
-#     name: str
-#     input_type: InputType = InputType.Block
-#     required: bool = True
-#     description: Optional[str] = None
-
-#     @property
-#     def is_stream(self) -> bool:
-#         return self.input_type == InputType.Stream
-
-#     @property
-#     def is_self_reference(self) -> bool:
-#         return self.input_type == InputType.SelfReference
-
-#     @property
-#     def is_reference(self) -> bool:
-#         return self.input_type in (InputType.Reference, InputType.SelfReference)
-
-#     @property
-#     def is_consumable(self) -> bool:
-#         return self.input_type in (InputType.Block, InputType.Stream)
-
-
-# class FunctionOutputCfg(FunctionIoBase):
-#     name: str = DEFAULT_OUTPUT_NAME
-#     data_format: Optional[str] = None
-#     # reference: bool = False # TODO: not a thing right? that's up to downstream to decide
-#     # optional: bool = False
-#     is_iterator: bool = False
-#     is_default: bool = True  # TODO: not here
-#     # stream: bool = False # TODO: do we ever need this?
-#     description: Optional[str] = None
-
-
 class FunctionInterfaceCfg(FrozenPydanticBase):
     inputs: Dict[str, IoBase]
     outputs: Dict[str, IoBase]
@@ -234,16 +200,16 @@ class FunctionCfg(FrozenPydanticBase):
         return self
 
 
-class FunctionPackageCfg(FrozenPydanticBase):
-    root_path: str
-    function: FunctionCfg
-    # local_vars: Dict = None
-    # root_module: ModuleType
-    tests: List[Dict] = []
-    function_python_name: Optional[str] = None
-    readme_name: str = "README.md"
-    # python_requirements_path: str = None
-    # docker_file_path: str = None
+# class FunctionPackageCfg(FrozenPydanticBase):
+#     root_path: str
+#     function: FunctionCfg
+#     # local_vars: Dict = None
+#     # root_module: ModuleType
+#     tests: List[Dict] = []
+#     function_python_name: Optional[str] = None
+#     readme_name: str = "README.md"
+#     # python_requirements_path: str = None
+#     # docker_file_path: str = None
 
 
 class FunctionSourceFileCfg(FrozenPydanticBase):

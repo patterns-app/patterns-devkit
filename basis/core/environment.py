@@ -1,4 +1,6 @@
 from __future__ import annotations
+from dataclasses import dataclass
+from basis.core.declarative.environment import EnvironmentCfg
 
 import logging
 import os
@@ -55,37 +57,44 @@ DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
 Serializable = Union[str, int, float, bool]
 
 
+def instantiate_environment(cfg: EnvironmentCfg) -> Environment:
+    env = Environment(cfg)
+
+
 class Environment:
     key: str
-    dataspace: DataspaceCfg
     library: ComponentLibrary
     settings: BasisCfg
     metadata_storage: Storage
     metadata_api: MetadataApi
+    cfg: EnvironmentCfg
 
     def __init__(
         self,
-        dataspace: Optional[DataspaceCfg] = None,
-        library: Optional[ComponentLibrary] = global_library,
-        namespaces: List[str] = None,
+        cfg: Optional[EnvironmentCfg] = None,
+        # library: Optional[ComponentLibrary] = global_library,
+        # namespaces: List[str] = None,
+        disable_metadata: bool = False,
     ):
         from basis.modules import core
         from basis.core.runtime import ensure_runtime
-        from basis.core.declarative.dataspace import DataspaceCfg, BasisCfg
+        from basis.core.declarative.environment import EnvironmentCfg, BasisCfg
 
-        self.dataspace = dataspace or DataspaceCfg()
-        self.key = self.dataspace.key or "default"
-        self.settings = self.dataspace.basis or BasisCfg()
-        metadata_storage = self.dataspace.metadata_storage
-        if metadata_storage is None:
-            metadata_storage = DEFAULT_METADATA_STORAGE_URL
-            logger.warning(
-                f"No metadata storage specified, using default sqlite db `{DEFAULT_METADATA_STORAGE_URL}`"
-            )
-        self.metadata_storage = ensure_storage(metadata_storage)
-        self.metadata_api = MetadataApi(self.key, self.metadata_storage)
-        if self.settings.initialize_metadata_storage:
-            self.metadata_api.initialize_metadata_database()
+        self.cfg = cfg or EnvironmentCfg()
+        self.key = self.cfg.key or "default"
+        self.settings = self.cfg.basis_cfg or BasisCfg()
+        self.disable_metadata = disable_metadata
+        if not disable_metadata:
+            metadata_storage = self.cfg.metadata_storage
+            if metadata_storage is None:
+                metadata_storage = DEFAULT_METADATA_STORAGE_URL
+                logger.warning(
+                    f"No metadata storage specified, using default sqlite db `{DEFAULT_METADATA_STORAGE_URL}`"
+                )
+            self.metadata_storage = ensure_storage(metadata_storage)
+            self.metadata_api = MetadataApi(self.key, self.metadata_storage)
+            if self.settings.initialize_metadata_storage:
+                self.metadata_api.initialize_metadata_database()
         # TODO: local module is yucky global state, also, we load these libraries and their
         #       components once, but the libraries are mutable and someone could add components
         #       to them later, which would not be picked up by the env library. (prob fine)
@@ -106,6 +115,8 @@ class Environment:
         # self.add_storage(self._local_python_storage)
 
     def get_metadata_api(self) -> MetadataApi:
+        if self.disable_metadata:
+            raise Exception("Metdata disabled")
         return self.metadata_api
 
     def get_namespaces(self) -> List[str]:

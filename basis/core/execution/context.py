@@ -26,14 +26,12 @@ import sqlalchemy
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.block import Block, BlockStream, as_managed
 from basis.core.declarative.base import FrozenPydanticBase, PydanticBase
-from basis.core.declarative.dataspace import ComponentLibraryCfg, DataspaceCfg
 from basis.core.declarative.execution import (
     ExecutableCfg,
     ExecutionCfg,
     ExecutionResult,
 )
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME, FunctionCfg
-from basis.core.declarative.graph import GraphCfg
 from basis.core.declarative.interface import BoundInputCfg, BoundInterfaceCfg
 from basis.core.function import Function
 from basis.core.persistence.block import (
@@ -583,7 +581,7 @@ class BlockOutputHandler:
 
 
 @dataclass(frozen=True)
-class FunctionContext:
+class FunctionContextOld:
     dataspace: DataspaceCfg
     function: Function
     node: GraphCfg

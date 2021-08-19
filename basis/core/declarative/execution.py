@@ -112,7 +112,7 @@ class ExecutionResult(PydanticBase):
     # current_state: Dict = {}
 
 
-class ExecutionResult(PydanticBase):
+class ExecutionResultOld(PydanticBase):
     input_blocks_consumed: Dict[str, List[BlockMetadataCfg]] = {}
     output_blocks_emitted: Dict[str, List[BlockMetadataCfg]] = {}
     stored_blocks_created: Dict[
@@ -225,26 +225,9 @@ class RemoteCallbackMetadataExecutionResultHandler:
 
 class ExecutableCfg(FrozenPydanticBase):
     node_key: str
-    graph: GraphCfg
+    node_set: List[NodeCfg]
     execution_config: ExecutionCfg
     bound_interface: BoundInterfaceCfg
-    function_log: FunctionLogCfg
+    # result: ExecutionResult
     library_cfg: Optional[ComponentLibraryCfg] = None
-    source_file_functions: List[FunctionSourceFileCfg] = []
-
-    @property
-    def node(self) -> GraphCfg:
-        return self.graph.get_node(self.node_key)
-
-    def get_library(self) -> ComponentLibrary:
-        from basis.core.function_package import load_function_from_source_file
-
-        if self.library_cfg is None:
-            lib = global_library
-        else:
-            lib = ComponentLibrary.from_config(self.library_cfg)
-            lib.merge(global_library)
-        for src in self.source_file_functions:
-            fn = load_function_from_source_file(src)
-            lib.add_function(fn)
-        return lib
+    # source_file_functions: List[FunctionSourceFileCfg] = []

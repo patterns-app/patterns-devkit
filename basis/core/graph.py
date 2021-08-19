@@ -1,5 +1,5 @@
 from __future__ import annotations
-from basis.core.node import Node
+from basis.core.node import Node, instantiate_node
 
 from enum import Enum
 from typing import (
@@ -71,12 +71,6 @@ class NodeOutputCfg(FrozenPydanticBase):
     data_format: Optional[str] = None
     # retention_policy: Optional[str] = None # TODO
 
-def instantiate_graph(, lib: ComponentLibrary) -> Node:
-    d = cfg.dict()
-    d["function"] = lib.get_function(cfg.function)
-    d["original_cfg"] = cfg
-    d["inputs"] = cfg.assign_inputs()
-    return Node(**d)
 
 
 class Graph(FrozenPydanticBase):
@@ -178,3 +172,6 @@ class Graph(FrozenPydanticBase):
         return node_inputs
 
 
+
+def instantiate_graph(nodes: List[Node], lib: ComponentLibrary) -> Graph:
+    return Graph(nodes=[instantiate_node(n, lib) for n in nodes]

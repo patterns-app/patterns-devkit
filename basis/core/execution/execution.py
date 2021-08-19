@@ -1,4 +1,5 @@
 from __future__ import annotations
+from basis.core.execution.executable import Executable
 
 from collections import abc, defaultdict
 from contextlib import contextmanager
@@ -18,7 +19,6 @@ from basis.core.declarative.execution import (
     get_global_metadata_result_handler,
 )
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
-from basis.core.declarative.graph import GraphCfg
 from basis.core.environment import Environment
 from basis.core.execution.context import FunctionContext
 from basis.core.function import Function, DataInterfaceType, InputExhaustedException
@@ -35,20 +35,6 @@ def run_dataspace(ds: DataspaceCfg):
 
 class ImproperlyStoredBlockException(Exception):
     pass
-
-
-# def validate_blocks(env: Environment):
-#     # TODO: More checks?
-#     env.md_api.flush()
-#     for obj in env.md_api.active_session.identity_map.values():
-#         if isinstance(obj, BlockMetadata):
-#             urls = set([sdb.storage_url for sdb in obj.stored_blocks])
-#             if all(u.startswith("python") for u in urls):
-#                 fmts = set([sdb.data_format for sdb in obj.stored_blocks])
-#                 if all(not f.is_storable() for f in fmts):
-#                     raise ImproperlyStoredBlockException(
-#                         f"Block {obj} is not properly stored (no storeable format(s): {fmts})"
-#                     )
 
 
 class ExecutionLogger:
@@ -78,11 +64,11 @@ class ExecutionLogger:
 
 
 class ExecutionManager:
-    def __init__(self, exe: ExecutableCfg):
+    def __init__(self, exe: Executable):
         self.exe = exe
         self.logger = ExecutionLogger()
         self.node = self.exe.node
-        self.function = exe.get_library().get_function(self.node.function)
+        self.function = exe.library.get_function(self.node.function)
         self.start_time = utcnow()
         self.cfg = exe.execution_config
         self.to_exhaustion = True
@@ -95,7 +81,6 @@ class ExecutionManager:
         logger.debug(
             f"RUNNING NODE {self.node.key} {self.function.key} with params `{self.node.params}`"
         )
-        self.exe.function_log.started_at = utcnow()
         logger.debug(self.exe)
         self.logger.log(base_msg)
         results = []
@@ -118,13 +103,13 @@ class ExecutionManager:
         with self.logger.indent():
             # self.logger.log(f"Running inputs {inputs}")
             ctx = self.prepare_context(inputs)
+            ctx.result.started_at = utcnow()
             try:
                 self._call_data_function(ctx)
             except Exception as e:
                 ctx.result.function_error = PythonException.from_exception(e)
             result = ctx.result
-            if not result.has_error():
-                ctx.log_inputs()
+            result.completed_at = utcnow()
             self.log_execution_result(result)
             if not result.has_error():
                 self.logger.log(cf.success("Ok " + success_symbol + "\n"))  # type: ignore
