@@ -66,6 +66,15 @@ class ImproperlyStoredBlockException(Exception):
 #                     )
 
 
+def prepare_executables_from_result(env: Environment, res: ExecutionResult):
+    # get downstream nodes
+    nodes: List[NodeCfg] = api.get_downstream_nodes()
+    #
+    for n in nodes:
+        exe = api.get_executable(n, res)
+    api.queue_executable(exe)
+
+
 def prepare_executable(
     env: Environment,
     cfg: ExecutionCfg,
@@ -362,3 +371,4 @@ def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult
     for sdbc in result.stored_blocks_created[db.id]:
         sdb = StoredBlockMetadata.from_pydantic(sdbc)
         sdb.create_alias(env, exe.node.get_alias())
+

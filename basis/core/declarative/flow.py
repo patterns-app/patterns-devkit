@@ -2,7 +2,6 @@ from __future__ import annotations
 from typing import List
 
 from basis.core.declarative.base import FrozenPydanticBase
-from basis.core.declarative.graph import GraphCfg
 
 
 class FlowCfg(FrozenPydanticBase):

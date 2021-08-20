@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, List
 
 import dcp
 import sqlalchemy
-from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.execution import (
     DebugMetadataExecutionResultHandler,
     ExecutableCfg,
@@ -20,7 +19,7 @@ from basis.core.declarative.execution import (
 )
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 from basis.core.environment import Environment
-from basis.core.execution.context import FunctionContext
+from basis.core.execution.context import Context
 from basis.core.function import Function, DataInterfaceType, InputExhaustedException
 from basis.utils.output import cf, error_symbol, success_symbol
 from dcp.utils.common import rand_str, utcnow
@@ -71,9 +70,8 @@ class ExecutionManager:
         self.function = exe.library.get_function(self.node.function)
         self.start_time = utcnow()
         self.cfg = exe.execution_config
-        self.to_exhaustion = True
 
-    def execute(self) -> List[ExecutionResult]:
+    def execute(self) -> ExecutionResult:
         # Setup for run
         base_msg = (
             f"Running node {cf.bold(self.node.key)} {cf.dimmed(self.function.key)}\n"
@@ -83,21 +81,16 @@ class ExecutionManager:
         )
         logger.debug(self.exe)
         self.logger.log(base_msg)
-        results = []
-        # try:
-        for inputs in self.exe.bound_interface.iter_as_function_kwarg_inputs():
-            result = self._execute_inputs(inputs)
-            self.publish_result(result)
-            results.append(result)
-            if result.has_error():
-                break
+        inputs = self.exe.bound_interface.get_inputs_as_kwargs()
+        result = self._execute_inputs(inputs)
+        self.publish_result(result)
         # except Exception as e:
         #     self.exe.function_log.error = PythonException.from_exception(e).dict()
         #     raise e
         # finally:
         #     self.exe.function_log.completed_at = utcnow()
         # self.publish_result()
-        return results
+        return result
 
     def _execute_inputs(self, inputs) -> ExecutionResult:
         with self.logger.indent():
@@ -125,22 +118,22 @@ class ExecutionManager:
 
     def publish_result(self, result: ExecutionResult):
         # TODO: support alternate reporters
-        result = result.finalize()  # TODO: pretty important step!
+        # result = result.finalize()  # TODO: pretty important step!
         handler = self.exe.execution_config.result_handler
         if handler.type == MetadataExecutionResultHandler.__name__:
-            get_global_metadata_result_handler()(self.exe, result)
+            get_global_metadata_result_handler()(self.exe.original_cfg, result)
         elif handler.type == DebugMetadataExecutionResultHandler.__name__:
-            DebugMetadataExecutionResultHandler()(self.exe, result)
+            DebugMetadataExecutionResultHandler()(self.exe.original_cfg, result)
         elif handler.type == RemoteCallbackMetadataExecutionResultHandler.__name__:
             RemoteCallbackMetadataExecutionResultHandler(**handler.cfg)(
-                self.exe, result
+                self.exe.original_cfg, result
             )
         else:
             raise NotImplementedError(handler.type)
 
     def prepare_context(self, inputs) -> FunctionContext:
-        return FunctionContext(
-            dataspace=self.cfg.dataspace,
+        return Context(
+            # env=self.cfg.dataspace,
             function=self.function,
             node=self.node,
             executable=self.exe,
@@ -152,22 +145,24 @@ class ExecutionManager:
 
     def _call_data_function(self, ctx: FunctionContext):
         function_args, function_kwargs = ctx.get_function_args()
-        output_obj = self.function.function_callable(*function_args, **function_kwargs,)
-        if output_obj is not None:
-            self.emit_output_object(ctx, output_obj)
-            # TODO: update node state block counts?
+        self.function.function_callable(
+            *function_args, **function_kwargs,
+        )
+        # if output_obj is not None:
+        #     self.emit_output_object(ctx, output_obj)
+        #     # TODO: update node state block counts?
 
-    def emit_output_object(self, ctx: FunctionContext, output_obj: DataInterfaceType):
-        assert output_obj is not None
-        if isinstance(output_obj, abc.Generator):
-            output_iterator = output_obj
-        else:
-            output_iterator = [output_obj]
-        i = 0
-        for output_obj in output_iterator:
-            logger.debug(output_obj)
-            i += 1
-            ctx.emit(output_obj)
+    # def emit_output_object(self, ctx: FunctionContext, output_obj: DataInterfaceType):
+    #     assert output_obj is not None
+    #     if isinstance(output_obj, abc.Generator):
+    #         output_iterator = output_obj
+    #     else:
+    #         output_iterator = [output_obj]
+    #     i = 0
+    #     for output_obj in output_iterator:
+    #         logger.debug(output_obj)
+    #         i += 1
+    #         ctx.emit(output_obj)
 
     def log_execution_result(self, result: ExecutionResult):
         self.logger.log("Inputs: ")

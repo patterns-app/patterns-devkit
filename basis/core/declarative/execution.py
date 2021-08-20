@@ -71,7 +71,7 @@ class PythonException(FrozenPydanticBase):
         return PythonException(error=error, traceback=tback)
 
 
-class StreamStatus(PydanticBase):
+class StreamState(PydanticBase):
     start_block_id: Optional[str] = None
     latest_block_id: Optional[str] = None
     block_count: int = 0
@@ -93,7 +93,7 @@ class ExecutionResult(PydanticBase):
     node_version: str  # TODO: hash of relevant node config (code, params, etc?)
     # function_key: str = None # TODO: unique hash of code and path?
     # params
-    stream_statuses: Dict[str, StreamStatus] = {}
+    stream_statuses: Dict[str, StreamState] = {}
     runtime: str
     queued_at: Optional[datetime] = None
     started_at: Optional[datetime] = None

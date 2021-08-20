@@ -17,7 +17,7 @@ class _BaseModel:
     def __tablename__(cls):
         return BASIS_METADATA_TABLE_PREFIX + title_to_snake_case(cls.__name__)  # type: ignore
 
-    dataspace_key = Column(String(length=64), default="default")
+    env_id = Column(String(length=64), default="default")
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
