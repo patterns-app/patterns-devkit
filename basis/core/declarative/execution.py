@@ -71,6 +71,13 @@ class PythonException(FrozenPydanticBase):
         return PythonException(error=error, traceback=tback)
 
 
+class StreamResult(PydanticBase):
+    blocks: List[BlockMetadataCfg] = []
+    start_block_id: Optional[str] = None
+    latest_block_id: Optional[str] = None
+    block_count: int = 0
+
+
 class StreamState(PydanticBase):
     start_block_id: Optional[str] = None
     latest_block_id: Optional[str] = None
@@ -93,7 +100,8 @@ class ExecutionResult(PydanticBase):
     node_version: str  # TODO: hash of relevant node config (code, params, etc?)
     # function_key: str = None # TODO: unique hash of code and path?
     # params
-    stream_statuses: Dict[str, StreamState] = {}
+    input_blocks_consumed: Dict[str, List[BlockMetadataCfg]] = {}
+    output_blocks_emitted: Dict[str, List[BlockMetadataCfg]] = {}
     runtime: str
     queued_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
@@ -101,7 +109,7 @@ class ExecutionResult(PydanticBase):
     timed_out: bool = False
     schemas_generated: List[Schema] = []
     function_error: Optional[PythonException] = None
-    framework_error: Optional[PythonException] = None  # TODO: do we ever use this?
+    # framework_error: Optional[PythonException] = None  # TODO: do we ever use this?
     # records_emitted: Dict[str, List[Dict]] = {}
     # tables_emitted: Dict[str, List[Any]] = {}
     # errors_emitted: Dict[str, List[Any]] = {}
@@ -230,4 +238,5 @@ class ExecutableCfg(FrozenPydanticBase):
     bound_interface: BoundInterfaceCfg
     # result: ExecutionResult
     library_cfg: Optional[ComponentLibraryCfg] = None
+    retries_remaining: int = 3  # TODO: configurable
     # source_file_functions: List[FunctionSourceFileCfg] = []

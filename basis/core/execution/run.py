@@ -372,3 +372,31 @@ def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult
         sdb = StoredBlockMetadata.from_pydantic(sdbc)
         sdb.create_alias(env, exe.node.get_alias())
 
+
+def make_executable_for_remaining_unprocessed(
+    env: Environment, exe: ExecutableCfg, result: ExecutionResult
+) -> ExecutableCfg:
+    pass
+
+
+def retry_exe(exe: ExecutableCfg):
+    if exe.retries_remaining <= 0:
+        raise
+    exe = update(exe, retries_remaining=exe.retries_remaining - 1)
+
+
+def handle_execution_result(
+    env: Environment, exe: ExecutableCfg, result: ExecutionResult
+):
+    remainder_exe = make_executable_for_remaining_unprocessed(env, exe, result)
+    # Did we error?
+    if result.function_error is not None:
+        retry_exe(remainder_exe)
+    if result.timed_out:
+        if result.total_blocks_processed() > 0:
+            # Timed out with progress, so we can safely requeue remainder
+            requeue(remainder_exe)
+        else:
+            # Timed out w/o progress, must count as a failure
+            retry_exe(remainder_exe)
+    handle_execution_result_output_blocks(env, exe, result.output_blocks_emitted)

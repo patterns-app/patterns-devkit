@@ -48,12 +48,8 @@ if TYPE_CHECKING:
     from basis.core.block import Block
 
 
-def get_block_id() -> str:
-    return timestamp_increment_key(prefix="db")
-
-
-def get_stored_block_id() -> str:
-    return timestamp_increment_key(prefix="sdb")
+def get_block_id(emitting_node_key: str) -> str:
+    return timestamp_increment_key(prefix=emitting_node_key)
 
 
 def ensure_lib(lib: Union[Environment, ComponentLibrary]) -> ComponentLibrary:

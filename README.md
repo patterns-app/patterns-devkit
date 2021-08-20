@@ -8,7 +8,7 @@
 <h3 align="center">The First Data Operating System</h3>
 <p>&nbsp;</p>
 
-**Basis** is a framework for programming data workflows via nodes. It's a foundational system
+**Basis** is a framework for programming data workflows via nodes with python or sql. It's a foundational system
 for building integrated end-to-end data pipelines that power everything from ingestion, to ETL,
 machine learning modeling, automation, and "reverse ETL" in a unified framework.
 

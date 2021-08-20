@@ -1,3 +1,4 @@
+from basis.utils.ulid import generate_ulid_as_base32
 from collections import OrderedDict
 from typing import Any
 
@@ -60,18 +61,12 @@ class _BaseModel:
 BaseModel = declarative_base(cls=_BaseModel)  # type: Any
 
 
-last_second: str = ""
-
-
-def timestamp_increment_key(prefix: str = "", max_length: int = 28) -> str:
+def timestamp_increment_key(prefix: str = "") -> str:
     """
     Generates keys that are unique and monotonic in time for a given run.
     Appends random chars to ensure multiple processes can run at once and not collide.
     """
-    curr_ms = utcnow().strftime("%y%m%d_%H%M%S%f")
-    rand_len = max_length - (21 + len(prefix))
-    key = f"{prefix}_{curr_ms}_{rand_str(rand_len).lower()}"
-    return key
+    return f"{prefix}_{generate_ulid_as_base32()}"
 
 
 class DataFormatType(types.TypeDecorator):
