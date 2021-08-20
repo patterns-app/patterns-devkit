@@ -388,15 +388,30 @@ def retry_exe(exe: ExecutableCfg):
 def handle_execution_result(
     env: Environment, exe: ExecutableCfg, result: ExecutionResult
 ):
+    handle_execution_result_output_blocks(env, exe, result.output_blocks_emitted)
     remainder_exe = make_executable_for_remaining_unprocessed(env, exe, result)
-    # Did we error?
+    # handle retry and requeue based on result
     if result.function_error is not None:
         retry_exe(remainder_exe)
-    if result.timed_out:
+    elif result.timed_out:
         if result.total_blocks_processed() > 0:
             # Timed out with progress, so we can safely requeue remainder
-            requeue(remainder_exe)
+            run_exe(remainder_exe)
         else:
             # Timed out w/o progress, must count as a failure
             retry_exe(remainder_exe)
-    handle_execution_result_output_blocks(env, exe, result.output_blocks_emitted)
+    elif remainder_exe.has_unprocessed_blocks():
+        # unclear why all block weren't processed, function only consumed some, re-run
+        run_exe(remainder_exe)
+    else:
+        # all finished
+        pass
+
+
+def handle_execution_result_output_blocks(
+    env: Environment, exe: ExecutableCfg, result: ExecutionResult
+):
+    # save stream states (latest block, time, schemas?)
+    # ignore stream blocks?
+    # save table blocks
+    pass

@@ -1,13 +1,14 @@
 from __future__ import annotations
+from basis.core.declarative.environment import EnvironmentCfg
+from basis.core.declarative.node import NodeCfg
+from basis.core.graph import Graph
 
 from pprint import pprint
 
 import pytest
 from basis.core.component import global_library
 from basis.core.declarative.base import dump_yaml, load_yaml, update
-from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.flow import FlowCfg
-from basis.core.declarative.graph import GraphCfg
 from basis.core.flattener import flatten_graph_config
 from basis.modules import core
 from pydantic.error_wrappers import ValidationError
@@ -22,18 +23,18 @@ from tests.utils import (
 )
 
 
-def make_graph() -> GraphCfg:
+def make_graph() -> Graph:
     env = make_test_env()
     env.add_module(core)
-    return GraphCfg(
+    return Graph(
         nodes=[
-            GraphCfg(key="node1", function="function_t1_source"),
-            GraphCfg(key="node2", function="function_t1_source"),
-            GraphCfg(key="node3", function="function_t1_to_t2", input="node1"),
-            GraphCfg(key="node4", function="function_t1_to_t2", input="node2"),
-            GraphCfg(key="node5", function="function_generic", input="node4"),
-            GraphCfg(key="node6", function="function_self", input="node4"),
-            GraphCfg(
+            NodeCfg(key="node1", function="function_t1_source"),
+            NodeCfg(key="node2", function="function_t1_source"),
+            NodeCfg(key="node3", function="function_t1_to_t2", input="node1"),
+            NodeCfg(key="node4", function="function_t1_to_t2", input="node2"),
+            NodeCfg(key="node5", function="function_generic", input="node4"),
+            NodeCfg(key="node6", function="function_self", input="node4"),
+            NodeCfg(
                 key="node7",
                 function="function_multiple_input",
                 inputs={"input": "node4", "other_t2": "node3"},
@@ -46,8 +47,8 @@ def test_dupe_node():
     # TODO: validate
     g = make_graph()
     with pytest.raises(ValidationError):
-        d = GraphCfg(key="node1", function="function_t1_source")
-        GraphCfg(nodes=g.nodes + [d])
+        d = NodeCfg(key="node1", function="function_t1_source")
+        NodeCfg(nodes=g.nodes + [d])
 
 
 def test_declared_graph():
@@ -84,21 +85,9 @@ def test_make_graph():
     assert len(g.get_all_nodes_in_execution_order()) == len(nodes)
     execution_order = [n.key for n in g.get_all_nodes_in_execution_order()]
     expected_orderings = [
-        [
-            "node2",
-            "node4",
-            "node5",
-        ],
-        [
-            "node2",
-            "node4",
-            "node6",
-        ],
-        [
-            "node1",
-            "node3",
-            "node7",
-        ],
+        ["node2", "node4", "node5",],
+        ["node2", "node4", "node6",],
+        ["node1", "node3", "node7",],
     ]
     # TODO: graph sort not stable!
     for ordering in expected_orderings:
@@ -107,7 +96,7 @@ def test_make_graph():
 
 
 def test_graph_from_yaml():
-    g = GraphCfg(
+    g = Graph(
         **load_yaml(
             """
             nodes:
@@ -185,7 +174,7 @@ def test_resolve_and_flatten():
     global_library.add_flow(ad)
 
     d = load_yaml(basic_graph)
-    ds = DataspaceCfg(**d)
+    ds = EnvironmentCfg(**d)
 
     assert set([n.key for n in ds.graph.nodes]) == {"import_csv", "stripe_charges"}
     assert ds.graph.get_node("import_csv").function_cfg is None
@@ -208,125 +197,125 @@ def test_resolve_and_flatten():
     }
 
 
-def test_augmentations():
-    # TODO: more complex nested scenarios (see whiteboard snapshot)
-    ad = """
-        name: myflow
-        namespace: core
-        graph:
-          nodes:
-            - key: step1
-              function: core.accumulator_sql
-              accumulate: true
-              dedupe: true
-              alias: alias_step1
-            - key: step2
-              function: core.dedupe_keep_latest_sql
-              input: step1
-          stdin_key: step1
-          stdout_key: step2
-    """
-    d = load_yaml(ad)
-    ad = FlowCfg(**d)
-    global_library.add_flow(ad)
+# def test_augmentations():
+#     # TODO: more complex nested scenarios (see whiteboard snapshot)
+#     ad = """
+#         name: myflow
+#         namespace: core
+#         graph:
+#           nodes:
+#             - key: step1
+#               function: core.accumulator_sql
+#               accumulate: true
+#               dedupe: true
+#               alias: alias_step1
+#             - key: step2
+#               function: core.dedupe_keep_latest_sql
+#               input: step1
+#           stdin_key: step1
+#           stdout_key: step2
+#     """
+#     d = load_yaml(ad)
+#     ad = FlowCfg(**d)
+#     global_library.add_flow(ad)
 
-    g = """
-        basis:
-          initialize_metadata_storage: false
-        metadata_storage: sqlite://.basis.db
-        storages:
-          - postgres://localhost:5432/basis
-        namespaces:
-          - stripe
-        graph:
-          nodes:
-            - key: import_csv
-              function: core.import_local_csv
-              params:
-                path: "*****"
-              accumulate: true
-              dedupe: true
-              alias: alias_import_csv
-            - key: stripe_charges
-              flow: myflow
-              input: import_csv
-              params:
-                dedupe: KeepLatestRecord # Default
-    """
-    d = load_yaml(g)
-    ds = DataspaceCfg(**d)
+#     g = """
+#         basis:
+#           initialize_metadata_storage: false
+#         metadata_storage: sqlite://.basis.db
+#         storages:
+#           - postgres://localhost:5432/basis
+#         namespaces:
+#           - stripe
+#         graph:
+#           nodes:
+#             - key: import_csv
+#               function: core.import_local_csv
+#               params:
+#                 path: "*****"
+#               accumulate: true
+#               dedupe: true
+#               alias: alias_import_csv
+#             - key: stripe_charges
+#               flow: myflow
+#               input: import_csv
+#               params:
+#                 dedupe: KeepLatestRecord # Default
+#     """
+#     d = load_yaml(g)
+#     ds = DataspaceCfg(**d)
 
-    assert set([n.key for n in ds.graph.nodes]) == {"import_csv", "stripe_charges"}
-    assert ds.graph.get_node("import_csv").function_cfg is None
-    assert not ds.graph.get_node("stripe_charges").nodes
-    resolved = ds.resolve()
-    assert resolved.graph.get_node("import_csv").function_cfg is not None
-    assert len(resolved.graph.get_node("stripe_charges").nodes) == 2
+#     assert set([n.key for n in ds.graph.nodes]) == {"import_csv", "stripe_charges"}
+#     assert ds.graph.get_node("import_csv").function_cfg is None
+#     assert not ds.graph.get_node("stripe_charges").nodes
+#     resolved = ds.resolve()
+#     assert resolved.graph.get_node("import_csv").function_cfg is not None
+#     assert len(resolved.graph.get_node("stripe_charges").nodes) == 2
 
-    flat = flatten_graph_config(resolved.graph)
-    # print(dump_yaml(flat.dict()))
-    # Test flattening
-    assert set([n.key for n in flat.nodes]) == {
-        "import_csv.dedupe",
-        "import_csv.accumulate",
-        "stripe_charges.step1.source",
-        "stripe_charges.step2",
-        "stripe_charges.step1.dedupe",
-        "stripe_charges.step1.accumulate",
-        "import_csv.source",
-    }
-    # Test input key modifications
-    assert flat.get_node("stripe_charges.step1.source").get_inputs() == {
-        "stdin": "import_csv.dedupe"
-    }
-    assert flat.get_node("stripe_charges.step2").get_inputs() == {
-        "stdin": "stripe_charges.step1.dedupe"
-    }
-    assert flat.get_node("stripe_charges.step1.accumulate").get_inputs() == {
-        "stdin": "stripe_charges.step1.source"
-    }
-    # Test alias on flattened nodes
-    assert flat.get_node("stripe_charges.step1.accumulate").get_inputs() == {
-        "stdin": "stripe_charges.step1.source"
-    }
-    expected = """
-key: default
-nodes:
-- key: import_csv.source
-  function: core.import_local_csv
-  params:
-    path: '*****'
-- key: import_csv.accumulate
-  function: core.accumulate
-  inputs:
-    stdin: import_csv.source
-- key: import_csv.dedupe
-  function: core.dedupe_keep_latest
-  inputs:
-    stdin: import_csv.accumulate
-  alias: alias_import_csv
-- key: stripe_charges.step1.source
-  function: core.accumulator_sql
-  inputs:
-    stdin: import_csv.dedupe
-- key: stripe_charges.step1.accumulate
-  function: core.accumulate
-  inputs:
-    stdin: stripe_charges.step1.source
-- key: stripe_charges.step1.dedupe
-  function: core.dedupe_keep_latest
-  inputs:
-    stdin: stripe_charges.step1.accumulate
-  alias: stripe_charges.step1
-- key: stripe_charges.step2
-  function: core.dedupe_keep_latest_sql
-  inputs:
-    stdin: stripe_charges.step1.dedupe
-  alias: stripe_charges
-"""
-    # TODO: we lost the alias on the inner step? Is that ok? What is ideal behavior? Nested aliases kinda tricky anyways?
-    exp = GraphCfg(**load_yaml(expected))
-    assert flat.key == exp.key
-    for n in flat.nodes:
-        n = update(n, function_cfg=None)
-        assert n == exp.get_node(n.key), n.key
+#     flat = flatten_graph_config(resolved.graph)
+#     # print(dump_yaml(flat.dict()))
+#     # Test flattening
+#     assert set([n.key for n in flat.nodes]) == {
+#         "import_csv.dedupe",
+#         "import_csv.accumulate",
+#         "stripe_charges.step1.source",
+#         "stripe_charges.step2",
+#         "stripe_charges.step1.dedupe",
+#         "stripe_charges.step1.accumulate",
+#         "import_csv.source",
+#     }
+#     # Test input key modifications
+#     assert flat.get_node("stripe_charges.step1.source").get_inputs() == {
+#         "stdin": "import_csv.dedupe"
+#     }
+#     assert flat.get_node("stripe_charges.step2").get_inputs() == {
+#         "stdin": "stripe_charges.step1.dedupe"
+#     }
+#     assert flat.get_node("stripe_charges.step1.accumulate").get_inputs() == {
+#         "stdin": "stripe_charges.step1.source"
+#     }
+#     # Test alias on flattened nodes
+#     assert flat.get_node("stripe_charges.step1.accumulate").get_inputs() == {
+#         "stdin": "stripe_charges.step1.source"
+#     }
+#     expected = """
+# key: default
+# nodes:
+# - key: import_csv.source
+#   function: core.import_local_csv
+#   params:
+#     path: '*****'
+# - key: import_csv.accumulate
+#   function: core.accumulate
+#   inputs:
+#     stdin: import_csv.source
+# - key: import_csv.dedupe
+#   function: core.dedupe_keep_latest
+#   inputs:
+#     stdin: import_csv.accumulate
+#   alias: alias_import_csv
+# - key: stripe_charges.step1.source
+#   function: core.accumulator_sql
+#   inputs:
+#     stdin: import_csv.dedupe
+# - key: stripe_charges.step1.accumulate
+#   function: core.accumulate
+#   inputs:
+#     stdin: stripe_charges.step1.source
+# - key: stripe_charges.step1.dedupe
+#   function: core.dedupe_keep_latest
+#   inputs:
+#     stdin: stripe_charges.step1.accumulate
+#   alias: stripe_charges.step1
+# - key: stripe_charges.step2
+#   function: core.dedupe_keep_latest_sql
+#   inputs:
+#     stdin: stripe_charges.step1.dedupe
+#   alias: stripe_charges
+# """
+#     # TODO: we lost the alias on the inner step? Is that ok? What is ideal behavior? Nested aliases kinda tricky anyways?
+#     exp = NodeCfg(**load_yaml(expected))
+#     assert flat.key == exp.key
+#     for n in flat.nodes:
+#         n = update(n, function_cfg=None)
+#         assert n == exp.get_node(n.key), n.key
