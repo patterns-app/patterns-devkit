@@ -31,7 +31,8 @@ from basis.core.persistence.schema import (
 )
 from commonmodel.base import Schema, SchemaLike
 from dcp import Storage
-from dcp.data_format.inference import is_generated_schema
+
+# from dcp.data_format.inference import is_generated_schema
 from dcp.storage.base import MemoryStorageClass, ensure_storage
 from dcp.storage.memory.engines.python import new_local_python_storage
 from dcp.utils.common import AttrDict
@@ -40,14 +41,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 if TYPE_CHECKING:
-    from basis.core.persistence.state import FunctionLog
-    from basis.core.persistence.state import BlockLog, Direction
     from basis.core.function import Function
     from basis.core.block import Block
-    from basis.core.declarative.graph import GraphCfg
-    from basis.core.declarative.dataspace import ComponentLibraryCfg
+    from basis.core.declarative.environment import ComponentLibraryCfg
     from basis.core.declarative.execution import ExecutableCfg, ExecutionCfg
-    from basis.core.declarative.dataspace import DataspaceCfg, BasisCfg
+    from basis.core.declarative.environment import BasisCfg
     from basis.core.declarative.execution import ExecutionResult
     from basis.core.declarative.interface import BoundInterfaceCfg
 

@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
-from basis.core.declarative.graph import GraphCfg
 from basis.core.declarative.interface import (
     BoundInputCfg,
     BoundInterfaceCfg,

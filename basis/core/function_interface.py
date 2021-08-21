@@ -9,10 +9,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from basis.core.declarative.base import update
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
-    FunctionInputCfg,
     FunctionInterfaceCfg,
-    FunctionOutputCfg,
-    InputType,
     Parameter,
     ParameterType,
 )

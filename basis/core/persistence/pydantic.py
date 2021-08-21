@@ -7,6 +7,7 @@ from basis.core.persistence.block import (
     BlockMetadata,
     StoredBlockMetadata,
 )
+
 from basis.core.persistence.state import BlockLog, FunctionLog, NodeState
 from dcp.data_format.base import DataFormat, get_format_for_nickname
 from dcp.storage.base import Storage

@@ -1,3 +1,4 @@
+from basis.utils.ulid import generate_ulid_as_base32
 from datetime import datetime, timedelta
 from time import time
 
@@ -68,3 +69,8 @@ def test_data_source_get():
     )
     assert len(objs) == 9
     assert objs[-1].updated_at == start + timedelta(minutes=9)
+
+
+def test_ulid():
+    ids = [generate_ulid_as_base32() for _ in range(10000)]
+    assert sorted(ids) == ids

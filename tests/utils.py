@@ -3,11 +3,10 @@ from __future__ import annotations
 from typing import List, Optional
 
 from basis.core.block import Block, SelfReference, Stream
-from basis.core.declarative.dataspace import BasisCfg, DataspaceCfg
+from basis.core.declarative.environment import BasisCfg, EnvironmentCfg
 from basis.core.declarative.execution import ExecutionCfg, ExecutionResult
-from basis.core.declarative.graph import GraphCfg
 from basis.core.environment import Environment
-from basis.core.execution.context import FunctionContext
+from basis.core.execution.context import Context
 from basis.core.function import datafunction
 from basis.core.module import BasisModule
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
@@ -34,11 +33,11 @@ def make_test_env(**kwargs) -> Environment:
         url = get_tmp_sqlite_db_url()
         kwargs["metadata_storage"] = url
     ds_args = dict(
-        graph=GraphCfg(key="_test"), basis=BasisCfg(abort_on_function_error=True)
+        # graph=GraphCfg(key="_test"), basis=BasisCfg(abort_on_function_error=True)
     )
     ds_args.update(**kwargs)
-    ds = DataspaceCfg(**ds_args)
-    env = Environment(dataspace=ds)
+    ds = EnvironmentCfg(**ds_args)
+    env = Environment(cfg=ds)
     test_module = BasisModule("_test",)
     for schema in [TestSchema1, TestSchema2, TestSchema3, TestSchema4]:
         env.add_schema(schema)

@@ -123,78 +123,78 @@ def test_graph_from_yaml():
     }
 
 
-basic_graph = """
-basis:
-  initialize_metadata_storage: false
-metadata_storage: sqlite://.basis.db
-storages:
-  - postgres://localhost:5432/basis
-namespaces:
-  - stripe
-graph:
-  nodes:
-    - key: import_csv
-      function: core.import_local_csv
-      params:
-        path: "*****"
-    - key: stripe_charges
-      flow: core.accumulate_and_dedupe_sql
-      input: import_csv
-      params:
-        dedupe: KeepLatestRecord # Default
-    # - key: email_errors
-    #   function: core.email_records
-    #   input: import_csv.stderr
-    #   params:
-    #     from_email: automated@basis.ai
-    #     to_email: basis-errors@basis.ai
-    #     max_records: 100
-    """
+# basic_graph = """
+# basis:
+#   initialize_metadata_storage: false
+# metadata_storage: sqlite://.basis.db
+# storages:
+#   - postgres://localhost:5432/basis
+# namespaces:
+#   - stripe
+# graph:
+#   nodes:
+#     - key: import_csv
+#       function: core.import_local_csv
+#       params:
+#         path: "*****"
+#     - key: stripe_charges
+#       flow: core.accumulate_and_dedupe_sql
+#       input: import_csv
+#       params:
+#         dedupe: KeepLatestRecord # Default
+#     # - key: email_errors
+#     #   function: core.email_records
+#     #   input: import_csv.stderr
+#     #   params:
+#     #     from_email: automated@basis.ai
+#     #     to_email: basis-errors@basis.ai
+#     #     max_records: 100
+#     """
 
-accum_flow = """
-  name: accumulate_and_dedupe_sql
-  namespace: core
-  graph:
-    nodes:
-      - key: accumulate
-        function: core.accumulator_sql
-      - key: dedupe
-        function: core.dedupe_keep_latest_sql
-        input: accumulate
-    stdout_key: dedupe
-    stdin_key: accumulate
-    """
+# accum_flow = """
+#   name: accumulate_and_dedupe_sql
+#   namespace: core
+#   graph:
+#     nodes:
+#       - key: accumulate
+#         function: core.accumulator_sql
+#       - key: dedupe
+#         function: core.dedupe_keep_latest_sql
+#         input: accumulate
+#     stdout_key: dedupe
+#     stdin_key: accumulate
+#     """
 
 
-def test_resolve_and_flatten():
-    # TODO: more complex nested scenarios (see whiteboard snapshot)
+# # def test_resolve_and_flatten():
+#     # TODO: more complex nested scenarios (see whiteboard snapshot)
 
-    d = load_yaml(accum_flow)
-    ad = FlowCfg(**d)
-    global_library.add_flow(ad)
+#     d = load_yaml(accum_flow)
+#     ad = FlowCfg(**d)
+#     global_library.add_flow(ad)
 
-    d = load_yaml(basic_graph)
-    ds = EnvironmentCfg(**d)
+#     d = load_yaml(basic_graph)
+#     ds = EnvironmentCfg(**d)
 
-    assert set([n.key for n in ds.graph.nodes]) == {"import_csv", "stripe_charges"}
-    assert ds.graph.get_node("import_csv").function_cfg is None
-    assert not ds.graph.get_node("stripe_charges").nodes
-    resolved = ds.resolve()
-    assert resolved.graph.get_node("import_csv").function_cfg is not None
-    assert len(resolved.graph.get_node("stripe_charges").nodes) == 2
+#     assert set([n.key for n in ds.graph.nodes]) == {"import_csv", "stripe_charges"}
+#     assert ds.graph.get_node("import_csv").function_cfg is None
+#     assert not ds.graph.get_node("stripe_charges").nodes
+#     resolved = ds.resolve()
+#     assert resolved.graph.get_node("import_csv").function_cfg is not None
+#     assert len(resolved.graph.get_node("stripe_charges").nodes) == 2
 
-    flat = flatten_graph_config(resolved.graph)
-    assert set([n.key for n in flat.nodes]) == {
-        "import_csv",
-        "stripe_charges.accumulate",
-        "stripe_charges.dedupe",
-    }
-    assert flat.get_node("stripe_charges.accumulate").get_inputs() == {
-        "stdin": "import_csv"
-    }
-    assert flat.get_node("stripe_charges.dedupe").get_inputs() == {
-        "stdin": "stripe_charges.accumulate"
-    }
+#     flat = flatten_graph_config(resolved.graph)
+#     assert set([n.key for n in flat.nodes]) == {
+#         "import_csv",
+#         "stripe_charges.accumulate",
+#         "stripe_charges.dedupe",
+#     }
+#     assert flat.get_node("stripe_charges.accumulate").get_inputs() == {
+#         "stdin": "import_csv"
+#     }
+#     assert flat.get_node("stripe_charges.dedupe").get_inputs() == {
+#         "stdin": "stripe_charges.accumulate"
+#     }
 
 
 # def test_augmentations():

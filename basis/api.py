@@ -1,7 +1,5 @@
-from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.execution import ExecutableCfg
-from basis.core.declarative.graph import GraphCfg
-from basis.core.execution.context import FunctionContext
+from basis.core.execution.context import Context
 
 from .core import operators
 from .core.block import (
@@ -25,6 +23,5 @@ from .core.function import (
 from .core.module import BasisModule
 from .core.sql.sql_function import Sql, SqlFunction, sql_datafunction, sql_function
 
-Context = FunctionContext
 basis = datafunction
 # Deprecated names

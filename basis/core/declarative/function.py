@@ -16,6 +16,7 @@ from typing import (
 from commonmodel.base import schema_like_to_key
 
 import networkx as nx
+from pydantic import Field
 from pydantic.class_validators import root_validator
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase, update
@@ -37,11 +38,11 @@ class BlockType(str, Enum):
 
 class IoBase(FrozenPydanticBase):
     name: str
-    schema: Union[str, Schema] = "Any"
+    _schema: Union[str, Schema] = Field("Any", alias="schema")
     description: Optional[str] = None
     required: bool = True
     block_type: BlockType = BlockType.Record
-    stream: Optional[bool] = False
+    # stream: Optional[bool] = False
     data_format: Optional[str] = None
     is_error: bool = False
     is_state: bool = False
@@ -87,7 +88,7 @@ class ParameterType(str, Enum):
 
 class Parameter(FrozenPydanticBase):
     name: str
-    datatype: str
+    datatype: ParameterType
     required: bool = False
     default: Any = None
     description: str = ""

@@ -62,11 +62,11 @@ class BlockMetadata(BaseModel):  # , Generic[DT]):
     # NOTE on block ids: we generate them dynamically so we don't have to hit a central db for a sequence
     # BUT we MUST ensure they are monotonically ordered -- the logic of selecting the correct (most recent)
     # block relies on strict monotonic IDs in some scenarios
-    # id = Column(String(128), primary_key=True, default=get_block_id)
+    id = Column(String(128), primary_key=True, default=get_block_id)
     # id = Column(Integer, primary_key=True, autoincrement=True)
-    start_block_id = Column(String(128), index=True)
-    end_block_id = Column(String(128), index=True)
-    block_count = Column(Integer, default=1)
+    # start_block_id = Column(String(128), index=True)
+    # end_block_id = Column(String(128), index=True)
+    # block_count = Column(Integer, default=1)
     inferred_schema_key: SchemaKey = Column(String(128), nullable=True)  # type: ignore
     nominal_schema_key: SchemaKey = Column(String(128), nullable=True)  # type: ignore
     realized_schema_key: SchemaKey = Column(String(128), nullable=False)  # type: ignore
@@ -156,7 +156,7 @@ def make_sdb_name(id: str, node_key: str = None) -> str:
 
 class StoredBlockMetadata(BaseModel):
     # id = Column(Integer, primary_key=True, autoincrement=True)
-    id = Column(String(128), primary_key=True, default=get_stored_block_id)
+    id = Column(String(128), primary_key=True, default=get_block_id)
     # id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(128), nullable=False)
     block_id = Column(String(128), ForeignKey(BlockMetadata.id), nullable=False)
@@ -260,7 +260,7 @@ class Alias(BaseModel):
     block: "BlockMetadata"
     stored_block: "StoredBlockMetadata"
 
-    __table_args__ = (UniqueConstraint("dataspace_key", "name", "storage_url"),)
+    __table_args__ = (UniqueConstraint("env_id", "name", "storage_url"),)
 
     def update_alias(self, env: Environment, new_alias: str):
         self.stored_block.storage.get_api().create_alias(

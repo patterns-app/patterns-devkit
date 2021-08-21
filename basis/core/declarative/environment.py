@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from enum import Enum
 from typing import Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
-from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase
 from basis.core.declarative.flow import FlowCfg
-from basis.core.declarative.function import FunctionCfg
-from basis.core.declarative.interface import BoundInterfaceCfg
+from basis.core.declarative.function import FunctionCfg, FunctionSourceFileCfg
 from commonmodel import Schema
-from networkx.classes.graph import Graph
 
 NxNode = Tuple[str, Dict[str, Dict]]
 NxAdjacencyList = List[NxNode]
@@ -40,4 +36,5 @@ class ComponentLibraryCfg(FrozenPydanticBase):
     functions: List[FunctionCfg] = []
     schemas: List[Schema] = []
     flows: List[FlowCfg] = []
+    source_file_functions: List[FunctionSourceFileCfg] = []
     namespace_precedence: List[str] = []

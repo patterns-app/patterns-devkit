@@ -7,7 +7,6 @@ from pathlib import Path
 import yaml
 from basis.cli.commands.base import BasisCommandBase
 from basis.core.declarative.base import load_yaml
-from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.environment import Environment
 from cleo import Command
 

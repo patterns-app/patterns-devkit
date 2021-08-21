@@ -9,7 +9,6 @@ from types import ModuleType
 from typing import List, Pattern
 
 from basis.cli.commands.base import BasisCommandBase
-from basis.core.declarative.dataspace import DataspaceCfg
 from basis.templates.generator import generate_template, insert_into_file
 from cleo import Command
 
@@ -45,17 +44,14 @@ class GenerateCommand(BasisCommandBase, Command):
     def handle_module(self, name: str, namespace: str):
         namespace = namespace or name
         generate_template(
-            "module",
-            namespace=namespace,
-            name=name,
+            "module", namespace=namespace, name=name,
         )
         # generate_template("tests", py_module_name=py_module_name, module_name=name)
 
     def handle_dataspace(self, name: str, namespace: str):
         name = namespace or name
         generate_template(
-            "dataspace",
-            name=name,
+            "dataspace", name=name,
         )
         # Move single file back down to root (cookiecutter doesn't support)
         os.rename(f"{name}/basis.yml", "basis.yml")

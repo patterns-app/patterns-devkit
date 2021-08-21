@@ -1,4 +1,10 @@
 from __future__ import annotations
+from basis.core.execution.result_handlers import (
+    DebugMetadataExecutionResultHandler,
+    MetadataExecutionResultHandler,
+    RemoteCallbackMetadataExecutionResultHandler,
+    get_global_metadata_result_handler,
+)
 from basis.core.execution.executable import Executable
 
 from collections import abc, defaultdict
@@ -9,13 +15,9 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, List
 import dcp
 import sqlalchemy
 from basis.core.declarative.execution import (
-    DebugMetadataExecutionResultHandler,
     ExecutableCfg,
     ExecutionResult,
-    MetadataExecutionResultHandler,
     PythonException,
-    RemoteCallbackMetadataExecutionResultHandler,
-    get_global_metadata_result_handler,
 )
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 from basis.core.environment import Environment
@@ -27,9 +29,9 @@ from loguru import logger
 from sqlalchemy.sql.expression import select
 
 
-def run_dataspace(ds: DataspaceCfg):
-    env = Environment(ds)
-    env.run_graph(ds.graph)
+# def run_dataspace(ds: DataspaceCfg):
+#     env = Environment(ds)
+#     env.run_graph(ds.graph)
 
 
 class ImproperlyStoredBlockException(Exception):
@@ -131,7 +133,7 @@ class ExecutionManager:
         else:
             raise NotImplementedError(handler.type)
 
-    def prepare_context(self, inputs) -> FunctionContext:
+    def prepare_context(self, inputs) -> Context:
         return Context(
             # env=self.cfg.dataspace,
             function=self.function,

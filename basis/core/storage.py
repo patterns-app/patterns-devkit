@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, List, Optional, Type
 
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.environment import Environment
-from basis.core.persistence.block import get_stored_block_id, make_sdb_name
+from basis.core.persistence.block import make_sdb_name
 from basis.core.persistence.pydantic import (
     BlockMetadataCfg,
     StoredBlockMetadataCfg,

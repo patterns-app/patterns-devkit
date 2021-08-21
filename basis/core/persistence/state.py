@@ -17,55 +17,55 @@ from sqlalchemy.sql.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
 
-# class FunctionLog(BaseModel):
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     node_key = Column(String(128), nullable=False)
-#     node_start_state = Column(JSON, nullable=True)
-#     node_end_state = Column(JSON, nullable=True)
-#     function_key = Column(String(128), nullable=False)
-#     function_params = Column(JSON, nullable=True)
-#     runtime_url = Column(String(128), nullable=True)  # TODO
-#     queued_at = Column(DateTime, nullable=True)
-#     started_at = Column(DateTime, nullable=True)
-#     completed_at = Column(DateTime, nullable=True)
-#     timed_out = Column(Boolean, default=False, nullable=True)
-#     error = Column(JSON, nullable=True)
-#     block_logs: RelationshipProperty = relationship("BlockLog", backref="function_log")
+class FunctionLog(BaseModel):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    node_key = Column(String(128), nullable=False)
+    node_start_state = Column(JSON, nullable=True)
+    node_end_state = Column(JSON, nullable=True)
+    function_key = Column(String(128), nullable=False)
+    function_params = Column(JSON, nullable=True)
+    runtime_url = Column(String(128), nullable=True)  # TODO
+    queued_at = Column(DateTime, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    timed_out = Column(Boolean, default=False, nullable=True)
+    error = Column(JSON, nullable=True)
+    block_logs: RelationshipProperty = relationship("BlockLog", backref="function_log")
 
-#     def __repr__(self):
-#         return self._repr(
-#             id=self.id,
-#             node_key=self.node_key,
-#             function_key=self.function_key,
-#             started_at=self.started_at,
-#             completed_at=self.completed_at,
-#         )
+    def __repr__(self):
+        return self._repr(
+            id=self.id,
+            node_key=self.node_key,
+            function_key=self.function_key,
+            started_at=self.started_at,
+            completed_at=self.completed_at,
+        )
 
-#     @classmethod
-#     def from_pydantic(cls, cfg: PydanticBase) -> FunctionLog:
-#         return FunctionLog(**cfg.dict())
+    @classmethod
+    def from_pydantic(cls, cfg: PydanticBase) -> FunctionLog:
+        return FunctionLog(**cfg.dict())
 
-#     def output_blocks(self) -> Iterable[BlockMetadata]:
-#         return [dbl for dbl in self.block_logs if dbl.direction == Direction.OUTPUT]
+    def output_blocks(self) -> Iterable[BlockMetadata]:
+        return [dbl for dbl in self.block_logs if dbl.direction == Direction.OUTPUT]
 
-#     def input_blocks(self) -> Iterable[BlockMetadata]:
-#         return [dbl for dbl in self.block_logs if dbl.direction == Direction.INPUT]
+    def input_blocks(self) -> Iterable[BlockMetadata]:
+        return [dbl for dbl in self.block_logs if dbl.direction == Direction.INPUT]
 
-#     def set_error(self, e: Exception):
-#         tback = traceback.format_exc()
-#         # Traceback can be v large (like in max recursion), so we truncate to 5k chars
-#         self.error = {"error": str(e) or type(e).__name__, "traceback": tback[:5000]}
+    def set_error(self, e: Exception):
+        tback = traceback.format_exc()
+        # Traceback can be v large (like in max recursion), so we truncate to 5k chars
+        self.error = {"error": str(e) or type(e).__name__, "traceback": tback[:5000]}
 
-#     def persist_state(self, env: Environment) -> NodeState:
-#         state = env.md_api.execute(
-#             select(NodeState).filter(NodeState.node_key == self.node_key)
-#         ).scalar_one_or_none()
-#         if state is None:
-#             state = NodeState(node_key=self.node_key)
-#             env.md_api.add(state)
-#         state.state = self.node_end_state
-#         env.md_api.flush([state])
-#         return state
+    def persist_state(self, env: Environment) -> NodeState:
+        state = env.md_api.execute(
+            select(NodeState).filter(NodeState.node_key == self.node_key)
+        ).scalar_one_or_none()
+        if state is None:
+            state = NodeState(node_key=self.node_key)
+            env.md_api.add(state)
+        state.state = self.node_end_state
+        env.md_api.flush([state])
+        return state
 
 
 class Direction(str, enum.Enum):
@@ -86,43 +86,60 @@ class Direction(str, enum.Enum):
         return self.symbol + " " + s
 
 
-# class BlockLog(BaseModel):
-#     id = Column(Integer, primary_key=True, autoincrement=True)
-#     function_log_id = Column(Integer, ForeignKey(FunctionLog.id), nullable=False)
-#     block_id = Column(
-#         String(128),
-#         ForeignKey(f"{BASIS_METADATA_TABLE_PREFIX}block_metadata.id"),
-#         nullable=False,
-#     )
-#     stream_name = Column(String(128), nullable=True)
-#     direction = Column(Enum(Direction, native_enum=False), nullable=False)
-#     processed_at = Column(DateTime, default=func.now(), nullable=False)
-#     invalidated = Column(Boolean, default=False)
-#     # Hints
-#     block: "BlockMetadata"
-#     function_log: FunctionLog
+class BlockLog(BaseModel):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    function_log_id = Column(Integer, ForeignKey(FunctionLog.id), nullable=False)
+    block_id = Column(
+        String(128),
+        ForeignKey(f"{BASIS_METADATA_TABLE_PREFIX}block_metadata.id"),
+        nullable=False,
+    )
+    stream_name = Column(String(128), nullable=True)
+    direction = Column(Enum(Direction, native_enum=False), nullable=False)
+    processed_at = Column(DateTime, default=func.now(), nullable=False)
+    invalidated = Column(Boolean, default=False)
+    # Hints
+    block: "BlockMetadata"
+    function_log: FunctionLog
 
-#     def __repr__(self):
-#         return self._repr(
-#             id=self.id,
-#             function_log=self.function_log,
-#             block=self.block,
-#             direction=self.direction,
-#             processed_at=self.processed_at,
-#         )
+    def __repr__(self):
+        return self._repr(
+            id=self.id,
+            function_log=self.function_log,
+            block=self.block,
+            direction=self.direction,
+            processed_at=self.processed_at,
+        )
 
-#     @classmethod
-#     def summary(cls, env: Environment) -> str:
-#         s = ""
-#         for dbl in env.md_api.execute(select(BlockLog)).scalars().all():
-#             s += f"{dbl.function_log.node_key:50}"
-#             s += f"{str(dbl.block_id):23}"
-#             s += f"{str(dbl.block.record_count):6}"
-#             s += f"{dbl.direction.value:9}{str(dbl.block.updated_at):22}"
-#             s += (
-#                 f"{dbl.block.nominal_schema_key:20}{dbl.block.realized_schema_key:20}\n"
-#             )
-#         return s
+    @classmethod
+    def summary(cls, env: Environment) -> str:
+        s = ""
+        for dbl in env.md_api.execute(select(BlockLog)).scalars().all():
+            s += f"{dbl.function_log.node_key:50}"
+            s += f"{str(dbl.block_id):23}"
+            s += f"{str(dbl.block.record_count):6}"
+            s += f"{dbl.direction.value:9}{str(dbl.block.updated_at):22}"
+            s += (
+                f"{dbl.block.nominal_schema_key:20}{dbl.block.realized_schema_key:20}\n"
+            )
+        return s
+
+
+class NodeState(BaseModel):
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    node_key = Column(String(128))
+    state = Column(JSON, nullable=True)
+    latest_log_id = Column(Integer, ForeignKey(FunctionLog.id), nullable=True)
+    blocks_output_stdout = Column(Integer, nullable=True)
+    blocks_output_all = Column(Integer, nullable=True)
+    latest_log: RelationshipProperty = relationship("FunctionLog")
+
+    __table_args__ = (UniqueConstraint("env_id", "node_key"),)
+
+    def __repr__(self):
+        return self._repr(
+            node_key=self.node_key, state=self.state, latest_log_id=self.latest_log_id,
+        )
 
 
 class StreamState(BaseModel):

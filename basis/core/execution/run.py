@@ -3,19 +3,15 @@ from __future__ import annotations
 from typing import List, Optional, Set, Tuple
 
 from basis.core.block import Block
-from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.execution import (
     ExecutableCfg,
     ExecutionCfg,
     ExecutionResult,
-    MetadataExecutionResultHandler,
-    set_global_metadata_result_handler,
 )
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     FunctionSourceFileCfg,
 )
-from basis.core.declarative.graph import GraphCfg
 from basis.core.environment import Environment
 from basis.core.execution.execution import ExecutionManager
 from basis.core.function import Function, DataInterfaceType, InputExhaustedException
@@ -25,14 +21,10 @@ from basis.core.persistence.block import (
     BlockMetadata,
     StoredBlockMetadata,
     get_block_id,
-    get_stored_block_id,
 )
 from basis.core.persistence.schema import GeneratedSchema
 from basis.core.persistence.state import (
-    BlockLog,
-    FunctionLog,
     Direction,
-    NodeState,
     get_or_create_state,
     get_state,
 )
@@ -42,9 +34,9 @@ from loguru import logger
 from sqlalchemy.sql.expression import select
 
 
-def run_dataspace(ds: DataspaceCfg):
-    env = Environment(ds)
-    env.run_graph(ds.graph)
+# def run_dataspace(ds: DataspaceCfg):
+#     env = Environment(ds)
+#     env.run_graph(ds.graph)
 
 
 class ImproperlyStoredBlockException(Exception):
@@ -78,7 +70,7 @@ def prepare_executables_from_result(env: Environment, res: ExecutionResult):
 def prepare_executable(
     env: Environment,
     cfg: ExecutionCfg,
-    node: GraphCfg,
+    node: NodeCfg,
     graph: GraphCfg,
     source_file_functions: List[FunctionSourceFileCfg] = [],
 ) -> ExecutableCfg:

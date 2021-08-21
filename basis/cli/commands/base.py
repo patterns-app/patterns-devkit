@@ -8,7 +8,6 @@ from pathlib import Path
 from types import ModuleType
 from typing import List, Pattern
 
-from basis.core.declarative.dataspace import DataspaceCfg
 from basis.templates.generator import generate_template, insert_into_file
 from cleo import Command
 

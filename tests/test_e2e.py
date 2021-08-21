@@ -192,7 +192,7 @@ def test_simple_import():
     # Datablock checks
     assert block.created_at is not None
     assert block.updated_at is not None
-    assert block.dataspace_key == env.dataspace.key
+    assert block.env_id == env.dataspace.key
     assert block.nominal_schema_key == "core.Any"
     assert block.record_count == 10
     inferred = env.get_schema(block.inferred_schema_key)
