@@ -162,7 +162,7 @@ def prepare_executable(
     # return result
 
     # def emit_output_object(
-    #     self, output_obj: DataInterfaceType, function_ctx: FunctionContext,
+    #     self, output_obj: DataInterfaceType, function_ctx: Context,
     # ):
     #     assert output_obj is not None
     #     if isinstance(output_obj, abc.Generator):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from basis import Block, FunctionContext, datafunction
+from basis import Block, Context, datafunction
 from basis.core.sql.sql_function import SqlFunctionWrapper
 from commonmodel.base import Schema
 from dcp.utils.common import T
@@ -14,7 +14,7 @@ from dcp.utils.common import T
     required_storage_engines=["postgresql"],
     # TODO: requires postgres StorageEngine, is there a generic version?
 )
-def dedupe_keep_latest_sql(ctx: FunctionContext, input: Block[T]) -> Block[T]:
+def dedupe_keep_latest_sql(ctx: Context, input: Block[T]) -> Block[T]:
     # return "dedupe_keep_latest_sql.sql"
     nominal: Optional[Schema] = None
     realized: Schema = ctx.library.get_schema(input.realized_schema_key)

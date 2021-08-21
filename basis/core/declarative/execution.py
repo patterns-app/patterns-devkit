@@ -11,7 +11,6 @@ import requests
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.block import Block, as_managed
 from basis.core.declarative.base import FrozenPydanticBase, PydanticBase
-from basis.core.declarative.interface import BoundInterfaceCfg
 from basis.core.environment import Environment
 from basis.core.function_interface_manager import bind_inputs
 from basis.core.persistence.pydantic import (

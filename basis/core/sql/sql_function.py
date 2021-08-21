@@ -13,10 +13,9 @@ from basis.core.block import Block
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     FunctionInterfaceCfg,
-    InputType,
 )
 from basis.core.environment import Environment
-from basis.core.execution.context import FunctionContext
+from basis.core.execution.context import Context
 from basis.core.function import Function, DataInterfaceType, function_factory
 from basis.core.function_interface import (
     DEFAULT_OUTPUTS,
@@ -280,7 +279,7 @@ def parse_sql_statement(sql: str, autodetect_tables: bool = True) -> ParsedSqlSt
     )
 
 
-def params_as_sql(ctx: FunctionContext) -> Dict[str, Any]:
+def params_as_sql(ctx: Context) -> Dict[str, Any]:
     param_values = ctx.get_params()
     sql_params = {}
     for k, v in param_values.items():
@@ -329,8 +328,8 @@ class SqlFunctionWrapper:
         self.sql = sql
         self.autodetect_inputs = autodetect_inputs
 
-    def __call__(self, *args: FunctionContext, **inputs: DataInterfaceType):
-        ctx: FunctionContext = args[0]
+    def __call__(self, *args: Context, **inputs: DataInterfaceType):
+        ctx: Context = args[0]
         # if ctx.run_context.current_runtime is None:
         #     raise Exception("Current runtime not set")
 
@@ -388,7 +387,7 @@ class SqlFunctionWrapper:
         # )
 
     def get_input_table_stmts(
-        self, ctx: FunctionContext, storage: Storage, inputs: Dict[str, Block] = None,
+        self, ctx: Context, storage: Storage, inputs: Dict[str, Block] = None,
     ) -> Dict[str, str]:
         if inputs is None:
             return {}
@@ -399,7 +398,7 @@ class SqlFunctionWrapper:
         return table_stmts
 
     def get_compiled_sql(
-        self, ctx: FunctionContext, storage: Storage, inputs: Dict[str, Block] = None,
+        self, ctx: Context, storage: Storage, inputs: Dict[str, Block] = None,
     ):
         input_sql = self.get_input_table_stmts(ctx, storage, inputs)
         sql_ctx = dict(

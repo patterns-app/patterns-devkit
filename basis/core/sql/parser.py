@@ -6,7 +6,6 @@ from typing import Any, Dict, Optional
 from basis.core.declarative.function import FunctionInterfaceCfg
 from basis.core.function_interface import (
     DEFAULT_OUTPUTS,
-    InputType,
     ParsedAnnotation,
     function_input_from_annotation,
     parameter_from_annotation,
@@ -200,9 +199,9 @@ def render_sql(
     return env.from_string(t).render(ctx)
 
 
-s = "select * from {% input orders %} where col = {% param p1 text 0 %}"
-parse_interface_from_sql(s)
+# s = "select * from {% input orders %} where col = {% param p1 text 0 %}"
+# parse_interface_from_sql(s)
 
-render_sql(
-    s, dict(orders="orders_table"), dict(p1="'val1'"),
-)
+# render_sql(
+#     s, dict(orders="orders_table"), dict(p1="'val1'"),
+# )

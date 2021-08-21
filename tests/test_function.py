@@ -3,21 +3,16 @@ from __future__ import annotations
 from typing import Any, Callable
 
 import pytest
-from basis import FunctionContext
+from basis import Context
 from basis.core.component import global_library
 from basis.core.block import Block
 from basis.core.declarative.base import update
 from basis.core.declarative.execution import ExecutableCfg
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
-    FunctionInputCfg,
     FunctionInterfaceCfg,
-    FunctionOutputCfg,
-    InputType,
     Parameter,
 )
-from basis.core.declarative.graph import GraphCfg
-from basis.core.declarative.interface import BoundInterfaceCfg
 from basis.core.execution.run import prepare_executable
 from basis.core.function import FunctionLike, datafunction
 from basis.core.function_interface import (
@@ -406,7 +401,7 @@ def test_node_params():
     param_vals = []
 
     @datafunction
-    def function_ctx(ctx: FunctionContext, test: str):
+    def function_ctx(ctx: Context, test: str):
         param_vals.append(test)
 
     env.add_function(function_ctx)
@@ -436,7 +431,7 @@ def test_api():
         pass
 
     @datafunction("s1", namespace="module1")
-    def s2(ctx: FunctionContext, i1: Block, p1: str = "default val"):
+    def s2(ctx: Context, i1: Block, p1: str = "default val"):
         pass
 
     @datafunction("s1")
@@ -444,7 +439,7 @@ def test_api():
         pass
 
     # @datafunction(name="s1", params=[Parameter(name="p1", datatype="str")])
-    # def s4(ctx: FunctionContext, i1: Block) -> Any:
+    # def s4(ctx: Context, i1: Block) -> Any:
     #     pass
 
     for snp in [s1, s2, s3]:  # , s4]:

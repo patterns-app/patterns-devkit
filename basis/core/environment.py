@@ -47,7 +47,6 @@ if TYPE_CHECKING:
     from basis.core.declarative.execution import ExecutableCfg, ExecutionCfg
     from basis.core.declarative.environment import BasisCfg
     from basis.core.declarative.execution import ExecutionResult
-    from basis.core.declarative.interface import BoundInterfaceCfg
 
 DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
 

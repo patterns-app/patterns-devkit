@@ -3,11 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
-from basis.core.declarative.interface import (
-    BoundInputCfg,
-    BoundInterfaceCfg,
-    NodeInputCfg,
-)
+from basis.core.declarative.interface import NodeInputCfg
 from basis.core.environment import Environment
 from basis.core.persistence.block import BlockMetadata, StoredBlockMetadata
 from basis.core.persistence.state import BlockLog, FunctionLog, Direction

@@ -145,7 +145,7 @@ class ExecutionManager:
             library=self.exe.get_library(),
         )
 
-    def _call_data_function(self, ctx: FunctionContext):
+    def _call_data_function(self, ctx: Context):
         function_args, function_kwargs = ctx.get_function_args()
         self.function.function_callable(
             *function_args, **function_kwargs,
@@ -154,7 +154,7 @@ class ExecutionManager:
         #     self.emit_output_object(ctx, output_obj)
         #     # TODO: update node state block counts?
 
-    # def emit_output_object(self, ctx: FunctionContext, output_obj: DataInterfaceType):
+    # def emit_output_object(self, ctx: Context, output_obj: DataInterfaceType):
     #     assert output_obj is not None
     #     if isinstance(output_obj, abc.Generator):
     #         output_iterator = output_obj

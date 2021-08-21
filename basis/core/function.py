@@ -23,7 +23,7 @@ from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
 
 if TYPE_CHECKING:
-    from basis import FunctionContext
+    from basis import Context
     from basis import Environment
     from basis.core.function_package import FunctionPackage
 
@@ -90,7 +90,7 @@ class Function:
         return k
 
     def __call__(
-        self, *args: FunctionContext, **kwargs: DataInterfaceType
+        self, *args: Context, **kwargs: DataInterfaceType
     ) -> Optional[DataInterfaceType]:
         return self.function_callable(*args, **kwargs)
 
@@ -288,7 +288,7 @@ class PythonCodeFunctionWrapper:
     def __getattr__(self, name: str) -> Any:
         return getattr(self.get_function(), name)
 
-    def __call__(self, *args: FunctionContext, **inputs: DataInterfaceType) -> Any:
+    def __call__(self, *args: Context, **inputs: DataInterfaceType) -> Any:
         function = self.get_function()
         code = (
             self._code

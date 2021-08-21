@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from basis import Block, FunctionContext
+from basis import Block, Context
 from basis.core.function import datafunction
 from basis.modules.core.functions.dedupe_keep_latest_dataframe.dedupe_keep_latest_dataframe import (
     dedupe_keep_latest_dataframe,
@@ -19,7 +19,7 @@ from pandas import DataFrame
 @datafunction(
     namespace="core", display_name="Dedupe records (keep latest)",
 )
-def dedupe_keep_latest(ctx: FunctionContext, input: Block[T]) -> DataFrame[T]:
+def dedupe_keep_latest(ctx: Context, input: Block[T]) -> DataFrame[T]:
     """Adaptive to storages.
     TODO: is this the right pattern for handling different storage classes / engines? No probably not,
     but good hack for now, lots of flexibility.

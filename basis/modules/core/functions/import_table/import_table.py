@@ -13,7 +13,7 @@ from dcp.utils.common import ensure_bool
     display_name="Import non-basis database table",
     required_storage_classes=["database"],
 )
-def import_table(ctx: FunctionContext, table_name: str, copy: bool = True):
+def import_table(ctx: Context, table_name: str, copy: bool = True):
     """
     Imports a non-basis table from an existing storage, optionally making a copy
     or importing as-is. Warning: If you do not make a copy, potentially breaking

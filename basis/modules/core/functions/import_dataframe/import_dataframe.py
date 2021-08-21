@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from basis import FunctionContext, datafunction
+from basis import Context, datafunction
 from dcp.data_format.formats import DataFrameFormat, JsonLinesFileObjectFormat
 from pandas.core.frame import DataFrame
 
@@ -10,9 +10,7 @@ from pandas.core.frame import DataFrame
 @datafunction(
     namespace="core", display_name="Import Pandas DataFrame",
 )
-def import_dataframe(
-    ctx: FunctionContext, dataframe: str, schema: Optional[str] = None
-):
+def import_dataframe(ctx: Context, dataframe: str, schema: Optional[str] = None):
     """
     Import pandas DataFrame
 

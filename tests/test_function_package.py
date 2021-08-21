@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from basis import FunctionContext, datafunction
+from basis import Context, datafunction
 from basis.core.declarative.function import (
     FunctionInterfaceCfg,
     FunctionSourceFileCfg,
@@ -32,7 +32,7 @@ def test_from_path():
 
 def test_from_function():
     @datafunction
-    def function1(ctx: FunctionContext):
+    def function1(ctx: Context):
         pass
 
     mffunction = FunctionPackage.from_function(function1)

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from basis import FunctionContext
+from basis import Context
 from basis.core.block import Block
 from basis.core.module import BasisModule
 from basis.utils.typing import T
 
 
-def df1(ctx: FunctionContext) -> Block[T]:
+def df1(ctx: Context) -> Block[T]:
     pass
 
 

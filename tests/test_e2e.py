@@ -9,7 +9,7 @@ from typing import Generator, Iterator, Optional
 
 import pandas as pd
 import pytest
-from basis import Block, FunctionContext, datafunction
+from basis import Block, Context, datafunction
 from basis.core.block import Consumable, Reference
 from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.execution import (
@@ -93,7 +93,7 @@ chunk_size = 2
 
 @datafunction
 def customer_source(
-    ctx: FunctionContext, batches: int, fail: bool = False
+    ctx: Context, batches: int, fail: bool = False
 ) -> Iterator[Records[Customer]]:
     n = ctx.get_state_value("records_imported", 0)
     N = batches * batch_size
@@ -654,7 +654,7 @@ from dcp.data_format.formats import DataFrameFormat
 from typing import Optional
 
 from pandas.core.frame import DataFrame
-from basis import FunctionContext, datafunction
+from basis import Context, datafunction
 
 
 @datafunction(
@@ -662,7 +662,7 @@ from basis import FunctionContext, datafunction
     display_name="Import Pandas DataFrame",
 )
 def import_df(
-    ctx: FunctionContext, dataframe: str, schema: Optional[str] = None
+    ctx: Context, dataframe: str, schema: Optional[str] = None
 ):
     ctx.emit(dataframe, data_format=DataFrameFormat, schema=schema)
     """

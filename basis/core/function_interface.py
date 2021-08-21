@@ -10,6 +10,7 @@ from basis.core.declarative.base import update
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     FunctionInterfaceCfg,
+    IoBase,
     Parameter,
     ParameterType,
 )
@@ -38,7 +39,7 @@ def normalize_parameter_type(pt: str) -> str:
 
 @dataclass
 class ParsedAnnotation:
-    input_type: Optional[InputType] = None
+    input_type: Optional[str] = None
     parameter_type: Optional[ParameterType] = None
     output_type: Optional[str] = None
     schema: Optional[str] = None
@@ -62,7 +63,7 @@ def parse_input_annotation(a: str) -> ParsedAnnotation:
     if md.get("optional"):
         parsed.optional = True
     origin = md["origin"]
-    if origin in ("FunctionContext", "Context"):
+    if origin in ("Context", "Context"):
         parsed.is_context = True
     elif origin in [it.value for it in InputType]:
         parsed.input_type = InputType(origin)
@@ -100,18 +101,18 @@ def parse_docstring(d: str) -> Docstring:
 
 
 DEFAULT_INPUT_ANNOTATION = "Block"
-DEFAULT_OUTPUT = FunctionOutputCfg(schema_key="Any", name=DEFAULT_OUTPUT_NAME,)
+DEFAULT_OUTPUT = None  # IoBase(schema="Any", name=DEFAULT_OUTPUT_NAME,)
 DEFAULT_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
-DEFAULT_STATE_OUTPUT = FunctionOutputCfg(
-    schema_key="core.State", name=DEFAULT_STATE_OUTPUT_NAME, is_default=False
-)
+DEFAULT_STATE_OUTPUT = None  # IoBase(
+#     schema="core.State", name=DEFAULT_STATE_OUTPUT_NAME, is_default=False
+# )
 DEFAULT_ERROR_OUTPUT_NAME = "error"
-DEFAULT_ERROR_OUTPUT = FunctionOutputCfg(
-    schema_key="Any",  # TODO: probably same as default output (how to parameterize tho?)
-    name=DEFAULT_ERROR_OUTPUT_NAME,
-    is_default=False,
-)
+DEFAULT_ERROR_OUTPUT = None  # IoBase(
+#     schema="Any",  # TODO: probably same as default output (how to parameterize tho?)
+#     name=DEFAULT_ERROR_OUTPUT_NAME,
+#     is_default=False,
+# )
 
 
 class NonStringAnnotationException(Exception):
@@ -220,7 +221,7 @@ def function_input_from_parameter(param: inspect.Parameter) -> FunctionInputCfg:
     annotation = param.annotation
     if annotation is inspect.Signature.empty:
         if param.name in ("ctx", "context"):  # TODO: hack
-            annotation = "FunctionContext"
+            annotation = "Context"
         else:
             annotation = DEFAULT_INPUT_ANNOTATION
     # is_optional = param.default != inspect.Parameter.empty

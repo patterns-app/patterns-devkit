@@ -6,7 +6,7 @@ from enum import Enum
 from functools import total_ordering
 from typing import TYPE_CHECKING, Any, Iterable
 
-from basis.core.declarative.dataspace import BasisCfg
+from basis.core.declarative.environment import BasisCfg
 from commonmodel import Field, FieldType, Schema
 
 if TYPE_CHECKING:

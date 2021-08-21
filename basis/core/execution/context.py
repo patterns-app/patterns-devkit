@@ -603,7 +603,7 @@ class BlockOutputHandler:
 
 
 # @dataclass(frozen=True)
-# class FunctionContextOld:
+# class ContextOld:
 #     dataspace: DataspaceCfg
 #     function: Function
 #     node: GraphCfg

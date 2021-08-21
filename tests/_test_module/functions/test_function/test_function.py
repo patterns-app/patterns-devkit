@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from basis import FunctionContext, datafunction
+from basis import Context, datafunction
 
 
 @datafunction(namespace="_test_module")
-def test_function(ctx: FunctionContext):
+def test_function(ctx: Context):
     pass

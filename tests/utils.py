@@ -57,7 +57,7 @@ def make_test_run_context(env: Environment = None, **kwargs) -> ExecutionCfg:
     return ExecutionCfg(**args)
 
 
-def function_t1_sink(ctx: FunctionContext, input: Block[TestSchema1]):
+def function_t1_sink(ctx: Context, input: Block[TestSchema1]):
     pass
 
 
@@ -69,7 +69,7 @@ def function_generic(input: Block[T]) -> DataFrame[T]:
     pass
 
 
-def function_t1_source(ctx: FunctionContext) -> DataFrame[TestSchema1]:
+def function_t1_source(ctx: Context) -> DataFrame[TestSchema1]:
     pass
 
 

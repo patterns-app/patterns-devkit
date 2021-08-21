@@ -41,14 +41,14 @@ from loguru import logger
 from pandas.core.frame import DataFrame
 
 if TYPE_CHECKING:
-    from basis.core.execution.context import FunctionContext
+    from basis.core.execution.context import Context
 
 
 class BlockManager:
     def __init__(
         self,
         block: BlockWithStoredBlocksCfg,
-        ctx: FunctionContext = None,
+        ctx: Context = None,
         schema_translation: Optional[SchemaTranslation] = None,
         storages: List[str] = None,
     ):

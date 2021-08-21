@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from basis import Block, FunctionContext
+from basis import Block, Context
 from basis.api import Stream
 from basis.core.block import SelfReference
 from basis.core.function import Input, Output, datafunction
@@ -15,7 +15,7 @@ from pandas import DataFrame, concat
 
 @datafunction(namespace="core", display_name="Accumulate successive outputs")
 def accumulate(
-    ctx: FunctionContext, input: Stream[T], previous: SelfReference[T] = None,
+    ctx: Context, input: Stream[T], previous: SelfReference[T] = None,
 ) -> Block[T]:
     """Adaptive to storages.
     TODO: is this the right pattern for handling different storage classes / engines? No probably not,

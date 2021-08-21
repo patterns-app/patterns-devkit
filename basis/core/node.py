@@ -1,4 +1,6 @@
 from __future__ import annotations
+from dataclasses import dataclass
+from basis.core.declarative.node import NodeCfg, NodeOutputCfg
 from basis.core.function import Function
 
 from enum import Enum
@@ -46,16 +48,17 @@ def instantiate_node(cfg: NodeCfg, lib: ComponentLibrary) -> Node:
     return Node(**d)
 
 
-class Node(FrozenPydanticBase):
+@dataclass
+class Node:
     key: str  # = "default"
     function: Function
     #     function_cfg: Optional[FunctionCfg] = None
-    params: Dict[str, Any] = {}  # TODO: acceptable param types?
+    params: Dict[str, Any] = None  # {}  # TODO: acceptable param types?
     stdin_key: Optional[str] = None
     stdout_key: Optional[str] = None
     stderr_key: Optional[str] = None
-    inputs: Dict[str, str] = {}
-    outputs: Dict[str, NodeOutputCfg] = {}
+    inputs: Dict[str, str] = None  # {}
+    outputs: Dict[str, NodeOutputCfg] = None  # {}
     # aliases: Dict[str, str] = {}
     # conform_to_schema: Optional[str] = None
     # schema_translations: Dict[str, Dict[str, str]] = {}

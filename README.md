@@ -133,11 +133,11 @@ sql:
 ```python
 @datafunction
 def customer_lifetime_sales(
-  ctx: FunctionContext,  # Inject a context object
+  ctx: Context,  # Inject a context object
   txs: Block[Transaction],  # Require an input stream conforming to schema "Transaction"
   metric: str = "amount" # Accept an optional string parameter, with default of "amount"
 ):
-    # FunctionContext object automatically injected if declared
+    # Context object automatically injected if declared
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")[metric].sum().reset_index()
 

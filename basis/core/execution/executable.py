@@ -1,4 +1,3 @@
-from basis.core.declarative.interface import BoundInterfaceCfg
 from basis.core.declarative.base import PydanticBase
 from basis.core.declarative.environment import ComponentLibraryCfg
 from basis.core.component import ComponentLibrary
