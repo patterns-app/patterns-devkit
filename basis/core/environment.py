@@ -97,13 +97,13 @@ class Environment:
         #       to them later, which would not be picked up by the env library. (prob fine)
         self._local_module = DEFAULT_LOCAL_MODULE
         # TODO: load library from config
-        if library is None or not self.settings.use_global_library:
-            self.library = ComponentLibrary()
-        else:
-            self.library = library
+        # if library is None or not self.settings.use_global_library:
+        self.library = ComponentLibrary()
+        # else:
+        #     self.library = library
         self.add_module(self._local_module)
         self._local_python_storage = new_local_python_storage()
-        for module in self.dataspace.modules:
+        for module in self.cfg.modules:
             try:
                 pymodule = import_module(module)
                 self.add_module(pymodule)

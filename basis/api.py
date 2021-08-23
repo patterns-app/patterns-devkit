@@ -13,7 +13,6 @@ from .core.block import (
 from .core.environment import Environment, current_env, run_graph, run_node
 from .core.function import (
     Function,
-    Function,
     Input,
     Output,
     Param,

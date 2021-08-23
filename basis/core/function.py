@@ -167,6 +167,8 @@ def function_factory(
     if name is None:
         assert function_like is not None
         name = make_function_name(function_like)
+    print(Function)
+    print(type(Function))
     if isinstance(function_like, Function):
         # TODO: this is dicey, merging an existing function ... which values take precedence?
         # old_attrs = asdict(function_like)
@@ -309,7 +311,7 @@ def deprecated(*args, **kwargs):
 Input = deprecated
 Output = deprecated
 Param = deprecated
-Function = function_decorator
+# Function = function_decorator
 # function = function_decorator
 _Function = Function
 datafunction = function_decorator
