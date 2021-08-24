@@ -1,19 +1,13 @@
 from __future__ import annotations
 
-from basis.api import Input
-from basis.core.declarative.function import (
-    FunctionInputCfg,
-    FunctionInterfaceCfg,
-)
-from basis.core.function_interface import DEFAULT_OUTPUTS, InputType, Parameter
+from basis.core.declarative.function import FunctionInterfaceCfg
+from basis.core.function_interface import DEFAULT_OUTPUTS, Parameter
 from basis.core.sql.parser import parse_interface_from_sql, render_sql
 from basis.core.sql.sql_function import (
     AnnotatedParam,
     AnnotatedSqlTable,
     ParsedSqlStatement,
     Sql,
-    extract_param_annotations,
-    extract_table_annotations,
     extract_tables,
     sql_datafunction,
     sql_function,
@@ -21,98 +15,11 @@ from basis.core.sql.sql_function import (
 from tests.utils import make_test_env
 
 
-"""
-Future test cases
-
-select:T
-from previous:SelfReference[T] -- Previous output
--- from new:Stream[T] -- with comment
-with error:T -- comment
-with state:State
-
-"""
-
-
-def test_sql_parse_params():
-    sql = """select 1 from from t1:Schema1
-        -- unrelated comment with a colon: in it
-        where :param1:dtype1
-        and :param2
-        """
-    parsed = extract_param_annotations(sql)
-    expected_sql = """select 1 from from t1:Schema1
-        -- unrelated comment with a colon: in it
-        where {{ params['param1'] }}
-        and {{ params['param2'] }}
-        """
-    expected_params = {
-        "param1": AnnotatedParam(name="param1", annotation="dtype1"),
-        "param2": AnnotatedParam(name="param2"),
-    }
-    assert parsed == ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=expected_sql,
-        found_params=expected_params,
-    )
-    sql = " not a:param"
-    parsed = extract_param_annotations(sql)
-    assert not parsed.found_params
-
-
-def test_sql_parse_tables_complex():
-    sql = """
-        {% if input_objects.previous.bound_block %}
-        select:T
-            *
-        from previous:SelfReference[T]
-        union all
-        {% endif %}
-        {% for block in input_objects.new.bound_stream %}
-        select
-            *
-        -- from new:Stream[T]   <-- REQUIRED mock annotation for interface detection
-        from {{ block.as_sql_from_stmt(storage) }}
-        {% if not loop.last %}
-        union all
-        {% endif %}
-        {% endfor %}
-        """
-    parsed = extract_table_annotations(sql)
-    expected_tables = {
-        "previous": AnnotatedSqlTable(name="previous", annotation="SelfReference[T]"),
-        "new": AnnotatedSqlTable(name="new", annotation="Stream[T]"),
-    }
-    assert parsed.found_tables == expected_tables
-
-
-def test_sql_parse_tables():
-    sql = """select 1 from from t1:Schema1
-        join t2:Schema2
-        -- unrelated comment with a colon: in it
-        where :param1:dtype1
-        """
-    parsed = extract_table_annotations(sql)
-    expected_sql = """select 1 from from {{ inputs['t1'] }} as t1
-        join {{ inputs['t2'] }} as t2
-        -- unrelated comment with a colon: in it
-        where :param1:dtype1
-        """
-    expected_tables = {
-        "t1": AnnotatedSqlTable(name="t1", annotation="Schema1"),
-        "t2": AnnotatedSqlTable(name="t2", annotation="Schema2"),
-    }
-    assert parsed == ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=expected_sql,
-        found_tables=expected_tables,
-    )
-
-
 def test_sql_parse_new_style_jinja():
     sql = """
-    select * from {% input orders Stream[TestSchema] %}
-    join {% input customers %}
-    where col = {% param p1 text 0 %}
+    select * from {{ Record("orders") }}
+    join {{ Table("customers") }}
+    where col = {{ Parameter("p1", "text", default=0) }}
     """
     dfi = parse_interface_from_sql(sql)
     assert dfi == FunctionInterfaceCfg(

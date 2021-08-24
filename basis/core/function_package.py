@@ -12,7 +12,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
 from basis.core.declarative.function import FunctionSourceFileCfg
-from basis.core.function import Function, ensure_function, make_function
+from basis.core.function import Function, ensure_function
 from basis.core.module import DEFAULT_LOCAL_MODULE, DEFAULT_LOCAL_NAMESPACE, BasisModule
 from basis.utils.modules import find_all_of_type_in_module
 from dcp.data_format.formats.memory.records import Records

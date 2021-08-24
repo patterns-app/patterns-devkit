@@ -13,6 +13,7 @@ class PydanticBase(pydantic.BaseModel):
     class Config:
         extra = "forbid"
         use_enum_values = True
+        allow_population_by_field_name = True
 
 
 class FrozenPydanticBase(PydanticBase):

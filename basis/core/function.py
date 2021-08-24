@@ -21,12 +21,14 @@ from basis.core.declarative.function import (
     FunctionInterfaceCfg,
     Generic,
     IoBaseCfg,
+    ParameterCfg,
     Table,
     is_record_like,
 )
 from basis.core.function_interface import (  # merge_declared_interface_with_signature_interface,
     Parameter,
     function_interface_from_callable,
+    parse_docstring,
 )
 from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
 from basis.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
@@ -77,7 +79,10 @@ class Function:
     required_storage_engines: List[str] = field(default_factory=list)
     inputs: typing.OrderedDict[str, IoBaseCfg] = field(default_factory=OrderedDict)
     outputs: typing.OrderedDict[str, IoBaseCfg] = field(default_factory=OrderedDict)
-    parameters: List[Parameter] = field(default_factory=list)
+    parameters: typing.OrderedDict[str, ParameterCfg] = field(
+        default_factory=OrderedDict
+    )
+    # stdout: Optional[str] = None
     # compatible_runtime_classes: List[Type[RuntimeClass]]
     display_name: Optional[str] = None
     description: Optional[str] = None
@@ -183,7 +188,7 @@ def function_interface_from_callable(
     return FunctionInterfaceCfg(inputs=inputs, outputs=outputs,)
 
 
-def wrap_bare_function(function_callable: Callable) -> Callable:
+def wrap_bare_callable(function_callable: Callable) -> Callable:
     @wraps(function_callable)
     def function_wrapper(ctx: Context):
         if not ctx.inputs:
@@ -212,52 +217,75 @@ def wrap_bare_function(function_callable: Callable) -> Callable:
     return function_wrapper
 
 
-def function_factory(
-    function_like: Union[FunctionCallable, Function], name: str = None, **kwargs: Any,
-) -> Function:
-    if name is None:
-        assert function_like is not None
-        name = make_function_name(function_like)
-    assert callable(function_like)
-    interface = function_interface_from_callable(function_like)
-    wrapped_fn = wrap_bare_function(function_like)
+def make_function_from_bare_callable(function_callable: Callable) -> Function:
+    name = make_function_name(function_callable)
+    assert callable(function_callable)
+    interface = function_interface_from_callable(function_callable)
+    wrapped_fn = wrap_bare_callable(function_callable)
+    doc = parse_docstring(function_callable.__doc__)
     return Function(
         name=name,
         function_callable=wrapped_fn,
         inputs=interface.inputs,
         outputs=interface.outputs,
+        description=doc.short_description,
     )
-    # if isinstance(function_like, Function):
-    #     function = Function(
-    #         name=name,
-    #         function_callable=function_like.function_callable,
-    #         required_storage_classes=kwargs.get("required_storage_classes")
-    #         or function_like.required_storage_classes,
-    #         required_storage_engines=kwargs.get("required_storage_engines")
-    #         or function_like.required_storage_engines,
-    #         # params=kwargs.get("params") or function_like.params,
-    #         # declared_inputs=kwargs.get("declared_inputs")
-    #         # or function_like.declared_inputs,
-    #         # declared_output=kwargs.get("declared_output")
-    #         # or function_like.declared_output,
-    #         or function_like.ignore_signature,
-    #         display_name=kwargs.get("display_name") or function_like.display_name,
-    #         description=kwargs.get("description") or function_like.description,
-    #     )
-    # else:
-    #     if namespace is None:
-    #         namespace = DEFAULT_NAMESPACE
-    #     if isinstance(namespace, BasisModule):
-    #         namespace = namespace.namespace
-    #     else:
-    #         namespace = namespace
-    #     function = Function(
-    #         name=name, namespace=namespace, function_callable=function_like, **kwargs,
-    #     )
-    # if namespace == DEFAULT_NAMESPACE:
-    #     # Add to default module
-    #     DEFAULT_LOCAL_MODULE.add_function(function)
-    # return function
+
+
+def ensure_function(function_like, **kwargs) -> Function:
+    if isinstance(function_like, Function):
+        return function_like
+    elif callable(function_like):
+        return make_function_from_bare_callable(function_like)
+    raise TypeError(f"Function must be callable")
+
+
+# def function_factory(
+#     function_like: Union[FunctionCallable, Function], name: str = None, **kwargs: Any,
+# ) -> Function:
+#     if name is None:
+#         assert function_like is not None
+#         name = make_function_name(function_like)
+#     assert callable(function_like)
+#     interface = function_interface_from_callable(function_like)
+#     wrapped_fn = wrap_bare_function(function_like)
+#     return Function(
+#         name=name,
+#         function_callable=wrapped_fn,
+#         inputs=interface.inputs,
+#         outputs=interface.outputs,
+#     )
+# if isinstance(function_like, Function):
+#     function = Function(
+#         name=name,
+#         function_callable=function_like.function_callable,
+#         required_storage_classes=kwargs.get("required_storage_classes")
+#         or function_like.required_storage_classes,
+#         required_storage_engines=kwargs.get("required_storage_engines")
+#         or function_like.required_storage_engines,
+#         # params=kwargs.get("params") or function_like.params,
+#         # declared_inputs=kwargs.get("declared_inputs")
+#         # or function_like.declared_inputs,
+#         # declared_output=kwargs.get("declared_output")
+#         # or function_like.declared_output,
+#         or function_like.ignore_signature,
+#         display_name=kwargs.get("display_name") or function_like.display_name,
+#         description=kwargs.get("description") or function_like.description,
+#     )
+# else:
+#     if namespace is None:
+#         namespace = DEFAULT_NAMESPACE
+#     if isinstance(namespace, BasisModule):
+#         namespace = namespace.namespace
+#     else:
+#         namespace = namespace
+#     function = Function(
+#         name=name, namespace=namespace, function_callable=function_like, **kwargs,
+#     )
+# if namespace == DEFAULT_NAMESPACE:
+#     # Add to default module
+#     DEFAULT_LOCAL_MODULE.add_function(function)
+# return function
 
 
 def function_decorator(
@@ -265,7 +293,7 @@ def function_decorator(
     name: str = None,
     inputs: List[IoBaseCfg] = None,
     outputs: List[IoBaseCfg] = None,
-    parameters: List[Parameter] = None,
+    parameters: List[ParameterCfg] = None,
     **kwargs,
 ) -> Callable:
     if isinstance(function_or_name, str) or function_or_name is None:
@@ -277,30 +305,36 @@ def function_decorator(
             parameters=parameters,
             **kwargs,
         )
-    return function_factory(
-        function_or_name,
+    fn = function_or_name
+    if name is None:
+        name = make_function_name(fn)
+    inputs_od = OrderedDict([(i.name, i) for i in inputs or []])
+    outputs_od = OrderedDict([(i.name, i) for i in outputs or []])
+    parameters_od = OrderedDict([(i.name, i) for i in parameters or []])
+    return Function(
         name=name,
-        inputs=inputs,
-        outputs=outputs,
-        parameters=parameters,
+        function_callable=fn,
+        inputs=inputs_od,
+        outputs=outputs_od,
+        parameters=parameters_od,
         **kwargs,
     )
 
 
-def make_function(function_like: FunctionLike, **kwargs) -> Function:
-    if isinstance(function_like, Function):
-        return function_like
-    return function_factory(function_like, **kwargs)
+# def make_function(function_like: FunctionLike, **kwargs) -> Function:
+#     if isinstance(function_like, Function):
+#         return function_like
+#     return function_factory(function_like, **kwargs)
 
 
-def ensure_function(
-    env: Environment, function_like: Union[FunctionLike, str]
-) -> Function:
-    if isinstance(function_like, Function):
-        return function_like
-    if isinstance(function_like, str):
-        return env.get_function(function_like)
-    return make_function(function_like)
+# def ensure_function(
+#     env: Environment, function_like: Union[FunctionLike, str]
+# ) -> Function:
+#     if isinstance(function_like, Function):
+#         return function_like
+#     if isinstance(function_like, str):
+#         return env.get_function(function_like)
+#     return make_function(function_like)
 
 
 class PythonCodeFunctionWrapper:

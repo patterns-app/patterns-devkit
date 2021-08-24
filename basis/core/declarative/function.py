@@ -41,7 +41,7 @@ class BlockType(str, Enum):
 
 class IoBaseCfg(FrozenPydanticBase):
     name: str
-    _schema: Union[str, Schema] = Field("Any", alias="schema")
+    schema_like: Union[str, Schema] = Field(None, alias="schema")
     description: Optional[str] = None
     required: bool = True
     block_type: BlockType = BlockType.Record
@@ -50,8 +50,8 @@ class IoBaseCfg(FrozenPydanticBase):
     is_error: bool = False
     is_state: bool = False
 
-    def resolve(self, lib: ComponentLibrary) -> IoBase:
-        return update(self, _schema=lib.get_schema(self.schema))
+    # def resolve(self, lib: ComponentLibrary) -> IoBase:
+    #     return update(self, _schema=lib.get_schema(self.schema))
 
     @property
     def is_generic(self) -> bool:
@@ -67,7 +67,7 @@ def Record(
 ) -> IoBaseCfg:
     return IoBaseCfg(
         name=name,
-        schema=schema,
+        schema_like=schema,
         description=description,
         required=required,
         data_format=data_format,
@@ -84,7 +84,7 @@ def Table(
 ) -> IoBaseCfg:
     return IoBaseCfg(
         name=name,
-        schema=schema,
+        schema_like=schema,
         description=description,
         required=required,
         data_format=data_format,
@@ -101,7 +101,7 @@ def Generic(
 ) -> IoBaseCfg:
     return IoBaseCfg(
         name=name,
-        schema=schema,
+        schema_like=schema,
         description=description,
         required=required,
         data_format=data_format,
@@ -160,7 +160,16 @@ class ParameterType(str, Enum):
     List = "List"
 
 
-class Parameter(FrozenPydanticBase):
+def normalize_parameter_type(pt: Union[str, ParameterType]) -> ParameterType:
+    if isinstance(pt, ParameterType):
+        return pt
+    pt = dict(text="str", boolean="bool", number="float", integer="int",).get(
+        pt.lower(), pt
+    )
+    return ParameterType(pt)
+
+
+class ParameterCfg(FrozenPydanticBase):
     name: str
     datatype: ParameterType
     required: bool = False
@@ -168,10 +177,28 @@ class Parameter(FrozenPydanticBase):
     description: str = ""
 
 
+def Parameter(
+    name: str,
+    datatype: Union[ParameterType, str],
+    required: bool = False,
+    default: Any = None,
+    description: str = "",
+) -> ParameterCfg:
+    return ParameterCfg(
+        name=name,
+        datatype=normalize_parameter_type(datatype),
+        required=required,
+        default=default,
+        description=description,
+    )
+
+
 class FunctionInterfaceCfg(FrozenPydanticBase):
     inputs: typing.OrderedDict[str, IoBaseCfg] = Field(default_factory=OrderedDict)
     outputs: typing.OrderedDict[str, IoBaseCfg] = Field(default_factory=OrderedDict)
-    parameters: typing.OrderedDict[str, Parameter] = Field(default_factory=OrderedDict)
+    parameters: typing.OrderedDict[str, ParameterCfg] = Field(
+        default_factory=OrderedDict
+    )
     stdin: Optional[str] = None
     stdout: Optional[str] = None
     stderr: Optional[str] = None

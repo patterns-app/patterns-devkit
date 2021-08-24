@@ -16,7 +16,7 @@ from basis.core.declarative.function import (
 )
 from basis.core.environment import Environment
 from basis.core.execution.context import Context
-from basis.core.function import Function, DataInterfaceType, function_factory
+from basis.core.function import Function, DataInterfaceType
 from basis.core.function_interface import (
     DEFAULT_OUTPUTS,
     ParsedAnnotation,
@@ -121,63 +121,6 @@ class ParsedSqlStatement:
 
 def regex_repalce_match(s, m, r) -> str:
     return s[: m.start()] + r + s[m.end() :]
-
-
-def extract_param_annotations(sql: str) -> ParsedSqlStatement:
-    """
-    Extract basis-specific tokens:
-        - parameters, indicated by an opening colon, `:param1` and optional type `:param1:datetime`
-        - inputs, automatically inferred `input1` but can have optional schema `input1:Transaction`
-        - output is annoatated on the select keyword: `select:Transaction`
-    """
-    param_re = re.compile(
-        r"(?P<whitespace>^|\s):(?P<name>\w+)(:(?P<datatype>\w+))?(=(?P<default>[A-z0-9_.]+))?",
-        flags=re.I,
-    )
-    params = {}
-    sql_with_jinja_vars = sql
-    while True:
-        m = param_re.search(sql_with_jinja_vars)
-        if m is None:
-            break
-        d = m.groupdict()
-        params[d["name"]] = AnnotatedParam(
-            name=d["name"], annotation=d.get("datatype"), default=d.get("default")
-        )
-        jinja = " {{ params['%s'] }}" % d["name"]
-        sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
-    return ParsedSqlStatement(
-        original_sql=sql, sql_with_jinja_vars=sql_with_jinja_vars, found_params=params,
-    )
-
-
-def extract_table_annotations(sql: str) -> ParsedSqlStatement:
-    table_re = re.compile(
-        r"(^|\s)(?P<name>[A-z0-9_.]+):(?P<schema>[A-z0-9_\[\].]+)", flags=re.I
-    )
-    tables = {}
-    output_annotation = None
-    sql_with_jinja_vars = sql
-    while True:
-        m = table_re.search(sql_with_jinja_vars)
-        if m is None:
-            break
-        d = m.groupdict()
-        if d["name"].lower() == "select":
-            output_annotation = d["schema"]
-            jinja = d["name"]
-        else:
-            tables[d["name"]] = AnnotatedSqlTable(
-                name=d["name"], annotation=d["schema"]
-            )
-            jinja = " {{ inputs['%s'] }} as %s" % (d["name"], d["name"])
-        sql_with_jinja_vars = regex_repalce_match(sql_with_jinja_vars, m, jinja)
-    return ParsedSqlStatement(
-        original_sql=sql,
-        sql_with_jinja_vars=sql_with_jinja_vars,
-        found_tables=tables,
-        output_annotation=output_annotation,
-    )
 
 
 @dataclass
