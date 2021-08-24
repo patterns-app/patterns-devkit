@@ -9,8 +9,9 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 from basis.core.declarative.base import update
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
+    BlockType,
     FunctionInterfaceCfg,
-    IoBase,
+    IoBaseCfg,
     Parameter,
     ParameterType,
 )
@@ -34,12 +35,14 @@ re_output_type_hint = re.compile(
 
 
 def normalize_parameter_type(pt: str) -> str:
-    return dict(text="str", boolean="bool", number="float", integer="int",).get(pt, pt)
+    return dict(text="str", boolean="bool", number="float", integer="int",).get(
+        pt.lower(), pt
+    )
 
 
 @dataclass
 class ParsedAnnotation:
-    input_type: Optional[str] = None
+    block_type: Optional[BlockType] = None
     parameter_type: Optional[ParameterType] = None
     output_type: Optional[str] = None
     schema: Optional[str] = None
@@ -65,8 +68,8 @@ def parse_input_annotation(a: str) -> ParsedAnnotation:
     origin = md["origin"]
     if origin in ("Context", "Context"):
         parsed.is_context = True
-    elif origin in [it.value for it in InputType]:
-        parsed.input_type = InputType(origin)
+    elif origin in [it.value for it in BlockType]:
+        parsed.block_type = BlockType(origin)
         parsed.schema = md.get("arg")
     elif normalize_parameter_type(origin) in [pt.value for pt in ParameterType]:
         parsed.parameter_type = ParameterType(normalize_parameter_type(origin))

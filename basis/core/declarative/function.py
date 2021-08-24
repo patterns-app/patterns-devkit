@@ -1,5 +1,8 @@
 from __future__ import annotations
+from collections import OrderedDict
+from dataclasses import asdict, dataclass
 
+import typing
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -36,7 +39,7 @@ class BlockType(str, Enum):
     Generic = "Generic"
 
 
-class IoBase(FrozenPydanticBase):
+class IoBaseCfg(FrozenPydanticBase):
     name: str
     _schema: Union[str, Schema] = Field("Any", alias="schema")
     description: Optional[str] = None
@@ -55,16 +58,87 @@ class IoBase(FrozenPydanticBase):
         return is_generic(self.schema)
 
 
-class Record(IoBase):
-    block_type: BlockType = BlockType.Record
+def Record(
+    name: str,
+    schema: Union[str, Schema] = None,
+    description: Optional[str] = None,
+    required: bool = True,
+    data_format: Optional[str] = None,
+) -> IoBaseCfg:
+    return IoBaseCfg(
+        name=name,
+        schema=schema,
+        description=description,
+        required=required,
+        data_format=data_format,
+        block_type=BlockType.Record,
+    )
 
 
-class Table(IoBase):
-    block_type: BlockType = BlockType.Table
+def Table(
+    name: str,
+    schema: Union[str, Schema] = None,
+    description: Optional[str] = None,
+    required: bool = True,
+    data_format: Optional[str] = None,
+) -> IoBaseCfg:
+    return IoBaseCfg(
+        name=name,
+        schema=schema,
+        description=description,
+        required=required,
+        data_format=data_format,
+        block_type=BlockType.Table,
+    )
 
 
-class Generic(IoBase):
-    block_type: BlockType = BlockType.Generic
+def Generic(
+    name: str,
+    schema: Union[str, Schema] = None,
+    description: Optional[str] = None,
+    required: bool = True,
+    data_format: Optional[str] = None,
+) -> IoBaseCfg:
+    return IoBaseCfg(
+        name=name,
+        schema=schema,
+        description=description,
+        required=required,
+        data_format=data_format,
+        block_type=BlockType.Generic,
+    )
+
+
+# @dataclass
+# class IoBase:
+#     name: str
+#     schema: Union[str, Schema] = None
+#     description: Optional[str] = None
+#     required: bool = True
+#     data_format: Optional[str] = None
+#     block_type: BlockType = BlockType.Record
+
+#     def to_cfg(self) -> IoBaseCfg:
+#         return IoBaseCfg(**asdict(self))
+
+
+# @dataclass
+# class Record(IoBase):
+#     block_type: BlockType = BlockType.Record
+
+
+# @dataclass
+# class Table(IoBase):
+#     block_type: BlockType = BlockType.Table
+
+
+# @dataclass
+# class Generic(IoBase):
+#     block_type: BlockType = BlockType.Generic
+
+
+def is_record_like(obj: Any) -> bool:
+    return isinstance(obj, dict)
 
 
 # class Error(Record):
@@ -95,30 +169,33 @@ class Parameter(FrozenPydanticBase):
 
 
 class FunctionInterfaceCfg(FrozenPydanticBase):
-    inputs: Dict[str, IoBase]
-    outputs: Dict[str, IoBase]
-    parameters: Dict[str, Parameter]
+    inputs: typing.OrderedDict[str, IoBaseCfg] = Field(default_factory=OrderedDict)
+    outputs: typing.OrderedDict[str, IoBaseCfg] = Field(default_factory=OrderedDict)
+    parameters: typing.OrderedDict[str, Parameter] = Field(default_factory=OrderedDict)
     stdin: Optional[str] = None
     stdout: Optional[str] = None
     stderr: Optional[str] = None
 
     @root_validator
     def check_single_input_stream(cls, values: Dict) -> Dict:
-        inputs = values.get("inputs", [])
+        inputs = values.get("inputs", {})
         assert (
-            len([i for i in inputs if i.block_type == BlockType.Record]) <= 1
+            len([i for i in inputs.values() if i.block_type == BlockType.Record]) <= 1
         ), f"At most one input may be streaming. ({inputs})"
         return values
 
     @root_validator
     def check_generics(cls, values: Dict) -> Dict:
+        outputs = values.get("outputs", {})
         generic_outputs = [
-            o for o in values.get("outputs", []) if o.block_type == BlockType.Generic
+            o for o in outputs.values() if o.block_type == BlockType.Generic
         ]
-        generic_inputs = [
-            o for o in values.get("inputs", []) if o.block_type == BlockType.Generic
-        ]
-        if generic_outputs:
+        inputs = values.get("inputs", {})
+        if generic_outputs and inputs:
+            # We have a generic output and some inputs, one of those inputs must be generic too!
+            generic_inputs = [
+                o for o in inputs.values() if o.block_type == BlockType.Generic
+            ]
             assert (
                 generic_inputs
             ), f"Generic output block type found, but no respective generic input declared."
@@ -132,19 +209,19 @@ class FunctionInterfaceCfg(FrozenPydanticBase):
             d["outputs"][n] = i.resolve(lib)
         return FunctionInterfaceCfg(**d)
 
-    def get_input(self, name: str) -> IoBase:
+    def get_input(self, name: str) -> IoBaseCfg:
         return self.inputs[name]
 
-    def get_single_input(self) -> IoBase:
+    def get_single_input(self) -> IoBaseCfg:
         assert len(self.inputs) == 1, self.inputs
         return self.inputs[list(self.inputs)[0]]
 
-    def get_single_streaming_input(self) -> IoBase:
+    def get_single_streaming_input(self) -> IoBaseCfg:
         inpts = self.get_streaming_inputs()
         assert len(inpts) == 1, inpts
         return inpts[list(inpts)[0]]
 
-    def get_streaming_inputs(self) -> Dict[str, IoBase]:
+    def get_streaming_inputs(self) -> Dict[str, IoBaseCfg]:
         return {n: i for n, i in self.inputs.items() if i.block_type == "Record"}
 
     def get_stdin_name(self) -> Optional[str]:
@@ -162,7 +239,7 @@ class FunctionInterfaceCfg(FrozenPydanticBase):
             pass
         return None
 
-    def get_default_output(self) -> Optional[IoBase]:
+    def get_default_output(self) -> Optional[IoBaseCfg]:
         if len(self.outputs) == 1:
             return self.outputs[list(self.outputs)[0]]
         return self.outputs.get(DEFAULT_OUTPUT_NAME)

@@ -1,3 +1,7 @@
+from dataclasses import dataclass
+from basis.core.persistence.pydantic import BlockMetadataCfg
+from typing import Dict, List
+from basis.core import environment
 from basis.core.declarative.base import PydanticBase
 from basis.core.declarative.environment import ComponentLibraryCfg
 from basis.core.component import ComponentLibrary
@@ -10,14 +14,16 @@ from basis.core.declarative.execution import (
 )
 
 
-class Executable(PydanticBase):
+@dataclass
+class Executable:
     node: Node
     graph: Graph
     execution_config: ExecutionCfg
-    bound_interface: BoundInterfaceCfg
+    # bound_interface: BoundInterfaceCfg
     # results: ExecutionResult
     library: ComponentLibrary
     original_cfg: ExecutableCfg
+    input_blocks: Dict[str, List[BlockMetadataCfg]]
 
 
 def instantiate_library(cfg: ComponentLibraryCfg) -> ComponentLibrary:
@@ -40,6 +46,5 @@ def instantiate_executable(cfg: ExecutableCfg) -> Executable:
         execution_config=cfg.execution_config,
         # result=cfg.result,
         library=lib,
-        boudn_interface=cfg.bound_interface,
         original_config=cfg,
     )

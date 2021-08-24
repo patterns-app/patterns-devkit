@@ -3,7 +3,7 @@ from basis.core.node import Node
 from basis.core.environment import Environment
 
 import traceback
-from collections import abc, defaultdict
+from collections import OrderedDict, abc, defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -33,7 +33,12 @@ from basis.core.declarative.execution import (
     ExecutionCfg,
     ExecutionResult,
 )
-from basis.core.declarative.function import DEFAULT_OUTPUT_NAME, FunctionCfg, IoBase
+from basis.core.declarative.function import (
+    DEFAULT_OUTPUT_NAME,
+    FunctionCfg,
+    IoBaseCfg,
+    is_record_like,
+)
 from basis.core.function import Function
 from basis.core.persistence.block import (
     Alias,
@@ -71,7 +76,7 @@ from loguru import logger
 
 @dataclass
 class OutputBase:
-    output: IoBase
+    output: IoBaseCfg
     block_id: str
     records_obj: Optional[Any] = None
     data_format: Optional[DataFormat] = None
@@ -95,7 +100,9 @@ class Context:
     env: Environment
     function: Function
     node: Node
-    inputs: Dict[str, Union[BlockWithStoredBlocksCfg, List[BlockWithStoredBlocksCfg]]]
+    inputs: OrderedDict[
+        str, Union[BlockWithStoredBlocksCfg, List[BlockWithStoredBlocksCfg]]
+    ]
     executable: ExecutableCfg
     result: ExecutionResult
     execution_start_time: Optional[datetime] = None
@@ -118,6 +125,12 @@ class Context:
         block = self.block_handler.handle_emission(block)
         self.result.stream_statuses[input_name].mark_emitted(block)
         self.result.stream_statuses[input_name].block_count += 1
+
+    def emit(self, obj: Any, *args, **kwargs):
+        if is_record_like(obj):
+            self.emit_record(obj, *args, **kwargs)
+        else:
+            self.emit_table(obj, *args, **kwargs)
 
     def emit_record(
         self,
@@ -149,6 +162,9 @@ class Context:
         pass
 
     def emit_state(self, state: Dict):
+        pass
+
+    def consume(self, input_name: str, obj: Union[Record, Iterable[Records]]):
         pass
 
     def mark_latest_record_consumed(self, input_name: str, record: Record):

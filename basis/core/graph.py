@@ -72,8 +72,7 @@ class NodeOutputCfg(FrozenPydanticBase):
     # retention_policy: Optional[str] = None # TODO
 
 
-
-class Graph(FrozenPydanticBase):
+class Graph:
     nodes: List[Node] = []
 
     @validator("nodes")
@@ -159,8 +158,8 @@ class Graph(FrozenPydanticBase):
             input_node = None
             if declared_input:
                 input_node = self.get_node(declared_input)
-        #     if input_node is None and inpt.is_self_reference:
-        #         input_node = self
+            #     if input_node is None and inpt.is_self_reference:
+            #         input_node = self
             node_inputs[inpt.name] = NodeInputCfg(
                 name=inpt.name,
                 input=inpt,
@@ -172,6 +171,5 @@ class Graph(FrozenPydanticBase):
         return node_inputs
 
 
-
 def instantiate_graph(nodes: List[Node], lib: ComponentLibrary) -> Graph:
-    return Graph(nodes=[instantiate_node(n, lib) for n in nodes]
+    return Graph(nodes=[instantiate_node(n, lib) for n in nodes])

@@ -26,16 +26,16 @@ def aggregator(ctx: Context, p1: int):
         agg: previous table to add record to (recursive input)
     """
     agg_records = ctx.get_table("aggregate").as_json()
-    consumed = None
+    consumed = []
     for nxt in ctx.get_next_record("e", stream=True):
         nxt_records = nxt.as_json()
         if not_valid(nxt_records):
             ctx.emit_error(nxt_records, "Invalid record")
         agg_records.append(nxt_records)
-        consumed = nxt
+        consumed.append(nxt)
     if consumed:
         ctx.emit_table(agg_records)
-        ctx.mark_latest_consumed_record("e", consumed)
+        ctx.consume("e", consumed)
 
 
 @basis(

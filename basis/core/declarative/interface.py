@@ -8,7 +8,7 @@ from basis.core.declarative.base import FrozenPydanticBase
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     FunctionInterfaceCfg,
-    IoBase,
+    IoBaseCfg,
 )
 from basis.core.persistence.pydantic import BlockWithStoredBlocksCfg
 from loguru import logger
@@ -16,21 +16,21 @@ from loguru import logger
 
 class NodeInputCfg(FrozenPydanticBase):
     name: str
-    input: IoBase
+    input: IoBaseCfg
     input_node: Optional[NodeCfg] = None
     # schema_translation: Optional[Dict[str, str]] = None
 
-    def as_bound_input(
-        self, bound_stream: List[BlockWithStoredBlocksCfg] = None,
-    ) -> BoundInputCfg:
+    # def as_bound_input(
+    #     self, bound_stream: List[BlockWithStoredBlocksCfg] = None,
+    # ) -> BoundInputCfg:
 
-        return BoundInputCfg(
-            name=self.name,
-            input=self.input,
-            input_node=self.input_node,
-            # schema_translation=self.schema_translation,
-            bound_stream=bound_stream,
-        )
+    #     return BoundInputCfg(
+    #         name=self.name,
+    #         input=self.input,
+    #         input_node=self.input_node,
+    #         # schema_translation=self.schema_translation,
+    #         bound_stream=bound_stream,
+    #     )
 
 
 # class BoundInputCfg(FrozenPydanticBase):
