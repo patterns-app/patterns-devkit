@@ -14,6 +14,7 @@ from basis.core.declarative.function import (
     IoBaseCfg,
     Parameter,
     ParameterType,
+    Table,
 )
 from basis.core.persistence.schema import is_generic
 from basis.utils.docstring import BasisParser, Docstring
@@ -104,7 +105,7 @@ def parse_docstring(d: str) -> Docstring:
 
 
 DEFAULT_INPUT_ANNOTATION = "Block"
-DEFAULT_OUTPUT = None  # IoBase(schema="Any", name=DEFAULT_OUTPUT_NAME,)
+DEFAULT_OUTPUT = Table(name=DEFAULT_OUTPUT_NAME,)
 DEFAULT_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
 DEFAULT_STATE_OUTPUT = None  # IoBase(

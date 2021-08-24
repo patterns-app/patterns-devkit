@@ -271,21 +271,7 @@ class SqlFunctionWrapper:
         self.sql = sql
         self.autodetect_inputs = autodetect_inputs
 
-    def __call__(self, *args: Context, **inputs: DataInterfaceType):
-        ctx: Context = args[0]
-        # if ctx.run_context.current_runtime is None:
-        #     raise Exception("Current runtime not set")
-
-        # for input in inputs.values():
-        #     if isinstance(input, ManagedBlockStream):
-        #         dbs = input
-        #     elif isinstance(input, Block):
-        #         dbs = [input]
-        #     else:
-        #         raise
-        #     for db in dbs:
-        #         assert db.has_format(DatabaseTableFormat)
-
+    def __call__(self, ctx: Context):
         # TODO: way to specify more granular storage requirements (engine, engine version, etc)
         storage = ctx.execution_config.get_target_storage()
         for storage in [

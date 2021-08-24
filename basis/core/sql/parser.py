@@ -1,188 +1,93 @@
 from __future__ import annotations
+from basis.core.declarative.base import PydanticBase
 
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
-from basis.core.declarative.function import FunctionInterfaceCfg
-from basis.core.function_interface import (
-    DEFAULT_OUTPUTS,
-    ParsedAnnotation,
-    function_input_from_annotation,
-    parameter_from_annotation,
-    parse_input_annotation,
+from basis.core.declarative.function import (
+    DEFAULT_OUTPUT_NAME,
+    FunctionInterfaceCfg,
+    IoBaseCfg,
+    Parameter,
+    ParameterCfg,
+    Record,
+    Table,
 )
-from jinja2 import TemplateSyntaxError, nodes
-from jinja2.ext import Extension
-from jinja2.nodes import Const
-from jinja2.runtime import Undefined
 from jinja2.sandbox import SandboxedEnvironment
 
 
-class NamedGetItem:
-    def __init__(self, name: str):
-        self.name = name
+class BasisJinjaInspectContext(PydanticBase):
+    tables: List[IoBaseCfg] = []
+    records: List[IoBaseCfg] = []
+    parameters: List[ParameterCfg] = []
 
-    def __getitem__(self, name: str) -> str:
-        return f"{self.name}[{name}]"
+    def record(self, *args, **kwargs):
+        self.records.append(Record(*args, **kwargs))
 
+    def table(self, *args, **kwargs):
+        self.tables.append(Table(*args, **kwargs))
 
-class NodeInputExtension(Extension):
-    tags = {"input"}
-
-    def __init__(self, environment):
-        super().__init__(environment)
-        environment.extend(node_inputs=[])
-        environment.extend(node_renderer=None)
-
-    def parse(self, parser):
-        line_number = next(parser.stream).lineno
-        input_name = parser.parse_expression()
-        try:
-            annotation = parser.parse_expression()
-        except TemplateSyntaxError:
-            annotation = Const(None)
-        return nodes.CallBlock(
-            self.call_method("_log_input", [input_name, annotation]), [], [], ""
-        ).set_lineno(line_number)
-
-    def _log_input(self, *args, caller=None):
-        # str_args = [str(a) for a in args]
-        self.environment.node_inputs.append(args)
-        if self.environment.node_renderer:
-            return self.environment.node_renderer(*args)
-        return f"InputNode({', '.join([str(a) for a in args])})"
+    def parameter(self, *args, **kwargs):
+        self.parameters.append(Parameter(*args, **kwargs))
 
 
-class ParamExtension(Extension):
-    tags = {"param"}
+class BasisJinjaRenderContext(PydanticBase):
+    inputs_sql: Dict[str, str]
+    params_sql: Dict[str, str]
 
-    def __init__(self, environment):
-        super().__init__(environment)
-        environment.extend(params=[])
-        environment.extend(param_renderer=None)
+    def render_input(self, name: str, *args, **kwargs):
+        return self.inputs_sql[name]
 
-    def parse(self, parser):
-        line_number = next(parser.stream).lineno
-        param_name = parser.parse_expression()
-        try:
-            dtype = parser.parse_expression()
-            # if isinstance(dtype, NamedGetItem):
-            #     dtype = dtype.render()
-        except TemplateSyntaxError:
-            dtype = Const(None)
-        try:
-            default = parser.parse_expression()
-        except TemplateSyntaxError:
-            default = Const(None)
-        try:
-            help_text = parser.parse_expression()
-        except TemplateSyntaxError:
-            help_text = Const("")
-        return nodes.CallBlock(
-            self.call_method("_log_params", [param_name, dtype, default, help_text]),
-            [],
-            [],
-            "",
-        ).set_lineno(line_number)
-
-    def _log_params(self, *args, caller=None):
-        # str_args = [str(a) for a in args]
-        self.environment.params.append(args)
-        if self.environment.param_renderer:
-            return self.environment.param_renderer(*args)
-        return f"Parameter({', '.join([str(a) for a in args])})"
+    def render_parameter(self, name: str, *args, **kwargs):
+        return self.params_sql[name]
 
 
-class StringUndefined(Undefined):
-    def __str__(self):
-        return self._undefined_name
-
-    def __repr__(self):
-        return str(self)
-
-
-DFEAULT_PARAMETER_ANNOTATION = "text"
-DEFAULT_SQL_INPUT_ANNOTATION = "Reference"
-
-
-def parse_sql_annotation(ann: str) -> ParsedAnnotation:
-    if "[" in ann or ann in (i.value for i in InputType):
-        # If type annotation is complex or a InputType, parse it
-        parsed = parse_input_annotation(ann)
-    else:
-        # If it's just a simple word, then assume it is a Schema name
-        parsed = ParsedAnnotation(schema=ann, input_type=InputType.Reference)
-    return parsed
+def get_base_jinja_inspect_ctx() -> Dict[str, Any]:
+    basis_ctx = BasisJinjaInspectContext()
+    ctx = {
+        "basis_ctx": basis_ctx,
+        "Record": basis_ctx.record,
+        "Table": basis_ctx.table,
+        "Parameter": basis_ctx.parameter,
+    }
+    return ctx
 
 
-def interface_from_jinja_env(env: SandboxedEnvironment) -> FunctionInterfaceCfg:
-    inputs = {}
-    outputs = {}
-    params = {}
-    for name, annotation in env.node_inputs:
-        name = str(name)
-        if annotation:
-            annotation = str(annotation)
-        ann = parse_sql_annotation(annotation or DEFAULT_SQL_INPUT_ANNOTATION)
-        inpt = function_input_from_annotation(ann, name=name)
-        inputs[name] = inpt
-    # TODO: output
-    # if self.output_annotation:
-    #     output = function_output_from_annotation(
-    #         parse_sql_annotation(self.output_annotation)
-    #     )
-    #     if output:
-    #         outputs = {DEFAULT_OUTPUT_NAME: output}
-    # else:
-    #     outputs = DEFAULT_OUTPUTS
-    outputs = DEFAULT_OUTPUTS
-    for name, dtype, default, help_text in env.params:
-        name = str(name)
-        if dtype:
-            dtype = str(dtype)
-        if default:
-            default = str(default)
-        if help_text:
-            help_text = str(help_text)
-        params[name] = parameter_from_annotation(
-            parse_input_annotation(dtype or DFEAULT_PARAMETER_ANNOTATION),
-            name=name,
-            default=default,
-            description=help_text,
-        )
-
-    return FunctionInterfaceCfg(
-        inputs=inputs, outputs=outputs, uses_context=True, parameters=params
-    )
-
-
-def get_base_jinja_ctx() -> Dict[str, Any]:
-    ctx = dict(Optional=NamedGetItem("Optional"),)
-    for t in InputType:
-        ctx[t.value] = NamedGetItem(t.value)
+def get_base_jinja_render_ctx(
+    inputs_sql: Dict[str, str], params_sql: Dict[str, str]
+) -> Dict[str, Any]:
+    basis_ctx = BasisJinjaRenderContext(inputs_sql=inputs_sql, params_sql=params_sql)
+    ctx = {
+        "Record": basis_ctx.render_input,
+        "Table": basis_ctx.render_input,
+        "Parameter": basis_ctx.render_parameter,
+    }
     return ctx
 
 
 def get_jinja_env() -> SandboxedEnvironment:
-    return SandboxedEnvironment(
-        undefined=StringUndefined, extensions=[NodeInputExtension, ParamExtension],
+    return SandboxedEnvironment()
+
+
+def interface_from_jinja_ctx(ctx: Dict) -> FunctionInterfaceCfg:
+    bc = ctx["basis_ctx"]
+    inputs = []
+    assert len(bc.records) <= 1
+    inputs.extend(bc.records)
+    inputs.extend(bc.tables)
+    return FunctionInterfaceCfg(
+        inputs={i.name: i for i in inputs},
+        outputs={DEFAULT_OUTPUT_NAME: Table(DEFAULT_OUTPUT_NAME)},
+        parameters={p.name: p for p in bc.parameters},
     )
 
 
 def parse_interface_from_sql(t: str, ctx: Optional[Dict] = None):
     env = get_jinja_env()
     ctx = ctx or {}
-    ctx.update(get_base_jinja_ctx())
+    ctx.update(get_base_jinja_inspect_ctx())
     env.from_string(t).render(ctx)
-    return interface_from_jinja_env(env)
-
-
-class LookupRenderer:
-    def __init__(self, lookup: Dict[str, str]):
-        self.lookup = lookup
-
-    def __call__(self, name: str, *args) -> str:
-        return self.lookup.get(str(name).strip(), "")
+    return interface_from_jinja_ctx(ctx)
 
 
 def render_sql(
@@ -193,9 +98,7 @@ def render_sql(
 ):
     env = get_jinja_env()
     ctx = ctx or {}
-    ctx.update(get_base_jinja_ctx())
-    env.node_renderer = LookupRenderer(inputs_sql)
-    env.param_renderer = LookupRenderer(params_sql)
+    ctx.update(get_base_jinja_render_ctx(inputs_sql, params_sql))
     return env.from_string(t).render(ctx)
 
 

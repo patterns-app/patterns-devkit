@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from basis.core.declarative.function import FunctionInterfaceCfg
+from basis.core.declarative.function import BlockType, FunctionInterfaceCfg, IoBaseCfg
 from basis.core.function_interface import DEFAULT_OUTPUTS, Parameter
 from basis.core.sql.parser import parse_interface_from_sql, render_sql
 from basis.core.sql.sql_function import (
@@ -17,32 +17,29 @@ from tests.utils import make_test_env
 
 def test_sql_parse_new_style_jinja():
     sql = """
-    select * from {{ Record("orders") }}
+    select * from {{ Record("orders", "TestSchema") }}
     join {{ Table("customers") }}
-    where col = {{ Parameter("p1", "text", default=0) }}
+    where col = {{ Parameter("p1", datatype="text", default=0) }}
     """
     dfi = parse_interface_from_sql(sql)
     assert dfi == FunctionInterfaceCfg(
         inputs={
-            "orders": FunctionInputCfg(
-                name="orders", schema_key="TestSchema", input_type=InputType.Stream,
+            "orders": IoBaseCfg(
+                name="orders", schema="TestSchema", block_type=BlockType.Record,
             ),
-            "customers": FunctionInputCfg(
-                name="customers", schema_key="Any", input_type=InputType.Reference,
-            ),
+            "customers": IoBaseCfg(name="customers", block_type=BlockType.Table,),
         },
         outputs=DEFAULT_OUTPUTS,
         parameters={
-            "p1": Parameter(name="p1", datatype="str", default=0, required=True)
+            "p1": Parameter(name="p1", datatype="str", default=0)
         },  # TODO: required ... with default?
-        uses_context=True,
     )
 
 
 def test_sql_render_new_style_jinja():
     sql = """
-    select * from {% input orders %}
-    where col = {% param p1 text 0 %}
+    select * from {{ Table("orders") }}
+    where col = {{ Parameter("p1", "text", default=0) }}
     """
     rendered = render_sql(sql, dict(orders="orders_table"), dict(p1="'val1'"),)
     expected = """
