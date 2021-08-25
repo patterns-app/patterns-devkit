@@ -7,7 +7,7 @@ from basis.core.declarative.environment import BasisCfg, EnvironmentCfg
 from basis.core.declarative.execution import ExecutionCfg, ExecutionResult
 from basis.core.environment import Environment
 from basis.core.execution.context import Context
-from basis.core.function import datafunction
+from basis.core.function import function
 from basis.core.module import BasisModule
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from basis.utils.typing import T
@@ -42,7 +42,7 @@ def make_test_env(**kwargs) -> Environment:
     for schema in [TestSchema1, TestSchema2, TestSchema3, TestSchema4]:
         env.add_schema(schema)
     for fn in all_functions:
-        env.add_function(datafunction(fn))
+        env.add_function(function(fn))
     env.add_module(test_module)
     return env
 

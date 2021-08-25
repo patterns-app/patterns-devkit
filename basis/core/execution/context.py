@@ -108,6 +108,10 @@ class Context:
     execution_start_time: Optional[datetime] = None
     library: Optional[ComponentLibrary] = None
 
+    @property
+    def execution_config(self) -> ExecutionCfg:
+        return self.executable.execution_config
+
     def get_next_record(self, input_name: str) -> Record:
         pass
 
@@ -150,11 +154,12 @@ class Context:
 
     def emit_table(
         self,
-        table_obj: Any,
+        table_obj: Any = None,
         output_name: str = None,
         schema: Union[str, Schema, None] = None,
         table_name: str = None,  # TODO: if produced on a storage
-        storage_url: str = None,  # TODO: if produced on a storage
+        storage: Union[str, Storage] = None,  # TODO: if produced on a storage
+        data_format: Union[str, DataFormat] = None,
     ):
         pass
 

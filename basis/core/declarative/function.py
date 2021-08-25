@@ -50,12 +50,18 @@ class IoBaseCfg(FrozenPydanticBase):
     is_error: bool = False
     is_state: bool = False
 
+    @property
+    def schema_key(self) -> Optional[str]:
+        if self.schema_like is None:
+            return None
+        return schema_like_to_key(self.schema_like)
+
     # def resolve(self, lib: ComponentLibrary) -> IoBase:
     #     return update(self, _schema=lib.get_schema(self.schema))
 
     @property
     def is_generic(self) -> bool:
-        return is_generic(self.schema)
+        return is_generic(self.schema_like)
 
 
 def Record(

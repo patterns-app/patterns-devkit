@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from basis.core.block import SelfReference, Stream
-from basis.core.function import datafunction
+from basis.core.function import function
 from basis.utils.typing import T
 from basis import basis, Stream, Table, Record
 from pandas import DataFrame, concat

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from basis import Block, datafunction, Context
+from basis import Block, function, Context
 
 {% if cookiecutter.namespace %}
-@datafunction(namespace="{{ cookiecutter.namespace }}")
+@function(namespace="{{ cookiecutter.namespace }}")
 {% else %}
-@datafunction
+@function
 {% endif %}
 def {{ cookiecutter.function_name }}(
     ctx: Context,

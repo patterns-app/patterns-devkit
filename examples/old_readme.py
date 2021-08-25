@@ -1,7 +1,7 @@
 # flake8: noqa F402
 import sys
 
-from basis import Environment, datafunction, sql_datafunction
+from basis import Environment, function, sql_function
 from basis.core.declarative.base import load_yaml
 from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.graph import GraphCfg
@@ -12,13 +12,13 @@ from basis_stripe import module as stripe
 sys.path.append(".")
 
 
-@datafunction
+@function
 def customer_lifetime_sales(txs):
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
 
 
-@sql_datafunction
+@sql_function
 def customer_lifetime_sales_sql():
     return "select customer, sum(amount) as amount from txs group by customer"
     # Can use jinja templates too

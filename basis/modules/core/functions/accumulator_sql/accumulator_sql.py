@@ -5,8 +5,8 @@ from typing import Dict, List
 
 from basis import Context
 from basis.core.block import SelfReference, Stream
-from basis.core.function import datafunction
-from basis.core.sql.sql_function import SqlFunctionWrapper, sql_datafunction
+from basis.core.function import function
+from basis.core.sql.sql_function import SqlFunctionWrapper, sql_function
 from basis.utils.typing import T
 from commonmodel import DEFAULT_FIELD_TYPE, FieldType
 from dcp.data_format.formats import DatabaseTable
@@ -39,7 +39,7 @@ def field_sql_with_cast(name: str, ftype: FieldType, dialect=None) -> str:
     # return s
 
 
-@datafunction(namespace="core", display_name="Accumulate sql tables")
+@function(namespace="core", display_name="Accumulate sql tables")
 def accumulator_sql(
     ctx: Context, input: Stream[T], previous: SelfReference[T] = None,
 ) -> DatabaseTable[T]:

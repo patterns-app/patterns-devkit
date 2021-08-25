@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from basis import Block
-from basis.core.function import datafunction
+from basis.core.function import function
 from basis.utils.typing import T
 from pandas import DataFrame
 
@@ -9,7 +9,7 @@ from pandas import DataFrame
 #  In general any deduping on non-indexed columns will be costly.
 
 
-@datafunction(
+@function(
     namespace="core", display_name="Dedupe DataFrame (keep latest)",
 )
 def dedupe_keep_latest_dataframe(input: Block[T]) -> DataFrame[T]:

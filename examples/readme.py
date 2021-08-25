@@ -27,10 +27,10 @@ print(pth)
 fn = """
 from __future__ import annotations
 from pandas import DataFrame
-from basis import datafunction, Block
+from basis import function, Block
 
 
-@datafunction
+@function
 def customer_lifetime_sales(txs: Block) -> DataFrame:
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()

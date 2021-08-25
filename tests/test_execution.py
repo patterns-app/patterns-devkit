@@ -8,7 +8,7 @@ from basis.core.block import Reference, as_managed
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 from basis.core.declarative.graph import GraphCfg
 from basis.core.execution.execution import ExecutionManager
-from basis.core.function import Input, datafunction
+from basis.core.function import Input, function
 from basis.core.persistence.block import Alias
 from basis.core.persistence.state import BlockLog, FunctionLog, Direction
 from basis.modules import core
@@ -30,17 +30,17 @@ from tests.utils import (
 mock_dl_output = [{"f1": "2"}, {"f2": 3}]
 
 
-@datafunction
+@function
 def function_dl_source() -> Records[TestSchema4]:
     return mock_dl_output
 
 
-@datafunction
+@function
 def function_error() -> Records[TestSchema4]:
     raise Exception("function FAIL")
 
 
-@datafunction
+@function
 def never_stop(input: Optional[Reference] = None) -> DataFrame:
     # Does not use input but doesn't matter cause reference
     pass

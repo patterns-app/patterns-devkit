@@ -1,4 +1,5 @@
 from __future__ import annotations
+from basis.utils.docstring import BasisParser, Docstring
 from collections import OrderedDict
 import typing
 from basis.cli.commands import output
@@ -21,14 +22,10 @@ from basis.core.declarative.function import (
     FunctionInterfaceCfg,
     Generic,
     IoBaseCfg,
+    Parameter,
     ParameterCfg,
     Table,
     is_record_like,
-)
-from basis.core.function_interface import (  # merge_declared_interface_with_signature_interface,
-    Parameter,
-    function_interface_from_callable,
-    parse_docstring,
 )
 from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
 from basis.core.runtime import DatabaseRuntimeClass, PythonRuntimeClass, RuntimeClass
@@ -131,10 +128,10 @@ class Function:
         )
 
     @property
-    def params(self) -> Dict[str, Parameter]:
+    def params(self) -> Dict[str, ParameterCfg]:
         return self.get_interface().parameters
 
-    def get_param(self, name: str) -> Parameter:
+    def get_param(self, name: str) -> ParameterCfg:
         return self.get_interface().parameters[name]
 
     # def _get_function_interface(self) -> FunctionInterfaceCfg:
@@ -167,9 +164,15 @@ class Function:
 FunctionLike = Union[FunctionCallable, Function]
 
 
+def parse_docstring(d: str) -> Docstring:
+    return BasisParser().parse(d)
+
+
 def function_interface_from_callable(
     function: FunctionCallable,
 ) -> FunctionInterfaceCfg:
+    if hasattr(function, "get_interface"):
+        return function.get_interface()
     signature = inspect.signature(function)
     outputs = OrderedDict()
     outputs[DEFAULT_OUTPUT_NAME] = IoBaseCfg(
@@ -217,8 +220,11 @@ def wrap_bare_callable(function_callable: Callable) -> Callable:
     return function_wrapper
 
 
-def make_function_from_bare_callable(function_callable: Callable) -> Function:
-    name = make_function_name(function_callable)
+def make_function_from_bare_callable(
+    function_callable: Callable, name: Optional[str] = None, **kwargs
+) -> Function:
+    if name is None:
+        name = make_function_name(function_callable)
     assert callable(function_callable)
     interface = function_interface_from_callable(function_callable)
     wrapped_fn = wrap_bare_callable(function_callable)
@@ -228,7 +234,9 @@ def make_function_from_bare_callable(function_callable: Callable) -> Function:
         function_callable=wrapped_fn,
         inputs=interface.inputs,
         outputs=interface.outputs,
+        parameters=interface.parameters,
         description=doc.short_description,
+        **kwargs,
     )
 
 
@@ -295,7 +303,7 @@ def function_decorator(
     outputs: List[IoBaseCfg] = None,
     parameters: List[ParameterCfg] = None,
     **kwargs,
-) -> Callable:
+) -> Union[Function, Callable]:
     if isinstance(function_or_name, str) or function_or_name is None:
         return partial(
             function_decorator,
@@ -372,14 +380,5 @@ class PythonCodeFunctionWrapper:
         return scope["ret"]
 
 
-def deprecated(*args, **kwargs):
-    raise DeprecationWarning()
-
-
 # Decorator API
 function = function_decorator
-# Function = function_decorator
-# function = function_decorator
-_Function = Function
-datafunction = function_decorator
-# data_function = function_decorator

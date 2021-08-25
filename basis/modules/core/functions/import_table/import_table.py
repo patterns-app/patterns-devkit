@@ -8,7 +8,7 @@ from basis.core.sql.sql_function import SqlFunctionWrapper
 from dcp.utils.common import ensure_bool
 
 
-@datafunction(
+@function(
     namespace="core",
     display_name="Import non-basis database table",
     required_storage_classes=["database"],

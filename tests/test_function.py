@@ -15,7 +15,7 @@ from basis.core.declarative.function import (
     Parameter,
 )
 from basis.core.execution.run import prepare_executable
-from basis.core.function import FunctionLike, datafunction
+from basis.core.function import FunctionLike, function
 from basis.core.function_interface import (
     DEFAULT_OUTPUT,
     DEFAULT_OUTPUTS,
@@ -239,7 +239,7 @@ def df4(input: Block[T], dr2: Block[U], dr3: Block[U],) -> DataFrame[T]:
 def test_function_interface(
     function_like: FunctionLike, expected: FunctionInterfaceCfg
 ):
-    p = datafunction(function_like)
+    p = function(function_like)
     val = p.get_interface()
     assert set(val.inputs) == set(expected.inputs)
     assert val.outputs == expected.outputs
@@ -349,13 +349,13 @@ def test_inputs():
 
 
 def test_python_function():
-    p = datafunction(function_t1_sink)
+    p = function(function_t1_sink)
     assert (
         p.name == function_t1_sink.__name__
     )  # TODO: do we really want this implicit name? As long as we error on duplicate should be ok
 
     k = "name1"
-    p = datafunction(function_t1_sink, name=k)
+    p = function(function_t1_sink, name=k)
     assert p.name == k
     assert p.key == f"{DEFAULT_LOCAL_NAMESPACE}.{k}"
 
@@ -363,12 +363,12 @@ def test_python_function():
     assert pi is not None
 
 
-@datafunction("k1")
+@function("k1")
 def df1():
     pass
 
 
-@datafunction("k1", required_storage_classes=["database"])
+@function("k1", required_storage_classes=["database"])
 def df2():
     pass
 
@@ -392,7 +392,7 @@ def test_node_inputs():
 
 
 def test_node_stream_inputs():
-    pi = datafunction(function_stream).get_interface()
+    pi = function(function_stream).get_interface()
     assert len(pi.inputs) == 1
     assert pi.get_single_non_reference_input().block_type == BlockType("Stream")
 
@@ -401,7 +401,7 @@ def test_node_params():
     env = make_test_env()
     param_vals = []
 
-    @datafunction
+    @function
     def function_ctx(ctx: Context, test: str):
         param_vals.append(test)
 
@@ -417,7 +417,7 @@ def test_any_schema_interface():
     env = make_test_env()
     env.add_module(core)
 
-    @datafunction
+    @function
     def function_any(input: Block) -> DataFrame:
         pass
 
@@ -427,19 +427,19 @@ def test_any_schema_interface():
 
 
 def test_api():
-    @datafunction(namespace="module1")
+    @function(namespace="module1")
     def s1(ctx, i1, p1: str):
         pass
 
-    @datafunction("s1", namespace="module1")
+    @function("s1", namespace="module1")
     def s2(ctx: Context, i1: Block, p1: str = "default val"):
         pass
 
-    @datafunction("s1")
+    @function("s1")
     def s3(ctx, i1: Block[TestSchema1], p1: str):
         pass
 
-    # @datafunction(name="s1", params=[Parameter(name="p1", datatype="str")])
+    # @function(name="s1", params=[Parameter(name="p1", datatype="str")])
     # def s4(ctx: Context, i1: Block) -> Any:
     #     pass
 

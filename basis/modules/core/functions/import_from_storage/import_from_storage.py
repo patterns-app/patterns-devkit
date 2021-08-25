@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Optional
 
-from basis import Context, datafunction
+from basis import Context, function
 
 
-@datafunction(namespace="core", display_name="Import from Storage")
+@function(namespace="core", display_name="Import from Storage")
 def import_from_storage(
     ctx: Context,
     name: str,

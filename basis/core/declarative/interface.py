@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from commonmodel.base import schema_like_to_key
 from basis.core.declarative.node import NodeCfg
 
 from typing import TYPE_CHECKING, Dict, Iterable, Iterator, List, Optional, Set, Union
@@ -196,17 +198,22 @@ def resolve_nominal_output_schema(
     interface: FunctionInterfaceCfg, inputs: Dict[str, List[BlockWithStoredBlocksCfg]]
 ) -> Optional[str]:
     # TODO: extend to other output streams
-    output = self.interface.get_default_output()
+    output = interface.get_default_output()
     if not output:
         return None
     if not output.is_generic:
         return output.schema_key
     output_generic = output.schema_key
-    for node_input in self.inputs.values():
-        if not node_input.input.is_generic:
+    for input_name, block in inputs.items():
+        if not block:
             continue
-        if node_input.input.schema_key == output_generic:
-            schema = node_input.get_bound_nominal_schema()
+        inpt = interface.inputs[input_name]
+        if not inpt.is_generic:
+            continue
+        if inpt.schema_key == output_generic:
+            if isinstance(block, list):
+                block = block[0]
+            schema = block.nominal_schema_key
             # We check if None -- there may be more than one input with same generic, we'll take any that are resolvable
             if schema is not None:
                 return schema

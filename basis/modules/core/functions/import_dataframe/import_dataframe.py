@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Optional
 
-from basis import Context, datafunction
+from basis import Context, function
 from dcp.data_format.formats import DataFrameFormat, JsonLinesFileObjectFormat
 from pandas.core.frame import DataFrame
 
 
-@datafunction(
+@function(
     namespace="core", display_name="Import Pandas DataFrame",
 )
 def import_dataframe(ctx: Context, dataframe: str, schema: Optional[str] = None):

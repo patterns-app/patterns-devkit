@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from basis import Block, Context
-from basis.core.function import datafunction
+from basis.core.function import function
 from basis.modules.core.functions.dedupe_keep_latest_dataframe.dedupe_keep_latest_dataframe import (
     dedupe_keep_latest_dataframe,
 )
@@ -16,7 +16,7 @@ from pandas import DataFrame
 #  In general any deduping on non-indexed columns will be costly.
 
 
-@datafunction(
+@function(
     namespace="core", display_name="Dedupe records (keep latest)",
 )
 def dedupe_keep_latest(ctx: Context, input: Block[T]) -> DataFrame[T]:

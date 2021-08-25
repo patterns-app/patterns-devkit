@@ -4,11 +4,11 @@ import json
 from typing import Optional
 
 from basis import Context
-from basis.core.function import datafunction
+from basis.core.function import function
 from dcp.data_format.formats.memory.records import RecordsFormat
 
 
-@datafunction(
+@function(
     namespace="core", display_name="Import Records (List of dicts)",
 )
 def import_records(ctx: Context, records: str, schema: Optional[str] = None):

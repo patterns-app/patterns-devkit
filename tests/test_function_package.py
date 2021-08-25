@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from basis import Context, datafunction
+from basis import Context, function
 from basis.core.declarative.function import (
     FunctionInterfaceCfg,
     FunctionSourceFileCfg,
@@ -31,7 +31,7 @@ def test_from_path():
 
 
 def test_from_function():
-    @datafunction
+    @function
     def function1(ctx: Context):
         pass
 
@@ -72,9 +72,9 @@ def test_load_from_source_py():
         name="fn1",
         namespace="ns1",
         source="""
-from basis import datafunction
+from basis import function
 
-@datafunction
+@function
 def fn1():
     pass
         """,

@@ -9,7 +9,7 @@ from typing import Generator, Iterator, Optional
 
 import pandas as pd
 import pytest
-from basis import Block, Context, datafunction
+from basis import Block, Context, function
 from basis.core.block import Consumable, Reference
 from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.execution import (
@@ -58,7 +58,7 @@ Customer = create_quick_schema(
 Metric = create_quick_schema("Metric", [("metric", "Text"), ("value", "Decimal(12,2)")])
 
 
-@datafunction
+@function
 def shape_metrics(i1: Block) -> Records[Metric]:
     df = i1.as_dataframe()
     return [
@@ -67,7 +67,7 @@ def shape_metrics(i1: Block) -> Records[Metric]:
     ]
 
 
-@datafunction
+@function
 def aggregate_metrics(i1: Block, this: Optional[Block] = None) -> Records[Metric]:
     if this is not None:
         metrics = this.as_records()
@@ -91,7 +91,7 @@ batch_size = 4
 chunk_size = 2
 
 
-@datafunction
+@function
 def customer_source(
     ctx: Context, batches: int, fail: bool = False
 ) -> Iterator[Records[Customer]]:
@@ -520,14 +520,14 @@ def test_node_reset():
         )
 
 
-@datafunction
+@function
 def with_latest_metrics_no_ref(metrics: Block[Metric], cust: Block[Customer]):
     m = metrics.as_dataframe()
     c = cust.as_dataframe()
     return pd.concat([m, c])
 
 
-@datafunction
+@function
 def with_latest_metrics(cust: Consumable[Customer], metrics: Reference[Metric]):
     m = metrics.as_dataframe()
     c = cust.as_dataframe()
@@ -654,10 +654,10 @@ from dcp.data_format.formats import DataFrameFormat
 from typing import Optional
 
 from pandas.core.frame import DataFrame
-from basis import Context, datafunction
+from basis import Context, function
 
 
-@datafunction(
+@function(
     namespace="core",
     display_name="Import Pandas DataFrame",
 )
@@ -727,7 +727,7 @@ def test_inconsistent_schema_import():
     env = Environment(DataspaceCfg(metadata_storage=dburl, storages=[storage]))
     env.add_module(core)
 
-    @datafunction
+    @function
     def df_inconsistent():
         yield pd.DataFrame({"a": range(10), "b": range(10)})
         yield pd.DataFrame({"a": range(10), "c": range(10)})

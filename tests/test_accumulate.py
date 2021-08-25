@@ -8,7 +8,7 @@ from typing import Generator, Iterator, Optional
 
 import pandas as pd
 import pytest
-from basis import Block, Context, datafunction
+from basis import Block, Context, function
 from basis.core.declarative.dataspace import DataspaceCfg
 from basis.core.declarative.graph import GraphCfg
 from basis.core.environment import Environment
@@ -34,7 +34,7 @@ IS_CI = os.environ.get("CI")
 # logger.enable("basis")
 
 
-@datafunction
+@function
 def funky_source(ctx: Context, batches: int, fail: bool = False) -> Records[Customer]:
     # Gives different schema on each call
     runs = ctx.get_state_value("run_number", 0)

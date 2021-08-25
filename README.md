@@ -48,10 +48,10 @@ Edit `quickstart/functions/customer_lifetime_sales/customer_lifetime_sales.py`:
 ```python
 from __future__ import annotations
 from pandas import DataFrame
-from basis import datafunction, Block
+from basis import function, Block
 
 
-@datafunction
+@function
 def customer_lifetime_sales(txs: Block) -> DataFrame:
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")["amount"].sum().reset_index()
@@ -94,7 +94,7 @@ And preview the output:
 
 ## Architecture overview
 
-All basis pipelines are directed graphs of `datafunction` nodes, consisting of one or more "source" nodes
+All basis pipelines are directed graphs of `function` nodes, consisting of one or more "source" nodes
 that create and emit blocks when run. This stream of blocks is
 then consumed by downstream nodes, which each in turn may emit their own blocks. Source nodes can be scheduled
 to run as needed, downstream nodes will automatically ingest upstream blocks reactively.
@@ -106,7 +106,7 @@ Below are more details on the key components of basis.
 ### Datablocks
 
 A `block` is an immutable set of data records of uniform `schema` -- think csv file, pandas
-dataframe, or database table. `blocks` are the basic data unit of basis, the unit that `datafunctions` take
+dataframe, or database table. `blocks` are the basic data unit of basis, the unit that `functions` take
 as input and produce as output. Once created, a block's data will never change: no records will
 be added or deleted, or data points modified. More precisely, `blocks` are a reference to an
 abstract ideal of a set of records, and will have one or more `StoredBlocks` persisting those
@@ -117,7 +117,7 @@ maintaining byte-perfect consistency -- to the extent possible for given formats
 
 ### Functions
 
-Data `datafunctions` are the core computational unit of basis. They are pure functions that operate on
+Data `functions` are the core computational unit of basis. They are pure functions that operate on
 `blocks` and are added as nodes to a function graph, linking one node's output to another's
 input via `streams`. Functions are written in python or sql.
 
@@ -131,7 +131,7 @@ no annotations provided on a data function, defaults are assumed). We do this fo
 sql:
 
 ```python
-@datafunction
+@function
 def customer_lifetime_sales(
   ctx: Context,  # Inject a context object
   txs: Block[Transaction],  # Require an input stream conforming to schema "Transaction"
@@ -141,7 +141,7 @@ def customer_lifetime_sales(
     txs_df = txs.as_dataframe()
     return txs_df.groupby("customer")[metric].sum().reset_index()
 
-@sql_datafunction
+@sql_function
 def customer_lifetime_sales_sql():
   return """
       select
@@ -158,7 +158,7 @@ value of `amount`, the same as in our python example above.
 
 ### Schemas
 
-`Schemas` are record type definitions (think database table schema) that let `datafunctions` specify the
+`Schemas` are record type definitions (think database table schema) that let `functions` specify the
 data structure they expect and allow them to inter-operate safely. They also
 provide a natural place for field descriptions, validation logic, uniqueness constraints,
 default deduplication behavior, relations to other schemas, and other metadata associated with
@@ -196,7 +196,7 @@ fields:
     type: Text
 ```
 
-`datafunctions` can declare the `schemas` they expect with type hints, allowing them to specify the
+`functions` can declare the `schemas` they expect with type hints, allowing them to specify the
 (minimal) contract of their interfaces. Type annotating our earlier examples would look like this:
 
 ```python
@@ -231,7 +231,7 @@ implementations:
     value: amount
 ```
 
-Here we have _implemented_ the `common.TimeSeries` schema, so any `datafunction` that accepts
+Here we have _implemented_ the `common.TimeSeries` schema, so any `function` that accepts
 timeseries data -- a seasonality modeling function, for example -- can now be applied to
 this `Order` data as well. We could also apply this schema implementation ad-hoc at
 node declaration time with the `schema_translation` kwarg:

@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Optional
 
-from basis import Context, datafunction
+from basis import Context, function
 from dcp.data_format.formats.file_system.csv_file import CsvFileFormat
 from dcp.storage.base import Storage
 
 
-@datafunction(namespace="core", display_name="Import CSV from Storage")
+@function(namespace="core", display_name="Import CSV from Storage")
 def import_storage_csv(
     ctx: Context, name: str, storage_url: str, schema: Optional[str] = None
 ):

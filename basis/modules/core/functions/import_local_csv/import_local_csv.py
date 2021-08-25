@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import Optional
 
-from basis import Context, datafunction
+from basis import Context, function
 from basis.utils.typing import T
 from dcp.data_format.formats.file_system.csv_file import CsvFileFormat
 
 
-@datafunction(namespace="core", display_name="Import local CSV")
+@function(namespace="core", display_name="Import local CSV")
 def import_local_csv(ctx: Context, path: str, schema: Optional[str] = None):
     imported = ctx.get_state_value("imported")
     if imported:

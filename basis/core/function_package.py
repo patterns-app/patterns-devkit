@@ -57,7 +57,7 @@ class FunctionPackage:
         try:
             function = getattr(m, name)
         except AttributeError:
-            function = find_single_datafunction(m)
+            function = find_single_function(m)
         # function = local_vars.get(name)
         # if function is None:
         #     functions = [v for v in local_vars.values() if isinstance(v, Function)]
@@ -242,11 +242,11 @@ def load_functions_from_module(module: ModuleType) -> List[Function]:
     return find_all_of_type_in_module(module, Function)
 
 
-def find_single_datafunction(module: ModuleType) -> Function:
+def find_single_function(module: ModuleType) -> Function:
     functions = load_functions_from_module(module)
     assert (
         len(functions) == 1
-    ), f"Module must define one and only one datafunction (found {len(functions)})"
+    ), f"Module must define one and only one function (found {len(functions)})"
     return functions[0]
 
 
@@ -272,7 +272,7 @@ def load_function_from_source_file(source: FunctionSourceFileCfg) -> Function:
 
     if source.source_language == "python":
         mod = import_source_as_module(source.source, module_name=source.name)
-        fn = find_single_datafunction(mod)
+        fn = find_single_function(mod)
         return fn
     if source.source_language == "sql":
         # TODO: other DF attrs

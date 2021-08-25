@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from basis.core.environment import Environment
-from basis.core.function import datafunction
+from basis.core.function import function
 from basis.core.module import DEFAULT_LOCAL_MODULE, BasisModule
 from basis.modules.core import module as core
 from loguru import logger
@@ -30,7 +30,7 @@ def test_core_module():
 def test_default_module():
     DEFAULT_LOCAL_MODULE.library.functions = {}
 
-    @datafunction
+    @function
     def s1():
         pass
 

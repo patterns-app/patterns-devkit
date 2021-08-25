@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Optional
 
-from basis import Block, Context, datafunction
+from basis import Block, Context, function
 from basis.core.sql.sql_function import SqlFunctionWrapper
 from commonmodel.base import Schema
 from dcp.utils.common import T
 
 
-@datafunction(
+@function(
     namespace="core",
     display_name="Dedupe Table (keep latest)",
     required_storage_engines=["postgresql"],
