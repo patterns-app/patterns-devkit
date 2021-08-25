@@ -78,9 +78,9 @@ class NodeOutputCfg(FrozenPydanticBase):
 class Graph:
     nodes: List[Node] = field(default_factory=list)
 
-    def check_unique_nodes(cls, nodes: List[Node]) -> List[Node]:
-        assert len(nodes) == len(set(n.key for n in nodes)), "Node keys must be unique"
-        return nodes
+    # def check_unique_nodes(cls, nodes: List[Node]) -> List[Node]:
+    #     assert len(nodes) == len(set(n.key for n in nodes)), "Node keys must be unique"
+    #     return nodes
 
     def get_all_schema_keys(self) -> List[str]:
         schemas = []

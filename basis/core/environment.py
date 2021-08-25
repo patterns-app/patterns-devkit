@@ -22,7 +22,6 @@ from alembic import command
 from alembic.config import Config
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.function import FunctionSourceFileCfg
-from basis.core.module import DEFAULT_LOCAL_MODULE, DEFAULT_LOCAL_NAMESPACE, BasisModule
 from basis.core.persistence.api import MetadataApi
 from basis.core.persistence.schema import (
     GeneratedSchema,
@@ -54,8 +53,9 @@ DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
 Serializable = Union[str, int, float, bool]
 
 
-def instantiate_environment(cfg: EnvironmentCfg) -> Environment:
-    env = Environment(cfg)
+# def instantiate_environment(cfg: EnvironmentCfg) -> Environment:
+#     env = Environment(cfg)
+#     return env
 
 
 class Environment:
@@ -95,13 +95,13 @@ class Environment:
         # TODO: local module is yucky global state, also, we load these libraries and their
         #       components once, but the libraries are mutable and someone could add components
         #       to them later, which would not be picked up by the env library. (prob fine)
-        self._local_module = DEFAULT_LOCAL_MODULE
+        # self._local_module = DEFAULT_LOCAL_MODULE
         # TODO: load library from config
         # if library is None or not self.settings.use_global_library:
         self.library = ComponentLibrary()
         # else:
         #     self.library = library
-        self.add_module(self._local_module)
+        # self.add_module(self._local_module)
         self._local_python_storage = new_local_python_storage()
         for module in self.cfg.modules:
             try:
@@ -127,8 +127,8 @@ class Environment:
     def get_default_local_python_storage(self) -> Storage:
         return self._local_python_storage
 
-    def get_local_module(self) -> BasisModule:
-        return self._local_module
+    # def get_local_module(self) -> BasisModule:
+    #     return self._local_module
 
     def get_module_order(self) -> List[str]:
         return self.library.namespace_precedence
@@ -188,36 +188,36 @@ class Environment:
     def all_functions(self) -> List[Function]:
         return self.library.all_functions()
 
-    def add_module(self, *modules: Union[BasisModule, ModuleType, str]):
-        for module in modules:
-            if isinstance(module, str):
-                if module in (DEFAULT_LOCAL_NAMESPACE, "core"):
-                    continue
-                try:
-                    module = import_module(module)
-                except ImportError:
-                    if "test" in module:
-                        logger.debug(f"Could not import module {module}")
-                    else:
-                        logger.warning(f"Could not import module {module}")
-                    continue
-            self.library.add_module(module)
+    # def add_module(self, *modules: Union[BasisModule, ModuleType, str]):
+    #     for module in modules:
+    #         if isinstance(module, str):
+    #             if module in (DEFAULT_LOCAL_NAMESPACE, "core"):
+    #                 continue
+    #             try:
+    #                 module = import_module(module)
+    #             except ImportError:
+    #                 if "test" in module:
+    #                     logger.debug(f"Could not import module {module}")
+    #                 else:
+    #                     logger.warning(f"Could not import module {module}")
+    #                 continue
+    #         self.library.add_module(module)
 
     def get_default_storage(self) -> Storage:
-        if self.dataspace.default_storage is not None:
-            return ensure_storage(self.dataspace.default_storage)
-        if len(self.dataspace.storages) == 1:
-            return ensure_storage(self.dataspace.storages[0])
-        if not self.dataspace.storages:
+        if self.cfg.default_storage is not None:
+            return ensure_storage(self.cfg.default_storage)
+        if len(self.cfg.storages) == 1:
+            return ensure_storage(self.cfg.storages[0])
+        if not self.cfg.storages:
             return self._local_python_storage
-        for s in self.dataspace.storages:
+        for s in self.cfg.storages:
             s = ensure_storage(s)
             if s.url == self.metadata_storage.url:
                 continue
             if s.storage_engine.storage_class == MemoryStorageClass:
                 continue
             return s
-        return ensure_storage(self.dataspace.storages[0])
+        return ensure_storage(self.cfg.storages[0])
 
     def build_library_cfg(
         self,
@@ -260,7 +260,7 @@ class Environment:
                 "be persisted. Add a database or file storage to persist results."
             )
         args = dict(
-            dataspace=self.dataspace,
+            dataspace=self.cfg,
             local_storage=self._local_python_storage.url,
             target_storage=target_storage.url,
             storages=[s.url for s in self.get_storages()] + [target_storage.url],
@@ -270,9 +270,7 @@ class Environment:
         return ExecutionCfg(**args)
 
     def get_storages(self) -> List[Storage]:
-        return [Storage(s) for s in self.dataspace.storages] + [
-            self._local_python_storage
-        ]
+        return [Storage(s) for s in self.cfg.storages] + [self._local_python_storage]
 
     # @contextmanager
     # def run(
@@ -295,7 +293,7 @@ class Environment:
 
     def prepare_graph(self, graph: Optional[GraphCfg] = None) -> GraphCfg:
         if graph is None:
-            graph = self.dataspace.graph
+            graph = self.cfg.graph
         graph = graph.resolve_and_flatten(self.library)
         return graph
 

@@ -33,8 +33,8 @@ class EnvironmentCfg(FrozenPydanticBase):
 
 
 class ComponentLibraryCfg(FrozenPydanticBase):
-    functions: List[FunctionCfg] = []
+    # functions: List[FunctionCfg] = []
     schemas: List[Schema] = []
-    flows: List[FlowCfg] = []
+    # flows: List[FlowCfg] = []
     source_file_functions: List[FunctionSourceFileCfg] = []
     namespace_precedence: List[str] = []

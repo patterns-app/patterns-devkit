@@ -26,7 +26,6 @@ from basis.core.function import (
 )
 
 from basis.core.function_package import load_file
-from basis.core.module import BasisModule
 from basis.core.sql.jinja import parse_interface_from_sql, render_sql
 from commonmodel.base import SchemaLike, SchemaTranslation
 from dcp.data_format.formats.database.base import DatabaseTableFormat

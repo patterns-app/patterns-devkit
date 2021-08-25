@@ -8,7 +8,6 @@ from basis.core.declarative.execution import ExecutionCfg, ExecutionResult
 from basis.core.environment import Environment
 from basis.core.execution.context import Context
 from basis.core.function import function
-from basis.core.module import BasisModule
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from basis.utils.typing import T
 from commonmodel.base import create_quick_schema
@@ -38,21 +37,17 @@ def make_test_env(**kwargs) -> Environment:
     ds_args.update(**kwargs)
     ds = EnvironmentCfg(**ds_args)
     env = Environment(cfg=ds)
-    test_module = BasisModule("_test",)
     for schema in [TestSchema1, TestSchema2, TestSchema3, TestSchema4]:
         env.add_schema(schema)
     for fn in all_functions:
         env.add_function(function(fn))
-    env.add_module(test_module)
     return env
 
 
 def make_test_run_context(env: Environment = None, **kwargs) -> ExecutionCfg:
     s = f"python://_test_default_{rand_str(6)}"
     env = env or make_test_env()
-    args = dict(
-        dataspace=env.dataspace, local_storage=s, target_storage=s, storages=[s],
-    )
+    args = dict(cfg=env.cfg, local_storage=s, target_storage=s, storages=[s],)
     args.update(**kwargs)
     return ExecutionCfg(**args)
 

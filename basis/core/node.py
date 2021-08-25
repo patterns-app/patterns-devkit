@@ -22,6 +22,7 @@ import networkx as nx
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase, PydanticBase
 from basis.core.declarative.function import (
+    DEFAULT_INPUT_NAME,
     FunctionCfg,
     FunctionInterfaceCfg,
 )
@@ -40,11 +41,21 @@ NxNode = Tuple[str, Dict[str, Dict]]
 NxAdjacencyList = List[NxNode]
 
 
+def conform_inputs(inputs) -> Dict[str, str]:
+    if isinstance(inputs, dict):
+        return inputs
+    if isinstance(inputs, str):
+        inputs = [inputs]
+    assert isinstance(inputs, list)
+    assert len(inputs) == 1
+    return {DEFAULT_INPUT_NAME: inputs[0]}
+
+
 def instantiate_node(cfg: NodeCfg, lib: ComponentLibrary) -> Node:
     d = cfg.dict()
     d["function"] = lib.get_function(cfg.function)
     d["original_cfg"] = cfg
-    d["inputs"] = cfg.assign_inputs()
+    d["inputs"] = conform_inputs(cfg.inputs)
     return Node(**d)
 
 

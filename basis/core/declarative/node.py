@@ -75,12 +75,12 @@ class NodeCfg(FrozenPydanticBase):
     key: str  # = "default"
     # nodes: List[GraphCfg] = []
     function: Optional[str] = None
-    function_cfg: Optional[FunctionCfg] = None
+    # function_cfg: Optional[FunctionCfg] = None
     params: Dict[str, Any] = {}  # TODO: acceptable param types?
     stdin_key: Optional[str] = None
     stdout_key: Optional[str] = None
     stderr_key: Optional[str] = None
-    inputs: Dict[str, str] = {}
+    inputs: Union[List[str], Dict[str, str], str] = {}
     outputs: Dict[str, NodeOutputCfg] = {}
     # aliases: Dict[str, str] = {}
     # conform_to_schema: Optional[str] = None
@@ -128,3 +128,4 @@ class NodeCfg(FrozenPydanticBase):
         return as_identifier(
             ident
         )  # TODO: this logic should be storage api specific! and then shared back?
+

@@ -1,4 +1,3 @@
-from basis.core.module import BasisModule
 from commonmodel.base import AnySchema
 
 
