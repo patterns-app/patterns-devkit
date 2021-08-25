@@ -9,8 +9,6 @@ from basis import Block, Function, Environment
 from basis.core.component import ComponentLibrary
 from basis.core.declarative.execution import ExecutionResult
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
-from basis.core.function_package import FunctionPackage
-from basis.core.module import BasisModule
 from commonmodel.base import Schema, SchemaLike
 from dcp.data_format.formats.memory.records import PythonRecordsHandler
 from dcp.data_format.handler import get_handler_for_name, infer_schema_for_name
@@ -34,10 +32,7 @@ def display_function_log(env: Environment):
 
 
 def str_as_dataframe(
-    env: Environment,
-    test_data: str,
-    package: Optional[FunctionPackage] = None,
-    nominal_schema: Optional[Schema] = None,
+    env: Environment, test_data: str, nominal_schema: Optional[Schema] = None,
 ) -> DataFrame:
     # TODO: add conform_dataframe_to_schema option
     # TODO: support files

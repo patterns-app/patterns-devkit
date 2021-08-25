@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from basis.core.declarative.dataspace import BasisCfg, DataspaceCfg
+from . import _test_module
+from basis.core.declarative.environment import BasisCfg, EnvironmentCfg
 from basis.core.environment import Environment
 from basis.core.persistence.block import BlockMetadata
 from dcp.storage.database.utils import get_tmp_sqlite_db_url
@@ -12,19 +13,12 @@ from sqlalchemy.sql.expression import select
 
 
 def env_init(env: Environment):
-    from ._test_module import module as _test_module
-
     # Test module / components
     with env.md_api.begin():
-        assert len(env.get_module_order()) == 1
-        env.add_module(_test_module)
-        assert env.get_module_order() == [
-            env.get_local_module().namespace,
-            _test_module.namespace,
-        ]
-        assert env.get_schema("TestSchema") is _test_module.schemas.TestSchema
+        env.add_schema(_test_module.TestSchema)
+        assert env.get_schema("TestSchema") is _test_module.TestSchema
         assert (
-            env.get_function("test_sql_function")
+            env.get_function("tests._test_module.functions.test_sql_function")
             is _test_module.functions.test_sql_function
         )
         # Test runtime / storage
@@ -35,10 +29,10 @@ def env_init(env: Environment):
 
 def test_env_init():
     env = Environment(
-        dataspace=DataspaceCfg(
+        cfg=EnvironmentCfg(
             key=f"_test_{rand_str()}",
             metadata_storage="sqlite://",
-            basis=BasisCfg(use_global_library=False),
+            basis_cfg=BasisCfg(use_global_library=False),
         )
     )
     env_init(env)
@@ -46,22 +40,22 @@ def test_env_init():
 
 def test_multi_env():
     db_url = get_tmp_sqlite_db_url()
-    cfg = DataspaceCfg(
+    cfg = EnvironmentCfg(
         key=f"_test_{rand_str()}",
         metadata_storage=db_url,
-        basis=BasisCfg(use_global_library=False),
+        basis_cfg=BasisCfg(use_global_library=False),
     )
-    env1 = Environment(dataspace=cfg)
+    env1 = Environment(cfg=cfg)
     with env1.md_api.begin():
         env1.md_api.add(BlockMetadata(realized_schema_key="Any"))
         env1.md_api.flush()
         assert env1.md_api.count(select(BlockMetadata)) == 1
-    cfg = DataspaceCfg(
+    cfg = EnvironmentCfg(
         key=f"_test_{rand_str()}",
         metadata_storage=db_url,
-        basis=BasisCfg(use_global_library=False),
+        basis_cfg=BasisCfg(use_global_library=False),
     )
-    env2 = Environment(dataspace=cfg)
+    env2 = Environment(cfg=cfg)
     with env2.md_api.begin():
         assert env2.md_api.count(select(BlockMetadata)) == 0
         env2.md_api.add(BlockMetadata(realized_schema_key="Any"))

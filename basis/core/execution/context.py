@@ -51,7 +51,7 @@ from basis.core.persistence.block import (
 from basis.core.persistence.pydantic import (
     BlockMetadataCfg,
     BlockWithStoredBlocksCfg,
-    FunctionLogCfg,
+    ExecutionLogCfg,
     StoredBlockMetadataCfg,
 )
 from basis.core.storage import ensure_block_on_storage_cfg

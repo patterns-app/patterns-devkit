@@ -102,15 +102,23 @@ class ComponentLibrary:
     def find_function_in_module_path(self, module_path: str) -> Function:
         from basis.core.function_package import find_single_function
 
+        # First see if path is to python module w function inside
         try:
             mod = importlib.import_module(module_path)
             return find_single_function(mod)
+        except (ModuleNotFoundError, AssertionError):  # TODO: error
+            pass
+        # Next try as full path to function
+        mods = module_path.split(".")
+        name = mods[-1]
+        try:
+            mod = importlib.import_module(".".join(mods[:-1]))
+            return getattr(mod, name)
         except ModuleNotFoundError:
             pass
-        mods = module_path.split(".")
-        mod = importlib.import_module(".".join(mods[:-1]))
-        name = mods[-1]
-        return getattr(mod, name)
+        # Finally try as path to package, with module of same name, with function of same name....
+        mod = importlib.import_module(module_path + "." + name)
+        return find_single_function(mod)
 
     def get_function(
         self, function_like: Union[Function, str], try_module_lookups=True

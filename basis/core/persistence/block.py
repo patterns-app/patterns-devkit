@@ -1,4 +1,5 @@
 from __future__ import annotations
+from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 
 from dataclasses import dataclass
 from typing import (
@@ -31,7 +32,7 @@ from dcp.data_format.formats.memory.records import Records, RecordsFormat
 from dcp.data_format.handler import FormatHandler, get_handler_for_name
 from dcp.storage.base import MemoryStorageClass, Storage
 from dcp.storage.memory.engines.python import LOCAL_PYTHON_STORAGE
-from dcp.utils.common import as_identifier, rand_str
+from dcp.utils.common import as_identifier, md5_hash, rand_str
 from loguru import logger
 from pandas import DataFrame
 from pydantic_sqlalchemy import sqlalchemy_to_pydantic
@@ -48,8 +49,8 @@ if TYPE_CHECKING:
     from basis.core.block import Block
 
 
-def get_block_id(emitting_node_key: str) -> str:
-    return timestamp_increment_key(prefix=emitting_node_key)
+def get_block_id() -> str:
+    return timestamp_increment_key()
 
 
 def ensure_lib(lib: Union[Environment, ComponentLibrary]) -> ComponentLibrary:
@@ -59,14 +60,7 @@ def ensure_lib(lib: Union[Environment, ComponentLibrary]) -> ComponentLibrary:
 
 
 class BlockMetadata(BaseModel):  # , Generic[DT]):
-    # NOTE on block ids: we generate them dynamically so we don't have to hit a central db for a sequence
-    # BUT we MUST ensure they are monotonically ordered -- the logic of selecting the correct (most recent)
-    # block relies on strict monotonic IDs in some scenarios
     id = Column(String(128), primary_key=True, default=get_block_id)
-    # id = Column(Integer, primary_key=True, autoincrement=True)
-    # start_block_id = Column(String(128), index=True)
-    # end_block_id = Column(String(128), index=True)
-    # block_count = Column(Integer, default=1)
     inferred_schema_key: SchemaKey = Column(String(128), nullable=True)  # type: ignore
     nominal_schema_key: SchemaKey = Column(String(128), nullable=True)  # type: ignore
     realized_schema_key: SchemaKey = Column(String(128), nullable=False)  # type: ignore
@@ -126,11 +120,11 @@ class BlockMetadata(BaseModel):  # , Generic[DT]):
 
     # def created_by(self: Session) -> Optional[str]:
     #     from basis.core.node import BlockLog
-    #     from basis.core.node import FunctionLog
+    #     from basis.core.node import ExecutionLog
     #     from basis.core.node import Direction
 
     #     result = (
-    #         env.md_api.execute(select(FunctionLog.node_key)
+    #         env.md_api.execute(select(ExecutionLog.node_key)
     #         .join(BlockLog)
     #         .filter(
     #             BlockLog.direction == Direction.OUTPUT,
@@ -143,9 +137,27 @@ class BlockMetadata(BaseModel):  # , Generic[DT]):
     #     return None
 
 
-def make_sdb_name(id: str, node_key: str = None) -> str:
-    node_key = node_key or ""
-    return as_identifier(f"_{node_key[:30]}_{id}")
+def get_node_stream_prefix(
+    node_key: str, stream_name: str = None, max_len: int = 30
+) -> str:
+    if stream_name == DEFAULT_OUTPUT_NAME:
+        stream_name = ""
+    if not node_key and not stream_name:
+        return ""
+    stream_name = stream_name or ""
+    if stream_name:
+        prefix = f"{node_key}__{stream_name}"
+    else:
+        prefix = node_key
+    if len(prefix) > max_len:
+        hsh = md5_hash(prefix)[:10]
+        prefix = prefix[: (max_len - len(hsh))] + hsh
+    return prefix
+
+
+def make_sdb_name(id: str, node_key: str = None, stream_name: str = None) -> str:
+    prefix = get_node_stream_prefix(node_key or "", stream_name)
+    return as_identifier(f"_{prefix}_{id}")
 
 
 # def make_sdb_name_sa(context) -> str:
@@ -155,9 +167,7 @@ def make_sdb_name(id: str, node_key: str = None) -> str:
 
 
 class StoredBlockMetadata(BaseModel):
-    # id = Column(Integer, primary_key=True, autoincrement=True)
     id = Column(String(128), primary_key=True, default=get_block_id)
-    # id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(128), nullable=False)
     block_id = Column(String(128), ForeignKey(BlockMetadata.id), nullable=False)
     storage_url = Column(String(128), nullable=False)
@@ -165,7 +175,6 @@ class StoredBlockMetadata(BaseModel):
     aliases: RelationshipProperty = relationship(
         "Alias", backref="stored_block", lazy="dynamic"
     )
-    # is_ephemeral = Column(Boolean, default=False) # TODO
     # Hints
     block: "BlockMetadata"
     data_is_written: bool = False

@@ -32,7 +32,7 @@ from basis.core.persistence.block import (
 )
 from basis.core.persistence.state import (
     BlockLog,
-    FunctionLog,
+    ExecutionLog,
     Direction,
     NodeState,
     _reset_state,
@@ -243,7 +243,7 @@ def test_repeated_runs():
     ]
     # Logs
     dfl = env.md_api.execute(
-        select(FunctionLog).filter(FunctionLog.node_key == metrics.key)
+        select(ExecutionLog).filter(ExecutionLog.node_key == metrics.key)
     ).scalar_one()
     dbls = list(
         env.md_api.execute(
@@ -327,9 +327,9 @@ def test_function_failure():
     records = block.as_records()
     assert len(records) == 2
     with env.md_api.begin():
-        assert env.md_api.count(select(FunctionLog)) == 1
+        assert env.md_api.count(select(ExecutionLog)) == 1
         assert env.md_api.count(select(BlockLog)) == 1
-        pl = env.md_api.execute(select(FunctionLog)).scalar_one_or_none()
+        pl = env.md_api.execute(select(ExecutionLog)).scalar_one_or_none()
         assert pl.node_key == source.key
         assert pl.node_start_state == {}
         assert pl.node_end_state == {"records_imported": chunk_size}
@@ -351,11 +351,11 @@ def test_function_failure():
     records = block.as_records()
     assert len(records) == batch_size
     with env.md_api.begin():
-        assert env.md_api.count(select(FunctionLog)) == 2
+        assert env.md_api.count(select(ExecutionLog)) == 2
         assert env.md_api.count(select(BlockLog)) == 2
         pl = (
             env.md_api.execute(
-                select(FunctionLog).order_by(FunctionLog.completed_at.desc())
+                select(ExecutionLog).order_by(ExecutionLog.completed_at.desc())
             )
             .scalars()
             .first()
@@ -388,9 +388,9 @@ def test_function_failure():
 #     records = block.as_records()
 #     assert len(records) == 2
 #     with env.md_api.begin():
-#         assert env.md_api.count(select(FunctionLog)) == 1
+#         assert env.md_api.count(select(ExecutionLog)) == 1
 #         assert env.md_api.count(select(BlockLog)) == 1
-#         pl = env.md_api.execute(select(FunctionLog)).scalar_one_or_none()
+#         pl = env.md_api.execute(select(ExecutionLog)).scalar_one_or_none()
 #         assert pl.node_key == source.key
 #         assert pl.node_start_state == {}
 #         assert pl.node_end_state == {"records_imported": chunk_size}
@@ -412,11 +412,11 @@ def test_function_failure():
 #     records = block.as_records()
 #     assert len(records) == batch_size
 #     with env.md_api.begin():
-#         assert env.md_api.count(select(FunctionLog)) == 2
+#         assert env.md_api.count(select(ExecutionLog)) == 2
 #         assert env.md_api.count(select(BlockLog)) == 2
 #         pl = (
 #             env.md_api.execute(
-#                 select(FunctionLog).order_by(FunctionLog.completed_at.desc())
+#                 select(ExecutionLog).order_by(ExecutionLog.completed_at.desc())
 #             )
 #             .scalars()
 #             .first()
@@ -591,7 +591,7 @@ def test_multi_env():
     block = get_stdout_block(results)
     assert block
     with env1.md_api.begin():
-        assert env1.md_api.count(select(FunctionLog)) == 2
+        assert env1.md_api.count(select(ExecutionLog)) == 2
         assert env1.md_api.count(select(BlockLog)) == 3
 
     env2 = get_env(key="e2", db_url=env1.metadata_storage.url)
@@ -603,7 +603,7 @@ def test_multi_env():
     block = get_stdout_block(results)
     assert block
     with env2.md_api.begin():
-        assert env2.md_api.count(select(FunctionLog)) == 2
+        assert env2.md_api.count(select(ExecutionLog)) == 2
         assert env2.md_api.count(select(BlockLog)) == 3
 
 
@@ -641,7 +641,7 @@ def test_remote_callback_listener():
     env.add_module(core)
 
     with env.md_api.begin():
-        assert env.md_api.count(select(FunctionLog)) == 0
+        assert env.md_api.count(select(ExecutionLog)) == 0
         assert env.md_api.count(select(BlockLog)) == 0
         assert env.md_api.count(select(BlockMetadata)) == 0
 
@@ -698,7 +698,7 @@ def import_df(
     )
 
     with env.md_api.begin():
-        assert env.md_api.count(select(FunctionLog)) == 1
+        assert env.md_api.count(select(ExecutionLog)) == 1
         assert env.md_api.count(select(BlockLog)) == 1
         assert env.md_api.count(select(BlockMetadata)) == 1
 

@@ -61,12 +61,12 @@ class _BaseModel:
 BaseModel = declarative_base(cls=_BaseModel)  # type: Any
 
 
-def timestamp_increment_key(prefix: str = "") -> str:
+def timestamp_increment_key() -> str:
     """
     Generates keys that are unique and monotonic in time for a given run.
     Appends random chars to ensure multiple processes can run at once and not collide.
     """
-    return f"{prefix}_{generate_ulid_as_base32()}"
+    return generate_ulid_as_base32()
 
 
 class DataFormatType(types.TypeDecorator):

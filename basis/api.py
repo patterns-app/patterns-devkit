@@ -13,4 +13,4 @@ from .core.block import (
 )
 from .core.environment import Environment, current_env, run_graph, run_node
 from .core.function import Function
-from .core.sql.sql_function import sql_function
+from .core.sql.sql_function import sql_function, sqlfunction

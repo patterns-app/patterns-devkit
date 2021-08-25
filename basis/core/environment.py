@@ -473,7 +473,7 @@ class Environment:
         data blocks.
         """
         from basis.core.persistence.state import (
-            FunctionLog,
+            ExecutionLog,
             BlockLog,
             Direction,
         )
@@ -496,12 +496,12 @@ class Environment:
         #     )
         query = (
             select(BlockLog)
-            .join(FunctionLog)
+            .join(ExecutionLog)
             .filter(BlockLog.invalidated == False)  # noqa
             .filter(BlockLog.direction == Direction.OUTPUT)
         )
         if not all_nodes:
-            query = query.filter(FunctionLog.function_key.in_(eligible_function_keys))
+            query = query.filter(ExecutionLog.function_key.in_(eligible_function_keys))
 
         with self.md_api.begin():
             for dbl in self.md_api.execute(query).scalars():
@@ -511,17 +511,17 @@ class Environment:
                     continue
                 if self.md_api.execute(
                     select(BlockLog)
-                    .join(FunctionLog)
+                    .join(ExecutionLog)
                     .filter(BlockLog.direction == Direction.OUTPUT)
                     .filter(BlockLog.created_at > dbl.created_at)
-                    .filter(FunctionLog.node_key == dbl.function_log.node_key)
+                    .filter(ExecutionLog.node_key == dbl.function_log.node_key)
                 ).scalar():
                     # There's a more recent version, so we can throw this one out
                     if self.md_api.execute(
                         select(BlockLog)
-                        .join(FunctionLog)
+                        .join(ExecutionLog)
                         .filter(BlockLog.direction == Direction.INPUT)
-                        .filter(FunctionLog.node_key == dbl.function_log.node_key)
+                        .filter(ExecutionLog.node_key == dbl.function_log.node_key)
                     ).scalar():
                         # AND it's not a source, so we can always recreate downstream stuff
                         dbl.invalidated = True

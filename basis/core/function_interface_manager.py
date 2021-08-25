@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 from basis.core.declarative.interface import NodeInputCfg
 from basis.core.environment import Environment
 from basis.core.persistence.block import BlockMetadata, StoredBlockMetadata
-from basis.core.persistence.state import BlockLog, FunctionLog, Direction
+from basis.core.persistence.state import ExecutionLog, Direction
 from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
 from dcp.storage.base import Storage
 from loguru import logger
@@ -109,11 +109,11 @@ def _filter_blocks(
     )
     eligible_input_logs = (
         Query(BlockLog.block_id)
-        .join(FunctionLog)
+        .join(ExecutionLog)
         .filter(
             BlockLog.direction == Direction.OUTPUT,
             # BlockLog.stream_name == stream_name,
-            FunctionLog.node_key == node_input.input_node.key,
+            ExecutionLog.node_key == node_input.input_node.key,
         )
         .filter(BlockLog.invalidated == False)  # noqa
         .distinct()
@@ -151,17 +151,17 @@ def _filter_blocks(
 def _filter_unprocessed(query: Select, unprocessed_by_node_key: str) -> Select:
     filter_clause = and_(
         BlockLog.direction == Direction.INPUT,
-        FunctionLog.node_key == unprocessed_by_node_key,
+        ExecutionLog.node_key == unprocessed_by_node_key,
     )
     # else:
     #     # No block cycles allowed
     #     # Exclude blocks processed as INPUT and blocks outputted
     #     filter_clause = (
-    #         FunctionLog.node_key == self._filters.unprocessed_by_node_key
+    #         ExecutionLog.node_key == self._filters.unprocessed_by_node_key
     #     )
     already_processed_drs = (
         Query(BlockLog.block_id)
-        .join(FunctionLog)
+        .join(ExecutionLog)
         .filter(filter_clause)
         .filter(BlockLog.invalidated == False)  # noqa
         .distinct()

@@ -17,7 +17,7 @@ from sqlalchemy.sql.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
 
-class FunctionLog(BaseModel):
+class ExecutionLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     node_key = Column(String(128), nullable=False)
     node_start_state = Column(JSON, nullable=True)
@@ -30,7 +30,7 @@ class FunctionLog(BaseModel):
     completed_at = Column(DateTime, nullable=True)
     timed_out = Column(Boolean, default=False, nullable=True)
     error = Column(JSON, nullable=True)
-    block_logs: RelationshipProperty = relationship("BlockLog", backref="function_log")
+    # block_logs: RelationshipProperty = relationship("BlockLog", backref="function_log")
 
     def __repr__(self):
         return self._repr(
@@ -42,8 +42,8 @@ class FunctionLog(BaseModel):
         )
 
     @classmethod
-    def from_pydantic(cls, cfg: PydanticBase) -> FunctionLog:
-        return FunctionLog(**cfg.dict())
+    def from_pydantic(cls, cfg: PydanticBase) -> ExecutionLog:
+        return ExecutionLog(**cfg.dict())
 
     def output_blocks(self) -> Iterable[BlockMetadata]:
         return [dbl for dbl in self.block_logs if dbl.direction == Direction.OUTPUT]
@@ -86,60 +86,60 @@ class Direction(str, enum.Enum):
         return self.symbol + " " + s
 
 
-class BlockLog(BaseModel):
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    function_log_id = Column(Integer, ForeignKey(FunctionLog.id), nullable=False)
-    block_id = Column(
-        String(128),
-        ForeignKey(f"{BASIS_METADATA_TABLE_PREFIX}block_metadata.id"),
-        nullable=False,
-    )
-    stream_name = Column(String(128), nullable=True)
-    direction = Column(Enum(Direction, native_enum=False), nullable=False)
-    processed_at = Column(DateTime, default=func.now(), nullable=False)
-    invalidated = Column(Boolean, default=False)
-    # Hints
-    block: "BlockMetadata"
-    function_log: FunctionLog
+# class BlockLog(BaseModel):
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     function_log_id = Column(Integer, ForeignKey(ExecutionLog.id), nullable=False)
+#     block_id = Column(
+#         String(128),
+#         ForeignKey(f"{BASIS_METADATA_TABLE_PREFIX}block_metadata.id"),
+#         nullable=False,
+#     )
+#     stream_name = Column(String(128), nullable=True)
+#     direction = Column(Enum(Direction, native_enum=False), nullable=False)
+#     processed_at = Column(DateTime, default=func.now(), nullable=False)
+#     invalidated = Column(Boolean, default=False)
+#     # Hints
+#     block: "BlockMetadata"
+#     function_log: ExecutionLog
 
-    def __repr__(self):
-        return self._repr(
-            id=self.id,
-            function_log=self.function_log,
-            block=self.block,
-            direction=self.direction,
-            processed_at=self.processed_at,
-        )
+#     def __repr__(self):
+#         return self._repr(
+#             id=self.id,
+#             function_log=self.function_log,
+#             block=self.block,
+#             direction=self.direction,
+#             processed_at=self.processed_at,
+#         )
 
-    @classmethod
-    def summary(cls, env: Environment) -> str:
-        s = ""
-        for dbl in env.md_api.execute(select(BlockLog)).scalars().all():
-            s += f"{dbl.function_log.node_key:50}"
-            s += f"{str(dbl.block_id):23}"
-            s += f"{str(dbl.block.record_count):6}"
-            s += f"{dbl.direction.value:9}{str(dbl.block.updated_at):22}"
-            s += (
-                f"{dbl.block.nominal_schema_key:20}{dbl.block.realized_schema_key:20}\n"
-            )
-        return s
+#     @classmethod
+#     def summary(cls, env: Environment) -> str:
+#         s = ""
+#         for dbl in env.md_api.execute(select(BlockLog)).scalars().all():
+#             s += f"{dbl.function_log.node_key:50}"
+#             s += f"{str(dbl.block_id):23}"
+#             s += f"{str(dbl.block.record_count):6}"
+#             s += f"{dbl.direction.value:9}{str(dbl.block.updated_at):22}"
+#             s += (
+#                 f"{dbl.block.nominal_schema_key:20}{dbl.block.realized_schema_key:20}\n"
+#             )
+#         return s
 
 
-class NodeState(BaseModel):
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    node_key = Column(String(128))
-    state = Column(JSON, nullable=True)
-    latest_log_id = Column(Integer, ForeignKey(FunctionLog.id), nullable=True)
-    blocks_output_stdout = Column(Integer, nullable=True)
-    blocks_output_all = Column(Integer, nullable=True)
-    latest_log: RelationshipProperty = relationship("FunctionLog")
+# class NodeState(BaseModel):
+#     id = Column(Integer, primary_key=True, autoincrement=True)
+#     node_key = Column(String(128))
+#     state = Column(JSON, nullable=True)
+#     latest_log_id = Column(Integer, ForeignKey(ExecutionLog.id), nullable=True)
+#     blocks_output_stdout = Column(Integer, nullable=True)
+#     blocks_output_all = Column(Integer, nullable=True)
+#     latest_log: RelationshipProperty = relationship("ExecutionLog")
 
-    __table_args__ = (UniqueConstraint("env_id", "node_key"),)
+#     __table_args__ = (UniqueConstraint("env_id", "node_key"),)
 
-    def __repr__(self):
-        return self._repr(
-            node_key=self.node_key, state=self.state, latest_log_id=self.latest_log_id,
-        )
+#     def __repr__(self):
+#         return self._repr(
+#             node_key=self.node_key, state=self.state, latest_log_id=self.latest_log_id,
+#         )
 
 
 class StreamState(BaseModel):
@@ -186,24 +186,24 @@ def _reset_state(env: Environment, node_key: str):
         env.md_api.delete(state)
 
 
-def _invalidate_blocks(env: Environment, node_key: str):
-    """"""
-    dbl_ids = [
-        r
-        for r in env.md_api.execute(
-            select(BlockLog.id)
-            .join(FunctionLog)
-            .filter(FunctionLog.node_key == node_key)
-        )
-        .scalars()
-        .all()
-    ]
-    env.md_api.execute(
-        update(BlockLog)
-        .filter(BlockLog.id.in_(dbl_ids))
-        .values({"invalidated": True})
-        .execution_options(synchronize_session="fetch")  # TODO: or false?
-    )
+# def _invalidate_blocks(env: Environment, node_key: str):
+#     """"""
+#     dbl_ids = [
+#         r
+#         for r in env.md_api.execute(
+#             select(BlockLog.id)
+#             .join(ExecutionLog)
+#             .filter(ExecutionLog.node_key == node_key)
+#         )
+#         .scalars()
+#         .all()
+#     ]
+#     env.md_api.execute(
+#         update(BlockLog)
+#         .filter(BlockLog.id.in_(dbl_ids))
+#         .values({"invalidated": True})
+#         .execution_options(synchronize_session="fetch")  # TODO: or false?
+#     )
 
 
 def reset(env: Environment, node_key: str):
@@ -217,4 +217,4 @@ def reset(env: Environment, node_key: str):
     TODO: especially augmentation nodes! (accum, dedupe)
     """
     _reset_state(env, node_key)
-    _invalidate_blocks(env, node_key)
+    # _invalidate_blocks(env, node_key)

@@ -90,7 +90,7 @@ def prepare_executable(
         else:
             node_state = node_state_obj.state or {}
 
-        function_log = FunctionLog(  # type: ignore
+        function_log = ExecutionLog(  # type: ignore
             node_key=node.key,
             node_start_state=node_state.copy(),  # {k: v for k, v in node_state.items()},
             node_end_state=node_state,
@@ -238,10 +238,10 @@ def get_latest_output(env: Environment, node: GraphCfg) -> Optional[Block]:
             env.md_api.execute(
                 select(BlockMetadata)
                 .join(BlockLog)
-                .join(FunctionLog)
+                .join(ExecutionLog)
                 .filter(
                     BlockLog.direction == Direction.OUTPUT,
-                    FunctionLog.node_key == node.key,
+                    ExecutionLog.node_key == node.key,
                 )
                 .order_by(BlockLog.created_at.desc())
             )
@@ -255,7 +255,7 @@ def get_latest_output(env: Environment, node: GraphCfg) -> Optional[Block]:
 
 def ensure_log(
     env: Environment,
-    dfl: FunctionLog,
+    dfl: ExecutionLog,
     block: BlockMetadata,
     direction: Direction,
     name: str,
@@ -316,7 +316,7 @@ def save_result(
 
 def save_function_log(
     env: Environment, exe: ExecutableCfg, result: ExecutionResult
-) -> FunctionLog:
+) -> ExecutionLog:
     if result.function_error:
         exe.function_log.error = result.function_error.dict()
     if (
@@ -330,7 +330,7 @@ def save_function_log(
         exe.function_log.completed_at = utcnow()
     if result.timed_out:
         exe.function_log.timed_out = True
-    function_log = env.md_api.merge(FunctionLog.from_pydantic(exe.function_log))
+    function_log = env.md_api.merge(ExecutionLog.from_pydantic(exe.function_log))
 
     env.md_api.add(function_log)
     return function_log

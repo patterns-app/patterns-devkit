@@ -8,7 +8,7 @@ from basis.core.persistence.block import (
     StoredBlockMetadata,
 )
 
-from basis.core.persistence.state import BlockLog, FunctionLog, NodeState
+from basis.core.persistence.state import ExecutionLog
 from dcp.data_format.base import DataFormat, get_format_for_nickname
 from dcp.storage.base import Storage
 from pydantic import validator
@@ -42,6 +42,6 @@ class BlockWithStoredBlocksCfg(BlockMetadataCfg):
     stored_blocks: List[StoredBlockMetadataCfg] = []
 
 
-FunctionLogCfg = sqlalchemy_to_pydantic(FunctionLog)
-BlockLogCfg = sqlalchemy_to_pydantic(BlockLog)
-NodeStateCfg = sqlalchemy_to_pydantic(NodeState)
+ExecutionLogCfg = sqlalchemy_to_pydantic(ExecutionLog)
+# BlockLogCfg = sqlalchemy_to_pydantic(BlockLog)
+# NodeStateCfg = sqlalchemy_to_pydantic(NodeState)

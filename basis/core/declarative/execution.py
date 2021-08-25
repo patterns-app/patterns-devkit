@@ -16,7 +16,7 @@ from basis.core.function_interface_manager import bind_inputs
 from basis.core.persistence.pydantic import (
     BlockMetadataCfg,
     BlockWithStoredBlocksCfg,
-    FunctionLogCfg,
+    ExecutionLogCfg,
     StoredBlockMetadataCfg,
 )
 from commonmodel.base import Schema

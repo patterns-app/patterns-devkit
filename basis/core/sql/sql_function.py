@@ -334,49 +334,43 @@ def sql_function_factory(
 sql_function = sql_function_factory
 
 
-# def sql_function_decorator(
-#     sql_fn_or_function: Union[Function, Callable] = None,
-#     file: str = None,
-#     autodetect_inputs: bool = True,
-#     **kwargs,
-# ) -> Union[Callable, Function]:
-#     if sql_fn_or_function is None:
-#         # handle bare decorator @sql_function
-#         return partial(
-#             sql_function_decorator,
-#             file=file,
-#             autodetect_inputs=autodetect_inputs,
-#             **kwargs,
-#         )
-#     if isinstance(sql_fn_or_function, Function):
-#         sql = sql_fn_or_function.function_callable()
-#         sql = process_sql(sql, file)
-#         sql_fn_or_function.function_callable = SqlFunctionWrapper(
-#             sql, autodetect_inputs=autodetect_inputs
-#         )
-#         # TODO / FIXME: this is dicey ... if we ever add / change args for function_factory
-#         # will break this. (we're only taking a select few args from the exising Function)
-#         return function_factory(
-#             sql_fn_or_function,
-#             ignore_signature=True,
-#             required_storage_classes=["database"],
-#             namespace=sql_fn_or_function.namespace,
-#             _original_object=sql_fn_or_function.function_callable,
-#             **kwargs,
-#         )
-#     sql = sql_fn_or_function()
-#     if "name" in kwargs:
-#         name = kwargs.pop("name")
-#     else:
-#         name = sql_fn_or_function.__name__
-#     return sql_function_factory(
-#         name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
-#     )
+def sql_function_decorator(
+    sql_fn_or_function: Union[Function, Callable] = None,
+    file: str = None,
+    autodetect_inputs: bool = True,
+    **kwargs,
+) -> Union[Callable, Function]:
+    if sql_fn_or_function is None:
+        # handle bare decorator @sql_function
+        return partial(
+            sql_function_decorator,
+            file=file,
+            autodetect_inputs=autodetect_inputs,
+            **kwargs,
+        )
+    if isinstance(sql_fn_or_function, Function):
+        sql = sql_fn_or_function.function_callable()
+        sql = process_sql(sql, file)
+        sql_fn_or_function.function_callable = SqlFunctionWrapper(
+            sql, autodetect_inputs=autodetect_inputs
+        )
+        # TODO / FIXME: this is dicey ... if we ever add / change args for function_factory
+        # will break this. (we're only taking a select few args from the exising Function)
+        return make_function_from_bare_callable(
+            sql_fn_or_function,
+            required_storage_classes=["database"],
+            # _original_object=sql_fn_or_function.function_callable,
+            **kwargs,
+        )
+    # Else empty
+    sql = sql_fn_or_function()
+    if "name" in kwargs:
+        name = kwargs.pop("name")
+    else:
+        name = sql_fn_or_function.__name__
+    return sql_function_factory(
+        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
+    )
 
 
-# # SqlFunction = sql_function_decorator
-# Sql = sql_function_decorator
-# SqlFunction = sql_function_decorator
-# # sql = sql_function_decorator
-# # sql_function = sql_function_decorator
-# sql_function = sql_function_decorator
+sqlfunction = sql_function_decorator

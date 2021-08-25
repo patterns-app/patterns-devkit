@@ -10,7 +10,7 @@ from basis.core.declarative.graph import GraphCfg
 from basis.core.execution.execution import ExecutionManager
 from basis.core.function import Input, function
 from basis.core.persistence.block import Alias
-from basis.core.persistence.state import BlockLog, FunctionLog, Direction
+from basis.core.persistence.state import BlockLog, ExecutionLog, Direction
 from basis.modules import core
 from dcp.data_format.formats.memory.records import Records
 from loguru import logger
@@ -56,8 +56,8 @@ def test_exe():
     result = results[0]
     with env.md_api.begin():
         assert not result.output_blocks_emitted
-        assert env.md_api.count(select(FunctionLog)) == 1
-        pl = env.md_api.execute(select(FunctionLog)).scalar_one_or_none()
+        assert env.md_api.count(select(ExecutionLog)) == 1
+        pl = env.md_api.execute(select(ExecutionLog)).scalar_one_or_none()
         assert pl.node_key == node.key
         assert pl.node_start_state == {}
         assert pl.node_end_state == {}

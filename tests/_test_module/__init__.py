@@ -1,8 +1,10 @@
 from __future__ import annotations
+from pathlib import Path
+
+from commonmodel.base import schema_from_yaml_file
 
 from basis import Context
 from basis.core.block import Block
-from basis.core.module import BasisModule
 from basis.utils.typing import T
 
 
@@ -10,9 +12,7 @@ def df1(ctx: Context) -> Block[T]:
     pass
 
 
-module = BasisModule(
-    namespace="_test_module", py_module_path=__file__, py_module_name=__name__,
-)
+TestSchema = schema_from_yaml_file(Path(__file__).parent / "schemas/TestSchema.yml")
 # Shortcuts, for tooling and convenience
 # namespace = module.namespace
 # all_functions = module.functions
