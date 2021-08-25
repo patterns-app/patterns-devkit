@@ -1,7 +1,7 @@
 from __future__ import annotations
 from basis.core.declarative.environment import EnvironmentCfg
 from basis.core.declarative.node import NodeCfg
-from basis.core.graph import Graph
+from basis.core.graph import Graph, instantiate_graph
 
 from pprint import pprint
 
@@ -9,7 +9,6 @@ import pytest
 from basis.core.component import global_library
 from basis.core.declarative.base import dump_yaml, load_yaml, update
 from basis.core.declarative.flow import FlowCfg
-from basis.core.flattener import flatten_graph_config
 from basis.modules import core
 from pydantic.error_wrappers import ValidationError
 from tests.utils import (
@@ -26,7 +25,7 @@ from tests.utils import (
 def make_graph() -> Graph:
     env = make_test_env()
     env.add_module(core)
-    return Graph(
+    return instantiate_graph(
         nodes=[
             NodeCfg(key="node1", function="function_t1_source"),
             NodeCfg(key="node2", function="function_t1_source"),
@@ -39,16 +38,17 @@ def make_graph() -> Graph:
                 function="function_multiple_input",
                 inputs={"input": "node4", "other_t2": "node3"},
             ),
-        ]
+        ],
+        lib=env.library,
     )
 
 
-def test_dupe_node():
-    # TODO: validate
-    g = make_graph()
-    with pytest.raises(ValidationError):
-        d = NodeCfg(key="node1", function="function_t1_source")
-        NodeCfg(nodes=g.nodes + [d])
+# def test_dupe_node():
+#     # TODO: validate
+#     g = make_graph()
+#     with pytest.raises(ValidationError):
+#         d = NodeCfg(key="node1", function="function_t1_source")
+#         NodeCfg(nodes=g.nodes + [d])
 
 
 def test_declared_graph():

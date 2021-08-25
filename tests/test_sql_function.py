@@ -1,7 +1,12 @@
 from __future__ import annotations
 
-from basis.core.declarative.function import BlockType, FunctionInterfaceCfg, IoBaseCfg
-from basis.core.function_interface import DEFAULT_OUTPUTS, Parameter
+from basis.core.declarative.function import (
+    DEFAULT_OUTPUTS,
+    BlockType,
+    FunctionInterfaceCfg,
+    IoBaseCfg,
+    Parameter,
+)
 from basis.core.sql.jinja import parse_interface_from_sql, render_sql
 from basis.core.sql.sql_function import (
     ParsedSqlStatement,

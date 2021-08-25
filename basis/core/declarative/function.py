@@ -115,44 +115,8 @@ def Generic(
     )
 
 
-# @dataclass
-# class IoBase:
-#     name: str
-#     schema: Union[str, Schema] = None
-#     description: Optional[str] = None
-#     required: bool = True
-#     data_format: Optional[str] = None
-#     block_type: BlockType = BlockType.Record
-
-#     def to_cfg(self) -> IoBaseCfg:
-#         return IoBaseCfg(**asdict(self))
-
-
-# @dataclass
-# class Record(IoBase):
-#     block_type: BlockType = BlockType.Record
-
-
-# @dataclass
-# class Table(IoBase):
-#     block_type: BlockType = BlockType.Table
-
-
-# @dataclass
-# class Generic(IoBase):
-#     block_type: BlockType = BlockType.Generic
-
-
 def is_record_like(obj: Any) -> bool:
     return isinstance(obj, dict)
-
-
-# class Error(Record):
-#     is_error: bool = True
-
-
-# class State(Record):
-#     is_state: bool = True
 
 
 class ParameterType(str, Enum):
@@ -197,6 +161,17 @@ def Parameter(
         default=default,
         description=description,
     )
+
+
+DEFAULT_INPUT_ANNOTATION = "Block"
+DEFAULT_OUTPUT = Table(name=DEFAULT_OUTPUT_NAME,)
+DEFAULT_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT}
+DEFAULT_STATE_OUTPUT_NAME = "state"
+DEFAULT_STATE_OUTPUT = None  # IoBase(
+#     schema="core.State", name=DEFAULT_STATE_OUTPUT_NAME, is_default=False
+# )
+DEFAULT_ERROR_OUTPUT_NAME = "error"
+DEFAULT_ERROR_OUTPUT = None
 
 
 class FunctionInterfaceCfg(FrozenPydanticBase):

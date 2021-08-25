@@ -50,73 +50,12 @@ def skip_jinja(t: str, state: TableParseState, ignore_jinja: bool = True) -> boo
     return False
 
 
-# def parse_sql_annotation(ann: str) -> ParsedAnnotation:
-#     if "[" in ann or ann in (i.value for i in InputType):
-#         # If type annotation is complex or a InputType, parse it
-#         parsed = parse_input_annotation(ann)
-#     else:
-#         # If it's just a simple word, then assume it is a Schema name
-#         parsed = ParsedAnnotation(schema=ann)
-#     return parsed
-
-
-# @dataclass(frozen=True)
-# class AnnotatedSqlTable:
-#     name: str
-#     annotation: Optional[str] = None
-
-
-# @dataclass(frozen=True)
-# class AnnotatedParam:
-#     name: str
-#     annotation: Optional[str] = None
-#     default: Optional[str] = None
-
-
-# DFEAULT_PARAMETER_ANNOTATION = "Text"
-# DEFAULT_SQL_INPUT_ANNOTATION = "Reference"
-
-
 @dataclass(frozen=True)
 class ParsedSqlStatement:
     original_sql: str
     sql_with_jinja_vars: str
     found_tables: Optional[Dict[str, str]] = None
     interface: Optional[FunctionInterfaceCfg] = None
-
-
-#     def as_interface(self) -> FunctionInterfaceCfg:
-#         inputs = {}
-#         outputs = {}
-#         params = {}
-#         for name, table in self.found_tables.items():
-#             if table.annotation:
-#                 ann = parse_sql_annotation(table.annotation)
-#             else:
-#                 ann = parse_input_annotation(DEFAULT_SQL_INPUT_ANNOTATION)
-#             inpt = function_input_from_annotation(ann, name=name)
-#             inputs[name] = inpt
-#         if self.output_annotation:
-#             output = function_output_from_annotation(
-#                 parse_sql_annotation(self.output_annotation)
-#             )
-#             if output:
-#                 outputs = {DEFAULT_OUTPUT_NAME: output}
-#         else:
-#             outputs = DEFAULT_OUTPUTS
-#         if self.found_params:
-#             for name, ap in self.found_params.items():
-#                 params[name] = parameter_from_annotation(
-#                     parse_input_annotation(
-#                         ap.annotation or DFEAULT_PARAMETER_ANNOTATION
-#                     ),
-#                     ap.name,
-#                     ap.default,
-#                 )
-
-#         return FunctionInterfaceCfg(
-#             inputs=inputs, outputs=outputs, uses_context=True, parameters=params
-#         )
 
 
 def regex_repalce_match(s, m, r) -> str:

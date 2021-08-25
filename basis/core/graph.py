@@ -1,4 +1,6 @@
 from __future__ import annotations
+from basis.core.declarative.node import NodeCfg
+from dataclasses import dataclass, field
 from basis.core.node import Node, instantiate_node
 
 from enum import Enum
@@ -72,10 +74,10 @@ class NodeOutputCfg(FrozenPydanticBase):
     # retention_policy: Optional[str] = None # TODO
 
 
+@dataclass
 class Graph:
-    nodes: List[Node] = []
+    nodes: List[Node] = field(default_factory=list)
 
-    @validator("nodes")
     def check_unique_nodes(cls, nodes: List[Node]) -> List[Node]:
         assert len(nodes) == len(set(n.key for n in nodes)), "Node keys must be unique"
         return nodes
@@ -171,5 +173,5 @@ class Graph:
         return node_inputs
 
 
-def instantiate_graph(nodes: List[Node], lib: ComponentLibrary) -> Graph:
+def instantiate_graph(nodes: List[NodeCfg], lib: ComponentLibrary) -> Graph:
     return Graph(nodes=[instantiate_node(n, lib) for n in nodes])
