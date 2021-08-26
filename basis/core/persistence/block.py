@@ -49,8 +49,32 @@ if TYPE_CHECKING:
     from basis.core.block import Block
 
 
-def get_block_id() -> str:
-    return timestamp_increment_key()
+def get_node_stream_prefix(
+    node_key: str, stream_name: str = None, max_len: int = 30
+) -> str:
+    if stream_name == DEFAULT_OUTPUT_NAME:
+        stream_name = ""
+    if not node_key and not stream_name:
+        return ""
+    stream_name = stream_name or ""
+    if stream_name:
+        prefix = f"{node_key}__{stream_name}"
+    else:
+        prefix = node_key
+    if len(prefix) > max_len:
+        hsh = md5_hash(prefix)[:10]
+        prefix = prefix[: (max_len - len(hsh))] + hsh
+    return prefix
+
+
+def _make_block_id(id: str, node_key: str = None, stream_name: str = None) -> str:
+    prefix = get_node_stream_prefix(node_key or "", stream_name)
+    return as_identifier(f"_{prefix}_{id}")
+
+
+def get_block_id(node_key: str, output_name: str = None) -> str:
+    uid = timestamp_increment_key()
+    return _make_block_id(uid, node_key, output_name)
 
 
 def ensure_lib(lib: Union[Environment, ComponentLibrary]) -> ComponentLibrary:
@@ -137,29 +161,6 @@ class BlockMetadata(BaseModel):  # , Generic[DT]):
     #     return None
 
 
-def get_node_stream_prefix(
-    node_key: str, stream_name: str = None, max_len: int = 30
-) -> str:
-    if stream_name == DEFAULT_OUTPUT_NAME:
-        stream_name = ""
-    if not node_key and not stream_name:
-        return ""
-    stream_name = stream_name or ""
-    if stream_name:
-        prefix = f"{node_key}__{stream_name}"
-    else:
-        prefix = node_key
-    if len(prefix) > max_len:
-        hsh = md5_hash(prefix)[:10]
-        prefix = prefix[: (max_len - len(hsh))] + hsh
-    return prefix
-
-
-def make_sdb_name(id: str, node_key: str = None, stream_name: str = None) -> str:
-    prefix = get_node_stream_prefix(node_key or "", stream_name)
-    return as_identifier(f"_{prefix}_{id}")
-
-
 # def make_sdb_name_sa(context) -> str:
 #     id = context.get_current_parameters()["id"]
 #     node_key = context.get_current_parameters()["block"].created_by_node_key
@@ -168,7 +169,7 @@ def make_sdb_name(id: str, node_key: str = None, stream_name: str = None) -> str
 
 class StoredBlockMetadata(BaseModel):
     id = Column(String(128), primary_key=True, default=get_block_id)
-    name = Column(String(128), nullable=False)
+    # name = Column(String(128), nullable=False)
     block_id = Column(String(128), ForeignKey(BlockMetadata.id), nullable=False)
     storage_url = Column(String(128), nullable=False)
     data_format: DataFormat = Column(DataFormatType, nullable=False)  # type: ignore
@@ -191,6 +192,10 @@ class StoredBlockMetadata(BaseModel):
         from basis.core.persistence.pydantic import StoredBlockMetadataCfg
 
         return StoredBlockMetadataCfg.from_orm(self)
+
+    @property
+    def name(self) -> str:
+        return self.id
 
     @classmethod
     def from_pydantic(cls, cfg: StoredBlockMetadataCfg) -> StoredBlockMetadata:
