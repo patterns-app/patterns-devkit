@@ -23,6 +23,7 @@ from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase, PydanticBase
 from basis.core.declarative.function import (
     DEFAULT_INPUT_NAME,
+    DEFAULT_OUTPUT_NAME,
     FunctionCfg,
     FunctionInterfaceCfg,
 )
@@ -51,11 +52,22 @@ def conform_inputs(inputs) -> Dict[str, str]:
     return {DEFAULT_INPUT_NAME: inputs[0]}
 
 
+def conform_aliases(aliases) -> Dict[str, str]:
+    if isinstance(aliases, dict):
+        return aliases
+    if isinstance(aliases, str):
+        aliases = [aliases]
+    assert isinstance(aliases, list)
+    assert len(aliases) == 1
+    return {DEFAULT_OUTPUT_NAME: aliases[0]}
+
+
 def instantiate_node(cfg: NodeCfg, lib: ComponentLibrary) -> Node:
     d = cfg.dict()
     d["function"] = lib.get_function(cfg.function)
     d["original_cfg"] = cfg
     d["inputs"] = conform_inputs(cfg.inputs)
+    d["aliases"] = conform_aliases(cfg.aliases)
     return Node(**d)
 
 
@@ -70,7 +82,7 @@ class Node:
     stderr_key: Optional[str] = None
     inputs: Dict[str, str] = None  # {}
     outputs: Dict[str, NodeOutputCfg] = None  # {}
-    # aliases: Dict[str, str] = {}
+    aliases: Dict[str, str] = None
     # conform_to_schema: Optional[str] = None
     # schema_translations: Dict[str, Dict[str, str]] = {}
     schedule: Optional[str] = None

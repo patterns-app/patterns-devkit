@@ -1,4 +1,5 @@
 from __future__ import annotations
+from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 from basis.core.declarative.node import NodeCfg
 from basis.core.declarative.environment import ComponentLibraryCfg, EnvironmentCfg
 
@@ -129,6 +130,19 @@ class ExecutionResult(PydanticBase):
 
     def any_input_blocks_processed(self) -> bool:
         return any(self.input_blocks_consumed.values())
+
+    def latest_stdout_block_emitted(self) -> Optional[BlockMetadataCfg]:
+        blocks = self.output_blocks_emitted.get(DEFAULT_OUTPUT_NAME, [])
+        return blocks[-1] if blocks else None
+
+    def get_stdout_block(self) -> Optional[Block]:
+        dbc = self.latest_stdout_block_emitted()
+        if dbc is None:
+            return None
+        dbws = BlockWithStoredBlocksCfg(
+            **dbc.dict(),  # stored_blocks=self.stored_blocks_created.get(dbc.id, [])
+        )
+        return as_managed(dbws)
 
 
 # class ExecutionResultOld(PydanticBase):

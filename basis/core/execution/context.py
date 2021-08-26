@@ -34,7 +34,9 @@ from basis.core.declarative.execution import (
     ExecutionResult,
 )
 from basis.core.declarative.function import (
+    DEFAULT_ERROR_NAME,
     DEFAULT_OUTPUT_NAME,
+    DEFAULT_STATE_NAME,
     FunctionCfg,
     IoBaseCfg,
     is_record_like,
@@ -161,22 +163,24 @@ class Context:
         storage: Union[str, Storage] = None,  # TODO: if produced on a storage
         data_format: Union[str, DataFormat] = None,
     ):
-        pass
+        self.result
 
     def emit_error(self, error_obj: Any, error_msg: str):
-        pass
+        self.emit(error_obj, output_name=DEFAULT_ERROR_NAME)
 
     def emit_state(self, state: Dict):
-        pass
+        self.emit_table([state], output_name=DEFAULT_STATE_NAME)
 
     def consume(self, input_name: str, obj: Union[Record, Iterable[Records]]):
-        pass
+        if isinstance(obj, BlockMetadataCfg):
+            obj = [obj]
+        self.result.input_blocks_consumed.setdefault(input_name, []).extend(obj)
 
-    def mark_latest_record_consumed(self, input_name: str, record: Record):
-        self.result.stream_statuses[input_name].mark_latest_record_consumed()
-        self.result.stream_statuses[input_name].block_count = self.get_count_to(
-            input_name, record
-        )
+    # def consume(self, input_name: str, record: Record):
+    #     self.result.stream_statuses[input_name].mark_latest_record_consumed()
+    #     self.result.stream_statuses[input_name].block_count = self.get_count_to(
+    #         input_name, record
+    #     )
 
     ### Params
 
@@ -219,10 +223,6 @@ class Context:
 
 
 class OutputHandler:
-    @property
-    def execution_config(self) -> ExecutionCfg:
-        return self.executable.execution_config
-
     @contextmanager
     def as_tmp_local_object(self, obj: Any) -> str:
         tmp_name = "_tmp_obj_" + rand_str()

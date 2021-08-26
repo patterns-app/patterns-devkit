@@ -82,7 +82,7 @@ class NodeCfg(FrozenPydanticBase):
     stderr_key: Optional[str] = None
     inputs: Union[List[str], Dict[str, str], str] = {}
     outputs: Dict[str, NodeOutputCfg] = {}
-    # aliases: Dict[str, str] = {}
+    aliases: Union[List[str], Dict[str, str], str] = {}
     # conform_to_schema: Optional[str] = None
     # schema_translations: Dict[str, Dict[str, str]] = {}
     schedule: Optional[str] = None
@@ -115,8 +115,8 @@ class NodeCfg(FrozenPydanticBase):
     #         return {"stdin": self.schema_translation}
     #     return self.schema_translations
 
-    def get_all_schema_keys(self) -> List[str]:
-        return self.get_interface().get_all_schema_keys()
+    # def get_all_schema_keys(self) -> List[str]:
+    #     return self.get_interface().get_all_schema_keys()
 
     def get_alias(self, node_key: Optional[str] = None) -> str:
         ident = None

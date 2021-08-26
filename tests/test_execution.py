@@ -63,22 +63,17 @@ def test_exe():
 
 def test_exe_output():
     env = make_test_env()
-    env.add_module(core)
-    env.add_function(function_dl_source)
-    # env.add_storage("python://test")
-    # rt = env.runtimes[0]
-    # TODO: this is error because no data copy between SAME storage engines (but DIFFERENT storage urls) currently
-    # ec = env.get_run_context(g, current_runtime=rt, target_storage=env.storages[0])
-    # ec = env.get_run_context(g, current_runtime=rt, target_storage=rt.as_storage())
     output_alias = "node_output"
-    node = GraphCfg(key="node", function="function_dl_source", alias=output_alias)
-    g = GraphCfg(nodes=[node]).resolve_and_flatten(env.library)
+    node = NodeCfg(
+        key="node",
+        function="tests.test_execution.function_dl_source",
+        aliases=output_alias,
+    )
+    g = instantiate_graph(nodes=[node], lib=env.library)
     exe = env.get_executable(node.key, graph=g)
-    results = ExecutionManager(exe).execute()
-    assert len(results) == 1
-    result = results[0]
+    result = ExecutionManager(instantiate_executable(exe)).execute()
     with env.md_api.begin():
-        block = result.stdout()
+        block = result.get_stdout_block()
         assert block is not None
         assert block.as_records() == mock_dl_output
         assert block.nominal_schema_key == TestSchema4.key
