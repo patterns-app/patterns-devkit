@@ -22,7 +22,7 @@ from basis.core.function_interface import (
     ParsedAnnotation,
     parse_input_annotation,
 )
-from basis.core.function_interface_manager import (
+from basis.core.stream import (
     get_bound_interface,
     get_schema_translation,
 )

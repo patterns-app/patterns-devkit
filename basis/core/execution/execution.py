@@ -76,14 +76,14 @@ class ExecutionManager:
     def execute(self) -> ExecutionResult:
         # Setup for run
         base_msg = (
-            f"Running node {cf.bold(self.node.key)} {cf.dimmed(self.function.key)}\n"
+            f"Running node {cf.bold(self.node.key)} {cf.dimmed(self.function.name)}\n"
         )
         logger.debug(
-            f"RUNNING NODE {self.node.key} {self.function.key} with params `{self.node.params}`"
+            f"RUNNING NODE {self.node.key} {self.function.name} with params `{self.node.params}`"
         )
         logger.debug(self.exe)
         self.logger.log(base_msg)
-        inputs = self.exe.bound_interface.get_inputs_as_kwargs()
+        inputs = self.exe.input_blocks
         result = self._execute_inputs(inputs)
         self.publish_result(result)
         # except Exception as e:
@@ -106,16 +106,16 @@ class ExecutionManager:
             result = ctx.result
             result.completed_at = utcnow()
             self.log_execution_result(result)
-            if not result.has_error():
+            if not result.function_error:
                 self.logger.log(cf.success("Ok " + success_symbol + "\n"))  # type: ignore
             else:
-                error = result.function_error or result.framework_error
+                error = result.function_error
                 error_msg = error.error or "Function failed (unknown error)"
                 self.logger.log(cf.error("Error " + error_symbol + " " + cf.dimmed(error_msg[:80])) + "\n")  # type: ignore
                 if result.function_error.traceback:
                     self.logger.log(cf.dimmed(result.function_error.traceback), indent=2)  # type: ignore
             logger.debug(f"Execution result: {result}")
-            logger.debug(f"*DONE* RUNNING NODE {self.node.key} {self.function.key}")
+            logger.debug(f"*DONE* RUNNING NODE {self.node.key} {self.function.name}")
         return result
 
     def publish_result(self, result: ExecutionResult):
@@ -135,14 +135,14 @@ class ExecutionManager:
 
     def prepare_context(self, inputs) -> Context:
         return Context(
-            # env=self.cfg.dataspace,
+            env=Environment(self.cfg.environment),
             function=self.function,
             node=self.node,
             executable=self.exe,
-            result=ExecutionResult(),
+            result=ExecutionResult(node_key=self.node.key, started_at=utcnow(),),
             inputs=inputs,
             execution_start_time=utcnow(),
-            library=self.exe.get_library(),
+            library=self.exe.library,
         )
 
     def _call_data_function(self, ctx: Context):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from basis.core.block import Block, SelfReference, Stream
+from basis.core.block import Block
 from basis.core.declarative.environment import BasisCfg, EnvironmentCfg
 from basis.core.declarative.execution import ExecutionCfg, ExecutionResult
 from basis.core.environment import Environment
@@ -52,22 +52,27 @@ def make_test_run_context(env: Environment = None, **kwargs) -> ExecutionCfg:
     return ExecutionCfg(**args)
 
 
+@function
 def function_t1_sink(ctx: Context, input: Block[TestSchema1]):
     pass
 
 
+@function
 def function_t1_to_t2(input: Block[TestSchema1]) -> DataFrame[TestSchema2]:
     pass
 
 
+@function
 def function_generic(input: Block[T]) -> DataFrame[T]:
     pass
 
 
+@function
 def function_t1_source(ctx: Context) -> DataFrame[TestSchema1]:
     pass
 
 
+@function
 def function_stream(input: Stream) -> Block:
     pass
 

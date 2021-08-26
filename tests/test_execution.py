@@ -1,16 +1,17 @@
 from __future__ import annotations
+from basis.core.execution.executable import instantiate_executable
+from basis.core.declarative.node import NodeCfg
+from basis.core.graph import instantiate_graph
 
 from typing import Optional
 
 import pandas as pd
 import pytest
-from basis.core.block import Reference, as_managed
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
-from basis.core.declarative.graph import GraphCfg
 from basis.core.execution.execution import ExecutionManager
-from basis.core.function import Input, function
+from basis.core.function import function
 from basis.core.persistence.block import Alias
-from basis.core.persistence.state import BlockLog, ExecutionLog, Direction
+from basis.core.persistence.state import ExecutionLog, Direction
 from basis.modules import core
 from dcp.data_format.formats.memory.records import Records
 from loguru import logger
@@ -48,12 +49,11 @@ def never_stop(input: Optional[Reference] = None) -> DataFrame:
 
 def test_exe():
     env = make_test_env()
-    node = GraphCfg(key="node", function="function_t1_source")
-    g = GraphCfg(nodes=[node]).resolve_and_flatten(env.library)
+    # env.add_function(function_t1_source)
+    node = NodeCfg(key="node", function="tests.utils.function_t1_source")
+    g = instantiate_graph(nodes=[node], lib=env.library)
     exe = env.get_executable(node.key, graph=g)
-    results = ExecutionManager(exe).execute()
-    assert len(results) == 1
-    result = results[0]
+    result = ExecutionManager(instantiate_executable(exe)).execute()
     with env.md_api.begin():
         assert not result.output_blocks_emitted
         assert env.md_api.count(select(ExecutionLog)) == 1

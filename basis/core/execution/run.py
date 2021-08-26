@@ -1,4 +1,11 @@
 from __future__ import annotations
+from basis.core.execution.result_handlers import (
+    MetadataExecutionResultHandler,
+    set_global_metadata_result_handler,
+)
+from basis.core.node import Node
+from basis.core.graph import Graph
+from basis.core.declarative.node import NodeCfg
 
 from typing import List, Optional, Set, Tuple
 
@@ -15,7 +22,7 @@ from basis.core.declarative.function import (
 from basis.core.environment import Environment
 from basis.core.execution.execution import ExecutionManager
 from basis.core.function import Function, DataInterfaceType, InputExhaustedException
-from basis.core.function_interface_manager import get_bound_interface
+from basis.core.stream import get_input_blocks
 from basis.core.persistence.block import (
     Alias,
     BlockMetadata,
@@ -27,6 +34,7 @@ from basis.core.persistence.state import (
     Direction,
     get_or_create_state,
     get_state,
+    ExecutionLog,
 )
 from basis.utils.output import cf, error_symbol, success_symbol
 from dcp.utils.common import rand_str, utcnow
@@ -60,18 +68,18 @@ class ImproperlyStoredBlockException(Exception):
 
 def prepare_executables_from_result(env: Environment, res: ExecutionResult):
     # get downstream nodes
-    nodes: List[NodeCfg] = api.get_downstream_nodes()
+    nodes: List[NodeCfg] = get_downstream_nodes()
     #
     for n in nodes:
-        exe = api.get_executable(n, res)
-    api.queue_executable(exe)
+        exe = prepare_executable(n, res)
+    queue_executable(exe)
 
 
 def prepare_executable(
     env: Environment,
     cfg: ExecutionCfg,
-    node: NodeCfg,
-    graph: GraphCfg,
+    node: Node,
+    graph: Graph,
     source_file_functions: List[FunctionSourceFileCfg] = [],
 ) -> ExecutableCfg:
     global global_metadata_result_handler
@@ -79,42 +87,44 @@ def prepare_executable(
     with env.md_api.begin():
         md = env.md_api
         try:
-            bound_interface = get_bound_interface(env, cfg, node, graph)
+            inputs = get_input_blocks(env, cfg, node, graph)
         except InputExhaustedException as e:
             logger.debug(f"Inputs exhausted {e}")
             raise e
             # return ExecutionResult.empty()
-        node_state_obj = get_or_create_state(env, node.key)
-        if node_state_obj is None:
-            node_state = {}
-        else:
-            node_state = node_state_obj.state or {}
+        # node_state_obj = get_or_create_state(env, node.key)
+        # if node_state_obj is None:
+        #     node_state = {}
+        # else:
+        #     node_state = node_state_obj.state or {}
 
-        function_log = ExecutionLog(  # type: ignore
-            node_key=node.key,
-            node_start_state=node_state.copy(),  # {k: v for k, v in node_state.items()},
-            node_end_state=node_state,
-            function_key=node.function,
-            function_params=node.params,
-            # runtime_url=self.current_runtime.url,
-            queued_at=utcnow(),
-        )
-        node_state_obj.latest_log = function_log
-        md.add(function_log)
-        md.add(node_state_obj)
-        md.flush([function_log, node_state_obj])
+        # function_log = ExecutionLog(  # type: ignore
+        #     node_key=node.key,
+        #     # node_start_state=node_state.copy(),  # {k: v for k, v in node_state.items()},
+        #     # node_end_state=node_state,
+        #     function_key=node.function,
+        #     function_params=node.params,
+        #     # runtime_url=self.current_runtime.url,
+        #     queued_at=utcnow(),
+        # )
+        # node_state_obj.latest_log = function_log
+        # md.add(function_log)
+        # md.add(node_state_obj)
+        # md.flush([function_log, node_state_obj])
 
         # TODO: runtime and result handler
 
-        lib_cfg = env.build_library_cfg(graph=graph, interface=bound_interface)
+        lib_cfg = env.build_library_cfg(
+            graph=graph, inputs=inputs, source_file_functions=source_file_functions
+        )
         exe = ExecutableCfg(
             node_key=node.key,
-            graph=graph,
+            graph=graph.to_node_cfgs(),
             execution_config=cfg,
-            bound_interface=bound_interface,
-            function_log=function_log,
+            input_blocks=inputs,
+            # function_log=function_log,
             library_cfg=lib_cfg,
-            source_file_functions=source_file_functions,
+            # source_file_functions=source_file_functions,
         )
         set_global_metadata_result_handler(MetadataExecutionResultHandler(env))
         return exe
@@ -283,11 +293,12 @@ def save_result(
     env: Environment, exe: ExecutableCfg, result: ExecutionResult,
 ):
     # TODO: this should be inside one roll-backable transaction
-    save_function_log(env, exe, result)
+    # TODO: save streamstates
+    # save_function_log(env, exe, result)
     # dbms: List[BlockMetadata] = []
     for input_name, blocks in result.input_blocks_consumed.items():
         for block in blocks:
-            ensure_log(env, exe.function_log, block, Direction.INPUT, input_name)
+            # ensure_log(env, exe.function_log, block, Direction.INPUT, input_name)
             logger.debug(f"Input logged: {block}")
     for output_name, blocks in result.output_blocks_emitted.items():
         # if not block.data_is_written:
@@ -300,18 +311,18 @@ def save_result(
             # dbms.append(dbm)
             env.md_api.add(dbm)
             logger.debug(f"Output logged: {block}")
-            ensure_log(env, exe.function_log, block, Direction.OUTPUT, output_name)
-    env.md_api.add_all(
-        [
-            StoredBlockMetadata(**s.dict())
-            for v in result.stored_blocks_created.values()
-            for s in v
-        ]
-    )
+            # ensure_log(env, exe.function_log, block, Direction.OUTPUT, output_name)
+    # env.md_api.add_all(
+    #     [
+    #         StoredBlockMetadata(**s.dict())
+    #         for v in result.stored_blocks_created.values()
+    #         for s in v
+    #     ]
+    # )
     for s in result.schemas_generated or []:
         env.add_new_generated_schema(s)
-    save_state(env, exe, result)
-    ensure_aliases(env, exe, result)
+    # save_state(env, exe, result)
+    # ensure_aliases(env, exe, result)
 
 
 def save_function_log(

@@ -4,7 +4,6 @@ from basis.core.persistence.block import (
     BlockMetadata,
     StoredBlockMetadata,
     get_block_id,
-    get_stored_block_id,
 )
 from dcp.data_format.formats.memory.records import RecordsFormat
 from tests.utils import TestSchema1, TestSchema2, TestSchema3, make_test_env
@@ -21,7 +20,7 @@ def test_block_methods():
     strg = env.get_default_local_python_storage()
     records = [{"a": 1}]
     sdb = StoredBlockMetadata(
-        id=get_stored_block_id(),
+        id=get_block_id(),
         name="_test",
         block_id=db.id,
         block=db,

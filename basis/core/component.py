@@ -10,7 +10,6 @@ from commonmodel import Schema
 if TYPE_CHECKING:
     from basis.core.declarative.environment import ComponentLibraryCfg
     from basis.core.function import Function
-    from basis.core.module import BasisModule
     from basis.core.declarative.flow import FlowCfg
 
 
@@ -106,7 +105,7 @@ class ComponentLibrary:
         try:
             mod = importlib.import_module(module_path)
             return find_single_function(mod)
-        except (ModuleNotFoundError, AssertionError):  # TODO: error
+        except (ModuleNotFoundError, AssertionError, ValueError):  # TODO: error
             pass
         # Next try as full path to function
         mods = module_path.split(".")
@@ -114,11 +113,16 @@ class ComponentLibrary:
         try:
             mod = importlib.import_module(".".join(mods[:-1]))
             return getattr(mod, name)
-        except ModuleNotFoundError:
+        except (ModuleNotFoundError, ValueError):  # TODO: error
             pass
-        # Finally try as path to package, with module of same name, with function of same name....
-        mod = importlib.import_module(module_path + "." + name)
-        return find_single_function(mod)
+        # Next try as path to package, with module of same name, with function of same name....
+        try:
+            mod = importlib.import_module(module_path + "." + name)
+            return find_single_function(mod)
+        except (ModuleNotFoundError, ValueError):  # TODO: error
+            pass
+        # Finally look for the name as local
+        return globals()[module_path]
 
     def get_function(
         self, function_like: Union[Function, str], try_module_lookups=True

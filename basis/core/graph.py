@@ -92,6 +92,11 @@ class Graph:
     def node_dict(self) -> Dict[str, Node]:
         return {n.key: n for n in self.nodes if n.key}
 
+    def to_node_cfgs(self) -> List[NodeCfg]:
+        return [
+            n.original_cfg for n in self.nodes
+        ]  # TODO: might need to "export" current node if has new information
+
     def add(self, n: Node):
         if n.key in self.node_dict():
             raise KeyError(

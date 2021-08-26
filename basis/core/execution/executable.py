@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from basis.core.persistence.pydantic import BlockMetadataCfg
+from basis.core.persistence.pydantic import BlockMetadataCfg, BlockWithStoredBlocksCfg
 from typing import Dict, List
 from basis.core import environment
 from basis.core.declarative.base import PydanticBase
@@ -23,14 +23,14 @@ class Executable:
     # results: ExecutionResult
     library: ComponentLibrary
     original_cfg: ExecutableCfg
-    input_blocks: Dict[str, List[BlockMetadataCfg]]
+    input_blocks: Dict[str, List[BlockWithStoredBlocksCfg]]
 
 
 def instantiate_library(cfg: ComponentLibraryCfg) -> ComponentLibrary:
     from basis.core.function_package import load_function_from_source_file
 
     lib = ComponentLibrary.from_config(cfg)
-    lib.merge(global_library)
+    # lib.merge(global_library)
     for src in cfg.source_file_functions:
         fn = load_function_from_source_file(src)
         lib.add_function(fn)
@@ -38,13 +38,14 @@ def instantiate_library(cfg: ComponentLibraryCfg) -> ComponentLibrary:
 
 
 def instantiate_executable(cfg: ExecutableCfg) -> Executable:
-    lib = ComponentLibrary()
-    graph = instantiate_graph(cfg.node_set, lib)
+    lib = instantiate_library(cfg.library_cfg)
+    graph = instantiate_graph(cfg.graph, lib)
     return Executable(
         node=graph.get_node(cfg.node_key),
         graph=graph,
         execution_config=cfg.execution_config,
+        input_blocks=cfg.input_blocks,
         # result=cfg.result,
         library=lib,
-        original_config=cfg,
+        original_cfg=cfg,
     )

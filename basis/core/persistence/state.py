@@ -161,17 +161,22 @@ class StreamState(BaseModel):
         )
 
 
-def get_state(env: Environment, node_key: str) -> Optional[NodeState]:
-    state = env.md_api.execute(
-        select(NodeState).filter(NodeState.node_key == node_key)
-    ).scalar_one_or_none()
+def get_state(
+    env: Environment, node_key: str, stream_name: str = None
+) -> Optional[StreamState]:
+    q = select(StreamState).filter(StreamState.node_key == node_key)
+    if stream_name:
+        q = q.filter(StreamState.stream_name == stream_name)
+    state = env.md_api.execute(q).scalar_one_or_none()
     return state
 
 
-def get_or_create_state(env: Environment, node_key: str) -> NodeState:
-    state = get_state(env, node_key)
+def get_or_create_state(
+    env: Environment, node_key: str, stream_name: str = None
+) -> StreamState:
+    state = get_state(env, node_key, stream_name)
     if state is None:
-        state = NodeState(node_key=node_key)
+        state = StreamState(node_key=node_key, stream_name=stream_name)
     return state
 
 

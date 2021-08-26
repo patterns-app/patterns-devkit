@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from basis.core.declarative.environment import ComponentLibraryCfg
     from basis.core.declarative.execution import ExecutableCfg, ExecutionCfg
     from basis.core.declarative.environment import BasisCfg
+    from basis.core.graph import Graph
     from basis.core.declarative.execution import ExecutionResult
 
 DEFAULT_METADATA_STORAGE_URL = "sqlite://"  # in-memory sqlite
@@ -221,19 +222,21 @@ class Environment:
 
     def build_library_cfg(
         self,
-        graph: Optional[GraphCfg] = None,
-        interface: Optional[BoundInterfaceCfg] = None,
+        graph: Optional[Graph] = None,
+        inputs: Optional[Dict[str, List[BlockWithStoredBlocksCfg]]] = None,
+        source_file_functions: List[FunctionSourceFileCfg] = None,
     ) -> ComponentLibraryCfg:
         # Load auto-schemas from db
-        from basis.core.declarative.dataspace import ComponentLibraryCfg
+        from basis.core.declarative.environment import ComponentLibraryCfg
+        from basis.core.stream import get_all_schema_keys
 
         schemas = []
         all_schemas = []
         if graph:
             all_schemas = graph.get_all_schema_keys()
-        if interface:
-            all_schemas.extend(interface.get_all_schema_keys())
-        if graph is None and interface is None:
+        if inputs:
+            all_schemas.extend(get_all_schema_keys(inputs))
+        if graph is None and inputs is None:
             all_schemas = [
                 s for s in self.library.schemas.values() if is_generated_schema(s)
             ]
@@ -242,7 +245,9 @@ class Environment:
                 select(GeneratedSchema).filter(GeneratedSchema.key.in_(all_schemas))
             ).scalars():
                 schemas.append(gs.as_schema())
-        return ComponentLibraryCfg(schemas=schemas)
+        return ComponentLibraryCfg(
+            schemas=schemas, source_file_functions=source_file_functions
+        )
 
     def get_execution_config(
         self, target_storage: Union[Storage, str] = None, **kwargs
@@ -260,7 +265,7 @@ class Environment:
                 "be persisted. Add a database or file storage to persist results."
             )
         args = dict(
-            dataspace=self.cfg,
+            environment=self.cfg,
             local_storage=self._local_python_storage.url,
             target_storage=target_storage.url,
             storages=[s.url for s in self.get_storages()] + [target_storage.url],
@@ -300,7 +305,7 @@ class Environment:
     def get_executable(
         self,
         node_key: str,
-        graph: GraphCfg,
+        graph: Graph,
         target_storage: Union[Storage, str] = None,
         source_file_functions: List[FunctionSourceFileCfg] = [],
         **kwargs,
@@ -310,9 +315,6 @@ class Environment:
         execution_config = self.get_execution_config(
             target_storage=target_storage, **kwargs
         )
-        assert graph.is_resolved()
-        assert graph.is_flattened()
-        # graph = self.prepare_graph(graph)
         node = graph.get_node(node_key)
         return prepare_executable(
             self,

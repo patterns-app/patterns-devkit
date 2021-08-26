@@ -12,7 +12,7 @@ from basis.core.component import ComponentLibrary, global_library
 from basis.core.block import Block, as_managed
 from basis.core.declarative.base import FrozenPydanticBase, PydanticBase
 from basis.core.environment import Environment
-from basis.core.function_interface_manager import bind_inputs
+from basis.core.stream import bind_inputs
 from basis.core.persistence.pydantic import (
     BlockMetadataCfg,
     BlockWithStoredBlocksCfg,
@@ -55,12 +55,23 @@ class ExecutionCfg(FrozenPydanticBase):
 
 class ExecutableCfg(FrozenPydanticBase):
     node_key: str
-    node_set: List[NodeCfg]
+    graph: List[NodeCfg]
     execution_config: ExecutionCfg
-    input_blocks: Dict[str, List[BlockMetadataCfg]] = {}
+    input_blocks: Dict[str, List[BlockWithStoredBlocksCfg]] = {}
     library_cfg: Optional[ComponentLibraryCfg] = None
     retries_remaining: int = 3  # TODO: configurable
     # source_file_functions: List[FunctionSourceFileCfg] = []
+
+    # @property
+    # def node(self) -> NodeCfg:
+    #     for n in self.graph:
+    #         if n.key == self.node_key:
+    #             return n
+    #     raise Exception
+
+    # @property
+    # def library(self) -> ComponentLibrary:
+    #     return ComponentLibrary.from_config(self.library_cfg)
 
 
 class PythonException(FrozenPydanticBase):
@@ -105,7 +116,7 @@ class ExecutionResult(PydanticBase):
     # node_version: str  # TODO: hash of relevant node config (code, params, etc?)
     input_blocks_consumed: Dict[str, List[BlockMetadataCfg]] = {}
     output_blocks_emitted: Dict[str, List[BlockMetadataCfg]] = {}
-    runtime: str
+    runtime: str = None
     queued_at: Optional[datetime] = None
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None

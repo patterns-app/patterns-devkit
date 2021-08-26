@@ -12,7 +12,6 @@ from basis.core.declarative.function import (
     FunctionInterfaceCfg,
     IoBaseCfg,
 )
-from basis.core.persistence.pydantic import BlockWithStoredBlocksCfg
 from loguru import logger
 
 
@@ -20,6 +19,7 @@ class NodeInputCfg(FrozenPydanticBase):
     name: str
     input: IoBaseCfg
     input_node: Optional[NodeCfg] = None
+    input_stream: Optional[str] = None
     # schema_translation: Optional[Dict[str, str]] = None
 
     # def as_bound_input(

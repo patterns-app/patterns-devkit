@@ -160,11 +160,6 @@ class BlockManager:
 
 
 Block = BlockManager
-SelfReference = Union[Block, None]
-Reference = Block
-Consumable = Block
-BlockStream = Iterable[BlockManager]
-Stream = BlockStream
 
 
 def as_managed(db: BlockWithStoredBlocksCfg, **kwargs) -> Block:
