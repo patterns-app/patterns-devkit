@@ -59,10 +59,6 @@ def test_exe():
         assert env.md_api.count(select(ExecutionLog)) == 1
         pl = env.md_api.execute(select(ExecutionLog)).scalar_one_or_none()
         assert pl.node_key == node.key
-        assert pl.node_start_state == {}
-        assert pl.node_end_state == {}
-        assert pl.function_key == node.function
-        assert pl.function_params == {}
 
 
 def test_exe_output():

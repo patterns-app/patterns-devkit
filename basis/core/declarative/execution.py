@@ -62,12 +62,15 @@ class ExecutableCfg(FrozenPydanticBase):
     retries_remaining: int = 3  # TODO: configurable
     # source_file_functions: List[FunctionSourceFileCfg] = []
 
-    # @property
-    # def node(self) -> NodeCfg:
-    #     for n in self.graph:
-    #         if n.key == self.node_key:
-    #             return n
-    #     raise Exception
+    def has_any_input_blocks(self) -> bool:
+        return any(self.input_blocks.values())
+
+    @property
+    def node(self) -> NodeCfg:
+        for n in self.graph:
+            if n.key == self.node_key:
+                return n
+        raise Exception
 
     # @property
     # def library(self) -> ComponentLibrary:
@@ -123,6 +126,9 @@ class ExecutionResult(PydanticBase):
     timed_out: bool = False
     schemas_generated: List[Schema] = []
     function_error: Optional[PythonException] = None
+
+    def any_input_blocks_processed(self) -> bool:
+        return any(self.input_blocks_consumed.values())
 
 
 # class ExecutionResultOld(PydanticBase):

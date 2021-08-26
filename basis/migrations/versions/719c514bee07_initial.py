@@ -1,8 +1,8 @@
 """Initial
 
-Revision ID: 03a220f6e38f
+Revision ID: 719c514bee07
 Revises: 
-Create Date: 2021-08-25 13:59:33.413023
+Create Date: 2021-08-25 18:32:53.604370
 
 """
 from alembic import op
@@ -11,7 +11,7 @@ import basis
 
 
 # revision identifiers, used by Alembic.
-revision = '03a220f6e38f'
+revision = '719c514bee07'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -38,10 +38,7 @@ def upgrade():
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('node_key', sa.String(length=128), nullable=False),
-    sa.Column('node_start_state', sa.JSON(), nullable=True),
-    sa.Column('node_end_state', sa.JSON(), nullable=True),
-    sa.Column('function_key', sa.String(length=128), nullable=False),
-    sa.Column('function_params', sa.JSON(), nullable=True),
+    sa.Column('node_cfg', sa.JSON(), nullable=True),
     sa.Column('runtime_url', sa.String(length=128), nullable=True),
     sa.Column('queued_at', sa.DateTime(), nullable=True),
     sa.Column('started_at', sa.DateTime(), nullable=True),

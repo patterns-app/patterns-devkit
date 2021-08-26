@@ -16,10 +16,10 @@ class MetadataExecutionResultHandler:
     env: Environment
 
     def __call__(self, exe: ExecutableCfg, result: ExecutionResult):
-        from basis.core.execution.run import save_result
+        from basis.core.execution.run import handle_execution_result
 
         with self.env.md_api.begin():
-            save_result(self.env, exe, result)
+            handle_execution_result(self.env, exe, result)
 
 
 # Used for local python runtime

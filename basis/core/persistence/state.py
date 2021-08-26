@@ -17,13 +17,14 @@ from sqlalchemy.sql.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
 
+if TYPE_CHECKING:
+    from basis.core.persistence.pydantic import BlockMetadataCfg
+
+
 class ExecutionLog(BaseModel):
     id = Column(Integer, primary_key=True, autoincrement=True)
     node_key = Column(String(128), nullable=False)
-    node_start_state = Column(JSON, nullable=True)
-    node_end_state = Column(JSON, nullable=True)
-    function_key = Column(String(128), nullable=False)
-    function_params = Column(JSON, nullable=True)
+    node_cfg = Column(JSON, nullable=True)
     runtime_url = Column(String(128), nullable=True)  # TODO
     queued_at = Column(DateTime, nullable=True)
     started_at = Column(DateTime, nullable=True)
@@ -160,23 +161,50 @@ class StreamState(BaseModel):
             block_count=self.block_count,
         )
 
+    def update_with_blocks(self, blocks: List[BlockMetadataCfg]):
+        min_block_id = min([b.id for b in blocks])
+        max_block_id = max([b.id for b in blocks])
+        if self.first_processed_block_id is None:
+            self.first_processed_block_id = min_block_id
+        else:
+            self.first_processed_block_id = min(
+                min_block_id, self.first_processed_block_id
+            )
+        if self.latest_processed_block_id is None:
+            self.latest_processed_block_id = max_block_id
+        else:
+            self.latest_processed_block_id = max(
+                max_block_id, self.latest_processed_block_id
+            )
+        self.blocks_processed += len(blocks)
+
 
 def get_state(
-    env: Environment, node_key: str, stream_name: str = None
+    env: Environment,
+    node_key: str,
+    stream_name: str = None,
+    direction: Direction = None,
 ) -> Optional[StreamState]:
     q = select(StreamState).filter(StreamState.node_key == node_key)
     if stream_name:
         q = q.filter(StreamState.stream_name == stream_name)
+    if direction:
+        q = q.filter(StreamState.direction == direction)
     state = env.md_api.execute(q).scalar_one_or_none()
     return state
 
 
 def get_or_create_state(
-    env: Environment, node_key: str, stream_name: str = None
+    env: Environment,
+    node_key: str,
+    stream_name: str = None,
+    direction: Direction = None,
 ) -> StreamState:
-    state = get_state(env, node_key, stream_name)
+    state = get_state(env, node_key, stream_name, direction)
     if state is None:
-        state = StreamState(node_key=node_key, stream_name=stream_name)
+        state = StreamState(
+            node_key=node_key, stream_name=stream_name, direction=direction
+        )
     return state
 
 

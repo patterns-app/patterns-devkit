@@ -1,4 +1,5 @@
 from __future__ import annotations
+from basis.core.declarative.base import update
 from basis.core.execution.result_handlers import (
     MetadataExecutionResultHandler,
     set_global_metadata_result_handler,
@@ -325,40 +326,40 @@ def save_result(
     # ensure_aliases(env, exe, result)
 
 
-def save_function_log(
-    env: Environment, exe: ExecutableCfg, result: ExecutionResult
-) -> ExecutionLog:
-    if result.function_error:
-        exe.function_log.error = result.function_error.dict()
-    if (
-        exe.function_log.function_params
-        and "dataframe" in exe.function_log.function_params
-    ):
-        # TODO / FIXME: special case hack (don't support dataframe parameters in general!)
-        del exe.function_log.function_params["dataframe"]
-    if exe.function_log.completed_at is None:
-        # TODO: completed at should happen inside the execution? what about multiple inputs?
-        exe.function_log.completed_at = utcnow()
-    if result.timed_out:
-        exe.function_log.timed_out = True
-    function_log = env.md_api.merge(ExecutionLog.from_pydantic(exe.function_log))
+# def save_function_log(
+#     env: Environment, exe: ExecutableCfg, result: ExecutionResult
+# ) -> ExecutionLog:
+#     if result.function_error:
+#         exe.function_log.error = result.function_error.dict()
+#     if (
+#         exe.function_log.function_params
+#         and "dataframe" in exe.function_log.function_params
+#     ):
+#         # TODO / FIXME: special case hack (don't support dataframe parameters in general!)
+#         del exe.function_log.function_params["dataframe"]
+#     if exe.function_log.completed_at is None:
+#         # TODO: completed at should happen inside the execution? what about multiple inputs?
+#         exe.function_log.completed_at = utcnow()
+#     if result.timed_out:
+#         exe.function_log.timed_out = True
+#     function_log = env.md_api.merge(ExecutionLog.from_pydantic(exe.function_log))
 
-    env.md_api.add(function_log)
-    return function_log
+#     env.md_api.add(function_log)
+#     return function_log
 
 
-def save_state(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
-    state = env.md_api.execute(
-        select(NodeState).filter(NodeState.node_key == exe.node_key)
-    ).scalar_one_or_none()
-    if state is None:
-        state = NodeState(node_key=exe.node_key)
-    state.state = exe.function_log.node_end_state
-    state.latest_log_id = exe.function_log.id
-    state.alias = (
-        exe.node.get_alias()
-    )  # TODO: not an actual attribute, this gets dropped
-    env.md_api.add(state)
+# def save_state(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
+#     state = env.md_api.execute(
+#         select(NodeState).filter(NodeState.node_key == exe.node_key)
+#     ).scalar_one_or_none()
+#     if state is None:
+#         state = NodeState(node_key=exe.node_key)
+#     state.state = exe.function_log.node_end_state
+#     state.latest_log_id = exe.function_log.id
+#     state.alias = (
+#         exe.node.get_alias()
+#     )  # TODO: not an actual attribute, this gets dropped
+#     env.md_api.add(state)
 
 
 def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
@@ -379,42 +380,85 @@ def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult
 def make_executable_for_remaining_unprocessed(
     env: Environment, exe: ExecutableCfg, result: ExecutionResult
 ) -> ExecutableCfg:
-    pass
+    unprocessed_blocks = {}
+    for i, blocks in exe.input_blocks.items():
+        processed_block_ids = {b.id for b in result.input_blocks_consumed.get(i, [])}
+        unprocessed_blocks[i] = [b for b in blocks if b.id not in processed_block_ids]
+    d = exe.dict()
+    d["input_blocks"] = unprocessed_blocks
+    return ExecutableCfg(**d)
 
 
 def retry_exe(exe: ExecutableCfg):
     if exe.retries_remaining <= 0:
         raise
     exe = update(exe, retries_remaining=exe.retries_remaining - 1)
+    run_exe(exe)
+
+
+def run_exe(exe: ExecutableCfg):
+    logger.debug(f"Running executable {exe}")
 
 
 def handle_execution_result(
     env: Environment, exe: ExecutableCfg, result: ExecutionResult
 ):
-    handle_execution_result_output_blocks(env, exe, result.output_blocks_emitted)
+    handle_execution_result_blocks(env, exe, result)
+    save_execution_log(env, exe, result)
     remainder_exe = make_executable_for_remaining_unprocessed(env, exe, result)
     # handle retry and requeue based on result
     if result.function_error is not None:
         retry_exe(remainder_exe)
-    elif result.timed_out:
-        if result.total_blocks_processed() > 0:
-            # Timed out with progress, so we can safely requeue remainder
+    elif result.timed_out or remainder_exe.has_any_input_blocks():
+        # If result timed out, or there are remaining unprocessed
+        # blocks (unclear why this would happen w/o error, function just stopped),
+        # then we requeue based on progress or not
+        if result.any_input_blocks_processed():
+            # Timed out or ran with progress, so we can safely requeue remainder
             run_exe(remainder_exe)
         else:
-            # Timed out w/o progress, must count as a failure
+            # Timed out or ran w/o progress, must count as a failure
             retry_exe(remainder_exe)
-    elif remainder_exe.has_unprocessed_blocks():
-        # unclear why all block weren't processed, function only consumed some, re-run
-        run_exe(remainder_exe)
     else:
-        # all finished
+        # all finished, nothing more to do
         pass
 
 
-def handle_execution_result_output_blocks(
+def save_execution_log(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
+    log = ExecutionLog(
+        node_key=exe.node_key,
+        node_cfg=exe.node.dict(),
+        # runtime_url=
+        queued_at=result.queued_at,
+        started_at=result.started_at,
+        completed_at=result.completed_at,
+        timed_out=result.timed_out,
+    )
+    if result.function_error:
+        log.error = result.function_error.dict()
+    env.md_api.add(log)
+    return log
+
+
+def handle_execution_result_blocks(
     env: Environment, exe: ExecutableCfg, result: ExecutionResult
 ):
-    # save stream states (latest block, time, schemas?)
-    # ignore stream blocks?
-    # save table blocks
-    pass
+    # TODO: stored blocks
+    # TODO: ignore "ephemeral"
+    for stream_name, blocks in result.input_blocks_consumed.items():
+        if not blocks:
+            continue
+        state = get_or_create_state(
+            env, exe.node_key, stream_name, direction=Direction.INPUT
+        )
+        state.update_with_blocks(blocks)
+        state.latest_processed_at = result.completed_at
+    # TODO: DRY
+    for stream_name, blocks in result.output_blocks_emitted.items():
+        if not blocks:
+            continue
+        state = get_or_create_state(
+            env, exe.node_key, stream_name, direction=Direction.OUTPUT
+        )
+        state.update_with_blocks(blocks)
+        state.latest_processed_at = result.completed_at
