@@ -1,4 +1,5 @@
 from __future__ import annotations
+from basis.core.declarative.interface import resolve_nominal_output_schema
 from basis.core.execution.executable import Executable, instantiate_executable
 from basis.core.node import Node
 from basis.core.environment import Environment
@@ -65,6 +66,9 @@ from dcp.storage.base import (
 )
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
+from basis.core.typing.casting import cast_to_realized_schema
+from dcp.data_format import get_handler_for_name
+from dcp.data_format.inference import is_generated_schema
 
 
 @dataclass
@@ -103,16 +107,6 @@ class Context:
     def execution_cfg(self) -> ExecutionCfg:
         return self.executable.execution_cfg
 
-    # def get_next_record(self, input_name: str) -> Optional[Record]:
-    #     blocks = self.inputs.get(input_name)
-    #     if blocks is None:
-    #         return None
-    #     idx = self.input_indexes[input_name]
-    #     if idx <= len(blocks):
-    #         return None
-    #     self.input_indexes[input_name] += 1
-    #     return blocks[idx]
-
     ### Consumption
 
     def get_records(self, input_name: str) -> List[Record]:
@@ -129,6 +123,9 @@ class Context:
         if not t:
             return {}
         return t[0]
+
+    def get_state_value(self, key: str) -> Any:
+        self.get_state().get(key)
 
     def consume(self, input_name: str, obj: Union[Record, Iterable[Records]]):
         if isinstance(obj, BlockMetadataCfg):
@@ -152,8 +149,8 @@ class Context:
         output_name: str = None,
         schema: Union[str, Schema, None] = None,
     ):
-        block = self.create_block(output_name)
-        handler = self.get_output_handler(block)
+        block = self._create_block(output_name, schema)
+        handler = self._get_output_handler(block)
         handler.handle_python_object_stream_output(record_obj)
         self.emit_block(output_name or DEFAULT_OUTPUT_NAME, block)
 
@@ -166,16 +163,23 @@ class Context:
         storage: Union[str, Storage] = None,  # TODO: if produced on a storage
         data_format: Union[str, DataFormat] = None,
     ):
-        block = self.create_block(output_name)
-        handler = self.get_output_handler(block)
+        # Create new empty block
+        block = self._create_block(output_name, schema)
+        # Put records on target storage
+        handler = self._get_output_handler(block)
         if table_obj:
-            handler.handle_python_object_table_output(table_obj)
+            result = handler.handle_python_object_table_output(table_obj)
         elif storage and table_name:
-            handler.handle_existing_stored_table_output(
+            result = handler.handle_existing_stored_table_output(
                 table_name, ensure_storage(storage)
             )
         else:
             raise Exception("Must pass object or table name and storage")
+        # Handle schemas
+        block.inferred_schema_key = result.inferred_schema.key
+        block.realized_schema_key = result.realized_schema.key
+        self._save_schema(result.inferred_schema)
+        self._save_schema(result.realized_schema)
         self.emit_block(output_name or DEFAULT_OUTPUT_NAME, block)
 
     def emit_records(
@@ -193,45 +197,11 @@ class Context:
     def emit_state(self, state: Dict):
         self.emit_table([state], output_name=DEFAULT_STATE_NAME)
 
-    def create_block(self, output_name: str = None) -> BlockWithStoredBlocksCfg:
-        block = BlockWithStoredBlocksCfg(
-            id=get_block_id(self.node.key, output_name),
-            created_at=utcnow(),
-            updated_at=utcnow(),
-            inferred_schema_key=None,
-            nominal_schema_key=None,  # TODO: self.get_nominal_schema(raw_output.nominal_schema),
-            realized_schema_key="Any",
-            record_count=None,
-            created_by_node_key=self.node.key,
-        )
-        sid = get_block_id(
-            self.node.key, output_name
-        )  # Unique id per stored block (might have multiple formats on same storage)
-        stored = StoredBlockMetadataCfg(  # type: ignore
-            id=sid,
-            created_at=utcnow(),
-            updated_at=utcnow(),
-            block_id=block.id,
-            block=block,
-            storage_url=self.execution_cfg.target_storage,
-            data_format=UnknownFormat.nickname,
-            data_is_written=False,
-        )
-        block.stored_blocks.append(stored)
-        return block
-
-    def get_output_handler(self, block: BlockWithStoredBlocksCfg):
-        handler = OutputHandler(
-            executable=self.executable,
-            target_name=block.stored_blocks[0].name,
-            target_storage=Storage(self.execution_cfg.target_storage),
-            # target_schema=self.get_target_nominal_schema(),  # TODO
-        )
-        if self.execution_cfg.target_data_format:
-            handler.target_format = get_format_for_nickname(
-                self.execution_cfg.target_data_format
-            )
-        return handler
+    def emit_state_value(self, key: str, value: Any):
+        # TODO: get latest state (even one emitted here!)
+        state = self.get_state()
+        state[key] = value
+        self.emit_state(state)
 
     ### Params
 
@@ -272,6 +242,75 @@ class Context:
             )
         return should
 
+    ### Handle output
+
+    def _create_block(
+        self, output_name: str = None, nominal_schema=None
+    ) -> BlockWithStoredBlocksCfg:
+        block = BlockWithStoredBlocksCfg(
+            id=get_block_id(self.node.key, output_name),
+            created_at=utcnow(),
+            updated_at=utcnow(),
+            inferred_schema_key=None,
+            nominal_schema_key=self._get_nominal_output_schema_key(
+                output_name, nominal_schema
+            ),
+            realized_schema_key="Any",
+            record_count=None,
+            created_by_node_key=self.node.key,
+        )
+        sid = get_block_id(
+            self.node.key, output_name
+        )  # Unique id per stored block (might have multiple formats on same storage)
+        stored = StoredBlockMetadataCfg(  # type: ignore
+            id=sid,
+            created_at=utcnow(),
+            updated_at=utcnow(),
+            block_id=block.id,
+            block=block,
+            storage_url=self.execution_cfg.target_storage,
+            data_format=UnknownFormat.nickname,
+            data_is_written=False,
+        )
+        block.stored_blocks.append(stored)
+        return block
+
+    def _get_output_handler(self, block: BlockWithStoredBlocksCfg):
+        handler = OutputHandler(
+            executable=self.executable,
+            target_name=block.stored_blocks[0].name,
+            target_storage=Storage(self.execution_cfg.target_storage),
+            target_schema=self.library.get_schema(block.nominal_schema_key)
+            if block.nominal_schema_key
+            else None,
+        )
+        if self.execution_cfg.target_data_format:
+            handler.target_format = get_format_for_nickname(
+                self.execution_cfg.target_data_format
+            )
+        return handler
+
+    def _get_nominal_output_schema_key(
+        self, output_name: str = None, schema: Union[str, Schema, None] = None
+    ) -> Optional[str]:
+        if schema:
+            if isinstance(schema, Schema):
+                return schema.key
+            return schema
+        return resolve_nominal_output_schema(
+            self.executable.node.get_interface(), self.inputs, output_name
+        )
+
+    def _save_schema(self, schema: Schema):
+        if is_generated_schema(schema):
+            self.result.schemas_generated.append(schema)
+
+
+@dataclass
+class OutputHandlerResult:
+    inferred_schema: Schema
+    realized_schema: Schema
+
 
 @dataclass
 class OutputHandler:
@@ -286,11 +325,15 @@ class OutputHandler:
         name = self.temp_prefix + rand_str(10)
         return name
 
-    def handle_existing_stored_table_output(self, name: str, storage: Storage):
+    def handle_existing_stored_table_output(
+        self, name: str, storage: Storage
+    ) -> OutputHandlerResult:
         # Copy to target_storage
         logger.debug(
             f"Copying output from {name} {storage} to {self.target_name} {self.target_storage.url} ({self.target_format})"
         )
+        inferred_schema = self.infer_schema(name, storage)
+        realized_schema = self.realize_schema(inferred_schema)
         try:
             result = dcp.copy(
                 from_name=name,
@@ -298,7 +341,7 @@ class OutputHandler:
                 to_name=self.target_name,
                 to_storage=self.target_storage,
                 to_format=self.target_format,
-                schema=self.target_schema,
+                schema=realized_schema,
                 available_storages=self.executable.execution_cfg.get_storages(),
                 if_exists="error",
             )
@@ -308,6 +351,9 @@ class OutputHandler:
                 logger.debug(f"REMOVING NAME {name}")
                 storage.get_api().remove(name)
         logger.debug(f"Copied {result}")
+        return OutputHandlerResult(
+            inferred_schema=inferred_schema, realized_schema=realized_schema,
+        )
 
     def handle_python_object_stream_output(
         self, obj: Any,
@@ -319,15 +365,11 @@ class OutputHandler:
         # assert target_storage.storage_engine.storage_class == KeyValueStorageEngine
         self.target_storage.get_api().put(self.target_name, obj)
 
-    def handle_python_object_table_output(
-        self, obj: Any,
-    ):
+    def handle_python_object_table_output(self, obj: Any,) -> OutputHandlerResult:
         name, storage = self.put_python_object_on_any_storage(obj)
-        self.handle_existing_stored_table_output(name, storage)
+        return self.handle_existing_stored_table_output(name, storage)
 
     def put_python_object_on_any_storage(self, obj: Any) -> Tuple[str, Storage]:
-        if obj is None:
-            return
         if isinstance(obj, IOBase):
             # Handle file-like by writing to disk first
             return self.put_file_object_on_file_storage(obj)
@@ -364,3 +406,23 @@ class OutputHandler:
         else:
             storage = file_storages[0]
         return storage
+
+    def infer_schema(self, name: str, storage: Storage) -> Schema:
+        handler = get_handler_for_name(name, storage)()
+        inferred_schema = handler.infer_schema(name, storage)
+        logger.debug(
+            f"Inferred schema: {inferred_schema.key} {inferred_schema.fields_summary()}"
+        )
+        return inferred_schema
+
+    def realize_schema(self, inferred_schema: Schema) -> Schema:
+        if self.target_schema:
+            realized_schema = cast_to_realized_schema(
+                inferred_schema=inferred_schema, nominal_schema=self.target_schema,
+            )
+        else:
+            realized_schema = inferred_schema
+        logger.debug(
+            f"Realized schema: {realized_schema.key} {realized_schema.fields_summary()}"
+        )
+        return realized_schema

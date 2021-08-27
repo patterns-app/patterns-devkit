@@ -92,28 +92,6 @@ def prepare_executable(
         except InputExhaustedException as e:
             logger.debug(f"Inputs exhausted {e}")
             raise e
-            # return ExecutionResult.empty()
-        # node_state_obj = get_or_create_state(env, node.key)
-        # if node_state_obj is None:
-        #     node_state = {}
-        # else:
-        #     node_state = node_state_obj.state or {}
-
-        # function_log = ExecutionLog(  # type: ignore
-        #     node_key=node.key,
-        #     # node_start_state=node_state.copy(),  # {k: v for k, v in node_state.items()},
-        #     # node_end_state=node_state,
-        #     function_key=node.function,
-        #     function_params=node.params,
-        #     # runtime_url=self.current_runtime.url,
-        #     queued_at=utcnow(),
-        # )
-        # node_state_obj.latest_log = function_log
-        # md.add(function_log)
-        # md.add(node_state_obj)
-        # md.flush([function_log, node_state_obj])
-
-        # TODO: runtime and result handler
 
         lib_cfg = env.build_library_cfg(
             graph=graph, inputs=inputs, source_file_functions=source_file_functions
@@ -130,89 +108,8 @@ def prepare_executable(
         set_global_metadata_result_handler(MetadataExecutionResultHandler(env))
         return exe
 
-        # Validate local memory objects: Did we leave any non-storeables hanging?
+        # TODO: Validate local memory objects: Did we leave any non-storeables hanging?
         # validate_blocks(self.env)
-
-    # # TODO: goes somewhere else
-    #     except Exception as e:
-    #         # Don't worry about exhaustion exceptions
-    #         if not isinstance(e, InputExhaustedException):
-    #             logger.debug(f"Error running node:\n{traceback.format_exc()}")
-    #             function_log.set_error(e)
-    #             function_log.persist_state(self.env)
-    #             function_log.completed_at = utcnow()
-    #             # TODO: should clean this up so transaction surrounds things that you DO
-    #             #       want to rollback, obviously
-    #             # md.commit()  # MUST commit here since the re-raised exception will issue a rollback
-    #             if (
-    #                 self.exe.execution_cfg.dataspace.basis.abort_on_function_error
-    #             ):  # TODO: from call or env
-    #                 raise e
-    #     finally:
-    #         function_ctx.finish_execution()
-    #         # Persist state on success OR error:
-    #         function_log.persist_state(self.env)
-    #         function_log.completed_at = utcnow()
-
-    #     with self.start_function_run(self.node, bound_interface) as function_ctx:
-    #         # function = executable.compiled_function.function
-    #         # local_vars = locals()
-    #         # if hasattr(function, "_locals"):
-    #         #     local_vars.update(function._locals)
-    #         # exec(function.get_source_code(), globals(), local_vars)
-    #         # output_obj = local_vars[function.function_callable.__name__](
-    #         function_args, function_kwargs = function_ctx.get_function_args()
-    #         output_obj = function_ctx.function.function_callable(
-    #             *function_args, **function_kwargs,
-    #         )
-    #         if output_obj is not None:
-    #             self.emit_output_object(output_obj, function_ctx)
-    #     result = function_ctx.as_execution_result()
-    #     # TODO: update node state block counts?
-    # logger.debug(f"EXECUTION RESULT {result}")
-    # return result
-
-    # def emit_output_object(
-    #     self, output_obj: DataInterfaceType, function_ctx: Context,
-    # ):
-    #     assert output_obj is not None
-    #     if isinstance(output_obj, abc.Generator):
-    #         output_iterator = output_obj
-    #     else:
-    #         output_iterator = [output_obj]
-    #     i = 0
-    #     for output_obj in output_iterator:
-    #         logger.debug(output_obj)
-    #         i += 1
-    #         function_ctx.emit(output_obj)
-
-    # def log_execution_result(self, result: ExecutionResult):
-    #     self.logger.log("Inputs: ")
-    #     if result.input_block_counts:
-    #         self.logger.log("\n")
-    #         with self.logger.indent():
-    #             for input_name, cnt in result.input_block_counts.items():
-    #                 self.logger.log(f"{input_name}: {cnt} block(s) processed\n")
-    #     else:
-    #         if not result.non_reference_inputs_bound:
-    #             self.logger.log_token("n/a\n")
-    #         else:
-    #             self.logger.log_token("None\n")
-    #     self.logger.log("Outputs: ")
-    #     if result.output_blocks:
-    #         self.logger.log("\n")
-    #         with self.logger.indent():
-    #             for output_name, block_summary in result.output_blocks.items():
-    #                 self.logger.log(f"{output_name}:")
-    #                 cnt = block_summary["record_count"]
-    #                 alias = block_summary["alias"]
-    #                 if cnt is not None:
-    #                     self.logger.log_token(f" {cnt} records")
-    #                 self.logger.log_token(
-    #                     f" {alias} " + cf.dimmed(f"({block_summary['id']})\n")  # type: ignore
-    #                 )
-    #     else:
-    #         self.logger.log_token("None\n")
 
 
 def run(exe: ExecutableCfg, to_exhaustion: bool = True) -> List[ExecutionResult]:
@@ -241,125 +138,125 @@ def run(exe: ExecutableCfg, to_exhaustion: bool = True) -> List[ExecutionResult]
     # return cum_result
 
 
-def get_latest_output(env: Environment, node: GraphCfg) -> Optional[Block]:
-    from basis.core.persistence.block import BlockMetadata
+# def get_latest_output(env: Environment, node: GraphCfg) -> Optional[Block]:
+#     from basis.core.persistence.block import BlockMetadata
 
-    with env.metadata_api.begin():
-        block: BlockMetadata = (
-            env.md_api.execute(
-                select(BlockMetadata)
-                .join(BlockLog)
-                .join(ExecutionLog)
-                .filter(
-                    BlockLog.direction == Direction.OUTPUT,
-                    ExecutionLog.node_key == node.key,
-                )
-                .order_by(BlockLog.created_at.desc())
-            )
-            .scalars()
-            .first()
-        )
-        if block is None:
-            return None
-    return block.as_managed_block(env)
-
-
-def ensure_log(
-    env: Environment,
-    dfl: ExecutionLog,
-    block: BlockMetadata,
-    direction: Direction,
-    name: str,
-):
-    if env.md_api.execute(
-        select(BlockLog).filter_by(
-            function_log_id=dfl.id,
-            stream_name=name,
-            block_id=block.id,
-            direction=direction,
-        )
-    ).scalar_one_or_none():
-        return
-    drl = BlockLog(  # type: ignore
-        function_log_id=dfl.id,
-        stream_name=name,
-        block_id=block.id,
-        direction=direction,
-        processed_at=block.created_at,
-    )
-    env.md_api.add(drl)
+#     with env.metadata_api.begin():
+#         block: BlockMetadata = (
+#             env.md_api.execute(
+#                 select(BlockMetadata)
+#                 .join(BlockLog)
+#                 .join(ExecutionLog)
+#                 .filter(
+#                     BlockLog.direction == Direction.OUTPUT,
+#                     ExecutionLog.node_key == node.key,
+#                 )
+#                 .order_by(BlockLog.created_at.desc())
+#             )
+#             .scalars()
+#             .first()
+#         )
+#         if block is None:
+#             return None
+#     return block.as_managed_block(env)
 
 
-def save_result(
-    env: Environment, exe: ExecutableCfg, result: ExecutionResult,
-):
-    # TODO: this should be inside one roll-backable transaction
-    # TODO: save streamstates
-    # save_function_log(env, exe, result)
-    # dbms: List[BlockMetadata] = []
-    for input_name, blocks in result.input_blocks_consumed.items():
-        for block in blocks:
-            # ensure_log(env, exe.function_log, block, Direction.INPUT, input_name)
-            logger.debug(f"Input logged: {block}")
-    for output_name, blocks in result.output_blocks_emitted.items():
-        # if not block.data_is_written:
-        #     # TODO: this means we didn't actually ever write an output
-        #     # object (usually because we hit an error during output handling)
-        #     # TODO: did we really process the inputs then? this is more of a framework-level error
-        #     continue
-        for block in blocks:
-            dbm = BlockMetadata(**block.dict())
-            # dbms.append(dbm)
-            env.md_api.add(dbm)
-            logger.debug(f"Output logged: {block}")
-            # ensure_log(env, exe.function_log, block, Direction.OUTPUT, output_name)
-    # env.md_api.add_all(
-    #     [
-    #         StoredBlockMetadata(**s.dict())
-    #         for v in result.stored_blocks_created.values()
-    #         for s in v
-    #     ]
-    # )
-    for s in result.schemas_generated or []:
-        env.add_new_generated_schema(s)
-    # save_state(env, exe, result)
-    # ensure_aliases(env, exe, result)
+# def ensure_log(
+#     env: Environment,
+#     dfl: ExecutionLog,
+#     block: BlockMetadata,
+#     direction: Direction,
+#     name: str,
+# ):
+#     if env.md_api.execute(
+#         select(BlockLog).filter_by(
+#             function_log_id=dfl.id,
+#             stream_name=name,
+#             block_id=block.id,
+#             direction=direction,
+#         )
+#     ).scalar_one_or_none():
+#         return
+#     drl = BlockLog(  # type: ignore
+#         function_log_id=dfl.id,
+#         stream_name=name,
+#         block_id=block.id,
+#         direction=direction,
+#         processed_at=block.created_at,
+#     )
+#     env.md_api.add(drl)
 
 
-# def save_function_log(
-#     env: Environment, exe: ExecutableCfg, result: ExecutionResult
-# ) -> ExecutionLog:
-#     if result.function_error:
-#         exe.function_log.error = result.function_error.dict()
-#     if (
-#         exe.function_log.function_params
-#         and "dataframe" in exe.function_log.function_params
-#     ):
-#         # TODO / FIXME: special case hack (don't support dataframe parameters in general!)
-#         del exe.function_log.function_params["dataframe"]
-#     if exe.function_log.completed_at is None:
-#         # TODO: completed at should happen inside the execution? what about multiple inputs?
-#         exe.function_log.completed_at = utcnow()
-#     if result.timed_out:
-#         exe.function_log.timed_out = True
-#     function_log = env.md_api.merge(ExecutionLog.from_pydantic(exe.function_log))
+# def save_result(
+#     env: Environment, exe: ExecutableCfg, result: ExecutionResult,
+# ):
+#     # TODO: this should be inside one roll-backable transaction
+#     # TODO: save streamstates
+#     # save_function_log(env, exe, result)
+#     # dbms: List[BlockMetadata] = []
+#     for input_name, blocks in result.input_blocks_consumed.items():
+#         for block in blocks:
+#             # ensure_log(env, exe.function_log, block, Direction.INPUT, input_name)
+#             logger.debug(f"Input logged: {block}")
+#     for output_name, blocks in result.output_blocks_emitted.items():
+#         # if not block.data_is_written:
+#         #     # TODO: this means we didn't actually ever write an output
+#         #     # object (usually because we hit an error during output handling)
+#         #     # TODO: did we really process the inputs then? this is more of a framework-level error
+#         #     continue
+#         for block in blocks:
+#             dbm = BlockMetadata(**block.dict())
+#             # dbms.append(dbm)
+#             env.md_api.add(dbm)
+#             logger.debug(f"Output logged: {block}")
+#             # ensure_log(env, exe.function_log, block, Direction.OUTPUT, output_name)
+#     # env.md_api.add_all(
+#     #     [
+#     #         StoredBlockMetadata(**s.dict())
+#     #         for v in result.stored_blocks_created.values()
+#     #         for s in v
+#     #     ]
+#     # )
+#     for s in result.schemas_generated or []:
+#         env.add_new_generated_schema(s)
+#     # save_state(env, exe, result)
+#     # ensure_aliases(env, exe, result)
 
-#     env.md_api.add(function_log)
-#     return function_log
+
+# # def save_function_log(
+# #     env: Environment, exe: ExecutableCfg, result: ExecutionResult
+# # ) -> ExecutionLog:
+# #     if result.function_error:
+# #         exe.function_log.error = result.function_error.dict()
+# #     if (
+# #         exe.function_log.function_params
+# #         and "dataframe" in exe.function_log.function_params
+# #     ):
+# #         # TODO / FIXME: special case hack (don't support dataframe parameters in general!)
+# #         del exe.function_log.function_params["dataframe"]
+# #     if exe.function_log.completed_at is None:
+# #         # TODO: completed at should happen inside the execution? what about multiple inputs?
+# #         exe.function_log.completed_at = utcnow()
+# #     if result.timed_out:
+# #         exe.function_log.timed_out = True
+# #     function_log = env.md_api.merge(ExecutionLog.from_pydantic(exe.function_log))
+
+# #     env.md_api.add(function_log)
+# #     return function_log
 
 
-# def save_state(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
-#     state = env.md_api.execute(
-#         select(NodeState).filter(NodeState.node_key == exe.node_key)
-#     ).scalar_one_or_none()
-#     if state is None:
-#         state = NodeState(node_key=exe.node_key)
-#     state.state = exe.function_log.node_end_state
-#     state.latest_log_id = exe.function_log.id
-#     state.alias = (
-#         exe.node.get_alias()
-#     )  # TODO: not an actual attribute, this gets dropped
-#     env.md_api.add(state)
+# # def save_state(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
+# #     state = env.md_api.execute(
+# #         select(NodeState).filter(NodeState.node_key == exe.node_key)
+# #     ).scalar_one_or_none()
+# #     if state is None:
+# #         state = NodeState(node_key=exe.node_key)
+# #     state.state = exe.function_log.node_end_state
+# #     state.latest_log_id = exe.function_log.id
+# #     state.alias = (
+# #         exe.node.get_alias()
+# #     )  # TODO: not an actual attribute, this gets dropped
+# #     env.md_api.add(state)
 
 
 def ensure_aliases(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
@@ -405,6 +302,7 @@ def handle_execution_result(
 ):
     handle_execution_result_blocks(env, exe, result)
     save_execution_log(env, exe, result)
+    save_schemas(env, exe, result)
     remainder_exe = make_executable_for_remaining_unprocessed(env, exe, result)
     # handle retry and requeue based on result
     if result.function_error is not None:
@@ -422,6 +320,11 @@ def handle_execution_result(
     else:
         # all finished, nothing more to do
         pass
+
+
+def save_schemas(env: Environment, exe: ExecutableCfg, result: ExecutionResult):
+    for s in result.schemas_generated or []:
+        env.add_new_generated_schema(s)
 
 
 def save_execution_log(env: Environment, exe: ExecutableCfg, result: ExecutionResult):

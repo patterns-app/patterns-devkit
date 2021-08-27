@@ -4,6 +4,8 @@ import importlib
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, List, Union
 
+from loguru import logger
+
 from basis.utils.modules import find_all_of_type_in_module
 from commonmodel import Schema
 from commonmodel.api import register_schema, find_schema
@@ -110,22 +112,31 @@ class ComponentLibrary:
 
         # First see if path is to python module w function inside
         try:
+            logger.debug(f"looking for function in possible module {module_path}")
             mod = importlib.import_module(module_path)
             return find_single_function(mod)
         except (ModuleNotFoundError, AssertionError, ValueError):  # TODO: error
             pass
-        # Next try as full path to function
+        # Next try as path to package, with module of same name, with function of same name....
         mods = module_path.split(".")
         name = mods[-1]
         try:
-            mod = importlib.import_module(".".join(mods[:-1]))
-            return getattr(mod, name)
+            nested_path = module_path + "." + name
+            logger.debug(
+                f"looking for function in possible (parent) module {nested_path}"
+            )
+            mod = importlib.import_module(nested_path)
+            return find_single_function(mod)
         except (ModuleNotFoundError, ValueError):  # TODO: error
             pass
-        # Next try as path to package, with module of same name, with function of same name....
+        # Next try as full path to function
         try:
-            mod = importlib.import_module(module_path + "." + name)
-            return find_single_function(mod)
+            mod_path_parent = ".".join(mods[:-1])
+            logger.debug(
+                f"looking for function in possible (parent) module {mod_path_parent}"
+            )
+            mod = importlib.import_module(mod_path_parent)
+            return getattr(mod, name)
         except (ModuleNotFoundError, ValueError):  # TODO: error
             pass
         # Finally look for the name as local

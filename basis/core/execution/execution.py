@@ -5,12 +5,12 @@ from basis.core.execution.result_handlers import (
     RemoteCallbackMetadataExecutionResultHandler,
     get_global_metadata_result_handler,
 )
-from basis.core.execution.executable import Executable
+from basis.core.execution.executable import Executable, instantiate_executable
 
 from collections import abc, defaultdict
 from contextlib import contextmanager
 from sys import executable
-from typing import TYPE_CHECKING, Any, Callable, Iterable, List
+from typing import TYPE_CHECKING, Any, Callable, Iterable, List, Union
 
 import dcp
 import sqlalchemy
@@ -65,8 +65,10 @@ class ExecutionLogger:
 
 
 class ExecutionManager:
-    def __init__(self, exe: Executable):
-        self.exe = exe
+    def __init__(self, exe: Union[Executable, ExecutableCfg]):
+        if isinstance(exe, ExecutableCfg):
+            exe = instantiate_executable(exe)
+        self.exe: Executable = exe
         self.logger = ExecutionLogger()
         self.node = self.exe.node
         self.function = exe.library.get_function(self.node.function)

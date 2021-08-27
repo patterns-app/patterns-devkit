@@ -1,4 +1,5 @@
 from __future__ import annotations
+from basis.core.declarative.function import Parameter
 
 from typing import Optional
 
@@ -8,9 +9,13 @@ from pandas.core.frame import DataFrame
 
 
 @function(
-    namespace="core", display_name="Import Pandas DataFrame",
+    display_name="Import Pandas DataFrame",
+    parameters=[
+        Parameter("dataframe", "str", required=True),
+        Parameter("schema", "str", required=False),
+    ],
 )
-def import_dataframe(ctx: Context, dataframe: str, schema: Optional[str] = None):
+def import_dataframe(ctx: Context):
     """
     Import pandas DataFrame
 
@@ -21,6 +26,6 @@ def import_dataframe(ctx: Context, dataframe: str, schema: Optional[str] = None)
         # Just emit once
         return  # TODO: typing fix here?
     ctx.emit_state_value("imported", True)
-    # schema = ctx.get_param("schema")
-    # df = ctx.get_param("dataframe")
-    ctx.emit(dataframe, data_format=DataFrameFormat, schema=schema)
+    schema = ctx.get_param("schema")
+    df = ctx.get_param("dataframe")
+    ctx.emit_table(df, data_format=DataFrameFormat, schema=schema)

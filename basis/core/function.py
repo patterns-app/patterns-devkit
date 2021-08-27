@@ -28,7 +28,6 @@ from pandas import DataFrame
 if TYPE_CHECKING:
     from basis import Context
     from basis import Environment
-    from basis.core.function_package import FunctionPackage
 
 
 class FunctionException(Exception):
@@ -172,14 +171,19 @@ def function_interface_from_callable(
     )
     inputs = OrderedDict()
     first = True
-    for name in signature.parameters:
+    for name, param in signature.parameters.items():
+        optional = param.default is None
         if first:
             # First input could be stream or table
-            inputs[name] = IoBaseCfg(name=name, block_type=BlockType.Generic)
+            inputs[name] = IoBaseCfg(
+                name=name, block_type=BlockType.Generic, required=not optional
+            )
             first = False
         else:
             # Additional inputs must be table ref
-            inputs[name] = IoBaseCfg(name=name, block_type=BlockType.Table)
+            inputs[name] = IoBaseCfg(
+                name=name, block_type=BlockType.Table, required=not optional
+            )
     return FunctionInterfaceCfg(inputs=inputs, outputs=outputs,)
 
 
@@ -256,7 +260,7 @@ def function_decorator(
     outputs: List[IoBaseCfg] = None,
     parameters: List[ParameterCfg] = None,
     **kwargs,
-) -> Union[Function, Callable]:
+) -> Union[Function, FunctionCallable]:
     if isinstance(function_or_name, str) or function_or_name is None:
         return partial(
             function_decorator,

@@ -61,6 +61,8 @@ class IoBaseCfg(FrozenPydanticBase):
 
     @property
     def is_generic(self) -> bool:
+        if self.schema_like is None:
+            return False
         return is_generic(self.schema_like)
 
 

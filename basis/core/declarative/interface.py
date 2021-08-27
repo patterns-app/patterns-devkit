@@ -195,10 +195,13 @@ class NodeInputCfg(FrozenPydanticBase):
 
 
 def resolve_nominal_output_schema(
-    interface: FunctionInterfaceCfg, inputs: Dict[str, List[BlockWithStoredBlocksCfg]]
+    interface: FunctionInterfaceCfg,
+    inputs: Dict[str, List[BlockWithStoredBlocksCfg]],
+    output_name: str = None,
 ) -> Optional[str]:
     # TODO: extend to other output streams
-    output = interface.get_default_output()
+    output_name = output_name or DEFAULT_OUTPUT_NAME
+    output = interface.outputs.get(output_name)
     if not output:
         return None
     if not output.is_generic:
