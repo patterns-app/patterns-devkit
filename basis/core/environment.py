@@ -177,8 +177,8 @@ class Environment:
         self.library.add_schema(schema)
         global_library.add_schema(schema)  # TODO: really?
 
-    def all_schemas(self) -> List[Schema]:
-        return self.library.all_schemas()
+    # def all_schemas(self) -> List[Schema]:
+    #     return self.library.all_schemas()
 
     def get_function(self, function_like: str) -> Function:
         return self.library.get_function(function_like)
@@ -186,8 +186,8 @@ class Environment:
     def add_function(self, function: Function):
         self.library.add_function(function)
 
-    def all_functions(self) -> List[Function]:
-        return self.library.all_functions()
+    # def all_functions(self) -> List[Function]:
+    #     return self.library.all_functions()
 
     # def add_module(self, *modules: Union[BasisModule, ModuleType, str]):
     #     for module in modules:

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Union
 
 from basis.utils.modules import find_all_of_type_in_module
 from commonmodel import Schema
+from commonmodel.api import register_schema, find_schema
 
 if TYPE_CHECKING:
     from basis.core.declarative.environment import ComponentLibraryCfg
@@ -29,11 +30,16 @@ class ComponentLibrary:
     # flows: Dict[str, FlowCfg]
     namespace_precedence: List[str]
 
-    def __init__(self, namespace_precedence: List[str] = None):
+    def __init__(
+        self,
+        namespace_precedence: List[str] = None,
+        use_global_schema_lookup: bool = True,
+    ):
         self.functions = {}
         self.schemas = {}
         self.flows = {}
         self.namespace_precedence = [DEFAULT_LOCAL_NAMESPACE]
+        self.use_global_schema_lookup = use_global_schema_lookup
         if namespace_precedence:
             for k in namespace_precedence:
                 self.add_namespace(k)
@@ -73,6 +79,7 @@ class ComponentLibrary:
     def add_schema(self, schema: Schema):
         self.add_namespace(schema.key)
         self.schemas[schema.key] = schema
+        register_schema(schema)
 
     # def add_flow(self, f: FlowCfg):
     #     self.add_namespace(f.key)
@@ -157,7 +164,14 @@ class ComponentLibrary:
             return self.schemas[schema_like]
         except KeyError as e:
             if try_module_lookups:
-                return self.namespace_lookup(self.schemas, schema_like)
+                try:
+                    return self.namespace_lookup(self.schemas, schema_like)
+                except KeyError:
+                    pass
+            if self.use_global_schema_lookup:
+                s = find_schema(schema_like)
+                if s is not None:
+                    return s
             raise e
 
     # def get_flow(
@@ -186,11 +200,12 @@ class ComponentLibrary:
                 pass
         raise KeyError(f"`{k}` not found in modules {self.namespace_precedence}")
 
-    def all_functions(self) -> List[Function]:
-        return list(self.functions.values())
+    # def all_functions(self) -> List[Function]:
+    #     return list(self.functions.values())
 
-    def all_schemas(self) -> List[Schema]:
-        return list(self.schemas.values())
+    # TODO: doesn't include globals
+    # def all_schemas(self) -> List[Schema]:
+    #     return list(self.schemas.values())
 
     def merge(self, other: ComponentLibrary):
         self.functions.update(other.functions)
@@ -199,18 +214,18 @@ class ComponentLibrary:
         for k in other.namespace_precedence:
             self.add_namespace(k)
 
-    def get_view(self, d: Dict) -> DictView[str, Any]:
-        ad: DictView = DictView()
-        for k, p in d.items():
-            # ad[k] = p
-            ad[k.split(".")[-1]] = p  # TODO: module precedence
-        return ad
+    # def get_view(self, d: Dict) -> DictView[str, Any]:
+    #     ad: DictView = DictView()
+    #     for k, p in d.items():
+    #         # ad[k] = p
+    #         ad[k.split(".")[-1]] = p  # TODO: module precedence
+    #     return ad
 
-    def get_functions_view(self) -> DictView[str, Function]:
-        return self.get_view(self.functions)
+    # def get_functions_view(self) -> DictView[str, Function]:
+    #     return self.get_view(self.functions)
 
-    def get_schemas_view(self) -> DictView[str, Schema]:
-        return self.get_view(self.schemas)
+    # def get_schemas_view(self) -> DictView[str, Schema]:
+    #     return self.get_view(self.schemas)
 
 
 global_library = ComponentLibrary()
