@@ -1,11 +1,11 @@
 from __future__ import annotations
+from basis.core.persistence.block import get_block_id, get_block_id_from_existing_prefix
 
 import os
 from typing import TYPE_CHECKING, List, Optional, Type
 
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.environment import Environment
-from basis.core.persistence.block import make_sdb_name
 from basis.core.persistence.pydantic import (
     BlockMetadataCfg,
     StoredBlockMetadataCfg,
@@ -32,16 +32,16 @@ def copy_sdb_cfg(
     result = execute_copy_request(request)
     if create_intermediate_sdbs:
         for name, storage, fmt in result.intermediate_created:
-            sid = get_stored_block_id()
+            sid = get_block_id_from_existing_prefix(in_sdb.id)
             i_sdb = StoredBlockMetadataCfg(  # type: ignore
                 id=sid,
-                name=make_sdb_name(sid, in_sdb.block.created_by_node_key),
+                # name=make_sdb_name(sid, in_sdb.block.created_by_node_key),
                 block=in_sdb.block,
                 data_format=fmt,
                 storage_url=storage.url,
                 data_is_written=True,
             )
-            storage.get_api().create_alias(name, i_sdb.name)
+            storage.get_api().create_alias(name, i_sdb.name)  # TODO: this is ugly...
             stored_blocks.append(i_sdb)
     return stored_blocks
 
@@ -88,10 +88,10 @@ def ensure_block_on_storage_cfg(
             f"No copy path to {target_storage_format} for existing StoredBlocks {existing_sdbs}"
         )
     cost, pth, in_sdb, req = min(eligible_conversion_paths, key=lambda x: x[0])
-    sid = get_stored_block_id()
+    sid = get_block_id_from_existing_prefix(block.id)
     out_sdb = StoredBlockMetadataCfg(  # type: ignore
         id=sid,
-        name=make_sdb_name(sid, block.created_by_node_key),
+        # name=make_sdb_name(sid, block.created_by_node_key),
         block_id=block.id,
         block=block,
         data_format=fmt.nickname,

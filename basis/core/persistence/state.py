@@ -37,7 +37,7 @@ class ExecutionLog(BaseModel):
         return self._repr(
             id=self.id,
             node_key=self.node_key,
-            function_key=self.function_key,
+            # function_key=self.function_key,
             started_at=self.started_at,
             completed_at=self.completed_at,
         )
@@ -57,16 +57,16 @@ class ExecutionLog(BaseModel):
         # Traceback can be v large (like in max recursion), so we truncate to 5k chars
         self.error = {"error": str(e) or type(e).__name__, "traceback": tback[:5000]}
 
-    def persist_state(self, env: Environment) -> NodeState:
-        state = env.md_api.execute(
-            select(NodeState).filter(NodeState.node_key == self.node_key)
-        ).scalar_one_or_none()
-        if state is None:
-            state = NodeState(node_key=self.node_key)
-            env.md_api.add(state)
-        state.state = self.node_end_state
-        env.md_api.flush([state])
-        return state
+    # def persist_state(self, env: Environment) -> NodeState:
+    #     state = env.md_api.execute(
+    #         select(NodeState).filter(NodeState.node_key == self.node_key)
+    #     ).scalar_one_or_none()
+    #     if state is None:
+    #         state = NodeState(node_key=self.node_key)
+    #         env.md_api.add(state)
+    #     state.state = self.node_end_state
+    #     env.md_api.flush([state])
+    #     return state
 
 
 class Direction(str, enum.Enum):
@@ -176,6 +176,8 @@ class StreamState(BaseModel):
             self.latest_processed_block_id = max(
                 max_block_id, self.latest_processed_block_id
             )
+        if self.blocks_processed is None:
+            self.blocks_processed = 0
         self.blocks_processed += len(blocks)
 
 

@@ -94,14 +94,14 @@ class Context:
     function: Function
     node: Node
     inputs: OrderedDict[str, List[BlockWithStoredBlocksCfg]]
-    executable: ExecutableCfg
+    executable: Executable
     result: ExecutionResult
     execution_start_time: Optional[datetime] = None
     library: Optional[ComponentLibrary] = None
 
     @property
-    def execution_config(self) -> ExecutionCfg:
-        return self.executable.execution_config
+    def execution_cfg(self) -> ExecutionCfg:
+        return self.executable.execution_cfg
 
     # def get_next_record(self, input_name: str) -> Optional[Record]:
     #     blocks = self.inputs.get(input_name)
@@ -213,7 +213,7 @@ class Context:
             updated_at=utcnow(),
             block_id=block.id,
             block=block,
-            storage_url=self.execution_config.target_storage,
+            storage_url=self.execution_cfg.target_storage,
             data_format=UnknownFormat.nickname,
             data_is_written=False,
         )
@@ -222,14 +222,14 @@ class Context:
 
     def get_output_handler(self, block: BlockWithStoredBlocksCfg):
         handler = OutputHandler(
-            executable=instantiate_executable(self.executable),
+            executable=self.executable,
             target_name=block.stored_blocks[0].name,
-            target_storage=Storage(self.execution_config.target_storage),
+            target_storage=Storage(self.execution_cfg.target_storage),
             # target_schema=self.get_target_nominal_schema(),  # TODO
         )
-        if self.execution_config.target_data_format:
+        if self.execution_cfg.target_data_format:
             handler.target_format = get_format_for_nickname(
-                self.execution_config.target_data_format
+                self.execution_cfg.target_data_format
             )
         return handler
 
@@ -259,16 +259,16 @@ class Context:
         to honor time limits.
         """
         if (
-            not self.execution_config.execution_timelimit_seconds
+            not self.execution_cfg.execution_timelimit_seconds
             or not self.execution_start_time
         ):
             return True
         seconds_elapsed = (utcnow() - self.execution_start_time).total_seconds()
-        should = seconds_elapsed < self.execution_config.execution_timelimit_seconds
+        should = seconds_elapsed < self.execution_cfg.execution_timelimit_seconds
         if not should:
             self.result.timed_out = True
             logger.debug(
-                f"Execution timed out after {self.execution_config.execution_timelimit_seconds} seconds"
+                f"Execution timed out after {self.execution_cfg.execution_timelimit_seconds} seconds"
             )
         return should
 
@@ -299,7 +299,7 @@ class OutputHandler:
                 to_storage=self.target_storage,
                 to_format=self.target_format,
                 schema=self.target_schema,
-                available_storages=self.executable.execution_config.get_storages(),
+                available_storages=self.executable.execution_cfg.get_storages(),
                 if_exists="error",
             )
         finally:
@@ -331,7 +331,7 @@ class OutputHandler:
         if isinstance(obj, IOBase):
             # Handle file-like by writing to disk first
             return self.put_file_object_on_file_storage(obj)
-        storage = self.executable.execution_config.get_local_storage()
+        storage = self.executable.execution_cfg.get_local_storage()
         assert storage is not None
         name = self.get_temp_name()
         storage.get_api().put(name, obj)
@@ -351,7 +351,7 @@ class OutputHandler:
     def get_file_storage(self) -> Storage:
         file_storages = [
             s
-            for s in self.executable.execution_config.get_storages()
+            for s in self.executable.execution_cfg.get_storages()
             if s.storage_engine.storage_class == FileSystemStorageClass
         ]
         if not file_storages:
@@ -359,8 +359,8 @@ class OutputHandler:
                 "File-like object returned but no file storage provided."
                 "Add a file storage to the environment: `env.add_storage('file:///....')`"
             )
-        if self.executable.execution_config.get_target_storage() in file_storages:
-            storage = self.executable.execution_config.get_target_storage()
+        if self.executable.execution_cfg.get_target_storage() in file_storages:
+            storage = self.executable.execution_cfg.get_target_storage()
         else:
             storage = file_storages[0]
         return storage

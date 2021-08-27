@@ -255,9 +255,13 @@ class FunctionInterfaceCfg(FrozenPydanticBase):
     def get_all_schema_keys(self) -> List[str]:
         schemas = []
         for i in self.inputs.values():
-            schemas.append(schema_like_to_key(i.schema))
+            if i.schema_like is None:
+                continue
+            schemas.append(schema_like_to_key(i.schema_like))
         for o in self.outputs.values():
-            schemas.append(schema_like_to_key(o.schema))
+            if o.schema_like is None:
+                continue
+            schemas.append(schema_like_to_key(o.schema_like))
         # TODO: for flow
         return schemas
 

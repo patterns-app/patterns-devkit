@@ -34,6 +34,10 @@ class StoredBlockMetadataCfg(_StoredBlockMetadataCfg):
         return v
 
     @property
+    def name(self) -> str:
+        return self.id
+
+    @property
     def storage(self) -> Storage:
         return Storage(self.storage_url)
 

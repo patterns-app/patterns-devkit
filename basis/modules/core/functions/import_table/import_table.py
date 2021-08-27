@@ -23,7 +23,7 @@ def import_table(ctx: Context, table_name: str, copy: bool = True):
         table_name: Name of the database table (on existing database)
         copy: If true, make a copy snapshot of the table, otherwise import as an alias
     """
-    target_storage = ctx.execution_config.get_target_storage()
+    target_storage = ctx.execution_cfg.get_target_storage()
     if ensure_bool(copy):
         as_identifier = target_storage.get_api().get_quoted_identifier
         sql = f"select * from {as_identifier(table_name)}"

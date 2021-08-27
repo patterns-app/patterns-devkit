@@ -19,7 +19,7 @@ def dedupe_keep_latest_sql(ctx: Context, input: Block[T]) -> Block[T]:
     nominal: Optional[Schema] = None
     realized: Schema = ctx.library.get_schema(input.realized_schema_key)
     distinct_on_cols = []
-    target_storage = ctx.execution_config.get_target_storage()
+    target_storage = ctx.execution_cfg.get_target_storage()
     as_identifier = target_storage.get_api().get_quoted_identifier
 
     def identifiers(i):
@@ -47,7 +47,7 @@ def dedupe_keep_latest_sql(ctx: Context, input: Block[T]) -> Block[T]:
             + " desc"
         )
 
-    target_storage = ctx.execution_config.get_target_storage()
+    target_storage = ctx.execution_cfg.get_target_storage()
     sql = f"""
     select
         {distinct_clause}

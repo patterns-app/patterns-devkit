@@ -121,7 +121,7 @@ def prepare_executable(
         exe = ExecutableCfg(
             node_key=node.key,
             graph=graph.to_node_cfgs(),
-            execution_config=cfg,
+            execution_cfg=cfg,
             input_blocks=inputs,
             # function_log=function_log,
             library_cfg=lib_cfg,
@@ -145,7 +145,7 @@ def prepare_executable(
     #             #       want to rollback, obviously
     #             # md.commit()  # MUST commit here since the re-raised exception will issue a rollback
     #             if (
-    #                 self.exe.execution_config.dataspace.basis.abort_on_function_error
+    #                 self.exe.execution_cfg.dataspace.basis.abort_on_function_error
     #             ):  # TODO: from call or env
     #                 raise e
     #     finally:

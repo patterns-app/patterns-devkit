@@ -22,7 +22,7 @@ from basis.core.function import (
     Function,
     DataInterfaceType,
     function_decorator,
-    make_function_from_bare_callable,
+    make_function_from_simple_function,
 )
 
 from basis.core.function_package import load_file
@@ -242,10 +242,8 @@ class SqlFunctionWrapper:
 
     def __call__(self, ctx: Context):
         # TODO: way to specify more granular storage requirements (engine, engine version, etc)
-        storage = ctx.execution_config.get_target_storage()
-        for storage in [
-            ctx.execution_config.target_storage
-        ] + ctx.execution_config.storages:
+        storage = ctx.execution_cfg.get_target_storage()
+        for storage in [ctx.execution_cfg.target_storage] + ctx.execution_cfg.storages:
             storage = Storage(storage)
             if storage.storage_engine.storage_class == DatabaseStorageClass:
                 break
@@ -322,16 +320,21 @@ def sql_function_factory(
     if not sql:
         raise ValueError("Must provide sql")
     sql = process_sql(sql, file)
-    p = make_function_from_bare_callable(
-        wrapper_cls(sql, autodetect_inputs=autodetect_inputs),
+    fn = wrapper_cls(sql, autodetect_inputs=autodetect_inputs)
+    interface = fn.get_interface()
+    p = Function(
         name=name,
+        function_callable=fn,
+        inputs=interface.inputs,
+        outputs=interface.outputs,
+        parameters=interface.parameters,
         required_storage_classes=required_storage_classes or ["database"],
         **kwargs,
     )
     return p
 
 
-sql_function = sql_function_factory
+# sql_function = sql_function_factory
 
 
 def sql_function_decorator(
@@ -351,17 +354,12 @@ def sql_function_decorator(
     if isinstance(sql_fn_or_function, Function):
         sql = sql_fn_or_function.function_callable()
         sql = process_sql(sql, file)
+
         sql_fn_or_function.function_callable = SqlFunctionWrapper(
             sql, autodetect_inputs=autodetect_inputs
         )
-        # TODO / FIXME: this is dicey ... if we ever add / change args for function_factory
-        # will break this. (we're only taking a select few args from the exising Function)
-        return make_function_from_bare_callable(
-            sql_fn_or_function,
-            required_storage_classes=["database"],
-            # _original_object=sql_fn_or_function.function_callable,
-            **kwargs,
-        )
+        return sql_fn_or_function
+
     # Else empty
     sql = sql_fn_or_function()
     if "name" in kwargs:
@@ -373,4 +371,4 @@ def sql_function_decorator(
     )
 
 
-sqlfunction = sql_function_decorator
+sql_function = sql_function_decorator

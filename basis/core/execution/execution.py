@@ -71,7 +71,7 @@ class ExecutionManager:
         self.node = self.exe.node
         self.function = exe.library.get_function(self.node.function)
         self.start_time = utcnow()
-        self.cfg = exe.execution_config
+        self.cfg = exe.execution_cfg
 
     def execute(self) -> ExecutionResult:
         # Setup for run
@@ -121,7 +121,7 @@ class ExecutionManager:
     def publish_result(self, result: ExecutionResult):
         # TODO: support alternate reporters
         # result = result.finalize()  # TODO: pretty important step!
-        handler = self.exe.execution_config.result_handler
+        handler = self.exe.execution_cfg.result_handler
         if handler.type == MetadataExecutionResultHandler.__name__:
             get_global_metadata_result_handler()(self.exe.original_cfg, result)
         elif handler.type == DebugMetadataExecutionResultHandler.__name__:
@@ -146,10 +146,8 @@ class ExecutionManager:
         )
 
     def _call_data_function(self, ctx: Context):
-        function_args, function_kwargs = ctx.get_function_args()
-        self.function.function_callable(
-            *function_args, **function_kwargs,
-        )
+        # function_args, function_kwargs = ctx.get_function_args()
+        self.function.function_callable(ctx)
         # if output_obj is not None:
         #     self.emit_output_object(ctx, output_obj)
         #     # TODO: update node state block counts?
@@ -167,6 +165,8 @@ class ExecutionManager:
     #         ctx.emit(output_obj)
 
     def log_execution_result(self, result: ExecutionResult):
+        return
+        # TODO
         self.logger.log("Inputs: ")
         if result.input_blocks_consumed:
             self.logger.log("\n")

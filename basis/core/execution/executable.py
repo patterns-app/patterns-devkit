@@ -18,7 +18,7 @@ from basis.core.declarative.execution import (
 class Executable:
     node: Node
     graph: Graph
-    execution_config: ExecutionCfg
+    execution_cfg: ExecutionCfg
     # bound_interface: BoundInterfaceCfg
     # results: ExecutionResult
     library: ComponentLibrary
@@ -38,12 +38,15 @@ def instantiate_library(cfg: ComponentLibraryCfg) -> ComponentLibrary:
 
 
 def instantiate_executable(cfg: ExecutableCfg) -> Executable:
-    lib = instantiate_library(cfg.library_cfg)
+    if cfg.library_cfg is not None:
+        lib = instantiate_library(cfg.library_cfg)
+    else:
+        lib = ComponentLibrary()
     graph = instantiate_graph(cfg.graph, lib)
     return Executable(
         node=graph.get_node(cfg.node_key),
         graph=graph,
-        execution_config=cfg.execution_config,
+        execution_cfg=cfg.execution_cfg,
         input_blocks=cfg.input_blocks,
         # result=cfg.result,
         library=lib,

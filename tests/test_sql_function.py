@@ -12,6 +12,7 @@ from basis.core.sql.sql_function import (
     ParsedSqlStatement,
     extract_tables,
     sql_function,
+    sql_function_factory,
 )
 from tests.utils import make_test_env
 
@@ -119,7 +120,7 @@ def test_sql_function_interface():
     sql = """select 1 from t1
         join t2 on t1.a = t2.b left join t3
         on"""
-    df = sql_function("s1", sql)
+    df = sql_function_factory("s1", sql)
     pi = df.get_interface()
     assert pi is not None
 
@@ -218,7 +219,7 @@ def test_sql_function_interface_comment_like_string():
     sql = """select 1, 'not a commment -- nope'
         from -- comment inbetween
         t1, t2 on t1.a = t2.b"""
-    df = sql_function("s1", sql)
+    df = sql_function_factory("s1", sql)
     pi = df.get_interface()
     assert pi is not None
     assert len(pi.inputs) == 2
@@ -228,7 +229,7 @@ def test_sql_function_interface_jinja_block():
     sql = """select 1, 'not a commment -- nope'
         from {% if False %}{% endif %}
         t1, t2 on t1.a = t2.b"""
-    df = sql_function("s1", sql)
+    df = sql_function_factory("s1", sql)
     pi = df.get_interface()
     assert pi is not None
     assert len(pi.inputs) == 2
@@ -238,7 +239,7 @@ def test_sql_function_interface_self_ref():
     sql = """select 1, 'not a commment -- nope'
         from {% if False %}{% endif %}
         this"""
-    df = sql_function("s1", sql)
+    df = sql_function_factory("s1", sql)
     pi = df.get_interface()
     assert pi is not None
     assert len(pi.inputs) == 1

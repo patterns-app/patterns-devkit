@@ -249,7 +249,7 @@ class Environment:
             schemas=schemas, source_file_functions=source_file_functions
         )
 
-    def get_execution_config(
+    def get_execution_cfg(
         self, target_storage: Union[Storage, str] = None, **kwargs
     ) -> ExecutionCfg:
         from basis.core.declarative.execution import ExecutionCfg
@@ -312,13 +312,11 @@ class Environment:
     ) -> ExecutableCfg:
         from basis.core.execution.run import prepare_executable
 
-        execution_config = self.get_execution_config(
-            target_storage=target_storage, **kwargs
-        )
+        execution_cfg = self.get_execution_cfg(target_storage=target_storage, **kwargs)
         node = graph.get_node(node_key)
         return prepare_executable(
             self,
-            cfg=execution_config,
+            cfg=execution_cfg,
             node=node,
             graph=graph,
             source_file_functions=source_file_functions,

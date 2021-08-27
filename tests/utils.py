@@ -7,7 +7,7 @@ from basis.core.declarative.environment import BasisCfg, EnvironmentCfg
 from basis.core.declarative.execution import ExecutionCfg, ExecutionResult
 from basis.core.environment import Environment
 from basis.core.execution.context import Context
-from basis.core.function import function
+from basis.core.function import function, simple_function
 from basis.core.runtime import Runtime, RuntimeClass, RuntimeEngine
 from basis.utils.typing import T
 from commonmodel.base import create_quick_schema
@@ -53,16 +53,16 @@ def make_test_run_context(env: Environment = None, **kwargs) -> ExecutionCfg:
 
 
 @function
-def function_t1_sink(ctx: Context, input: Block[TestSchema1]):
+def function_t1_sink(ctx: Context):
     pass
 
 
-@function
+@simple_function
 def function_t1_to_t2(input: Block[TestSchema1]) -> DataFrame[TestSchema2]:
     pass
 
 
-@function
+@simple_function
 def function_generic(input: Block[T]) -> DataFrame[T]:
     pass
 
@@ -72,7 +72,7 @@ def function_t1_source(ctx: Context) -> DataFrame[TestSchema1]:
     pass
 
 
-@function
+@simple_function
 def function_stream(input: Stream) -> Block:
     pass
 

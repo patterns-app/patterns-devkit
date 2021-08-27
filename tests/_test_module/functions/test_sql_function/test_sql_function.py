@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from basis import sqlfunction
+from basis import sql_function
 
 
-@sqlfunction(file=__file__)
+@sql_function(file=__file__)
 def test_sql_function():
     return "test_sql_function.sql"

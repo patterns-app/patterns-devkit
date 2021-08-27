@@ -58,7 +58,7 @@ class BlockManager:
         self.stored_blocks = self.block.stored_blocks
         self.storages = storages or []
         if not self.storages and self.ctx is not None:
-            storages = self.ctx.execution_config.storages
+            storages = self.ctx.execution_cfg.storages
         if not self.storages:
             self.storages = [new_local_python_storage()]
         self.schema_translation = schema_translation

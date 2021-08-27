@@ -183,7 +183,7 @@ def function_interface_from_callable(
     return FunctionInterfaceCfg(inputs=inputs, outputs=outputs,)
 
 
-def wrap_bare_callable(function_callable: Callable) -> Callable:
+def wrap_simple_function(function_callable: Callable) -> Callable:
     @wraps(function_callable)
     def function_wrapper(ctx: Context):
         if not ctx.inputs:
@@ -212,21 +212,26 @@ def wrap_bare_callable(function_callable: Callable) -> Callable:
     return function_wrapper
 
 
-def make_function_from_bare_callable(
-    function_callable: Callable, name: Optional[str] = None, **kwargs
+def make_function_from_simple_function(
+    function_callable: Callable,
+    name: Optional[str] = None,
+    inputs: typing.OrderedDict[str, IoBaseCfg] = None,
+    outputs: typing.OrderedDict[str, IoBaseCfg] = None,
+    parameters: typing.OrderedDict[str, ParameterCfg] = None,
+    **kwargs,
 ) -> Function:
     if name is None:
         name = make_function_name(function_callable)
     assert callable(function_callable)
     interface = function_interface_from_callable(function_callable)
-    wrapped_fn = wrap_bare_callable(function_callable)
+    wrapped_fn = wrap_simple_function(function_callable)
     doc = parse_docstring(function_callable.__doc__)
     return Function(
         name=name,
         function_callable=wrapped_fn,
-        inputs=interface.inputs,
-        outputs=interface.outputs,
-        parameters=interface.parameters,
+        inputs=inputs or interface.inputs,
+        outputs=outputs or interface.outputs,
+        parameters=parameters or interface.parameters,
         description=doc.short_description,
         **kwargs,
     )
@@ -236,56 +241,12 @@ def ensure_function(function_like, **kwargs) -> Function:
     if isinstance(function_like, Function):
         return function_like
     elif callable(function_like):
-        return make_function_from_bare_callable(function_like)
+        return make_function_from_simple_function(function_like)
     raise TypeError(f"Function must be callable")
 
 
-# def function_factory(
-#     function_like: Union[FunctionCallable, Function], name: str = None, **kwargs: Any,
-# ) -> Function:
-#     if name is None:
-#         assert function_like is not None
-#         name = make_function_name(function_like)
-#     assert callable(function_like)
-#     interface = function_interface_from_callable(function_like)
-#     wrapped_fn = wrap_bare_function(function_like)
-#     return Function(
-#         name=name,
-#         function_callable=wrapped_fn,
-#         inputs=interface.inputs,
-#         outputs=interface.outputs,
-#     )
-# if isinstance(function_like, Function):
-#     function = Function(
-#         name=name,
-#         function_callable=function_like.function_callable,
-#         required_storage_classes=kwargs.get("required_storage_classes")
-#         or function_like.required_storage_classes,
-#         required_storage_engines=kwargs.get("required_storage_engines")
-#         or function_like.required_storage_engines,
-#         # params=kwargs.get("params") or function_like.params,
-#         # declared_inputs=kwargs.get("declared_inputs")
-#         # or function_like.declared_inputs,
-#         # declared_output=kwargs.get("declared_output")
-#         # or function_like.declared_output,
-#         or function_like.ignore_signature,
-#         display_name=kwargs.get("display_name") or function_like.display_name,
-#         description=kwargs.get("description") or function_like.description,
-#     )
-# else:
-#     if namespace is None:
-#         namespace = DEFAULT_NAMESPACE
-#     if isinstance(namespace, BasisModule):
-#         namespace = namespace.namespace
-#     else:
-#         namespace = namespace
-#     function = Function(
-#         name=name, namespace=namespace, function_callable=function_like, **kwargs,
-#     )
-# if namespace == DEFAULT_NAMESPACE:
-#     # Add to default module
-#     DEFAULT_LOCAL_MODULE.add_function(function)
-# return function
+def list_to_ordered_dict(lst: List) -> OrderedDict:
+    return OrderedDict([(i.name, i) for i in lst or []])
 
 
 def function_decorator(
@@ -308,9 +269,9 @@ def function_decorator(
     fn = function_or_name
     if name is None:
         name = make_function_name(fn)
-    inputs_od = OrderedDict([(i.name, i) for i in inputs or []])
-    outputs_od = OrderedDict([(i.name, i) for i in outputs or []])
-    parameters_od = OrderedDict([(i.name, i) for i in parameters or []])
+    inputs_od = list_to_ordered_dict(inputs or [])
+    outputs_od = list_to_ordered_dict(outputs or [])
+    parameters_od = list_to_ordered_dict(parameters or [])
     return Function(
         name=name,
         function_callable=fn,
@@ -321,20 +282,34 @@ def function_decorator(
     )
 
 
-# def make_function(function_like: FunctionLike, **kwargs) -> Function:
-#     if isinstance(function_like, Function):
-#         return function_like
-#     return function_factory(function_like, **kwargs)
-
-
-# def ensure_function(
-#     env: Environment, function_like: Union[FunctionLike, str]
-# ) -> Function:
-#     if isinstance(function_like, Function):
-#         return function_like
-#     if isinstance(function_like, str):
-#         return env.get_function(function_like)
-#     return make_function(function_like)
+def simple_function_decorator(
+    function_or_name: Union[str, FunctionCallable, Function] = None,
+    name: str = None,
+    inputs: List[IoBaseCfg] = None,
+    outputs: List[IoBaseCfg] = None,
+    parameters: List[ParameterCfg] = None,
+    **kwargs,
+) -> Union[Function, Callable]:
+    if isinstance(function_or_name, str) or function_or_name is None:
+        return partial(
+            function_decorator,
+            name=name or function_or_name,
+            inputs=inputs,
+            outputs=outputs,
+            parameters=parameters,
+            **kwargs,
+        )
+    inputs_od = list_to_ordered_dict(inputs or [])
+    outputs_od = list_to_ordered_dict(outputs or [])
+    parameters_od = list_to_ordered_dict(parameters or [])
+    return make_function_from_simple_function(
+        function_or_name,
+        name=name,
+        inputs=inputs_od,
+        outputs=outputs_od,
+        parameters=parameters_od,
+        **kwargs,
+    )
 
 
 class PythonCodeFunctionWrapper:
@@ -374,3 +349,4 @@ class PythonCodeFunctionWrapper:
 
 # Decorator API
 function = function_decorator
+simple_function = simple_function_decorator

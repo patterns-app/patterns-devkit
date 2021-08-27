@@ -54,7 +54,7 @@ def accumulator_sql(
     if previous:
         blocks.append(previous)
     blocks.extend(input)
-    target_storage = ctx.execution_config.get_target_storage()
+    target_storage = ctx.execution_cfg.get_target_storage()
     dialect = target_storage.get_api().get_engine().dialect
     as_identifier = target_storage.get_api().get_quoted_identifier
     select_stmts = []

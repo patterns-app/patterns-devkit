@@ -77,6 +77,12 @@ def get_block_id(node_key: str, output_name: str = None) -> str:
     return _make_block_id(uid, node_key, output_name)
 
 
+def get_block_id_from_existing_prefix(existing: str) -> str:
+    uid = timestamp_increment_key()
+    prefix = "_".join(existing.split("_")[:-1])
+    return prefix + "_" + uid
+
+
 def ensure_lib(lib: Union[Environment, ComponentLibrary]) -> ComponentLibrary:
     if isinstance(lib, Environment):
         return lib.library

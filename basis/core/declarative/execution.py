@@ -57,7 +57,7 @@ class ExecutionCfg(FrozenPydanticBase):
 class ExecutableCfg(FrozenPydanticBase):
     node_key: str
     graph: List[NodeCfg]
-    execution_config: ExecutionCfg
+    execution_cfg: ExecutionCfg
     input_blocks: Dict[str, List[BlockWithStoredBlocksCfg]] = {}
     library_cfg: Optional[ComponentLibraryCfg] = None
     retries_remaining: int = 3  # TODO: configurable

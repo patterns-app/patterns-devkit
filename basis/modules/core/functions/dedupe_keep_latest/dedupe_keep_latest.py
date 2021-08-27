@@ -26,7 +26,7 @@ def dedupe_keep_latest(ctx: Context, input: Block[T]) -> DataFrame[T]:
     TODO: how to specify _supported_ storage classes vs _required_ storage classes / engines?
     """
     if (
-        ctx.execution_config.get_target_storage().storage_engine.storage_class
+        ctx.execution_cfg.get_target_storage().storage_engine.storage_class
         == DatabaseStorageClass
     ):
         return dedupe_keep_latest_sql(ctx, input)
