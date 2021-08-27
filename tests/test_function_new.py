@@ -10,7 +10,7 @@ from basis.core.declarative.function import (
     Table,
 )
 from basis.core.function import (
-    make_function_from_bare_callable,
+    make_function_from_simple_function,
     function_interface_from_callable,
     function,
 )
@@ -48,12 +48,12 @@ def test_function_interface():
 
 
 def test_function_wrapper():
-    fn = make_function_from_bare_callable(function_simple_generate)
+    fn = make_function_from_simple_function(function_simple_generate)
     assert fn.name == "function_simple_generate"
     assert len(fn.inputs) == 0
     assert len(fn.outputs) == 1
     assert len(fn.parameters) == 0
-    fn = make_function_from_bare_callable(function_simple_transform)
+    fn = make_function_from_simple_function(function_simple_transform)
     assert fn.name == "function_simple_transform"
     assert len(fn.inputs) == 1
     assert len(fn.outputs) == 1
