@@ -177,32 +177,11 @@ class Environment:
         self.library.add_schema(schema)
         global_library.add_schema(schema)  # TODO: really?
 
-    # def all_schemas(self) -> List[Schema]:
-    #     return self.library.all_schemas()
-
     def get_function(self, function_like: str) -> Function:
         return self.library.get_function(function_like)
 
     def add_function(self, function: Function):
         self.library.add_function(function)
-
-    # def all_functions(self) -> List[Function]:
-    #     return self.library.all_functions()
-
-    # def add_module(self, *modules: Union[BasisModule, ModuleType, str]):
-    #     for module in modules:
-    #         if isinstance(module, str):
-    #             if module in (DEFAULT_LOCAL_NAMESPACE, "core"):
-    #                 continue
-    #             try:
-    #                 module = import_module(module)
-    #             except ImportError:
-    #                 if "test" in module:
-    #                     logger.debug(f"Could not import module {module}")
-    #                 else:
-    #                     logger.warning(f"Could not import module {module}")
-    #                 continue
-    #         self.library.add_module(module)
 
     def get_default_storage(self) -> Storage:
         if self.cfg.default_storage is not None:
@@ -276,25 +255,6 @@ class Environment:
 
     def get_storages(self) -> List[Storage]:
         return [Storage(s) for s in self.cfg.storages] + [self._local_python_storage]
-
-    # @contextmanager
-    # def run(
-    #     self, graph: Graph, target_storage: Storage = None, **kwargs
-    # ) -> Iterator[ExecutionManager]:
-    #     from basis.core.execution.execution import ExecutionManager
-
-    #     # self.session.begin_nested()
-    #     ec = self.get_execution_context(target_storage=target_storage, **kwargs)
-    #     em = ExecutionManager(ec)
-    #     logger.debug(f"executing on graph {graph.adjacency_list()}")
-    #     try:
-    #         yield em
-    #     except Exception as e:
-    #         raise e
-    #     finally:
-    #         # TODO:
-    #         # self.validate_and_clean_blocks(delete_intermediate=True)
-    #         pass
 
     def prepare_graph(self, graph: Optional[GraphCfg] = None) -> GraphCfg:
         if graph is None:
@@ -532,22 +492,6 @@ class Environment:
         return cnt
 
 
-# # Shortcuts
-# def produce(
-#     node: Union[str, GraphCfg],
-#     graph: Optional[GraphCfg] = None,
-#     env: Optional[Environment] = None,
-#     modules: Optional[List[BasisModule]] = None,
-#     **kwargs: Any,
-# ) -> List[Block]:
-#     if env is None:
-#         env = Environment()
-#     if modules is not None:
-#         for module in modules:
-#             env.add_module(module)
-#     return env.produce(node, graph=graph, **kwargs)
-
-
 def run_node(
     node: Union[str, GraphCfg],
     graph: Optional[GraphCfg] = None,
@@ -575,38 +519,6 @@ def run_graph(
         for module in modules:
             env.add_module(module)
     return env.run_graph(graph, **kwargs)
-
-
-### Environments are singletons!
-
-# environments: Dict[str, Environment] = {}
-
-# def get_environment(env_or_name: Union[str, Environment]) -> Environment:
-#     env = None
-#     if isinstance(env_or_name, Environment):
-#         name = env_or_name.name
-#         env = env_or_name
-#     else:
-#         name = env_or_name
-#     if not name in environments:
-#         if env is None:
-#             raise KeyError(name)
-#         environments[name] = env
-#     return environments[name]
-
-# def load_environment_from_yaml(yml) -> Environment:
-#
-
-#     env = Environment(
-#         metadata_storage=yml.get("metadata_storage", None),
-#         add_default_python_runtime=yml.get("add_default_python_runtime", True),
-#     )
-#     for url in yml.get("storages", []):
-#         env.add_storage(Storage.from_url(url))
-#     for namespace in yml.get("modules", []):
-#         m = import_module(namespace)
-#         env.add_module(m)
-#     return env
 
 
 def load_environment_from_project(project: Any) -> Environment:

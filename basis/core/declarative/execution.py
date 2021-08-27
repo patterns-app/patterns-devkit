@@ -91,30 +91,6 @@ class PythonException(FrozenPydanticBase):
         return PythonException(error=error, traceback=tback)
 
 
-# class StreamResult(PydanticBase):
-#     blocks: List[BlockMetadataCfg] = []
-#     start_block_id: Optional[str] = None
-#     latest_block_id: Optional[str] = None
-#     block_count: int = 0
-
-
-# class StreamState(PydanticBase):
-#     start_block_id: Optional[str] = None
-#     latest_block_id: Optional[str] = None
-#     block_count: int = 0
-
-#     def mark_latest_record_consumed(self, record: Record):
-#         return self.mark_progress(record.block)
-
-#     def mark_emitted(self, block: Block):
-#         return self.mark_progress(block)
-
-#     def mark_progress(self, block: Block):
-#         if self.start_block_id is None:
-#             self.start_block_id = block.id
-#         self.latest_block_id = block.id
-
-
 class ExecutionResult(PydanticBase):
     node_key: str
     # node_version: str  # TODO: hash of relevant node config (code, params, etc?)

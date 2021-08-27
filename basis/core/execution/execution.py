@@ -152,18 +152,6 @@ class ExecutionManager:
         #     self.emit_output_object(ctx, output_obj)
         #     # TODO: update node state block counts?
 
-    # def emit_output_object(self, ctx: Context, output_obj: DataInterfaceType):
-    #     assert output_obj is not None
-    #     if isinstance(output_obj, abc.Generator):
-    #         output_iterator = output_obj
-    #     else:
-    #         output_iterator = [output_obj]
-    #     i = 0
-    #     for output_obj in output_iterator:
-    #         logger.debug(output_obj)
-    #         i += 1
-    #         ctx.emit(output_obj)
-
     def log_execution_result(self, result: ExecutionResult):
         return
         # TODO
