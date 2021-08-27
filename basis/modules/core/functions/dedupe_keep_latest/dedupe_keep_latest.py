@@ -17,7 +17,8 @@ from pandas import DataFrame
 
 
 @function(
-    namespace="core", display_name="Dedupe records (keep latest)",
+    namespace="core",
+    display_name="Dedupe records (keep latest)",
 )
 def dedupe_keep_latest(ctx: Context, input: Block[T]) -> DataFrame[T]:
     """Adaptive to storages.

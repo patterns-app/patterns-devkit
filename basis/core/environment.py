@@ -1,9 +1,8 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from basis.core.declarative.environment import EnvironmentCfg
 
 import logging
 import os
+from dataclasses import dataclass
 from importlib import import_module
 from types import ModuleType
 from typing import (
@@ -21,6 +20,7 @@ from typing import (
 from alembic import command
 from alembic.config import Config
 from basis.core.component import ComponentLibrary, global_library
+from basis.core.declarative.environment import EnvironmentCfg
 from basis.core.declarative.function import FunctionSourceFileCfg
 from basis.core.persistence.api import MetadataApi
 from basis.core.persistence.schema import (
@@ -30,7 +30,6 @@ from basis.core.persistence.schema import (
 )
 from commonmodel.base import Schema, SchemaLike
 from dcp import Storage
-
 # from dcp.data_format.inference import is_generated_schema
 from dcp.storage.base import MemoryStorageClass, ensure_storage
 from dcp.storage.memory.engines.python import new_local_python_storage
@@ -308,7 +307,9 @@ class Environment:
         return results
 
     def translate_node_to_flattened_nodes(
-        self, node: Union[GraphCfg, str], flattened_graph: Optional[GraphCfg] = None,
+        self,
+        node: Union[GraphCfg, str],
+        flattened_graph: Optional[GraphCfg] = None,
     ) -> List[GraphCfg]:
         # Return in execution order
         assert flattened_graph.is_flattened()
@@ -388,7 +389,9 @@ class Environment:
         return get_latest_output(self, node)
 
     def reset_node(
-        self, node: Union[GraphCfg, str], graph: Optional[GraphCfg] = None,
+        self,
+        node: Union[GraphCfg, str],
+        graph: Optional[GraphCfg] = None,
     ):
         from basis.core.persistence.state import reset
 

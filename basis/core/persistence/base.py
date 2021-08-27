@@ -1,8 +1,8 @@
-from basis.utils.ulid import generate_ulid_as_base32
 from collections import OrderedDict
 from typing import Any
 
 from basis.utils.output import cf
+from basis.utils.ulid import generate_ulid_as_base32
 from commonmodel import Schema
 from dcp.data_format.base import DataFormat, DataFormatBase, get_format_for_nickname
 from dcp.utils.common import rand_str, title_to_snake_case, utcnow

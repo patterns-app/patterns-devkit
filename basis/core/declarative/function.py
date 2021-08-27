@@ -1,8 +1,8 @@
 from __future__ import annotations
-from collections import OrderedDict
-from dataclasses import asdict, dataclass
 
 import typing
+from collections import OrderedDict
+from dataclasses import asdict, dataclass
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -16,16 +16,15 @@ from typing import (
     TypeVar,
     Union,
 )
-from commonmodel.base import schema_like_to_key
 
 import networkx as nx
-from pydantic import Field
-from pydantic.class_validators import root_validator
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase, update
 from basis.core.persistence.schema import is_generic
 from commonmodel import Schema
-
+from commonmodel.base import schema_like_to_key
+from pydantic import Field
+from pydantic.class_validators import root_validator
 
 DEFAULT_OUTPUT_NAME = "stdout"
 DEFAULT_INPUT_NAME = "stdin"
@@ -135,9 +134,12 @@ class ParameterType(str, Enum):
 def normalize_parameter_type(pt: Union[str, ParameterType]) -> ParameterType:
     if isinstance(pt, ParameterType):
         return pt
-    pt = dict(text="str", boolean="bool", number="float", integer="int",).get(
-        pt.lower(), pt
-    )
+    pt = dict(
+        text="str",
+        boolean="bool",
+        number="float",
+        integer="int",
+    ).get(pt.lower(), pt)
     return ParameterType(pt)
 
 
@@ -166,7 +168,9 @@ def Parameter(
 
 
 DEFAULT_INPUT_ANNOTATION = "Block"
-DEFAULT_OUTPUT = Table(name=DEFAULT_OUTPUT_NAME,)
+DEFAULT_OUTPUT = Table(
+    name=DEFAULT_OUTPUT_NAME,
+)
 DEFAULT_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
 DEFAULT_STATE_OUTPUT = None  # IoBase(

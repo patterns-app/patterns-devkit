@@ -1,18 +1,12 @@
 from __future__ import annotations
-from basis.core.execution.context import Context
-
 
 import pytest
-from basis.core.declarative.function import (
-    BlockType,
-    Parameter,
-    Record,
-    Table,
-)
+from basis.core.declarative.function import BlockType, Parameter, Record, Table
+from basis.core.execution.context import Context
 from basis.core.function import (
-    make_function_from_simple_function,
-    function_interface_from_callable,
     function,
+    function_interface_from_callable,
+    make_function_from_simple_function,
 )
 
 
@@ -66,4 +60,3 @@ def test_function_decorator():
     assert len(fn.inputs) == 2
     assert len(fn.outputs) == 2
     assert len(fn.parameters) == 1
-

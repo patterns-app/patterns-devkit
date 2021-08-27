@@ -27,9 +27,14 @@ def test_sql_parse_new_style_jinja():
     assert dfi == FunctionInterfaceCfg(
         inputs={
             "orders": IoBaseCfg(
-                name="orders", schema="TestSchema", block_type=BlockType.Record,
+                name="orders",
+                schema="TestSchema",
+                block_type=BlockType.Record,
             ),
-            "customers": IoBaseCfg(name="customers", block_type=BlockType.Table,),
+            "customers": IoBaseCfg(
+                name="customers",
+                block_type=BlockType.Table,
+            ),
         },
         outputs=DEFAULT_OUTPUTS,
         parameters={
@@ -43,7 +48,11 @@ def test_sql_render_new_style_jinja():
     select * from {{ Table("orders") }}
     where col = {{ Parameter("p1", "text", default=0) }}
     """
-    rendered = render_sql(sql, dict(orders="orders_table"), dict(p1="'val1'"),)
+    rendered = render_sql(
+        sql,
+        dict(orders="orders_table"),
+        dict(p1="'val1'"),
+    )
     expected = """
     select * from orders_table
     where col = 'val1'

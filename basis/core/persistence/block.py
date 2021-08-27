@@ -1,5 +1,4 @@
 from __future__ import annotations
-from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 
 from dataclasses import dataclass
 from typing import (
@@ -15,6 +14,7 @@ from typing import (
 )
 
 from basis.core.component import ComponentLibrary
+from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 from basis.core.environment import Environment
 from basis.core.persistence.base import (
     BaseModel,
@@ -130,7 +130,9 @@ class BlockMetadata(BaseModel):  # , Generic[DT]):
         # return BlockWithStoredBlocksCfg.from_orm(self)
 
     def as_managed_block(
-        self, env: Environment, schema_translation: Optional[SchemaTranslation] = None,
+        self,
+        env: Environment,
+        schema_translation: Optional[SchemaTranslation] = None,
     ) -> Block:
         from basis.core.block import BlockManager
 

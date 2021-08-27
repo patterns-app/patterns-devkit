@@ -1,29 +1,25 @@
 from __future__ import annotations
-from basis.core.declarative.base import update
-from basis.core.execution.result_handlers import (
-    MetadataExecutionResultHandler,
-    set_global_metadata_result_handler,
-)
-from basis.core.node import Node
-from basis.core.graph import Graph
-from basis.core.declarative.node import NodeCfg
 
 from typing import List, Optional, Set, Tuple
 
 from basis.core.block import Block
+from basis.core.declarative.base import update
 from basis.core.declarative.execution import (
     ExecutableCfg,
     ExecutionCfg,
     ExecutionResult,
 )
-from basis.core.declarative.function import (
-    DEFAULT_OUTPUT_NAME,
-    FunctionSourceFileCfg,
-)
+from basis.core.declarative.function import DEFAULT_OUTPUT_NAME, FunctionSourceFileCfg
+from basis.core.declarative.node import NodeCfg
 from basis.core.environment import Environment
 from basis.core.execution.execution import ExecutionManager
-from basis.core.function import Function, DataInterfaceType, InputExhaustedException
-from basis.core.stream import get_input_blocks
+from basis.core.execution.result_handlers import (
+    MetadataExecutionResultHandler,
+    set_global_metadata_result_handler,
+)
+from basis.core.function import DataInterfaceType, Function, InputExhaustedException
+from basis.core.graph import Graph
+from basis.core.node import Node
 from basis.core.persistence.block import (
     Alias,
     BlockMetadata,
@@ -33,15 +29,15 @@ from basis.core.persistence.block import (
 from basis.core.persistence.schema import GeneratedSchema
 from basis.core.persistence.state import (
     Direction,
+    ExecutionLog,
     get_or_create_state,
     get_state,
-    ExecutionLog,
 )
+from basis.core.stream import get_input_blocks
 from basis.utils.output import cf, error_symbol, success_symbol
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from sqlalchemy.sql.expression import select
-
 
 # def run_dataspace(ds: DataspaceCfg):
 #     env = Environment(ds)

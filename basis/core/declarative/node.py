@@ -18,10 +18,7 @@ from typing import (
 import networkx as nx
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase, PydanticBase
-from basis.core.declarative.function import (
-    FunctionCfg,
-    FunctionInterfaceCfg,
-)
+from basis.core.declarative.function import FunctionCfg, FunctionInterfaceCfg
 from commonmodel import Schema
 from dcp.utils.common import as_identifier, remove_dupes
 from loguru import logger
@@ -128,4 +125,3 @@ class NodeCfg(FrozenPydanticBase):
         return as_identifier(
             ident
         )  # TODO: this logic should be storage api specific! and then shared back?
-

@@ -1,14 +1,14 @@
 from __future__ import annotations
-from basis.core.declarative.environment import EnvironmentCfg
-from basis.core.declarative.node import NodeCfg
-from basis.core.graph import Graph, instantiate_graph
 
 from pprint import pprint
 
 import pytest
 from basis.core.component import global_library
 from basis.core.declarative.base import dump_yaml, load_yaml, update
+from basis.core.declarative.environment import EnvironmentCfg
 from basis.core.declarative.flow import FlowCfg
+from basis.core.declarative.node import NodeCfg
+from basis.core.graph import Graph, instantiate_graph
 from basis.modules import core
 from pydantic.error_wrappers import ValidationError
 from tests.utils import (
@@ -84,9 +84,21 @@ def test_make_graph():
     assert len(g.get_all_nodes_in_execution_order()) == len(nodes)
     execution_order = [n.key for n in g.get_all_nodes_in_execution_order()]
     expected_orderings = [
-        ["node2", "node4", "node5",],
-        ["node2", "node4", "node6",],
-        ["node1", "node3", "node7",],
+        [
+            "node2",
+            "node4",
+            "node5",
+        ],
+        [
+            "node2",
+            "node4",
+            "node6",
+        ],
+        [
+            "node1",
+            "node3",
+            "node7",
+        ],
     ]
     # TODO: graph sort not stable!
     for ordering in expected_orderings:

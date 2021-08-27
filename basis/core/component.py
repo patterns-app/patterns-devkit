@@ -4,11 +4,10 @@ import importlib
 from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, List, Union
 
-from loguru import logger
-
 from basis.utils.modules import find_all_of_type_in_module
 from commonmodel import Schema
-from commonmodel.api import register_schema, find_schema
+from commonmodel.api import find_schema, register_schema
+from loguru import logger
 
 if TYPE_CHECKING:
     from basis.core.declarative.environment import ComponentLibraryCfg

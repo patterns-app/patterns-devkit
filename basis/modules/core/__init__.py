@@ -1,6 +1,5 @@
 from commonmodel.base import AnySchema
 
-
 # from .functions.accumulate import accumulate
 # from .functions.accumulator import accumulator
 # from .functions.accumulator_sql import accumulator_sql

@@ -3,14 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from basis import Context, function
-from basis.core.declarative.function import (
-    FunctionInterfaceCfg,
-    FunctionSourceFileCfg,
-)
-from basis.core.function_package import (
-    FunctionPackage,
-    load_function_from_source_file,
-)
+from basis.core.declarative.function import FunctionInterfaceCfg, FunctionSourceFileCfg
+from basis.core.function_package import FunctionPackage, load_function_from_source_file
 from loguru import logger
 
 logger.enable("basis")

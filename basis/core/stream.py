@@ -1,16 +1,16 @@
 from __future__ import annotations
-from basis.core.persistence.pydantic import BlockWithStoredBlocksCfg
-from basis.core.node import Node, instantiate_node
-from basis.core.declarative.node import NodeCfg
-from basis.core.graph import Graph
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 from basis.core.declarative.interface import NodeInputCfg
+from basis.core.declarative.node import NodeCfg
 from basis.core.environment import Environment
+from basis.core.graph import Graph
+from basis.core.node import Node, instantiate_node
 from basis.core.persistence.block import BlockMetadata, StoredBlockMetadata
-from basis.core.persistence.state import ExecutionLog, Direction, StreamState
+from basis.core.persistence.pydantic import BlockWithStoredBlocksCfg
+from basis.core.persistence.state import Direction, ExecutionLog, StreamState
 from commonmodel.base import Schema, SchemaLike, SchemaTranslation, is_any
 from dcp.storage.base import Storage
 from loguru import logger
@@ -32,7 +32,8 @@ def get_schema_translation(
     if declared_schema_translation:
         # If we are given a declared translation, then that overrides a natural translation
         return SchemaTranslation(
-            translation=declared_schema_translation, from_schema_key=source_schema.key,
+            translation=declared_schema_translation,
+            from_schema_key=source_schema.key,
         )
     if target_schema is None or is_any(target_schema):
         # Nothing expected, so no translation needed
@@ -110,7 +111,10 @@ def bind_inputs(
 
 
 def _filter_blocks(
-    env: Environment, node: Node, node_input: NodeInputCfg, cfg: ExecutionCfg,
+    env: Environment,
+    node: Node,
+    node_input: NodeInputCfg,
+    cfg: ExecutionCfg,
 ) -> Select:
     node = node
     eligible_input_dbs = (

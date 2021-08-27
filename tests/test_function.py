@@ -4,8 +4,8 @@ from typing import Any, Callable
 
 import pytest
 from basis import Context
-from basis.core.component import global_library
 from basis.core.block import Block
+from basis.core.component import global_library
 from basis.core.declarative.base import update
 from basis.core.declarative.execution import ExecutableCfg
 from basis.core.declarative.function import (
@@ -22,12 +22,9 @@ from basis.core.function_interface import (
     ParsedAnnotation,
     parse_input_annotation,
 )
-from basis.core.stream import (
-    get_bound_interface,
-    get_schema_translation,
-)
 from basis.core.module import DEFAULT_LOCAL_NAMESPACE
 from basis.core.persistence.block import BlockMetadata
+from basis.core.stream import get_bound_interface, get_schema_translation
 from basis.modules import core
 from basis.utils.typing import T, U
 from pandas import DataFrame
@@ -45,7 +42,6 @@ from tests.utils import (
     make_test_env,
     make_test_run_context,
 )
-
 
 # @pytest.mark.parametrize(
 #     "annotation,expected",
@@ -107,7 +103,11 @@ def function_notworking(_1: int, _2: str, input: Block[TestSchema1]):
     pass
 
 
-def df4(input: Block[T], dr2: Block[U], dr3: Block[U],) -> DataFrame[T]:
+def df4(
+    input: Block[T],
+    dr2: Block[U],
+    dr3: Block[U],
+) -> DataFrame[T]:
     pass
 
 
@@ -285,7 +285,8 @@ def test_declared_schema_translation():
     pi = n1.resolve(global_library).get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = BlockMetadata(
-        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
     )
     # stream = block_as_stream(block, ec, pi.inputs[0].schema(env), translation)
     # bi = im.get_bound_stream_interface({"input": stream})
@@ -315,7 +316,8 @@ def test_natural_schema_translation():
     pi = n1.get_interface()
     # im = NodeInterfaceManager(ctx=ec, node=n1)
     block = BlockMetadata(
-        nominal_schema_key="_test.TestSchema1", realized_schema_key="_test.TestSchema1",
+        nominal_schema_key="_test.TestSchema1",
+        realized_schema_key="_test.TestSchema1",
     )
     with env.md_api.begin():
         schema_translation = get_schema_translation(

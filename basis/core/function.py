@@ -1,14 +1,13 @@
 from __future__ import annotations
-from basis.utils.docstring import BasisParser, Docstring
-from collections import OrderedDict
-import typing
-from basis.cli.commands import output
 
 import inspect
+import typing
+from collections import OrderedDict
 from dataclasses import asdict, dataclass, field
 from functools import partial, wraps
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
+from basis.cli.commands import output
 from basis.core.block import Block
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
@@ -22,6 +21,7 @@ from basis.core.declarative.function import (
     Table,
     is_record_like,
 )
+from basis.utils.docstring import BasisParser, Docstring
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
 
@@ -41,7 +41,9 @@ class InputExhaustedException(FunctionException):
 FunctionCallable = Callable[..., Any]
 
 DataInterfaceType = Union[
-    DataFrame, Records, Block,
+    DataFrame,
+    Records,
+    Block,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -97,7 +99,9 @@ class Function:
 
     def get_interface(self) -> FunctionInterfaceCfg:
         return FunctionInterfaceCfg(
-            inputs=self.inputs, outputs=self.outputs, parameters=self.parameters,
+            inputs=self.inputs,
+            outputs=self.outputs,
+            parameters=self.parameters,
         )
         # found_signature_interface = self._get_function_interface()
         # return found_signature_interface
@@ -184,7 +188,10 @@ def function_interface_from_callable(
             inputs[name] = IoBaseCfg(
                 name=name, block_type=BlockType.Table, required=not optional
             )
-    return FunctionInterfaceCfg(inputs=inputs, outputs=outputs,)
+    return FunctionInterfaceCfg(
+        inputs=inputs,
+        outputs=outputs,
+    )
 
 
 def wrap_simple_function(function_callable: Callable) -> Callable:

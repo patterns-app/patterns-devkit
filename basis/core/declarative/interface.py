@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from commonmodel.base import schema_like_to_key
-from basis.core.declarative.node import NodeCfg
-
 from typing import TYPE_CHECKING, Dict, Iterable, Iterator, List, Optional, Set, Union
 
 from basis.core.block import as_managed
@@ -12,6 +9,8 @@ from basis.core.declarative.function import (
     FunctionInterfaceCfg,
     IoBaseCfg,
 )
+from basis.core.declarative.node import NodeCfg
+from commonmodel.base import schema_like_to_key
 from loguru import logger
 
 
@@ -221,4 +220,3 @@ def resolve_nominal_output_schema(
             if schema is not None:
                 return schema
     raise Exception(f"Unable to resolve generic '{output_generic}'")
-

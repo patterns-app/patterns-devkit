@@ -16,7 +16,6 @@ from sqlalchemy.sql.functions import func
 from sqlalchemy.sql.schema import Column, ForeignKey, UniqueConstraint
 from sqlalchemy.sql.sqltypes import JSON, Boolean, DateTime, Enum, Integer, String
 
-
 if TYPE_CHECKING:
     from basis.core.persistence.pydantic import BlockMetadataCfg
 

@@ -1,8 +1,6 @@
 from __future__ import annotations
-from basis.core.declarative.node import NodeCfg
-from dataclasses import dataclass, field
-from basis.core.node import Node, instantiate_node
 
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -21,10 +19,9 @@ from typing import (
 import networkx as nx
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.declarative.base import FrozenPydanticBase, PydanticBase
-from basis.core.declarative.function import (
-    FunctionCfg,
-    FunctionInterfaceCfg,
-)
+from basis.core.declarative.function import FunctionCfg, FunctionInterfaceCfg
+from basis.core.declarative.node import NodeCfg
+from basis.core.node import Node, instantiate_node
 from commonmodel import Schema
 from dcp.utils.common import as_identifier, remove_dupes
 from loguru import logger

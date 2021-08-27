@@ -1,9 +1,9 @@
 from __future__ import annotations
-from basis.core.declarative.function import Parameter
 
 from typing import Optional
 
 from basis import Context, function
+from basis.core.declarative.function import Parameter
 from dcp.data_format.formats import DataFrameFormat, JsonLinesFileObjectFormat
 from pandas.core.frame import DataFrame
 

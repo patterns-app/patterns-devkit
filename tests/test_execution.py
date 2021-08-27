@@ -1,17 +1,17 @@
 from __future__ import annotations
-from basis.core.execution.executable import instantiate_executable
-from basis.core.declarative.node import NodeCfg
-from basis.core.graph import instantiate_graph
 
 from typing import Optional
 
 import pandas as pd
 import pytest
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
+from basis.core.declarative.node import NodeCfg
+from basis.core.execution.executable import instantiate_executable
 from basis.core.execution.execution import ExecutionManager
 from basis.core.function import function, simple_function
+from basis.core.graph import instantiate_graph
 from basis.core.persistence.block import Alias
-from basis.core.persistence.state import ExecutionLog, Direction
+from basis.core.persistence.state import Direction, ExecutionLog
 from basis.modules import core
 from dcp.data_format.formats.memory.records import Records
 from loguru import logger

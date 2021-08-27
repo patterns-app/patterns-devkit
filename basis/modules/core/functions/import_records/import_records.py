@@ -9,7 +9,8 @@ from dcp.data_format.formats.memory.records import RecordsFormat
 
 
 @function(
-    namespace="core", display_name="Import Records (List of dicts)",
+    namespace="core",
+    display_name="Import Records (List of dicts)",
 )
 def import_records(ctx: Context, records: str, schema: Optional[str] = None):
     imported = ctx.get_state_value("imported")

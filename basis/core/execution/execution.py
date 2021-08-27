@@ -1,11 +1,4 @@
 from __future__ import annotations
-from basis.core.execution.result_handlers import (
-    DebugMetadataExecutionResultHandler,
-    MetadataExecutionResultHandler,
-    RemoteCallbackMetadataExecutionResultHandler,
-    get_global_metadata_result_handler,
-)
-from basis.core.execution.executable import Executable, instantiate_executable
 
 from collections import abc, defaultdict
 from contextlib import contextmanager
@@ -22,12 +15,18 @@ from basis.core.declarative.execution import (
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
 from basis.core.environment import Environment
 from basis.core.execution.context import Context
-from basis.core.function import Function, DataInterfaceType, InputExhaustedException
+from basis.core.execution.executable import Executable, instantiate_executable
+from basis.core.execution.result_handlers import (
+    DebugMetadataExecutionResultHandler,
+    MetadataExecutionResultHandler,
+    RemoteCallbackMetadataExecutionResultHandler,
+    get_global_metadata_result_handler,
+)
+from basis.core.function import DataInterfaceType, Function, InputExhaustedException
 from basis.utils.output import cf, error_symbol, success_symbol
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
 from sqlalchemy.sql.expression import select
-
 
 # def run_dataspace(ds: DataspaceCfg):
 #     env = Environment(ds)
@@ -141,7 +140,10 @@ class ExecutionManager:
             function=self.function,
             node=self.node,
             executable=self.exe,
-            result=ExecutionResult(node_key=self.node.key, started_at=utcnow(),),
+            result=ExecutionResult(
+                node_key=self.node.key,
+                started_at=utcnow(),
+            ),
             inputs=inputs,
             execution_start_time=utcnow(),
             library=self.exe.library,

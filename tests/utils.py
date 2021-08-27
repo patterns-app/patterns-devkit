@@ -47,7 +47,12 @@ def make_test_env(**kwargs) -> Environment:
 def make_test_run_context(env: Environment = None, **kwargs) -> ExecutionCfg:
     s = f"python://_test_default_{rand_str(6)}"
     env = env or make_test_env()
-    args = dict(cfg=env.cfg, local_storage=s, target_storage=s, storages=[s],)
+    args = dict(
+        cfg=env.cfg,
+        local_storage=s,
+        target_storage=s,
+        storages=[s],
+    )
     args.update(**kwargs)
     return ExecutionCfg(**args)
 

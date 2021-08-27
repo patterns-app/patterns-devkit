@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy.sql.sqltypes import Enum
-
 from basis.core.declarative.base import FrozenPydanticBase
-
+from sqlalchemy.sql.sqltypes import Enum
 
 # TODO: lots of useful events we could publish from process
 

@@ -1,9 +1,9 @@
-from basis.utils.ulid import generate_ulid_as_base32
 from datetime import datetime, timedelta
 from time import time
 
 from basis.helpers.connectors.connection import HttpApiConnection
 from basis.helpers.connectors.mock_data_source import GenericJsonObjectDataSource
+from basis.utils.ulid import generate_ulid_as_base32
 
 
 def test_http_conn():

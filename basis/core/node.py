@@ -1,8 +1,6 @@
 from __future__ import annotations
-from dataclasses import dataclass
-from basis.core.declarative.node import NodeCfg, NodeOutputCfg
-from basis.core.function import Function
 
+from dataclasses import dataclass
 from enum import Enum
 from typing import (
     TYPE_CHECKING,
@@ -27,6 +25,8 @@ from basis.core.declarative.function import (
     FunctionCfg,
     FunctionInterfaceCfg,
 )
+from basis.core.declarative.node import NodeCfg, NodeOutputCfg
+from basis.core.function import Function
 from commonmodel import Schema
 from dcp.utils.common import as_identifier, remove_dupes
 from loguru import logger

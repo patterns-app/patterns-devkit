@@ -423,4 +423,3 @@ def ulid_to_binary(ulid):
     if isinstance(ulid, (bytes, bytearray)) and len(ulid) == 16:
         return ulid
     raise InvalidULID("can not convert ulid %r to binary" % ulid)
-

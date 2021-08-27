@@ -1,5 +1,4 @@
 from __future__ import annotations
-from basis.core.declarative.interface import resolve_nominal_output_schema
 
 import re
 from dataclasses import asdict, dataclass
@@ -9,22 +8,22 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import sqlparse
-from basis.core.component import ComponentLibrary
 from basis.core.block import Block
+from basis.core.component import ComponentLibrary
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     FunctionInterfaceCfg,
     Table,
 )
+from basis.core.declarative.interface import resolve_nominal_output_schema
 from basis.core.environment import Environment
 from basis.core.execution.context import Context
 from basis.core.function import (
-    Function,
     DataInterfaceType,
+    Function,
     function_decorator,
     make_function_from_simple_function,
 )
-
 from basis.core.function_package import load_file
 from basis.core.sql.jinja import parse_interface_from_sql, render_sql
 from commonmodel.base import SchemaLike, SchemaTranslation
@@ -147,7 +146,9 @@ def extract_tables(  # noqa: C901
     new_sql_str = "".join(new_sql)
     new_sql_str = re.sub(r"as\s+\w+\s+as\s+(\w+)", r"as \1", new_sql_str, flags=re.I)
     return ParsedSqlStatement(
-        original_sql=sql, sql_with_jinja_vars=new_sql_str, found_tables=found_tables,
+        original_sql=sql,
+        sql_with_jinja_vars=new_sql_str,
+        found_tables=found_tables,
     )
 
 
@@ -164,7 +165,9 @@ def get_interface_from_sql(
         for table in table_parse.found_tables or []:
             interface.inputs[table] = Table(name=table)
     return ParsedSqlStatement(
-        original_sql=sql, sql_with_jinja_vars=new_sql, interface=interface,
+        original_sql=sql,
+        sql_with_jinja_vars=new_sql,
+        interface=interface,
     )
 
 
@@ -258,7 +261,10 @@ class SqlFunctionWrapper:
         emit_table_from_sql(ctx, sql, storage, resolved_nominal_key)
 
     def get_input_table_stmts(
-        self, ctx: Context, storage: Storage, inputs: Dict[str, Block] = None,
+        self,
+        ctx: Context,
+        storage: Storage,
+        inputs: Dict[str, Block] = None,
     ) -> Dict[str, str]:
         if inputs is None:
             return {}
@@ -269,7 +275,10 @@ class SqlFunctionWrapper:
         return table_stmts
 
     def get_compiled_sql(
-        self, ctx: Context, storage: Storage, inputs: Dict[str, Block] = None,
+        self,
+        ctx: Context,
+        storage: Storage,
+        inputs: Dict[str, Block] = None,
     ):
         input_sql = self.get_input_table_stmts(ctx, storage, inputs)
         sql_ctx = dict(
@@ -367,7 +376,11 @@ def sql_function_decorator(
     else:
         name = sql_fn_or_function.__name__
     return sql_function_factory(
-        name=name, sql=sql, file=file, autodetect_inputs=autodetect_inputs, **kwargs,
+        name=name,
+        sql=sql,
+        file=file,
+        autodetect_inputs=autodetect_inputs,
+        **kwargs,
     )
 
 

@@ -1,15 +1,12 @@
 from __future__ import annotations
-from basis.core.persistence.block import get_block_id, get_block_id_from_existing_prefix
 
 import os
 from typing import TYPE_CHECKING, List, Optional, Type
 
 from basis.core.component import ComponentLibrary, global_library
 from basis.core.environment import Environment
-from basis.core.persistence.pydantic import (
-    BlockMetadataCfg,
-    StoredBlockMetadataCfg,
-)
+from basis.core.persistence.block import get_block_id, get_block_id_from_existing_prefix
+from basis.core.persistence.pydantic import BlockMetadataCfg, StoredBlockMetadataCfg
 from dcp import StorageFormat
 from dcp.data_copy.base import CopyRequest
 from dcp.data_copy.graph import execute_copy_request, get_copy_path
@@ -99,5 +96,9 @@ def ensure_block_on_storage_cfg(
         data_is_written=True,
     )
     req.to_name = out_sdb.name
-    created_sdbs = copy_sdb_cfg(request=req, in_sdb=in_sdb, out_sdb=out_sdb,)
+    created_sdbs = copy_sdb_cfg(
+        request=req,
+        in_sdb=in_sdb,
+        out_sdb=out_sdb,
+    )
     return [out_sdb] + created_sdbs

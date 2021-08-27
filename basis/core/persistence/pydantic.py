@@ -2,12 +2,7 @@ from __future__ import annotations
 
 from typing import Any, List
 
-from basis.core.persistence.block import (
-    Alias,
-    BlockMetadata,
-    StoredBlockMetadata,
-)
-
+from basis.core.persistence.block import Alias, BlockMetadata, StoredBlockMetadata
 from basis.core.persistence.state import ExecutionLog
 from dcp.data_format.base import DataFormat, get_format_for_nickname
 from dcp.storage.base import Storage

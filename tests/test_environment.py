@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from . import _test_module
 from basis.core.declarative.environment import BasisCfg, EnvironmentCfg
 from basis.core.environment import Environment
 from basis.core.persistence.block import BlockMetadata
@@ -8,6 +7,8 @@ from dcp.storage.database.utils import get_tmp_sqlite_db_url
 from dcp.utils.common import rand_str
 from loguru import logger
 from sqlalchemy.sql.expression import select
+
+from . import _test_module
 
 # logger.enable("basis")
 

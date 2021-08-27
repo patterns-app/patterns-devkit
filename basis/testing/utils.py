@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
-from basis import Block, Function, Environment
+from basis import Block, Environment, Function
 from basis.core.component import ComponentLibrary
 from basis.core.declarative.execution import ExecutionResult
 from basis.core.declarative.function import DEFAULT_OUTPUT_NAME
@@ -32,7 +32,9 @@ def display_function_log(env: Environment):
 
 
 def str_as_dataframe(
-    env: Environment, test_data: str, nominal_schema: Optional[Schema] = None,
+    env: Environment,
+    test_data: str,
+    nominal_schema: Optional[Schema] = None,
 ) -> DataFrame:
     # TODO: add conform_dataframe_to_schema option
     # TODO: support files

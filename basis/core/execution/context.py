@@ -1,8 +1,4 @@
 from __future__ import annotations
-from basis.core.declarative.interface import resolve_nominal_output_schema
-from basis.core.execution.executable import Executable, instantiate_executable
-from basis.core.node import Node
-from basis.core.environment import Environment
 
 import traceback
 from collections import OrderedDict, abc, defaultdict
@@ -11,11 +7,11 @@ from datetime import datetime
 from enum import Enum
 from io import BufferedIOBase, BytesIO, IOBase, RawIOBase
 from typing import (
-    Iterable,
     TYPE_CHECKING,
     Any,
     Callable,
     Dict,
+    Iterable,
     Iterator,
     List,
     Optional,
@@ -40,24 +36,28 @@ from basis.core.declarative.function import (
     IoBaseCfg,
     is_record_like,
 )
+from basis.core.declarative.interface import resolve_nominal_output_schema
+from basis.core.environment import Environment
+from basis.core.execution.executable import Executable, instantiate_executable
 from basis.core.function import Function
-from basis.core.persistence.block import (
-    get_block_id,
-    # get_stored_block_id,
-)
+from basis.core.node import Node
+from basis.core.persistence.block import get_block_id  # get_stored_block_id,
 from basis.core.persistence.pydantic import (
     BlockMetadataCfg,
     BlockWithStoredBlocksCfg,
     ExecutionLogCfg,
     StoredBlockMetadataCfg,
 )
+from basis.core.typing.casting import cast_to_realized_schema
 from commonmodel.base import Schema
+from dcp.data_format import get_handler_for_name
 from dcp.data_format.base import (
     DataFormat,
     DataFormatBase,
     UnknownFormat,
     get_format_for_nickname,
 )
+from dcp.data_format.inference import is_generated_schema
 from dcp.storage.base import (
     FileSystemStorageClass,
     MemoryStorageClass,
@@ -66,9 +66,6 @@ from dcp.storage.base import (
 )
 from dcp.utils.common import rand_str, utcnow
 from loguru import logger
-from basis.core.typing.casting import cast_to_realized_schema
-from dcp.data_format import get_handler_for_name
-from dcp.data_format.inference import is_generated_schema
 
 
 @dataclass
@@ -352,11 +349,13 @@ class OutputHandler:
                 storage.get_api().remove(name)
         logger.debug(f"Copied {result}")
         return OutputHandlerResult(
-            inferred_schema=inferred_schema, realized_schema=realized_schema,
+            inferred_schema=inferred_schema,
+            realized_schema=realized_schema,
         )
 
     def handle_python_object_stream_output(
-        self, obj: Any,
+        self,
+        obj: Any,
     ):
         assert isinstance(obj, dict)  # TODO: only handling dicts for now
         api = self.target_storage.get_api()
@@ -365,7 +364,10 @@ class OutputHandler:
         # assert target_storage.storage_engine.storage_class == KeyValueStorageEngine
         self.target_storage.get_api().put(self.target_name, obj)
 
-    def handle_python_object_table_output(self, obj: Any,) -> OutputHandlerResult:
+    def handle_python_object_table_output(
+        self,
+        obj: Any,
+    ) -> OutputHandlerResult:
         name, storage = self.put_python_object_on_any_storage(obj)
         return self.handle_existing_stored_table_output(name, storage)
 
@@ -418,7 +420,8 @@ class OutputHandler:
     def realize_schema(self, inferred_schema: Schema) -> Schema:
         if self.target_schema:
             realized_schema = cast_to_realized_schema(
-                inferred_schema=inferred_schema, nominal_schema=self.target_schema,
+                inferred_schema=inferred_schema,
+                nominal_schema=self.target_schema,
             )
         else:
             realized_schema = inferred_schema

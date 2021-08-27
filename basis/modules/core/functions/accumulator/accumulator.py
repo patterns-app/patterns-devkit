@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 from datetime import datetime
 
+from basis import Record, Stream, Table, basis
 from basis.core.block import SelfReference, Stream
 from basis.core.function import function
 from basis.utils.typing import T
-from basis import basis, Stream, Table, Record
 from pandas import DataFrame, concat
 
 Context = TypeVar("Context")

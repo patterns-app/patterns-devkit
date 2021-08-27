@@ -15,7 +15,9 @@ from pandas import DataFrame, concat
 
 @function(namespace="core", display_name="Accumulate successive outputs")
 def accumulate(
-    ctx: Context, input: Stream[T], previous: SelfReference[T] = None,
+    ctx: Context,
+    input: Stream[T],
+    previous: SelfReference[T] = None,
 ) -> Block[T]:
     """Adaptive to storages.
     TODO: is this the right pattern for handling different storage classes / engines? No probably not,

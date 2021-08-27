@@ -1,9 +1,9 @@
 from __future__ import annotations
-from basis.core.declarative.base import PydanticBase
 
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from basis.core.declarative.base import PydanticBase
 from basis.core.declarative.function import (
     DEFAULT_OUTPUT_NAME,
     FunctionInterfaceCfg,

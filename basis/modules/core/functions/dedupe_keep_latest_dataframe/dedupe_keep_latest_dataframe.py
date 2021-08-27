@@ -10,7 +10,8 @@ from pandas import DataFrame
 
 
 @function(
-    namespace="core", display_name="Dedupe DataFrame (keep latest)",
+    namespace="core",
+    display_name="Dedupe DataFrame (keep latest)",
 )
 def dedupe_keep_latest_dataframe(input: Block[T]) -> DataFrame[T]:
     if input.nominal_schema is None or not input.nominal_schema.unique_on:
