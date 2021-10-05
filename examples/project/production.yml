@@ -1,0 +1,16 @@
+key: "example-prod"
+storages:
+  - name: storage1
+    url: ${{ secrets.storage1 }}
+  - name: storage2
+    url: ${{ secrets.storage2 }}
+default_storage: storage1
+graph:
+  - app1/app1.yml # Can specify app configs
+  - app2/app2.yml
+  - key: node1 # Or individual nodes
+    component: import_stripe
+    params:
+      resources:
+        - transactions
+        - refunds

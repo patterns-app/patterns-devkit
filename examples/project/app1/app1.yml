@@ -1,0 +1,28 @@
+name: app1
+nodes:
+  - key: source1
+    component: basis_components.stripe.import_stripe
+    params:
+      resources:
+        - transactions
+        - refunds
+    outputs:
+      transactions:
+        storage:
+          storage_class: database
+        aggregate_into_table: true
+  # Alternative: aggregate is explicit node
+  # - key: source1_table
+  #   component: aggregate
+  #   input: source1.transactions
+  - key: comp1
+    component: component1.py
+    input: source1.transactions#table # hash syntax for table vs stream (ugly...)
+    # Alteratively, can be more explicit about table vs stream:
+    table_input: source1.transactions
+    # And support named syntax:
+    table_inputs:
+      transactions: source1.transactions
+  - key: comp2
+    component: component2.py
+    input: source1.refunds
