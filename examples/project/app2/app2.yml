@@ -1,0 +1,5 @@
+name: app2
+nodes:
+  - key: cross_app_ref
+    component: basis_modules.core.dedupe
+    input: app1.source1.refunds # Reference across apps

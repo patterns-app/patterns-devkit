@@ -1,4 +1,6 @@
 name: app1
+parameters:
+  limit: 100
 nodes:
   - key: source1
     component: basis_components.stripe.import_stripe
@@ -26,3 +28,5 @@ nodes:
   - key: comp2
     component: component2.py
     input: source1.refunds
+    params:
+      limit: ${{ parameters.limit }}
