@@ -19,3 +19,24 @@ graph:
       resources:
         - transactions
         - refunds
+
+basis-api-nonprod basis-vpc-host-nonprod basis-logging-nonprod basis-monitoring-prod basis-monitoring-nonprod basis-vpc-host-prod
+
+gcloud config set project basis-api-nonprod
+gcloud services enable bigtableadmin.googleapis.com firestore.googleapis.com iam.googleapis.com spanner.googleapis.com sqladmin.googleapis.com
+gcloud config set project basis-vpc-host-nonprod
+gcloud services enable bigtableadmin.googleapis.com firestore.googleapis.com iam.googleapis.com spanner.googleapis.com sqladmin.googleapis.com
+gcloud config set project basis-logging-nonprod
+gcloud services enable bigtableadmin.googleapis.com firestore.googleapis.com iam.googleapis.com spanner.googleapis.com sqladmin.googleapis.com
+gcloud config set project basis-monitoring-prod
+gcloud services enable bigtableadmin.googleapis.com firestore.googleapis.com iam.googleapis.com spanner.googleapis.com sqladmin.googleapis.com
+gcloud config set project basis-monitoring-nonprod
+gcloud services enable bigtableadmin.googleapis.com firestore.googleapis.com iam.googleapis.com spanner.googleapis.com sqladmin.googleapis.com
+gcloud config set project basis-vpc-host-prod
+gcloud services enable bigtableadmin.googleapis.com firestore.googleapis.com iam.googleapis.com spanner.googleapis.com sqladmin.googleapis.com
+gcloud config set project basis-vpc-host-nonprod basis-logging-nonprod basis-monitoring-prod basis-monitoring-nonprod basis-vpc-host-prod
+gcloud services enable bigtableadmin.googleapis.com firestore.googleapis.com iam.googleapis.com spanner.googleapis.com
+gcloud config set project basis-vpc-host-nonprod basis-logging-nonprod basis-monitoring-prod basis-monitoring-nonprod basis-vpc-host-prod
+gcloud services enable bigtableadmin.googleapis.com firestore.googleapis.com iam.googleapis.com spanner.googleapis.com
+gcloud config set project basis-vpc-host-nonprod basis-logging-nonprod basis-monitoring-prod basis-monitoring-nonprod basis-vpc-host-prod
+gcloud services enable bigtableadmin.googleapis.com firestore.googleapis.com iam.googleapis.com spanner.googleapis.com
