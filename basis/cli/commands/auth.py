@@ -2,21 +2,18 @@ from __future__ import annotations
 
 import os
 import sys
-from contextlib import contextmanager
-from importlib import import_module
-from pathlib import Path
-from types import ModuleType
-from typing import List, Pattern
-
 from cleo import Command
 import requests
 
+from basis.cli.config import (
+    remove_auth_from_basis_config,
+    update_local_basis_config,
+)
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.templates.generator import generate_template
 
 
 DEFAULT_LOGIN_ENDPOINT = "https://api.getbasis.com/api/token-auth/"
-CREDENTIALS_PATH = "~/.basis-config.json"
 
 
 class LoginCommand(BasisCommandBase, Command):
@@ -41,9 +38,8 @@ class LoginCommand(BasisCommandBase, Command):
         if not resp.ok:
             self.line(f"<error>Login failed: {resp.text}</error>")
             exit(1)
-        data = resp.text
-        with open(Path(CREDENTIALS_PATH).expanduser(), "w") as f:
-            f.write(data)
+        data = resp.json()
+        update_local_basis_config(**data)
         self.line("<info>Logged in successfully</info>")
 
 
@@ -55,8 +51,6 @@ class LogoutCommand(BasisCommandBase, Command):
     """
 
     def handle(self):
-        pth = Path(CREDENTIALS_PATH).expanduser()
-        if os.path.exists(pth):
-            os.remove(pth)
+        remove_auth_from_basis_config()
         self.line("<info>Logged out successfully</info>")
 

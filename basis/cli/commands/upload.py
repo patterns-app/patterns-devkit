@@ -34,7 +34,7 @@ class UploadCommand(BasisCommandBase, Command):
         zipf = compress_directory(os.curdir)
         b64_zipf = base64.b64encode(zipf.read())
         endpoint = self.option("endpoint") or DEFAULT_PROJECT_UPLOAD_ENDPOINT
-        session = self.get_authed_session()
+        session = self.get_api_session()
         resp = session.post(endpoint, json={"project_config": cfg, "zip": b64_zipf})
         if not resp.ok:
             self.line(f"<error>Upload failed: {resp.text}</error>")
