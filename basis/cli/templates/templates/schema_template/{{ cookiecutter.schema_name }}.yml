@@ -1,0 +1,33 @@
+commonmodel: 0.3.0
+
+name: { { cookiecutter.schema_name } }
+namespace: { { cookiecutter.namespace } }
+version: 0.1.0
+description: |
+  Description for {{ cookiecutter.schema_name }} schema.
+# immutable: true
+# unique_on:
+#   - id
+fields:
+  id: Text NotNull
+#  amount: Decimal(16,2) NotNull
+#  transacted_at: DateTime NotNull
+#  buyer_id: Text
+#  metadata: Json
+
+# relations:
+#   common.Currency:
+#     fields:
+#       code: currency_code
+
+# implementations:
+#   common.TimeSeries:
+#     time: transacted_at
+#     value: amount
+
+documentation:
+  schema: |
+    Documentation for {{ cookiecutter.schema_name }} schema.
+  fields:
+    id: |
+      Documentation for `id` field.
