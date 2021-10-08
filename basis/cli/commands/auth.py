@@ -50,6 +50,8 @@ class LoginCommand(BasisCommandBase, Command):
 class LogoutCommand(BasisCommandBase, Command):
     """
     Logout of getbasis.com account
+
+    logout
     """
 
     def handle(self):
