@@ -10,14 +10,16 @@ dir_path = Path(__file__).parent
 tmp_folder_name = "_tmp"
 
 
-def generate_template(template_name: str, path: str, flatten: bool = False, **ctx):
+def generate_template(
+    template_name: str, destination_path: str, flatten: bool = False, **ctx
+):
     template_root = dir_path / f"templates/{template_name}"
-    output_dir = Path(path).parent
+    output_dir = Path(destination_path).parent
     cookiecutter(
         str(template_root), no_input=True, extra_context=ctx, output_dir=output_dir
     )
     if flatten:
-        flatten_files_remove_folder(path)
+        flatten_files_remove_folder(destination_path)
 
 
 def flatten_files_remove_folder(path: str):

@@ -26,34 +26,34 @@ class GenerateCommand(BasisCommandBase, Command):
 
     def handle(self):
         type_ = self.argument("type")
-        path = self.argument("path")
+        destination_path = self.argument("path")
         if type_ not in self.supported_types:
             raise ValueError(
                 f"Invalid type {type_}, must be one of {self.supported_types}"
             )
 
-        cfg = getattr(self, f"{type_}_config_from_dialogue")(path)
+        cfg = getattr(self, f"{type_}_config_from_dialogue")(destination_path)
         if "template_name" not in cfg:
             cfg["template_name"] = f"{type_}_template"
         if "path" not in cfg:
-            cfg["path"] = path
+            cfg["destination_path"] = destination_path
         generate_template(**cfg)
-        self.line(f"<info>Successfully created {type_} {path}</info>")
+        self.line(f"<info>Successfully created {type_} {destination_path}</info>")
 
     ### Dialogues
 
-    def project_config_from_dialogue(self, path: str):
-        name = Path(path).name
+    def project_config_from_dialogue(self, destination_path: str):
+        name = Path(destination_path).name
         name = self.ask(f"Project name [{name}]:", name)
         return {"project_name": name}
 
-    def app_config_from_dialogue(self, path: str):
-        name = Path(path).name
+    def app_config_from_dialogue(self, destination_path: str):
+        name = Path(destination_path).name
         name = self.ask(f"App name [{name}]:", name)
         return {"app_name": name}
 
-    def component_config_from_dialogue(self, path: str):
-        name = Path(path).name
+    def component_config_from_dialogue(self, destination_path: str):
+        name = Path(destination_path).name
         name = name.split(".")[0]
         name = self.ask(f"Component name [{name}]:", name)
         langs = ["sql", "python"]
@@ -64,8 +64,8 @@ class GenerateCommand(BasisCommandBase, Command):
         lang = self.ask(lang_q)
         complexity = "simple"
         return {
-            "component_name": name,
             "template_name": f"component_{complexity}_{lang}_template",
-            "path": Path(path).parent / name,
+            "destination_path": Path(destination_path).parent / name,
             "flatten": True,
+            "component_name": name,
         }
