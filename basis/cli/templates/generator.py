@@ -10,23 +10,25 @@ dir_path = Path(__file__).parent
 tmp_folder_name = "_tmp"
 
 
-def generate_template(template_name: str, flatten: bool = False, **ctx):
-    template_root = dir_path / f"templates/{template_name}_template"
+def generate_template(template_name: str, path: str, flatten: bool = False, **ctx):
+    template_root = dir_path / f"templates/{template_name}"
+    output_dir = Path(path).parent
     cookiecutter(
-        str(template_root), no_input=True, extra_context=ctx,
+        str(template_root), no_input=True, extra_context=ctx, output_dir=output_dir
     )
     if flatten:
-        flatten_files_remove_folder(template_root)
+        flatten_files_remove_folder(path)
 
 
-def flatten_files_remove_folder(pth: Path):
-    tmp_dir = Path(os.path.curdir) / tmp_folder_name
-    for roots, dirs, files in os.walk(tmp_dir):
+def flatten_files_remove_folder(path: str):
+    for roots, dirs, files in os.walk(path):
         for f in files:
+            if _should_ignore_file(f):
+                continue
             os.rename(
-                Path(f), Path(f) / "..",
+                Path(path) / Path(f), Path(path) / ".." / Path(f).name,
             )
-    shutil.rmtree(tmp_dir)
+    shutil.rmtree(path)
 
 
 def insert_into_file(pth: str, insert: str, after: str):
@@ -40,3 +42,15 @@ def insert_into_file(pth: str, insert: str, after: str):
             s = s[0 : last_match.end()] + f"\n{insert}\n" + s[(last_match.end() + 1) :]
     with open(pth, "w") as f:
         f.write(s)
+
+
+def _should_ignore_file(path: str) -> bool:
+    for ignored in [
+        ".DS_Store",
+        ".pytest_cache",
+        ".egg-info",
+        "__pycache__",
+    ]:
+        if ignored in path:
+            return True
+    return False

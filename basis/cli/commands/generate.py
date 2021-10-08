@@ -19,30 +19,53 @@ class GenerateCommand(BasisCommandBase, Command):
 
     create
         {type : What to generate, one of [project, app, component]}
+        {path : Path to generate at}
     """
 
     supported_types = ["project", "app", "component"]
 
     def handle(self):
         type_ = self.argument("type")
+        path = self.argument("path")
         if type_ not in self.supported_types:
             raise ValueError(
                 f"Invalid type {type_}, must be one of {self.supported_types}"
             )
 
-        cfg = getattr(self, f"{type_}_config_from_dialogue")()
-        generate_template(type_, **cfg)
+        cfg = getattr(self, f"{type_}_config_from_dialogue")(path)
+        if "template_name" not in cfg:
+            cfg["template_name"] = f"{type_}_template"
+        if "path" not in cfg:
+            cfg["path"] = path
+        generate_template(**cfg)
+        self.line(f"<info>Successfully created {type_} {path}</info>")
 
     ### Dialogues
 
-    def project_config_from_dialogue(self):
-        name = self.ask("Project name: ")
+    def project_config_from_dialogue(self, path: str):
+        name = Path(path).name
+        name = self.ask(f"Project name [{name}]:", name)
         return {"project_name": name}
 
-    def app_config_from_dialogue(self):
-        name = self.ask("App name: ")
+    def app_config_from_dialogue(self, path: str):
+        name = Path(path).name
+        name = self.ask(f"App name [{name}]:", name)
         return {"app_name": name}
 
-    def component_config_from_dialogue(self):
-        name = self.ask("Component name: ")
-        return {"component_name": name}
+    def component_config_from_dialogue(self, path: str):
+        name = Path(path).name
+        name = name.split(".")[0]
+        name = self.ask(f"Component name [{name}]:", name)
+        langs = ["sql", "python"]
+        lang_q = self.create_question(
+            f"Component language [sql, python]:", default="python"
+        )
+        lang_q.set_autocomplete_values(langs)
+        lang = self.ask(lang_q)
+        complexity = "simple"
+        return {
+            "component_name": name,
+            "template_name": f"component_{complexity}_{lang}_template",
+            "path": Path(path).parent / name,
+            "flatten": True,
+        }
