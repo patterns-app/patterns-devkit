@@ -19,14 +19,14 @@ class GenerateCommand(BasisCommandBase, Command):
 
     create
         {type : What to generate, one of [project, app, component]}
-        {path : Path to generate at}
+        {path? : Path to generate at}
     """
 
     supported_types = ["project", "app", "component"]
 
     def handle(self):
         type_ = self.argument("type")
-        destination_path = self.argument("path")
+        destination_path = self.argument("path") or "."
         if type_ not in self.supported_types:
             raise ValueError(
                 f"Invalid type {type_}, must be one of {self.supported_types}"
@@ -35,8 +35,9 @@ class GenerateCommand(BasisCommandBase, Command):
         cfg = getattr(self, f"{type_}_config_from_dialogue")(destination_path)
         if "template_name" not in cfg:
             cfg["template_name"] = f"{type_}_template"
-        if "path" not in cfg:
+        if "destination_path" not in cfg:
             cfg["destination_path"] = destination_path
+        print(cfg)
         generate_template(**cfg)
         self.line(f"<info>Successfully created {type_} {destination_path}</info>")
 

@@ -26,49 +26,45 @@ def get_test_command(name: str, dirpath: str) -> CommandTester:
     return command_tester
 
 
-def test_generate():
+def test_generate_project():
     # Certain file actions not possible in CI env now
     if not IS_CI:
         dr = set_tmp_dir()
         command_tester = get_test_command("create", dr)
-        name = f"testspace_{random.randint(0,10000)}".lower()
-        inputs = "\n".join([name])
-        command_tester.execute(f"project")
-        assert os.path.exists(Path(dr) / "basis.yml")
-        assert os.path.exists(Path(dr) / name)
-        assert os.path.exists(Path(dr) / name / "__init__.py")
-        assert os.path.exists(Path(dr) / name / "functions")
-        assert os.path.exists(Path(dr) / name / "schemas")
-        assert os.path.exists(Path(dr) / name / "flows")
+        name = f"test_{random.randint(0,10000)}".lower()
+        inputs = "\n".join([name]) + "\n"
+        command_tester.execute(f"project", inputs=inputs)
+        assert os.path.exists(Path(dr) / name / "basis.yml")
+        assert os.path.exists(Path(dr) / name / "README.md")
+        assert os.path.exists(Path(dr) / name / "requirements.txt")
 
-        fn_name = "function1"
-        command_tester.execute(f"function {fn_name}")
-        assert os.path.exists(Path(dr) / name / "functions" / fn_name)
-        assert os.path.exists(Path(dr) / name / "functions" / fn_name / f"{fn_name}.py")
+        # With path
+        path = "pth/projname"
+        inputs = "\n"
+        command_tester.execute(f"project {path}", inputs=inputs)
+        assert os.path.exists(Path(dr) / path / "basis.yml")
 
 
-def test_run():
+def test_generate_app():
     # Certain file actions not possible in CI env now
     if not IS_CI:
         dr = set_tmp_dir()
-        ds = (
-            """
-        storages:
-          - sqlite:///%s/.basis.db
-        nodes:
-          - key: import_records
-            function: basis.modules.core.functions.import_records
-            params:
-              records: '[{"f1":1, "f2":2}]'
-        """
-            % dr
-        )
-        with open(Path(dr) / "basis.yml", "w") as f:
-            f.write(ds)
-        command_tester = get_test_command("run", dr)
-        command_tester.execute()
-        command_tester = get_test_command("output", dr)
-        command_tester.execute("import_records")
-        # out = command_tester.io.fetch_output()
-        # print(out)
-        # assert out == '[{"f1":1, "f2":2}]'
+        command_tester = get_test_command("create", dr)
+        name = f"test_{random.randint(0,10000)}".lower()
+        pth = "proj/app1/" + name
+        inputs = "\n"
+        command_tester.execute(f"app {pth}", inputs=inputs)
+        assert os.path.exists(Path(dr) / pth / "app.yml")
+
+
+def test_generate_component():
+    # Certain file actions not possible in CI env now
+    if not IS_CI:
+        dr = set_tmp_dir()
+        command_tester = get_test_command("create", dr)
+        name = f"test_{random.randint(0,10000)}.py".lower()
+        pth = "proj/app1/" + name
+        inputs = "\n".join(["\n", "python"]) + "\n"
+        command_tester.execute(f"component {pth}", inputs=inputs)
+        assert os.path.exists(Path(dr) / pth)
+
