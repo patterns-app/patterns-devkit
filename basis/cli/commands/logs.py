@@ -1,15 +1,15 @@
-from basis.cli.api import app_info, node_info, project_info
+from basis.cli.api import app_logs, node_logs, project_logs
 
 from cleo import Command
 
 from basis.cli.commands.base import BasisCommandBase
 
 
-class InfoCommand(BasisCommandBase, Command):
+class LogsCommand(BasisCommandBase, Command):
     """
-    Fetch basic information on given object
+    Fetch latest logs for object
 
-    info
+    logs
         {type : Type of object, one of [project, app, node]}
         {name : Name of object}
     """
@@ -19,16 +19,16 @@ class InfoCommand(BasisCommandBase, Command):
         name = self.argument("type")
         params = {"name": name}
         if obj_type == "project":
-            resp = project_info(params)
+            resp = project_logs(params)
         elif obj_type == "app":
-            resp = app_info(params)
+            resp = app_logs(params)
         elif obj_type == "node":
-            resp = node_info(params)
+            resp = node_logs(params)
         else:
             self.line(f"<error>Invalid type: {obj_type}</error>")
             exit(1)
         if not resp.ok:
-            self.line(f"<error>Info request failed: {resp.text}</error>")
+            self.line(f"<error>Logs request failed: {resp.text}</error>")
             exit(1)
         data = resp.json()
         self.line(f"<info>{data}</info>")

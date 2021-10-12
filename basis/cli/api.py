@@ -41,7 +41,7 @@ def upload(
 
 
 def project_info(
-    params: Dict, session: Session = None, path: str = "project-version/info"
+    params: Dict, session: Session = None, path: str = "project/info"
 ) -> Response:
     return get(path, params, session)
 
@@ -57,7 +57,7 @@ def node_info(
 
 
 def project_logs(
-    params: Dict, session: Session = None, path: str = "project-version/logs"
+    params: Dict, session: Session = None, path: str = "project/logs"
 ) -> Response:
     return get(path, params, session)
 
