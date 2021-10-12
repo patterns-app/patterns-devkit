@@ -1,14 +1,8 @@
 import os
-import random
 import tempfile
-from pathlib import Path
-from typing import Tuple
 
-import pytest
 from basis.cli.app import app
-from basis.cli.commands.generate import GenerateCommand
-from cleo import Application, CommandTester
-from cleo.testers import command_tester
+from cleo import CommandTester
 
 
 IS_CI = os.environ.get("CI")

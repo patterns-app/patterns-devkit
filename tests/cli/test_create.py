@@ -1,14 +1,7 @@
 import os
 import random
-import tempfile
 from pathlib import Path
-from typing import Tuple
 
-import pytest
-from basis.cli.app import app
-from basis.cli.commands.generate import GenerateCommand
-from cleo import Application, CommandTester
-from cleo.testers import command_tester
 from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
 
 

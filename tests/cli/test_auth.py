@@ -1,17 +1,9 @@
+from basis.cli.api import DEFAULT_BASE_URL
 from basis.cli.config import BASIS_CONFIG_ENV_VAR, read_local_basis_config
 import os
-import random
-import tempfile
 from pathlib import Path
-from typing import Tuple
-from basis.cli.commands.auth import DEFAULT_LOGIN_ENDPOINT
 import requests_mock
 
-import pytest
-from basis.cli.app import app
-from basis.cli.commands.generate import GenerateCommand
-from cleo import Application, CommandTester
-from cleo.testers import command_tester
 from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
 
 
@@ -25,7 +17,7 @@ def test_login():
         pw = "password"
         token = "tok"
         with requests_mock.Mocker() as m:
-            m.post(DEFAULT_LOGIN_ENDPOINT, json={"token": token})
+            m.post(DEFAULT_BASE_URL + "api/token-auth", json={"token": token})
             inputs = "\n".join([un]) + "\n"
             command_tester.execute(f"-p {pw}", inputs=inputs)
 

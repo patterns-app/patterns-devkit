@@ -13,7 +13,7 @@ from basis.cli.templates.generator import generate_template
 from cleo import Command
 
 
-class GenerateCommand(BasisCommandBase, Command):
+class CreateCommand(BasisCommandBase, Command):
     """
     Generate new basis component
 
