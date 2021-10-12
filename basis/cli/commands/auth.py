@@ -24,7 +24,6 @@ class LoginCommand(BasisCommandBase, Command):
         {--e|email=  : getbasis.com email}
         {--p|password= : getbasis.com password}
         {--endpoint= : Login endpoint }
-        {--c|config= : Path to basis config }
     """
 
     def handle(self):
@@ -41,8 +40,7 @@ class LoginCommand(BasisCommandBase, Command):
             self.line(f"<error>Login failed: {resp.text}</error>")
             exit(1)
         data = resp.json()
-        cfg_pth = self.option("config")
-        update_local_basis_config(pth=cfg_pth, **data)
+        update_local_basis_config(**data)
         self.line("<info>Logged in successfully</info>")
 
 

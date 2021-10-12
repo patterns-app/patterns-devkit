@@ -7,7 +7,7 @@ from basis.configuration.base import FrozenPydanticBase
 
 
 class BasisCfg(FrozenPydanticBase):
-    pass
+    version: str = None
     # TODO which of these are needed still
     # initialize_metadata_storage: bool = True
     # abort_on_function_error: bool = False
@@ -21,7 +21,7 @@ class ProjectCfg(FrozenPydanticBase):
     name: str
     storages: List[StorageCfg] = []
     default_storage: Optional[str] = None
-    basis_config: BasisCfg = BasisCfg()
+    basis: BasisCfg = BasisCfg()
     graph: List[AppNodeCfg] = []
     # library: Optional[ComponentLibraryCfg] = None
     # metadata_storage: Optional[str] = None

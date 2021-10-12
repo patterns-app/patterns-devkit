@@ -37,7 +37,6 @@ class GenerateCommand(BasisCommandBase, Command):
             cfg["template_name"] = f"{type_}_template"
         if "destination_path" not in cfg:
             cfg["destination_path"] = destination_path
-        print(cfg)
         generate_template(**cfg)
         self.line(f"<info>Successfully created {type_} {destination_path}</info>")
 
