@@ -9,28 +9,14 @@ from basis.cli.app import app
 from basis.cli.commands.generate import GenerateCommand
 from cleo import Application, CommandTester
 from cleo.testers import command_tester
-
-
-IS_CI = os.environ.get("CI")
-
-
-def set_tmp_dir():
-    dr = tempfile.mkdtemp()
-    os.chdir(dr)
-    return dr
-
-
-def get_test_command(name: str, dirpath: str) -> CommandTester:
-    command = app.find(name)
-    command_tester = CommandTester(command)
-    return command_tester
+from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
 
 
 def test_generate_project():
     # Certain file actions not possible in CI env now
     if not IS_CI:
         dr = set_tmp_dir()
-        command_tester = get_test_command("create", dr)
+        command_tester = get_test_command("create")
         name = f"test_{random.randint(0,10000)}".lower()
         inputs = "\n".join([name]) + "\n"
         command_tester.execute(f"project", inputs=inputs)
@@ -49,7 +35,7 @@ def test_generate_app():
     # Certain file actions not possible in CI env now
     if not IS_CI:
         dr = set_tmp_dir()
-        command_tester = get_test_command("create", dr)
+        command_tester = get_test_command("create")
         name = f"test_{random.randint(0,10000)}".lower()
         pth = "proj/app1/" + name
         inputs = "\n"
@@ -61,7 +47,7 @@ def test_generate_component():
     # Certain file actions not possible in CI env now
     if not IS_CI:
         dr = set_tmp_dir()
-        command_tester = get_test_command("create", dr)
+        command_tester = get_test_command("create")
         name = f"test_{random.randint(0,10000)}.py".lower()
         pth = "proj/app1/" + name
         inputs = "\n".join(["\n", "python"]) + "\n"

@@ -16,6 +16,9 @@ from cleo import Command
 import requests
 
 
+AUTH_TOKEN_PREFIX = "JWT"
+
+
 class BasisCommandBase:
     def get_current_project_yaml(self, config_file: str = "basis.yml") -> Dict:
         return load_yaml(config_file)
@@ -29,8 +32,9 @@ class BasisCommandBase:
         with open(config_file, "w") as f:
             f.write(dump_yaml(project.dict(exclude_unset=True)))
 
-    def get_api_session() -> Session:
+    def get_api_session(self) -> Session:
         s = requests.Session()
         cfg = read_local_basis_config()
         if "token" in cfg:
-            s.headers.update({"Authorization": "JWT " + cfg["token"]})
+            s.headers.update({"Authorization": f"{AUTH_TOKEN_PREFIX} {cfg['token']}"})
+        return s
