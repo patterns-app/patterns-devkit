@@ -2,11 +2,14 @@
 
 <p>&nbsp;</p>
 <p align="center">
-  <img width="200" src="assets/logo.svg">
+  <img width="150" src="assets/logo.svg">
 </p>
-<h1 align="center">Basis</h3>
-<h3 align="center">Build data workflows from re-usable sql and python components</h3>
+<p align="center">
+  <em>Basis - Build data workflows from re-usable sql and python components</em>
+</p>
 <p>&nbsp;</p>
+
+---
 
 ## Installation
 
