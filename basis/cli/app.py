@@ -6,6 +6,7 @@ from basis.cli.commands.logout import LogoutCommand
 
 from basis.cli.commands.generate import GenerateCommand
 from basis.cli.commands.logs import LogsCommand
+from basis.cli.commands.run import RunCommand
 from basis.cli.commands.upload import UploadCommand
 from cleo.application import Application
 
@@ -17,6 +18,7 @@ app.add(LoginCommand())
 app.add(LogoutCommand())
 app.add(InfoCommand())
 app.add(LogsCommand())
+app.add(RunCommand())
 
 
 if __name__ == "__main__":

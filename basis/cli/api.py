@@ -34,6 +34,10 @@ def login(
     return post(path, data, session)
 
 
+def run_node(data: Dict, session: Session = None, path: str = "node/run") -> Response:
+    return post(path, data, session)
+
+
 def upload(
     data: Dict, session: Session = None, path: str = "dataspace-version/upload"
 ) -> Response:
