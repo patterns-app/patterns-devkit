@@ -1,4 +1,4 @@
-from basis.cli.api import app_logs, node_logs, project_logs
+from basis.cli.api import app_logs, node_logs, dataspace_logs
 
 from cleo import Command
 
@@ -10,7 +10,7 @@ class LogsCommand(BasisCommandBase, Command):
     Fetch latest logs for object
 
     logs
-        {type : Type of object, one of [project, app, node]}
+        {type : Type of object, one of [dataspace, app, node]}
         {name : Name of object}
     """
 
@@ -19,8 +19,8 @@ class LogsCommand(BasisCommandBase, Command):
         obj_type = self.argument("type")
         name = self.argument("type")
         params = {"name": name}
-        if obj_type == "project":
-            resp = project_logs(params)
+        if obj_type == "dataspace":
+            resp = dataspace_logs(params)
         elif obj_type == "app":
             resp = app_logs(params)
         elif obj_type == "node":

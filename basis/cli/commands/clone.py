@@ -11,24 +11,25 @@ from basis.cli.commands.base import BasisCommandBase
 
 class CloneCommand(BasisCommandBase, Command):
     """
-    Clone existing project into current directory
+    Clone existing dataspace version into current directory
 
     clone
-        {name : Project name}
+        {name : Dataspace name}
         {--path : Path to expand to}
+        {--dataspace-version : Specific version (defaults to latest version)}
     """
 
     def handle(self):
         self.ensure_authenticated()
-        proj_name = self.argument("name")
-        proj_path = self.option("path") or "."
-        resp = download({"name": proj_name})
+        ds_name = self.argument("name")
+        ds_path = self.option("path") or "."
+        resp = download({"name": ds_name})
         if not resp.ok:
             self.line(f"<error>Download failed: {resp.text}</error>")
             exit(1)
         data = resp.json()
         b64_zipf = data["zip"]
         zip_bytes = base64.b64decode(b64_zipf)
-        expand_directory(BytesIO(zip_bytes), proj_path)
-        self.line(f"<info>Cloned project {proj_name} into {proj_path}</info>")
+        expand_directory(BytesIO(zip_bytes), ds_path)
+        self.line(f"<info>Cloned dataspace files {ds_name} into {ds_path}</info>")
 

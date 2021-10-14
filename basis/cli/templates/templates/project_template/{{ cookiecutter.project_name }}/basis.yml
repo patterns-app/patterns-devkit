@@ -1,3 +1,0 @@
-name: {{ cookiecutter.project_name }}
-basis:
-  version: {{ cookiecutter.basis_version }}

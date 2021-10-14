@@ -9,13 +9,13 @@ def test_upload():
     if not IS_CI:
         dr = set_tmp_dir(create_basis_config=True)
         proj_path = Path(dr) / "proj"
-        # Create project
-        get_test_command("create").execute(f"project {proj_path}", inputs="\n")
+        # Create dataspace
+        get_test_command("generate").execute(f"new {proj_path}", inputs="\n")
         command_tester = get_test_command("upload")
         with requests_mock.Mocker() as m:
             m.post(
-                DEFAULT_BASE_URL + "project-version/upload",
-                json={"project_version_id": 1},
+                DEFAULT_BASE_URL + "dataspace-version/upload",
+                json={"dataspace_version_id": 1},
             )
-            command_tester.execute(f"{proj_path / 'basis.yml'}")
+            command_tester.execute(f"{proj_path / 'dataspace.yml'}")
 

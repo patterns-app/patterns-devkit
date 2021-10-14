@@ -1,4 +1,5 @@
 import os
+import shutil
 import base64
 from basis.cli.api import DEFAULT_BASE_URL
 from basis.cli.helpers import compress_directory
@@ -12,18 +13,18 @@ def test_clone():
     if not IS_CI:
         dr = set_tmp_dir(create_basis_config=True)
         proj_path = Path(dr) / "proj"
-        # Create project
-        get_test_command("create").execute(f"project {proj_path}", inputs="\n")
+        # Create dataspace
+        get_test_command("generate").execute(f"new {proj_path}", inputs="\n")
         zipf = compress_directory(proj_path)
-        os.rmdir(proj_path,)
-        assert not os.path.exists(proj_path / "basis.yml")
+        shutil.rmtree(proj_path)
+        assert not os.path.exists(proj_path / "dataspace.yml")
         b64_zipf = base64.b64encode(zipf.read())
         command_tester = get_test_command("clone")
         with requests_mock.Mocker() as m:
             m.post(
-                DEFAULT_BASE_URL + "project-version/download",
+                DEFAULT_BASE_URL + "dataspace-version/download",
                 json={"zip": b64_zipf.decode()},
             )
             command_tester.execute(f"mock_name")
-        assert os.path.exists(proj_path / "basis.yml")
+        assert os.path.exists(proj_path / "dataspace.yml")
 

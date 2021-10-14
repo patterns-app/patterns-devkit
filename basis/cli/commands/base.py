@@ -1,19 +1,7 @@
 from __future__ import annotations
 
-import os
-import sys
-from contextlib import contextmanager
-from importlib import import_module
-from pathlib import Path
-from types import ModuleType
-from typing import Dict, List, Pattern
 from basis.cli.config import read_local_basis_config
-from basis.configuration.base import dump_yaml, load_yaml
-from basis.configuration.project import ProjectCfg
-
-from basis.cli.templates.generator import generate_template, insert_into_file
-from cleo import Command
-import requests
+from basis.configuration.dataspace import DataspaceCfg
 
 
 class BasisCommandBase:

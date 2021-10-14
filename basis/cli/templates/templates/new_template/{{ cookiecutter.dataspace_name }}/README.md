@@ -1,4 +1,4 @@
-# {{ cookiecutter.project_name }}
+# {{ cookiecutter.dataspace_name }}
 
 ## Installation
 

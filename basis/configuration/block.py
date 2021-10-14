@@ -22,7 +22,7 @@ class StoredBlockCfg(FrozenPydanticBase):
 class TableCfg(FrozenPydanticBase):
     block_id: str
     created_at: datetime
-    project_id: str
+    dataspace_id: str
     node_id: str
     output_name: str
     realized_schema_key: str
@@ -38,7 +38,7 @@ class RecordSliceCfg(FrozenPydanticBase):
     created_at: datetime
     record_start_index_inclusive: str
     record_end_index_inclusive: Optional[str]
-    project_id: str
+    dataspace_id: str
     node_id: str
     output_name: str
     record_count: Optional[int] = None

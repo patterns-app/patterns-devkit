@@ -35,19 +35,19 @@ def login(
 
 
 def upload(
-    data: Dict, session: Session = None, path: str = "project-version/upload"
+    data: Dict, session: Session = None, path: str = "dataspace-version/upload"
 ) -> Response:
     return post(path, data, session)
 
 
 def download(
-    params: Dict, session: Session = None, path: str = "project-version/download"
+    params: Dict, session: Session = None, path: str = "dataspace-version/download"
 ) -> Response:
     return get(path, params, session)
 
 
-def project_info(
-    params: Dict, session: Session = None, path: str = "project/info"
+def dataspace_info(
+    params: Dict, session: Session = None, path: str = "dataspace/info"
 ) -> Response:
     return get(path, params, session)
 
@@ -62,8 +62,8 @@ def node_info(
     return get(path, params, session)
 
 
-def project_logs(
-    params: Dict, session: Session = None, path: str = "project/logs"
+def dataspace_logs(
+    params: Dict, session: Session = None, path: str = "dataspace/logs"
 ) -> Response:
     return get(path, params, session)
 

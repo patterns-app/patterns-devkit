@@ -13,16 +13,16 @@ from basis.cli.templates.generator import generate_template
 from cleo import Command
 
 
-class CreateCommand(BasisCommandBase, Command):
+class GenerateCommand(BasisCommandBase, Command):
     """
     Generate new basis component
 
-    create
-        {type : What to generate, one of [project, app, component]}
+    generate
+        {type : What to generate, one of [new, app, component]}
         {path? : Path to generate at}
     """
 
-    supported_types = ["project", "app", "component"]
+    supported_types = ["new", "app", "component"]
 
     def handle(self):
         type_ = self.argument("type")
@@ -42,10 +42,10 @@ class CreateCommand(BasisCommandBase, Command):
 
     ### Dialogues
 
-    def project_config_from_dialogue(self, destination_path: str):
+    def new_config_from_dialogue(self, destination_path: str):
         name = Path(destination_path).name
-        name = self.ask(f"Project name [{name}]:", name)
-        return {"project_name": name}
+        name = self.ask(f"Dataspace name [{name}]:", name)
+        return {"dataspace_name": name}
 
     def app_config_from_dialogue(self, destination_path: str):
         name = Path(destination_path).name

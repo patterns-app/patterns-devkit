@@ -10,7 +10,7 @@ def test_logs():
         command_tester = get_test_command("logs")
         with requests_mock.Mocker() as m:
             m.post(
-                DEFAULT_BASE_URL + "project/logs", json={"name": "name"},
+                DEFAULT_BASE_URL + "dataspace/logs", json={"name": "name"},
             )
             m.post(
                 DEFAULT_BASE_URL + "app/logs", json={"name": "name"},
@@ -18,7 +18,7 @@ def test_logs():
             m.post(
                 DEFAULT_BASE_URL + "node/logs", json={"name": "name"},
             )
-            command_tester.execute(f"project name")
+            command_tester.execute(f"dataspace name")
             assert "name" in command_tester.io.fetch_output()
             command_tester.execute(f"app name")
             assert "name" in command_tester.io.fetch_output()

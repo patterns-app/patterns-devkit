@@ -1,4 +1,4 @@
-from basis.cli.api import app_info, node_info, project_info
+from basis.cli.api import app_info, node_info, dataspace_info
 
 from cleo import Command
 
@@ -10,7 +10,7 @@ class InfoCommand(BasisCommandBase, Command):
     Fetch basic information on given object
 
     info
-        {type : Type of object, one of [project, app, node]}
+        {type : Type of object, one of [dataspace, app, node]}
         {name : Name of object}
     """
 
@@ -19,8 +19,8 @@ class InfoCommand(BasisCommandBase, Command):
         obj_type = self.argument("type")
         name = self.argument("type")
         params = {"name": name}
-        if obj_type == "project":
-            resp = project_info(params)
+        if obj_type == "dataspace":
+            resp = dataspace_info(params)
         elif obj_type == "app":
             resp = app_info(params)
         elif obj_type == "node":
