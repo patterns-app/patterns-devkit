@@ -37,7 +37,13 @@ def login(
 def upload(
     data: Dict, session: Session = None, path: str = "project-version/upload"
 ) -> Response:
-    return get(path, data, session)
+    return post(path, data, session)
+
+
+def download(
+    params: Dict, session: Session = None, path: str = "project-version/download"
+) -> Response:
+    return get(path, params, session)
 
 
 def project_info(

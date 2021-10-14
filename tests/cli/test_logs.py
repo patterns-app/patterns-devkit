@@ -1,8 +1,4 @@
 from basis.cli.api import DEFAULT_BASE_URL
-from basis.cli.config import BASIS_CONFIG_ENV_VAR
-import os
-from pathlib import Path
-from typing import Tuple
 import requests_mock
 
 from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
@@ -10,9 +6,7 @@ from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
 
 def test_logs():
     if not IS_CI:
-        dr = set_tmp_dir()
-        cfg_pth = Path(dr) / ".basis-config.json"
-        os.environ[BASIS_CONFIG_ENV_VAR] = str(cfg_pth)
+        dr = set_tmp_dir(create_basis_config=True)
         command_tester = get_test_command("logs")
         with requests_mock.Mocker() as m:
             m.post(

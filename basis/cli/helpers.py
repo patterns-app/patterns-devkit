@@ -33,7 +33,13 @@ def compress_directory(path: PathLike) -> BytesIO:
     else:
         all_files = list_all_files(path)
     for f in all_files:
-        # TODO: paths...
-        zipf.write(f, os.path.relpath(os.path.join(path, f), os.path.join(path, "..")))
+        f_path = os.path.join(path, f)
+        zipf.write(f_path, os.path.relpath(f_path, os.path.join(path, "..")))
+    zipf.close()
+    io.seek(0)
     return io
 
+
+def expand_directory(zip_io: BytesIO, path: PathLike = None):
+    zipf = zipfile.ZipFile(zip_io)
+    zipf.extractall(path)

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from basis.cli.commands.clone import CloneCommand
 from basis.cli.commands.info import InfoCommand
 from basis.cli.commands.login import LoginCommand
 from basis.cli.commands.logout import LogoutCommand
@@ -10,9 +11,10 @@ from cleo.application import Application
 
 app = Application("basis")
 app.add(CreateCommand())
+app.add(UploadCommand())
+app.add(CloneCommand())
 app.add(LoginCommand())
 app.add(LogoutCommand())
-app.add(UploadCommand())
 app.add(InfoCommand())
 app.add(LogsCommand())
 

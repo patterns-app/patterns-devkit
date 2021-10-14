@@ -3,19 +3,11 @@ from basis.cli.api import upload
 from basis.configuration.base import load_yaml
 from basis.configuration.project import ProjectCfg
 import os
-import sys
-from contextlib import contextmanager
-from importlib import import_module
-from pathlib import Path
-from types import ModuleType
-from typing import List, Pattern
 from basis.cli.helpers import compress_directory
 
 from cleo import Command
-import requests
 
 from basis.cli.commands.base import BasisCommandBase
-from basis.cli.templates.generator import generate_template
 
 
 class UploadCommand(BasisCommandBase, Command):
@@ -27,6 +19,7 @@ class UploadCommand(BasisCommandBase, Command):
     """
 
     def handle(self):
+        self.ensure_authenticated()
         cfg = self.argument("project")
         project_cfg = load_yaml(cfg)
         ProjectCfg(**project_cfg)  # Validate yaml

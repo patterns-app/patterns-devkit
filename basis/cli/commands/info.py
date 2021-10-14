@@ -15,6 +15,7 @@ class InfoCommand(BasisCommandBase, Command):
     """
 
     def handle(self):
+        self.ensure_authenticated()
         obj_type = self.argument("type")
         name = self.argument("type")
         params = {"name": name}
