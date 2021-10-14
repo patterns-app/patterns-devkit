@@ -1,4 +1,4 @@
-exclude: ".mypy_cache|.pytest_cache|.venv|basis/templates/templates"
+exclude: ".mypy_cache|.pytest_cache|.venv|basis/cli/templates/templates"
 repos:
   - repo: https://github.com/psf/black
     rev: 20.8b1
