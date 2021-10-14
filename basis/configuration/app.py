@@ -10,4 +10,3 @@ class AppCfg(FrozenPydanticBase):
     name: str
     app_params: Dict[str, Any] = {}
     nodes: List[NodeCfg] = []
-

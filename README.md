@@ -1,5 +1,3 @@
-![basis](https://github.com/basis-os/basis/workflows/basis/badge.svg)
-
 <p>&nbsp;</p>
 <p align="center">
   <img width="150" src="assets/logo.svg">
@@ -13,7 +11,7 @@
 
 ## Installation
 
-`pip install basis-cli`
+`pip install basis-devkit`
 
 ## Usage
 

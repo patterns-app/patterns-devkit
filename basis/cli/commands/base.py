@@ -27,4 +27,3 @@ class BasisCommandBase:
     # ):
     #     with open(config_file, "w") as f:
     #         f.write(dump_yaml(project.dict(exclude_unset=True)))
-

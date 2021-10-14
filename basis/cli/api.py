@@ -1,8 +1,8 @@
 from typing import Dict
-from basis.cli.config import read_local_basis_config
-import requests
-from requests import Session, Request, Response
 
+import requests
+from basis.cli.config import read_local_basis_config
+from requests import Request, Response, Session
 
 DEFAULT_BASE_URL = "https://api.getbasis.com/"
 AUTH_TOKEN_PREFIX = "JWT"

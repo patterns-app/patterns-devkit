@@ -1,8 +1,6 @@
-from basis.cli.api import app_info, node_info, dataspace_info, run_node
-
-from cleo import Command
-
+from basis.cli.api import app_info, dataspace_info, node_info, run_node
 from basis.cli.commands.base import BasisCommandBase
+from cleo import Command
 
 
 class RunCommand(BasisCommandBase, Command):
@@ -38,4 +36,3 @@ class RunCommand(BasisCommandBase, Command):
             exit(1)
         data = resp.json()
         self.line(f"<info>{data}</info>")
-

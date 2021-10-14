@@ -15,7 +15,7 @@ def {{ cookiecutter.component_name }}(
 
     Inputs:
         input_record: Description of this input
-    
+
     Output:
         Description of output
     """

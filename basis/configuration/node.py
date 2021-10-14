@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-from typing import (
-    Any,
-    Dict,
-    List,
-    Optional,
-    Union,
-)
-from basis.configuration.storage import StorageCfg
+from typing import Any, Dict, List, Optional, Union
+
 from basis.configuration.base import FrozenPydanticBase
+from basis.configuration.storage import StorageCfg
 
 
 class NodeOutputCfg(FrozenPydanticBase):

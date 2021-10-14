@@ -1,8 +1,6 @@
-from basis.cli.api import app_logs, node_logs, dataspace_logs
-
-from cleo import Command
-
+from basis.cli.api import app_logs, dataspace_logs, node_logs
 from basis.cli.commands.base import BasisCommandBase
+from cleo import Command
 
 
 class LogsCommand(BasisCommandBase, Command):
@@ -33,4 +31,3 @@ class LogsCommand(BasisCommandBase, Command):
             exit(1)
         data = resp.json()
         self.line(f"<info>{data}</info>")
-

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
+
 from basis.configuration.app import AppCfg
-from basis.configuration.storage import StorageCfg
 from basis.configuration.base import FrozenPydanticBase
+from basis.configuration.storage import StorageCfg
 
 
 class BasisCfg(FrozenPydanticBase):
@@ -29,4 +30,3 @@ class DataspaceAppCfg(FrozenPydanticBase):
     app: str
     name: str
     app_params: Dict[str, Any] = {}
-

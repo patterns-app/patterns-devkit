@@ -1,11 +1,10 @@
-from basis.cli.config import BASIS_CONFIG_ENV_VAR, update_local_basis_config
 import os
 import tempfile
 from pathlib import Path
 
 from basis.cli.app import app
+from basis.cli.config import BASIS_CONFIG_ENV_VAR, update_local_basis_config
 from cleo import CommandTester
-
 
 IS_CI = os.environ.get("CI")
 
@@ -28,4 +27,3 @@ def get_test_command(name: str) -> CommandTester:
     command = app.find(name)
     command_tester = CommandTester(command)
     return command_tester
-

@@ -1,12 +1,11 @@
 import base64
-from io import BytesIO
-from basis.cli.api import download
 import os
-from basis.cli.helpers import expand_directory
+from io import BytesIO
 
-from cleo import Command
-
+from basis.cli.api import download
 from basis.cli.commands.base import BasisCommandBase
+from basis.cli.helpers import expand_directory
+from cleo import Command
 
 
 class CloneCommand(BasisCommandBase, Command):
@@ -32,4 +31,3 @@ class CloneCommand(BasisCommandBase, Command):
         zip_bytes = base64.b64decode(b64_zipf)
         expand_directory(BytesIO(zip_bytes), ds_path)
         self.line(f"<info>Cloned dataspace files {ds_name} into {ds_path}</info>")
-

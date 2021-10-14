@@ -1,28 +1,28 @@
 [tool.poetry]
 authors = ["Ken Van Haren <kvh@getbasis.com>"]
-description = "Data Operating System"
+description = "Data pipelines from re-usable components"
 license = "BSD-3-Clause"
-name = "basis-dev"
+name = "basis-devkit"
 packages = [
   {include = "basis"},
 ]
 version = "0.1.0"
 
 [tool.poetry.dependencies]
-# common-model = "~0.2.0"
-# datacopy = 
+common-model = "~0.2.0"
+# datacopy =
+cleo = "^0.8.1"
+cookiecutter = "^1.7.3"
 jinja2 = "^3.0.0"
 pydantic = "^1.8.1"
 python = "^3.7.4"
-strictyaml = "^1.0.6"
-cookiecutter = "^1.7.3"
-cleo = "^0.8.1"
 requests-mock = "^1.9.3"
+strictyaml = "^1.0.6"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
-common-model = {path = "../common-model/python", develop = true}
-datacopy = {path = "../dcp", develop = true}
+# common-model = {path = "../common-model/python", develop = true}
+# datacopy = {path = "../dcp", develop = true}
 flake8 = "^3.8.1"
 ipython = "^7.13.0"
 isort = "^4.3.21"
@@ -49,7 +49,7 @@ exclude = '''
   | \.venv
   | build
   | dist
-  | basis/templates/templates
+  | basis/cli/templates/templates
 )/
 '''
 
@@ -63,9 +63,7 @@ use_parentheses = true
 
 [tool.pytest.ini_options]
 addopts = "-ra -q"
-norecursedirs = [
-  "tests/_test_module/*",
-]
+norecursedirs = []
 testpaths = [
   "tests",
 ]

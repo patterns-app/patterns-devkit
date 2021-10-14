@@ -8,4 +8,3 @@ from basis.configuration.base import FrozenPydanticBase
 class StorageCfg(FrozenPydanticBase):
     name: str
     url: str
-

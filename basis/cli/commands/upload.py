@@ -1,13 +1,12 @@
 import base64
+import os
+
 from basis.cli.api import upload
+from basis.cli.commands.base import BasisCommandBase
+from basis.cli.helpers import compress_directory
 from basis.configuration.base import load_yaml
 from basis.configuration.dataspace import DataspaceCfg
-import os
-from basis.cli.helpers import compress_directory
-
 from cleo import Command
-
-from basis.cli.commands.base import BasisCommandBase
 
 
 class UploadCommand(BasisCommandBase, Command):
@@ -33,4 +32,3 @@ class UploadCommand(BasisCommandBase, Command):
         self.line(
             f"<info>Uploaded dataspace successfully (Version {data['dataspace_version_id']}</info>"
         )
-

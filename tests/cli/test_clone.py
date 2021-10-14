@@ -1,11 +1,11 @@
+import base64
 import os
 import shutil
-import base64
+from pathlib import Path
+
+import requests_mock
 from basis.cli.api import DEFAULT_BASE_URL
 from basis.cli.helpers import compress_directory
-from pathlib import Path
-import requests_mock
-
 from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
 
 
@@ -27,4 +27,3 @@ def test_clone():
             )
             command_tester.execute(f"mock_name")
         assert os.path.exists(proj_path / "dataspace.yml")
-

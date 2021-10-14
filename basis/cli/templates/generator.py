@@ -1,10 +1,9 @@
 import os
-import shutil
 import re
+import shutil
 from pathlib import Path
 
 from cookiecutter.main import cookiecutter
-
 
 dir_path = Path(__file__).parent
 tmp_folder_name = "_tmp"
@@ -28,7 +27,8 @@ def flatten_files_remove_folder(path: str):
             if _should_ignore_file(f):
                 continue
             os.rename(
-                Path(path) / Path(f), Path(path) / ".." / Path(f).name,
+                Path(path) / Path(f),
+                Path(path) / ".." / Path(f).name,
             )
     shutil.rmtree(path)
 

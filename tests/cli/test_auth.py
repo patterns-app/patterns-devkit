@@ -1,9 +1,9 @@
-from basis.cli.api import DEFAULT_BASE_URL
-from basis.cli.config import BASIS_CONFIG_ENV_VAR, read_local_basis_config
 import os
 from pathlib import Path
-import requests_mock
 
+import requests_mock
+from basis.cli.api import DEFAULT_BASE_URL
+from basis.cli.config import BASIS_CONFIG_ENV_VAR, read_local_basis_config
 from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
 
 
@@ -24,4 +24,3 @@ def test_login():
             assert os.path.exists(cfg_pth)
             config = read_local_basis_config()
             assert config.get("token") == token
-

@@ -46,4 +46,3 @@ def test_generate_component():
         inputs = "\n".join(["\n", "python"]) + "\n"
         command_tester.execute(f"component {pth}", inputs=inputs)
         assert os.path.exists(Path(dr) / pth)
-

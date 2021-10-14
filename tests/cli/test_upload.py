@@ -1,7 +1,7 @@
-from basis.cli.api import DEFAULT_BASE_URL
 from pathlib import Path
-import requests_mock
 
+import requests_mock
+from basis.cli.api import DEFAULT_BASE_URL
 from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
 
 
@@ -18,4 +18,3 @@ def test_upload():
                 json={"dataspace_version_id": 1},
             )
             command_tester.execute(f"{proj_path / 'dataspace.yml'}")
-

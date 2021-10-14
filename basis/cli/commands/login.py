@@ -1,16 +1,13 @@
 from __future__ import annotations
-from basis.cli.api import login
 
 import os
 import sys
-from cleo import Command
 
-from basis.cli.config import (
-    remove_auth_from_basis_config,
-    update_local_basis_config,
-)
+from basis.cli.api import login
 from basis.cli.commands.base import BasisCommandBase
+from basis.cli.config import remove_auth_from_basis_config, update_local_basis_config
 from basis.cli.templates.generator import generate_template
+from cleo import Command
 
 
 class LoginCommand(BasisCommandBase, Command):
@@ -36,4 +33,3 @@ class LoginCommand(BasisCommandBase, Command):
         data = resp.json()
         update_local_basis_config(**data)
         self.line("<info>Logged in successfully</info>")
-
