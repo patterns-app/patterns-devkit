@@ -1,8 +1,9 @@
+import inspect
+import typing
 from collections import OrderedDict
 from functools import partial, wraps
-import inspect
 from typing import Callable, List, Optional, Union
-import typing
+
 from basis.node.interface import (
     DEFAULT_OUTPUT_NAME,
     DEFAULT_RECORD_OUTPUT,
@@ -13,7 +14,6 @@ from basis.node.interface import (
     RecordStream,
     Table,
 )
-
 from basis.node.node import Node, NodeCallable, list_to_ordered_dict, make_node_name
 
 
@@ -121,7 +121,10 @@ def node_interface_from_callable(
         else:
             # Additional inputs must be table
             inputs[name] = Table(name=name, required=not optional)
-    return NodeInterface(inputs=inputs, outputs=outputs,)
+    return NodeInterface(
+        inputs=inputs,
+        outputs=outputs,
+    )
 
 
 simple_streaming_node = partial(simple_node_decorator, mode="streaming")

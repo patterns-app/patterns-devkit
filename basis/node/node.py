@@ -36,7 +36,9 @@ class InputExhaustedException(NodeException):
 NodeCallable = Callable[[Context], None]
 
 DataInterfaceType = Union[
-    DataFrame, Records, Block,
+    DataFrame,
+    Records,
+    Block,
 ]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
@@ -105,7 +107,9 @@ def node_decorator(
         name=name,
         node_callable=fn,
         interface=NodeInterface(
-            inputs=inputs_od, outputs=outputs_od, parameters=parameters_od,
+            inputs=inputs_od,
+            outputs=outputs_od,
+            parameters=parameters_od,
         ),
         **kwargs,
     )

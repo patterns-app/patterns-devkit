@@ -1,24 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, List, Optional, Union
 
+from basis.configuration.node import NodeCfg
+from basis.node.interface import DEFAULT_ERROR_NAME, DEFAULT_STATE_NAME
+from basis.node.node import Node
 from commonmodel.base import Schema
 from dcp.data_format.base import DataFormat
 from dcp.storage.base import Storage
-from basis.configuration.node import NodeCfg
-
-from basis.node.interface import DEFAULT_ERROR_NAME, DEFAULT_STATE_NAME
-from basis.node.node import Node
 
 
 @dataclass(frozen=True)
@@ -27,18 +17,13 @@ class Context:
     node_cfg: NodeCfg
 
     ### Input
-    def get_raw_records(self, input_name: str) -> Iterator[Dict]:
+    def get_records(self, input_name: str) -> Iterator[Dict]:
         """
-        Returns an iterator of raw Record objects for the given streaming input.
-        These objects include the record id and timestamp. To iterate over actual
-        data records, call `get_records`.
+        Returns an interator of data records for the given streaming input.
 
         Caller is responsible for calling `checkpoint` to mark iterated records as
         processed.
         """
-
-    def get_records(self, input_name: str) -> Iterator[Dict]:
-        "Returns an interator of data records for the given streaming input"
 
     def get_table(self, input_name: str) -> Optional[TableManager]:
         "Returns a TableManager object for the given table input"
@@ -55,11 +40,21 @@ class Context:
         as processed.
         """
 
+    def get_raw_records(self, input_name: str) -> Iterator[Dict]:
+        """
+        Returns an iterator of raw Record objects for the given streaming input.
+        These objects include the record id and timestamp. To iterate over actual
+        data records, call `get_records`.
+
+        Caller is responsible for calling `checkpoint` to mark iterated records as
+        processed.
+        """
+
     ### Output
     def append_record(
         self,
         output_name: str,
-        record_obj: Any,
+        record: Any,
         schema: Union[str, Schema, None] = None,
     ):
         "Appends single record to given output stream"
@@ -67,10 +62,10 @@ class Context:
     def store_as_table(
         self,
         output_name: str,
-        table_obj: Any = None,
+        records: Any = None,
         data_format: Union[str, DataFormat] = None,
     ):
-        "Stores data records as table"
+        "Stores provided data records as table"
 
     def output_existing_table(
         self,
@@ -91,10 +86,10 @@ class Context:
         "Appends batch of records to given output stream"
 
     def append_error(self, error_obj: Any, error_msg: str):
-        self.append_record(output_name=DEFAULT_ERROR_NAME, record_obj=error_obj)
+        self.append_record(output_name=DEFAULT_ERROR_NAME, record=error_obj)
 
     def set_state(self, state: Dict):
-        self.store_as_table(output_name=DEFAULT_STATE_NAME, table_obj=[state])
+        self.store_as_table(output_name=DEFAULT_STATE_NAME, records=[state])
 
     def set_state_value(self, key: str, value: Any):
         state = self.get_state()
