@@ -15,10 +15,10 @@ class NodeOutputCfg(FrozenPydanticBase):
 
 class NodeCfg(FrozenPydanticBase):
     name: str
-    component: str
-    component_params: Dict[str, Any] = {}  # TODO: acceptable param types?
-    # node_resources: NodeResourcesCfg = NodeResourcesCfg() # TODO
-    node_output: NodeOutputCfg = NodeOutputCfg()
+    node: str
     node_inputs: Union[List[str], Dict[str, str], str] = {}
-    node_outputs: Dict[str, NodeOutputCfg] = {}
+    node_params: Dict[str, Any] = {}  # TODO: acceptable param types?
+    # node_resources: NodeResourcesCfg = NodeResourcesCfg() # TODO
+    default_output_configuration: NodeOutputCfg = NodeOutputCfg()
+    output_configurations: Dict[str, NodeOutputCfg] = {}
     schedule: Optional[str] = None
