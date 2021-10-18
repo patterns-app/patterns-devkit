@@ -1,0 +1,12 @@
+name: nested_nodes_example
+default_storage: ${{ secrets.my_primary_storage }}
+graph:
+  - node: basis_marketplace.salesforce.extract.extract_contacts
+    node_parameters:
+      api_key: ${{ secrets.salesforce_api_key }}
+  - node: subgraph1
+    node_inputs:
+      my_subgraph_input: extract_contacts
+    node_parameters:
+      limit: 200
+  - node: subgraph2

@@ -1,0 +1,25 @@
+name: subgraph1
+interface:
+  parameters:
+    limit: 100
+  inputs:
+    - name: my_subgraph_input
+      like: component1.input2
+  outputs:
+    - subgraph_output: component1
+graph:
+  - node: component1.py
+    node_inputs:
+      input1: nestedgraph1.myoutput1
+      input2: ${{ inputs.my_subgraph_input }}
+  - name: source1_table
+    component: create_table_from_stream
+    input: source1_transactions_stream
+  - name: comp1
+    component: component1.py
+    input: source1_transactions
+  - name: comp2
+    component: component2.py
+    input: source1.refunds
+    node_params:
+      limit: ${{ parameters.limit }}
