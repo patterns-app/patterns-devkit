@@ -22,7 +22,7 @@ class NodeCfg(FrozenPydanticBase):
     # import: Optional[str] = None
     # reference: Optional[str] = None
     name: Optional[str] = None  # Overrides
-    params: Dict[str, Any] = {}
+    parameters: Dict[str, Any] = {}
     inputs: Union[List[str], Dict[str, str], str] = {}
     # node_resources: NodeResourcesCfg = NodeResourcesCfg() # TODO
     default_output_configuration: NodeOutputCfg = NodeOutputCfg()

@@ -20,27 +20,32 @@ class BasisCfg(FrozenPydanticBase):
     # use_global_library: bool = True
 
 
-class GraphCfg(FrozenPydanticBase):
-    name: str
-    # storages: List[StorageCfg] = []
-    # default_storage: Optional[str] = None
-    basis: BasisCfg = BasisCfg()
-    nodes: List[NodeCfg] = []
-    interface: Optional[GraphInterfaceCfg] = None
-
-
-class GraphInterfaceCfg(FrozenPydanticBase):
-    inputs: List[GraphInputCfg] = []
-    outputs: typing.OrderedDict[str, str] = Field(default_factory=OrderedDict)
-    parameters: Dict[str, Any] = {}
-
-
 class GraphInputCfg(FrozenPydanticBase):
     name: str
     like: Optional[str] = None
     # TODO: other input settings
     # mode: str
     # schema: str
+
+
+class GraphParameterCfg(FrozenPydanticBase):
+    name: str
+    like: Optional[str] = None
+
+
+class GraphInterfaceCfg(FrozenPydanticBase):
+    inputs: List[GraphInputCfg] = []
+    outputs: typing.OrderedDict[str, str] = Field(default_factory=OrderedDict)
+    parameters: Dict[str, Any] = {}  # TODO: full param def
+
+
+class GraphCfg(FrozenPydanticBase):
+    name: str
+    # storages: List[StorageCfg] = []
+    # default_storage: Optional[str] = None
+    basis: BasisCfg = BasisCfg()
+    interface: Optional[GraphInterfaceCfg] = None
+    nodes: List[NodeCfg] = []
 
 
 # Don't think we need this
