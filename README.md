@@ -17,63 +17,48 @@
 
 In a new git repository:
 
-`basis generate new`
+`basis generate graph mygraph`
 
-This will create a skeleton for a basis project:
-
-```
-dataspace.yml
-README.md
-requirements.txt
-```
-
-`basis generate app myapp`
-
-To create a new data app:
+This will create a skeleton for a basis graph:
 
 ```
-dataspace.yml
-myapp/
-  app.yml
-README.md
-requirements.txt
+mygraph/
+  graph.yml
+  README.md
+  requirements.txt
 ```
 
-`basis generate component myapp/component.py --simple`
+To create a simple python node template:
+
+`basis generate node mygraph/mynode.py --simple`
 
 ```
-dataspace.yml
-myapp/
-  app.yml
-  component.py
-README.md
-requirements.txt
+mygraph/
+  graph.yml
+  mynode.py
+  README.md
+  requirements.txt
 ```
 
-And then edit the app configuration `myapp/app.yml` to specify node configuration:
+And then edit the graph configuration `mygraph/graph.yml` to specify node configuration:
 
 ```yaml
-name: myapp
+name: mygraph
 nodes:
-  - name: stripe_node
-    component: basis_modules.stripe.extract_stripe
-  - name: mynode
-    component: component.yml
-    inputs: stripe_node
+  - python: mynode.py
+    name: mynode1 # Override the default name (mynode)
 ```
 
 ## Deploy
 
-To deploy a dataspace, edit your `dataspace.yml` to specify the apps to deploy:
+To deploy a graph, you must sign up for a getbasis.com account and login to authenticate the cli:
 
-```yaml
-name: mydataspace
-basis:
-  version: 0.1.0
-apps:
-  - app: myapp/app.yml
-```
+`basis login`
 
-And then run:
+Ensure you have an environment created:
 
-`basis deploy dataspace.yml`
+`basis env list`
+
+And then you can deploy a graph to an environment:
+
+`basis deploy mygrpah/graph.yml -e production`
