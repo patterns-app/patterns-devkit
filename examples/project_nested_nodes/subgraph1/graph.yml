@@ -8,8 +8,11 @@ name: subgraph1
 #   outputs:
 #     - subgraph_output: component1
 nodes:
-  - python: component1.py
-  - sql: component2.sql
+  - python: node1.py
+  - sql: node2.sql
+  - subgraph: nestedgraph1
+    inputs:
+      input1: node1
 
     # inputs:
     #   input1: nestedgraph1.myoutput1
