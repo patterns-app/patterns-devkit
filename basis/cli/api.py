@@ -34,49 +34,71 @@ def login(
     return post(path, data, session)
 
 
-def run_node(data: Dict, session: Session = None, path: str = "node/run") -> Response:
+def run_node(data: Dict, session: Session = None, path: str = "nodes/run") -> Response:
     return post(path, data, session)
 
 
 def upload(
-    data: Dict, session: Session = None, path: str = "dataspace-version/upload"
+    data: Dict, session: Session = None, path: str = "graph-versions/upload"
 ) -> Response:
     return post(path, data, session)
 
 
 def download(
-    params: Dict, session: Session = None, path: str = "dataspace-version/download"
+    params: Dict, session: Session = None, path: str = "graph-versions/download"
 ) -> Response:
     return get(path, params, session)
 
 
-def dataspace_info(
-    params: Dict, session: Session = None, path: str = "dataspace/info"
+def env_info(
+    params: Dict, session: Session = None, path: str = "environments/info"
 ) -> Response:
     return get(path, params, session)
 
 
-def app_info(params: Dict, session: Session = None, path: str = "app/info") -> Response:
+def graph_info(
+    params: Dict, session: Session = None, path: str = "graphs/info"
+) -> Response:
     return get(path, params, session)
 
 
 def node_info(
-    params: Dict, session: Session = None, path: str = "node/info"
+    params: Dict, session: Session = None, path: str = "nodes/info"
 ) -> Response:
     return get(path, params, session)
 
 
-def dataspace_logs(
-    params: Dict, session: Session = None, path: str = "dataspace/logs"
+def env_logs(
+    params: Dict, session: Session = None, path: str = "environments/logs"
 ) -> Response:
     return get(path, params, session)
 
 
-def app_logs(params: Dict, session: Session = None, path: str = "app/logs") -> Response:
+def graph_logs(
+    params: Dict, session: Session = None, path: str = "graphs/logs"
+) -> Response:
     return get(path, params, session)
 
 
 def node_logs(
-    params: Dict, session: Session = None, path: str = "node/logs"
+    params: Dict, session: Session = None, path: str = "nodes/logs"
 ) -> Response:
     return get(path, params, session)
+
+
+def env_list(
+    params: Dict = None, session: Session = None, path: str = "environments"
+) -> Response:
+    return get(path, params or {}, session)
+
+
+def graph_list(
+    params: Dict = None, session: Session = None, path: str = "graphs"
+) -> Response:
+    return get(path, params or {}, session)
+
+
+def node_list(
+    params: Dict = None, session: Session = None, path: str = "nodes"
+) -> Response:
+    return get(path, params or {}, session)

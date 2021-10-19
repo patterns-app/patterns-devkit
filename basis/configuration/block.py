@@ -6,7 +6,7 @@ from typing import List, Optional
 from basis.configuration.base import FrozenPydanticBase
 
 
-class StoredBlockCfg(FrozenPydanticBase):
+class StoredBlockMetadata(FrozenPydanticBase):
     id: str
     block_id: str
     created_at: datetime
@@ -20,10 +20,10 @@ class StoredBlockCfg(FrozenPydanticBase):
     record_count: Optional[int] = None
 
 
-class TableCfg(FrozenPydanticBase):
+class TableMetadata(FrozenPydanticBase):
     block_id: str
     created_at: datetime
-    dataspace_id: str
+    env_id: str
     node_id: str
     output_name: str
     realized_schema_key: str
@@ -31,16 +31,16 @@ class TableCfg(FrozenPydanticBase):
     nominal_schema_key: Optional[str] = None
     deleted: bool = False
     record_count: Optional[int] = None
-    stored_blocks: List[StoredBlockCfg] = []
+    stored_blocks: List[StoredBlockMetadata] = []
 
 
-class RecordSliceCfg(FrozenPydanticBase):
+class RecordSliceMetadata(FrozenPydanticBase):
     block_id: str
     created_at: datetime
     record_start_index_inclusive: str
     record_end_index_inclusive: Optional[str]
-    dataspace_id: str
+    env_id: str
     node_id: str
     output_name: str
     record_count: Optional[int] = None
-    stored_blocks: List[StoredBlockCfg] = []
+    stored_blocks: List[StoredBlockMetadata] = []

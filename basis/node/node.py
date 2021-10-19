@@ -10,12 +10,11 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Uni
 from basis.node.interface import (
     DEFAULT_INPUT_NAME,
     DEFAULT_OUTPUT_NAME,
-    OutputType,
     IoBase,
     NodeInterface,
+    OutputType,
     Parameter,
 )
-
 # from basis.utils.docstring import BasisParser, Docstring
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
@@ -100,7 +99,9 @@ def node_decorator(
         name=name,
         node_callable=fn,
         interface=NodeInterface(
-            inputs=inputs_od, outputs=outputs_od, parameters=parameters_od,
+            inputs=inputs_od,
+            outputs=outputs_od,
+            parameters=parameters_od,
         ),
         **kwargs,
     )

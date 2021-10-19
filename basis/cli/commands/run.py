@@ -1,31 +1,31 @@
-from basis.cli.api import app_info, dataspace_info, node_info, run_node
+from basis.cli.api import node_info, run_node
 from basis.cli.commands.base import BasisCommandBase
 from cleo import Command
 
 
 class RunCommand(BasisCommandBase, Command):
     """
-    Run a component or node. If component, then local component file is uploaded and run against given dataspace as temporary version.
+    Run a component or node. If component, then local component file is uploaded and run against given graph as temporary version.
 
     run
         {type : Type of object, one of [component, node]}
         {name-or-path : Name of node or path to component}
-        {--dataspace : Dataspace}
+        {--graph : Graph}
     """
 
     def handle(self):
         self.ensure_authenticated()
         obj_type = self.argument("type")
         name = self.argument("name-or-path")
-        ds = self.option("dataspace")
+        ds = self.option("graph")
         params = {"name": name}
         if ds:
-            params["dataspace"] = ds
+            params["graph"] = ds
         if obj_type == "node":
             resp = run_node(params)
         elif obj_type == "component":
             raise NotImplementedError
-            # TODO: upload current dataspace
+            # TODO: upload current graph
             # And then run node
             resp = run_node(params)
         else:

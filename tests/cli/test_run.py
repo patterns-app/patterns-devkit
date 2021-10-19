@@ -9,7 +9,7 @@ def test_info():
         command_tester = get_test_command("run")
         with requests_mock.Mocker() as m:
             m.post(
-                DEFAULT_BASE_URL + "node/run",
+                DEFAULT_BASE_URL + "nodes/run",
                 json={"name": "name"},
             )
             command_tester.execute(f"node name")

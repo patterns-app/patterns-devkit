@@ -60,12 +60,17 @@ class Context:
 
     ### Output
     def append_record(
-        self, output_name: str, record: Any, schema: Union[str, Schema, None] = None,
+        self,
+        output_name: str,
+        record: Any,
+        schema: Union[str, Schema, None] = None,
     ):
         "Appends single record to given output stream"
 
     def store_as_table(
-        self, output_name: str, records: Any,
+        self,
+        output_name: str,
+        records: Any,
     ):
         "Stores provided data records as table"
 

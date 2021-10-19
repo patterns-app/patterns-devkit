@@ -18,11 +18,11 @@ class GenerateCommand(BasisCommandBase, Command):
     Generate new basis component
 
     generate
-        {type : What to generate, one of [new, app, component]}
+        {type : What to generate, one of [graph, node]}
         {path? : Path to generate at}
     """
 
-    supported_types = ["new", "app", "component"]
+    supported_types = ["graph", "node"]
 
     def handle(self):
         type_ = self.argument("type")
@@ -42,30 +42,23 @@ class GenerateCommand(BasisCommandBase, Command):
 
     ### Dialogues
 
-    def new_config_from_dialogue(self, destination_path: str):
+    def graph_config_from_dialogue(self, destination_path: str):
         name = Path(destination_path).name
-        name = self.ask(f"Dataspace name [{name}]:", name)
-        return {"dataspace_name": name}
+        name = self.ask(f"Graph name [{name}]:", name)
+        return {"graph_name": name}
 
-    def app_config_from_dialogue(self, destination_path: str):
-        name = Path(destination_path).name
-        name = self.ask(f"App name [{name}]:", name)
-        return {"app_name": name}
-
-    def component_config_from_dialogue(self, destination_path: str):
+    def node_config_from_dialogue(self, destination_path: str):
         name = Path(destination_path).name
         name = name.split(".")[0]
-        name = self.ask(f"Component name [{name}]:", name)
+        name = self.ask(f"Node name [{name}]:", name)
         langs = ["sql", "python"]
-        lang_q = self.create_question(
-            f"Component language [sql, python]:", default="python"
-        )
+        lang_q = self.create_question(f"Node language [sql, python]:", default="python")
         lang_q.set_autocomplete_values(langs)
         lang = self.ask(lang_q)
         complexity = "simple"
         return {
-            "template_name": f"component_{complexity}_{lang}_template",
+            "template_name": f"node_{complexity}_{lang}_template",
             "destination_path": Path(destination_path).parent / name,
             "flatten": True,
-            "component_name": name,
+            "node_name": name,
         }

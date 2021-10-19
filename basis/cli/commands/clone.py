@@ -10,12 +10,12 @@ from cleo import Command
 
 class CloneCommand(BasisCommandBase, Command):
     """
-    Clone existing dataspace version into current directory
+    Clone existing graph version into current directory
 
     clone
-        {name : Dataspace name}
+        {name : Graph name}
         {--path : Path to expand to}
-        {--dataspace-version : Specific version (defaults to latest version)}
+        {--graph-version : Specific version (defaults to latest version)}
     """
 
     def handle(self):
@@ -30,4 +30,4 @@ class CloneCommand(BasisCommandBase, Command):
         b64_zipf = data["zip"]
         zip_bytes = base64.b64decode(b64_zipf)
         expand_directory(BytesIO(zip_bytes), ds_path)
-        self.line(f"<info>Cloned dataspace files {ds_name} into {ds_path}</info>")
+        self.line(f"<info>Cloned graph files {ds_name} into {ds_path}</info>")

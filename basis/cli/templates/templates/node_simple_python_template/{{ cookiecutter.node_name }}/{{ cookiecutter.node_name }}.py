@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from basis import simple_streaming_component, simple_table_component
+from basis import simple_streaming_node, simple_table_node
 
 
-@simple_streaming_component
-def {{ cookiecutter.component_name }}(
+@simple_streaming_node
+def {{ cookiecutter.node_name }}(
     input_record,
     # input_table  # <- Can optionally accept table inputs for reference
 ):

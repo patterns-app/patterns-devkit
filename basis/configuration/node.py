@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Union
 
-from pydantic.class_validators import root_validator
-
 from basis.configuration.base import FrozenPydanticBase
 from basis.configuration.storage import StorageCfg
+from pydantic.class_validators import root_validator
 
 
 class NodeOutputCfg(FrozenPydanticBase):
@@ -31,7 +30,7 @@ class NodeCfg(FrozenPydanticBase):
     schedule: Optional[str] = None
 
     @root_validator
-    def check_type(self, values: Dict) -> Dict:
+    def check_node_type(cls, values: Dict) -> Dict:
         python = values.get("python")
         sql = values.get("sql")
         subgraph = values.get("subgraph")
@@ -39,4 +38,3 @@ class NodeCfg(FrozenPydanticBase):
             len([s for s in [python, sql, subgraph] if s is not None]) == 1
         ), "Must define one and only one of python, sql, or subgraph"
         return values
-

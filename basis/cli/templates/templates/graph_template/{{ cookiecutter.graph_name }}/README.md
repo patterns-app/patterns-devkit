@@ -1,4 +1,4 @@
-# {{ cookiecutter.dataspace_name }}
+# {{ cookiecutter.graph_name }}
 
 ## Installation
 

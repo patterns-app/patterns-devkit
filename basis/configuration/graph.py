@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
-
 import typing
 from collections import OrderedDict
+from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
-from pydantic.fields import Field
 from basis.configuration.base import FrozenPydanticBase
 from basis.configuration.node import NodeCfg
+from pydantic.fields import Field
 
 
 class BasisCfg(FrozenPydanticBase):

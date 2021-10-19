@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from basis.cli.config import read_local_basis_config
-from basis.configuration.dataspace import DataspaceCfg
 
 
 class BasisCommandBase:
