@@ -30,7 +30,7 @@ DEFAULT_ERROR_NAME = "error"
 DEFAULT_STATE_NAME = "state"
 
 
-class BlockType(str, Enum):
+class OutputType(str, Enum):
     RecordStream = "RecordStream"
     Table = "Table"
 
@@ -40,7 +40,7 @@ class IoBase(FrozenPydanticBase):
     schema_like: Union[str, Schema] = Field(None, alias="schema")
     description: Optional[str] = None
     required: bool = True
-    block_type: BlockType = BlockType.RecordStream
+    output_type: OutputType = OutputType.RecordStream
     data_format: Optional[str] = None
     is_error: bool = False
     is_state: bool = False
@@ -69,7 +69,7 @@ def RecordStream(
         description=description,
         required=required,
         data_format=data_format,
-        block_type=BlockType.RecordStream,
+        output_type=OutputType.RecordStream,
     )
 
 
@@ -86,7 +86,7 @@ def Table(
         description=description,
         required=required,
         data_format=data_format,
-        block_type=BlockType.Table,
+        output_type=OutputType.Table,
     )
 
 
@@ -104,12 +104,9 @@ class ParameterType(str, Enum):
 def normalize_parameter_type(pt: Union[str, ParameterType]) -> ParameterType:
     if isinstance(pt, ParameterType):
         return pt
-    pt = dict(
-        text="str",
-        boolean="bool",
-        number="float",
-        integer="int",
-    ).get(pt.lower(), pt)
+    pt = dict(text="str", boolean="bool", number="float", integer="int",).get(
+        pt.lower(), pt
+    )
     return ParameterType(pt)
 
 
@@ -125,13 +122,9 @@ class Parameter(FrozenPydanticBase):
         return normalize_parameter_type(value)
 
 
-DEFAULT_TABLE_OUTPUT = Table(
-    name=DEFAULT_OUTPUT_NAME,
-)
+DEFAULT_TABLE_OUTPUT = Table(name=DEFAULT_OUTPUT_NAME,)
 # DEFAULT_TABLE_OUTPUTS = OrderedDict(DEFAULT_OUTPUT_NAME, DEFAULT_TABLE_OUTPUT])
-DEFAULT_RECORD_OUTPUT = RecordStream(
-    name=DEFAULT_OUTPUT_NAME,
-)
+DEFAULT_RECORD_OUTPUT = RecordStream(name=DEFAULT_OUTPUT_NAME,)
 # DEFAULT_RECORD_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_RECORD_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
 DEFAULT_STATE_OUTPUT = Table(name=DEFAULT_STATE_OUTPUT_NAME)
@@ -149,13 +142,36 @@ class NodeInterface(FrozenPydanticBase):
     def check_single_input_stream(cls, values: Dict) -> Dict:
         inputs = values.get("inputs", {})
         assert (
-            len([i for i in inputs.values() if i.block_type == BlockType.RecordStream])
+            len(
+                [i for i in inputs.values() if i.output_type == OutputType.RecordStream]
+            )
             <= 1
         ), f"At most one input may be streaming. ({inputs})"
         return values
 
-    def get_default_input(self) -> IoBase:
-        return self.inputs[list(self.inputs)[0]]
+    def get_default_input(self) -> Optional[IoBase]:
+        names = list(self.inputs)
+        if not names:
+            return None
+        return self.inputs[names[0]]
 
-    def get_default_output(self) -> IoBase:
-        return self.outputs[list(self.outputs)[0]]
+    def get_default_output(self) -> Optional[IoBase]:
+        names = list(self.outputs)
+        if not names:
+            return None
+        return self.outputs[names[0]]
+
+    @property
+    def is_streaming(self) -> bool:
+        "If either default input or output is streaming, then it's a streaming node"
+        pi = self.get_default_input()
+        if pi is not None and pi.output_type == OutputType.RecordStream:
+            return True
+        po = self.get_default_output()
+        if po is not None and po.output_type == OutputType.RecordStream:
+            return True
+        return False
+
+    @property
+    def is_table(self) -> bool:
+        return not self.is_streaming

@@ -7,22 +7,21 @@ from dataclasses import asdict, dataclass, field
 from functools import partial, wraps
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
 
-from basis.core.block import Block
 from basis.node.interface import (
     DEFAULT_INPUT_NAME,
     DEFAULT_OUTPUT_NAME,
-    BlockType,
+    OutputType,
     IoBase,
     NodeInterface,
     Parameter,
 )
-from basis.utils.docstring import BasisParser, Docstring
+
+# from basis.utils.docstring import BasisParser, Docstring
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
 
 if TYPE_CHECKING:
-    from basis import Context
-    from basis import Environment
+    from basis.execution.context import Context
 
 
 class NodeException(Exception):
@@ -34,12 +33,6 @@ class InputExhaustedException(NodeException):
 
 
 NodeCallable = Callable[[Context], None]
-
-DataInterfaceType = Union[
-    DataFrame,
-    Records,
-    Block,
-]  # TODO: also input...?   Isn't this duplicated with the Interface list AND with DataFormats?
 
 
 def make_node_name(node: Union[NodeCallable, Node, str]) -> str:
@@ -70,8 +63,8 @@ class Node:
         return self.node_callable(ctx)
 
 
-def parse_docstring(d: str) -> Docstring:
-    return BasisParser().parse(d)
+# def parse_docstring(d: str) -> Docstring:
+#     return BasisParser().parse(d)
 
 
 def list_to_ordered_dict(lst: List) -> OrderedDict:
@@ -107,42 +100,10 @@ def node_decorator(
         name=name,
         node_callable=fn,
         interface=NodeInterface(
-            inputs=inputs_od,
-            outputs=outputs_od,
-            parameters=parameters_od,
+            inputs=inputs_od, outputs=outputs_od, parameters=parameters_od,
         ),
         **kwargs,
     )
-
-
-def wrap_simple_node(node_callable: Callable) -> Callable:
-    @wraps(node_callable)
-    def node_wrapper(ctx: Context):
-        if not ctx.inputs:
-            # Generative node, just emit output
-            result = node_callable()
-            ctx.emit(result)
-            return
-        input_names = list(ctx.inputs)
-        inputs = list(ctx.inputs.values())
-        first_input = inputs[0]
-        other_inputs = inputs[1:]
-        for i in other_inputs:
-            # Other inputs must be refs
-            assert not isinstance(i, list)
-        other_args = [ctx._as_managed_block(i) for i in other_inputs]
-        for block in first_input:
-            mb = ctx._as_managed_block(block)
-            args = [mb]
-            args.extend(other_args)
-            try:
-                result = node_callable(*args)
-                ctx.emit(result)
-                ctx.consume(input_names[0], mb)
-            except Exception as e:
-                ctx.emit_error(block, str(e))  # TODO: node traceback
-
-    return node_wrapper
 
 
 # Decorator API

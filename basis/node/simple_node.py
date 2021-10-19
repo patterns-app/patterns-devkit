@@ -3,6 +3,7 @@ import typing
 from collections import OrderedDict
 from functools import partial, wraps
 from typing import Callable, List, Optional, Union
+from basis.execution.context import Context
 
 from basis.node.interface import (
     DEFAULT_OUTPUT_NAME,
@@ -22,31 +23,35 @@ def create_node_callable_from_simple_node(
 ) -> Callable:
     @wraps(simple_node_callable)
     def simple_node_wrapper(ctx: Context):
-        inputs = list(ctx.inputs.values())
+        interface = ctx.get_node_interface()
         if mode == "streaming":
-            assert ctx.interface.is_streaming
+            assert interface.is_streaming
         else:
-            assert ctx.interface.is_table
-        input_blocks = [ctx._as_managed_block(i) for i in inputs]
-        first_input = input_blocks[0]
-        other_inputs = input_blocks[1:]
+            assert interface.is_table
+        # First input may be stream or table
+        input_names = list(interface.inputs)
+        first_input_name = input_names[0]
+        # Subsequent inputs must be tables, if any at all
+        other_inputs = [ctx.get_table(n) for n in input_names[1:]]
         if mode == "streaming":
             # TODO: new streaming watcher
-            for record in first_input.as_records():
+            for record in ctx.get_records(first_input_name):
                 try:
                     result = simple_node_callable(record, *other_inputs)
-                    ctx.emit_record(result)
-                    # TODO
-                    # ctx.consume_up_to(input_names[0], mb)
+                    ctx.append_record(first_input_name, result)
+                    ctx.checkpoint(first_input_name)
                 except Exception as e:
-                    ctx.emit_error(record, str(e))  # TODO: node traceback
+                    ctx.append_error(record, str(e))  # TODO: node traceback
                     # TODO: keep processing or bail, make this configurable
         else:
             try:
-                result = simple_node_callable(first_input, *other_inputs)
-                ctx.emit_table(result)
+                result = simple_node_callable(
+                    ctx.get_table(first_input_name), *other_inputs
+                )
+                ctx.store_as_table(first_input_name, result)
             except Exception as e:
-                ctx.emit_error(first_input, str(e))  # TODO: node traceback
+                # TODO: if whole table fails, what to do?
+                ctx.append_error(first_input_name, str(e))  # TODO: node traceback
 
     return simple_node_wrapper
 
@@ -121,10 +126,7 @@ def node_interface_from_callable(
         else:
             # Additional inputs must be table
             inputs[name] = Table(name=name, required=not optional)
-    return NodeInterface(
-        inputs=inputs,
-        outputs=outputs,
-    )
+    return NodeInterface(inputs=inputs, outputs=outputs,)
 
 
 simple_streaming_node = partial(simple_node_decorator, mode="streaming")

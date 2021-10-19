@@ -4,7 +4,12 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, List, Optional, Union
 
 from basis.configuration.node import NodeCfg
-from basis.node.interface import DEFAULT_ERROR_NAME, DEFAULT_STATE_NAME
+from basis.node.interface import (
+    DEFAULT_ERROR_NAME,
+    DEFAULT_STATE_NAME,
+    IoBase,
+    NodeInterface,
+)
 from basis.node.node import Node
 from commonmodel.base import Schema
 from dcp.data_format.base import DataFormat
@@ -50,20 +55,17 @@ class Context:
         processed.
         """
 
+    def get_node_interface(self) -> NodeInterface:
+        "Returns node interface"
+
     ### Output
     def append_record(
-        self,
-        output_name: str,
-        record: Any,
-        schema: Union[str, Schema, None] = None,
+        self, output_name: str, record: Any, schema: Union[str, Schema, None] = None,
     ):
         "Appends single record to given output stream"
 
     def store_as_table(
-        self,
-        output_name: str,
-        records: Any = None,
-        data_format: Union[str, DataFormat] = None,
+        self, output_name: str, records: Any,
     ):
         "Stores provided data records as table"
 
@@ -86,6 +88,7 @@ class Context:
         "Appends batch of records to given output stream"
 
     def append_error(self, error_obj: Any, error_msg: str):
+        # TODO: create error record
         self.append_record(output_name=DEFAULT_ERROR_NAME, record=error_obj)
 
     def set_state(self, state: Dict):
