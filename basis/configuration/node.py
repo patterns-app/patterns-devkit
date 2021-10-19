@@ -14,7 +14,7 @@ class NodeOutputCfg(FrozenPydanticBase):
     retention_policy: Optional[str] = None  # TODO
 
 
-class NodeCfg(FrozenPydanticBase):
+class GraphNodeCfg(FrozenPydanticBase):
     python: Optional[str] = None
     sql: Optional[str] = None
     subgraph: Optional[str] = None

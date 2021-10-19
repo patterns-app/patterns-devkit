@@ -8,21 +8,21 @@ from basis.cli.config import BASIS_CONFIG_ENV_VAR, read_local_basis_config
 from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
 from pydantic import ValidationError
 
-from basis.configuration.node import NodeCfg
+from basis.configuration.node import GraphNodeCfg
 
 
 def test_node_configuration_one_type():
-    assert NodeCfg(python="test.py")
-    assert NodeCfg(sql="test.sql")
-    assert NodeCfg(subgraph="subgraph")
+    assert GraphNodeCfg(python="test.py")
+    assert GraphNodeCfg(sql="test.sql")
+    assert GraphNodeCfg(subgraph="subgraph")
     with pytest.raises(ValidationError):
-        NodeCfg()
+        GraphNodeCfg()
     with pytest.raises(ValidationError):
-        NodeCfg(python="test.py", sql="test.sql")
+        GraphNodeCfg(python="test.py", sql="test.sql")
 
 
 def test_node_configuration_full():
-    assert NodeCfg(
+    assert GraphNodeCfg(
         python="test.py",
         name="override",
         parameters={"myparam": 1},

@@ -5,7 +5,7 @@ from collections import OrderedDict
 from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 from basis.configuration.base import FrozenPydanticBase
-from basis.configuration.node import NodeCfg
+from basis.configuration.node import GraphNodeCfg
 from pydantic.fields import Field
 
 
@@ -45,7 +45,7 @@ class GraphCfg(FrozenPydanticBase):
     # default_storage: Optional[str] = None
     basis: BasisCfg = BasisCfg()
     interface: Optional[GraphInterfaceCfg] = None
-    nodes: List[NodeCfg] = []
+    nodes: List[GraphNodeCfg] = []
 
 
 # Don't think we need this

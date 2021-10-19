@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, List, Optional, Union
 
-from basis.configuration.node import NodeCfg
+from basis.configuration.node import GraphNodeCfg
 from basis.node.interface import (
     DEFAULT_ERROR_NAME,
     DEFAULT_STATE_NAME,
@@ -19,7 +19,7 @@ from dcp.storage.base import Storage
 @dataclass(frozen=True)
 class Context:
     node: Node
-    node_cfg: NodeCfg
+    node_cfg: GraphNodeCfg
 
     ### Input
     def get_records(self, input_name: str) -> Iterator[Dict]:
@@ -60,17 +60,12 @@ class Context:
 
     ### Output
     def append_record(
-        self,
-        output_name: str,
-        record: Any,
-        schema: Union[str, Schema, None] = None,
+        self, output_name: str, record: Any, schema: Union[str, Schema, None] = None,
     ):
         "Appends single record to given output stream"
 
     def store_as_table(
-        self,
-        output_name: str,
-        records: Any,
+        self, output_name: str, records: Any,
     ):
         "Stores provided data records as table"
 

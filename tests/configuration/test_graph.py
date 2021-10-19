@@ -10,7 +10,7 @@ from basis.configuration.graph import GraphCfg
 from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
 from pydantic import ValidationError
 
-from basis.configuration.node import NodeCfg
+from basis.configuration.node import GraphNodeCfg
 
 
 def test_graph_configuration():
