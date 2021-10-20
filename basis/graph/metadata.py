@@ -16,8 +16,15 @@ from basis.configuration.graph import GraphCfg, GraphInterfaceCfg
 from basis.configuration.node import GraphNodeCfg
 from pydantic.fields import Field
 
-from basis.node.interface import NodeInterface
-from basis.node.node import Node
+from basis.node.interface import (
+    IoBase,
+    NodeInterface,
+    Parameter,
+    ParameterType,
+    merge_interfaces,
+)
+from basis.node.node import Node, parse_node_output_path
+from basis.node.sql.jinja import parse_interface_from_sql
 from basis.utils.modules import single_of_type_in_path
 
 
@@ -30,6 +37,9 @@ class ConfiguredNode(FrozenPydanticBase):
     original_cfg: Optional[Union[GraphCfg, GraphNodeCfg]] = None
 
 
+ConfiguredNode.update_forward_refs()
+
+
 @dataclass
 class ConfiguredGraphBuilder:
     directory: Path
@@ -38,27 +48,46 @@ class ConfiguredGraphBuilder:
     parent: Optional[ConfiguredGraphBuilder] = None
 
     def build_metadata_from_config(self) -> ConfiguredNode:
-        configured_nodes = self.build_nodes()
+        self.configured_nodes = self.build_nodes()
         interface = self.build_node_interface()
         md = ConfiguredNode(
             name=self.cfg.name,
             interface=interface,
-            nodes=configured_nodes,
+            nodes=self.configured_nodes,
             original_cfg=self.cfg,
             # TODO: inputs and parameters at top-level? What about nested?
         )
         return md
 
     def build_node_interface(self) -> NodeInterface:
-        # TODO: what if no interface declared? then we must infer from children
-        # TODO: need interface.merge operation or similar
+        if self.cfg.interface:
+            return self.build_node_interface_from_graph_interface()
+        else:
+            return self.build_node_interface_from_child_interfaces()
+
+    def build_node_interface_from_child_interfaces(self) -> NodeInterface:
+        interface = NodeInterface()
+        assert self.configured_nodes is not None
+        for n in self.configured_nodes:
+            interface = merge_interfaces(interface, n.interface)
+        return interface
+
+    def build_node_interface_from_graph_interface(self) -> NodeInterface:
+        assert self.cfg.interface is not None
         inputs = OrderedDict()
         for i in self.cfg.interface.inputs:
             assert i.like is not None, "Must specify `like` for input"
-            self.find_node(i.like)
-
+            inpt = self.get_node_input_from_path(i.like)
+            inputs[i.name] = inpt
         outputs = OrderedDict()
+        for name, output_ref in self.cfg.interface.outputs.items():
+            output = self.get_node_output_from_path(output_ref)
+            outputs[name] = output
         parameters = OrderedDict()
+        for name, value in self.cfg.interface.parameters.items():
+            parameters[name] = Parameter(
+                name=name, datatype=ParameterType("str"), default=value
+            )
         return NodeInterface(inputs=inputs, outputs=outputs, parameters=parameters,)
 
     def build_nodes(self) -> List[ConfiguredNode]:
@@ -127,9 +156,46 @@ class ConfiguredGraphBuilder:
             data = load_yaml(relpath)
         return GraphCfg(**data)
 
-    def load_sql_node(self, relpth: str) -> Node:
-        # TODO:
-        return build_node_from_sql_file(relpath)
+    def load_sql_node(self, relpath: str) -> Node:
+        return self.build_node_from_sql_file(relpath)
 
-    def find_node_reference(self, ref: str) -> ConfiguredNode:
-        pass
+    def get_node_output_from_path(self, ref: str) -> IoBase:
+        node_name, output_name = parse_node_output_path(ref)
+        cfg_node = self.get_configured_node(node_name)
+        if output_name is None:
+            output = cfg_node.interface.get_default_output()
+        else:
+            output = cfg_node.interface.outputs[output_name]
+        assert output is not None
+        return output
+
+    def get_node_input_from_path(self, ref: str) -> IoBase:
+        node_name, input_name = parse_node_output_path(ref)
+        cfg_node = self.get_configured_node(node_name)
+        if input_name is None:
+            inpt = cfg_node.interface.get_default_input()
+        else:
+            inpt = cfg_node.interface.inputs[input_name]
+        assert inpt is not None
+        return inpt
+
+    def get_configured_node(self, name: str) -> ConfiguredNode:
+        assert self.configured_nodes is not None
+        for n in self.configured_nodes:
+            if n.name == name:
+                return n
+        raise KeyError(name)
+
+    def build_node_from_sql_file(self, relpath: str) -> Node:
+        pth = Path(relpath)
+        name = pth.name
+        if name.endswith(".sql"):
+            name = name[:-4]
+        with self.set_current_path():
+            tmpl = open(relpath).read()
+            node = Node(
+                name=name,
+                node_callable=lambda ctx: ctx,
+                interface=parse_interface_from_sql(tmpl),
+            )
+        return node

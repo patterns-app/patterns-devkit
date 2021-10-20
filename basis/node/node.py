@@ -5,7 +5,18 @@ import typing
 from collections import OrderedDict
 from dataclasses import asdict, dataclass, field
 from functools import partial, wraps
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Type, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+    cast,
+)
 from basis.configuration.graph import GraphCfg
 from basis.configuration.node import GraphNodeCfg
 
@@ -106,6 +117,14 @@ def node_decorator(
         ),
         **kwargs,
     )
+
+
+def parse_node_output_path(pth: str) -> Tuple[str, Optional[str]]:
+    node_name = pth
+    output_name = None
+    if "." in pth:
+        node_name, output_name = pth.split(".")
+    return node_name, output_name
 
 
 # Decorator API

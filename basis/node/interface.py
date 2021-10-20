@@ -174,3 +174,20 @@ class NodeInterface(FrozenPydanticBase):
     @property
     def is_table(self) -> bool:
         return not self.is_streaming
+
+
+def merge_interfaces(
+    base: NodeInterface, update: NodeInterface, on_conflict_error: bool = True
+) -> NodeInterface:
+    inputs = base.inputs.copy()
+    outputs = base.outputs.copy()
+    parameters = base.parameters.copy()
+    if on_conflict_error:
+        assert set(inputs) & set(update.inputs) == set()
+        assert set(outputs) & set(update.outputs) == set()
+        assert set(parameters) & set(update.parameters) == set()
+    inputs.update(update.inputs)
+    outputs.update(update.outputs)
+    parameters.update(update.parameters)
+    return NodeInterface(inputs=inputs, outputs=outputs, parameters=parameters,)
+

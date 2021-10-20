@@ -24,7 +24,7 @@ def test_simple_graph_builder():
         basis={"version": "0.1"},
         interface={
             "inputs": [{"name": "myinput", "like": "testpy"}],
-            "outputs": OrderedDict(myoutput="suboutput"),
+            "outputs": OrderedDict(myoutput="test"),
             "parameters": {"myparam": 1},
         },
         nodes=[{"python": "test.py"}, {"sql": "test.sql"},],
