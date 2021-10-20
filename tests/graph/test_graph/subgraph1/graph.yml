@@ -1,0 +1,6 @@
+name: subgraph1
+interface:
+  outputs:
+    test_sub: test_sub
+nodes:
+  - python: test_sub.py

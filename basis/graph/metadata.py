@@ -60,17 +60,23 @@ class ConfiguredGraphBuilder:
         return md
 
     def build_node_interface(self) -> NodeInterface:
-        if self.cfg.interface:
-            return self.build_node_interface_from_graph_interface()
-        else:
-            return self.build_node_interface_from_child_interfaces()
+        if self.cfg.interface is None:
+            if self.parent is None:
+                return NodeInterface()
+            else:
+                raise NotImplementedError(
+                    "Graph MUST declare interface (unless root-level graph)"
+                )
+                # return self.build_node_interface_from_child_interfaces()
 
-    def build_node_interface_from_child_interfaces(self) -> NodeInterface:
-        interface = NodeInterface()
-        assert self.configured_nodes is not None
-        for n in self.configured_nodes:
-            interface = merge_interfaces(interface, n.interface)
-        return interface
+        return self.build_node_interface_from_graph_interface()
+
+    # def build_node_interface_from_child_interfaces(self) -> NodeInterface:
+    #     interface = NodeInterface()
+    #     assert self.configured_nodes is not None
+    #     for n in self.configured_nodes:
+    #         interface = merge_interfaces(interface, n.interface)
+    #     return interface
 
     def build_node_interface_from_graph_interface(self) -> NodeInterface:
         assert self.cfg.interface is not None
@@ -132,9 +138,12 @@ class ConfiguredGraphBuilder:
         self, graph_node_cfg: GraphNodeCfg
     ) -> ConfiguredNode:
         assert graph_node_cfg.subgraph is not None
-        pth = self.directory / graph_node_cfg.subgraph
-        cfg = self.load_graph_cfg(str(pth))
-        builder = ConfiguredGraphBuilder(directory=pth, cfg=cfg, parent=self,)
+        relpath = graph_node_cfg.subgraph
+        assert relpath.endswith(".yml") or relpath.endswith(".yaml")
+        yaml_pth = self.directory / graph_node_cfg.subgraph
+        dir_pth = yaml_pth.parent
+        cfg = self.load_graph_cfg(str(yaml_pth))
+        builder = ConfiguredGraphBuilder(directory=dir_pth, cfg=cfg, parent=self,)
         return builder.build_metadata_from_config()
 
     @contextmanager
