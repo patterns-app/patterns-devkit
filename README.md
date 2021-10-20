@@ -61,4 +61,4 @@ Ensure you have an environment created:
 
 And then you can deploy a graph to an environment:
 
-`basis deploy mygrpah/graph.yml -e production`
+`basis deploy mygraph/graph.yml -e production`

@@ -31,12 +31,14 @@ def load_python_file(pth: str, **local_vars: Any) -> Dict[str, Any]:
 
 def load_module(pth: Path) -> ModuleType:
     name = pth.parts[-1]
+    if name.endswith(".py"):
+        name = name[:-3]
     parent = str(pth.parent)
     if parent in sys.path:
         exists = True
     else:
         exists = False
-        sys.path.append(parent)
+        sys.path.insert(0, parent)
     try:
         return import_module(name)
     finally:

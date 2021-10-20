@@ -34,7 +34,7 @@ class InputExhaustedException(NodeException):
     pass
 
 
-NodeCallable = Callable[[Context], None]
+NodeCallable = Callable[["Context"], None]
 
 
 def make_node_name(node: Union[NodeCallable, Node, str]) -> str:
@@ -50,7 +50,7 @@ def make_node_name(node: Union[NodeCallable, Node, str]) -> str:
     raise Exception(f"Cannot make name for node-like {node}")
 
 
-@dataclass
+@dataclass(frozen=True)
 class Node:
     name: str
     node_callable: Callable
