@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 import requests_mock
-from basis.cli.api import DEFAULT_BASE_URL
+from basis.cli.services.api import DEFAULT_BASE_URL
 from basis.cli.config import BASIS_CONFIG_ENV_VAR, read_local_basis_config
 from basis.configuration.graph import GraphCfg
 from basis.configuration.node import GraphNodeCfg
@@ -21,8 +21,5 @@ def test_graph_configuration():
             "outputs": OrderedDict(myoutput="suboutput"),
             "parameters": {"myparam": 1},
         },
-        nodes=[
-            {"python": "test.py"},
-            {"sql": "test.sql"},
-        ],
+        nodes=[{"python": "test.py"}, {"sql": "test.sql"},],
     )

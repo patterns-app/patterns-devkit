@@ -1,11 +1,5 @@
-from basis.cli.api import (
-    env_list,
-    env_logs,
-    graph_list,
-    graph_logs,
-    node_list,
-    node_logs,
-)
+from basis.cli.config import get_current_organization_uid
+from basis.cli.services.list import list_objects
 from basis.cli.commands.base import BasisCommandBase
 from cleo import Command
 
@@ -21,17 +15,17 @@ class ListCommand(BasisCommandBase, Command):
     def handle(self):
         self.ensure_authenticated()
         obj_type = self.argument("type")
-        if obj_type == "env":
-            resp = env_list()
-        elif obj_type == "graph":
-            resp = graph_list()
-        elif obj_type == "node":
-            resp = node_list()
+        assert isinstance(obj_type, str)
+        try:
+            objects = list_objects(obj_type, get_current_organization_uid())
+        except Exception as e:
+            self.line(f"<error>Error listing objects: {e}</error>")
+            exit(1)
+        if not objects:
+            self.line(f"No {obj_type}s found")
         else:
-            self.line(f"<error>Invalid type: {obj_type}</error>")
-            exit(1)
-        if not resp.ok:
-            self.line(f"<error>Logs request failed: {resp.text}</error>")
-            exit(1)
-        data = resp.json()
-        self.line(f"<info>{data}</info>")
+            table = self.table()
+            keys = list(objects[0].keys())
+            table.set_header_row(keys)
+            table.set_rows([list(d.values()) for d in objects])
+            table.render(self.io)

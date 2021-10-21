@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 import requests_mock
-from basis.cli.api import DEFAULT_BASE_URL
+from basis.cli.services.api import DEFAULT_BASE_URL
 from basis.cli.config import BASIS_CONFIG_ENV_VAR, read_local_basis_config
 from basis.configuration.node import GraphNodeCfg
 from pydantic import ValidationError

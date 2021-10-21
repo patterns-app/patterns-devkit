@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 
 import requests_mock
-from basis.cli.api import DEFAULT_BASE_URL
+from basis.cli.services.api import DEFAULT_BASE_URL
 from basis.cli.helpers import compress_directory
 from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
 

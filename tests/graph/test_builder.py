@@ -26,7 +26,7 @@ def test_simple_graph_builder():
     pth = Path(set_tmp_dir()) / "test_simple"
     shutil.copytree(TEST_GRAPH_DIR, pth)
     builder = ConfiguredGraphBuilder(directory=pth, cfg=cfg,)
-    cfg_node = builder.build_metadata_from_config()
+    cfg_node = builder.build_manifest_from_config()
     assert cfg_node.name == cfg.name
     assert len(cfg_node.nodes) == 2
     assert len(cfg_node.interface.inputs) == 1
@@ -52,7 +52,7 @@ def test_sub_graph_builder():
     pth = Path(set_tmp_dir()) / "test_subgraph"
     shutil.copytree(TEST_GRAPH_DIR, pth)
     builder = ConfiguredGraphBuilder(directory=pth, cfg=cfg,)
-    cfg_node = builder.build_metadata_from_config()
+    cfg_node = builder.build_manifest_from_config()
     # print(dump_json(cfg_node))
     # raise
     assert cfg_node.name == cfg.name

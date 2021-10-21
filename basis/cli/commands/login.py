@@ -3,9 +3,13 @@ from __future__ import annotations
 import os
 import sys
 
-from basis.cli.api import login
 from basis.cli.commands.base import BasisCommandBase
-from basis.cli.config import remove_auth_from_basis_config, update_local_basis_config
+from basis.cli.config import (
+    remove_auth_from_basis_config,
+    set_current_organization_uid,
+    update_local_basis_config,
+)
+from basis.cli.services.auth import list_organizations, login, logout
 from basis.cli.templates.generator import generate_template
 from cleo import Command
 
@@ -20,16 +24,38 @@ class LoginCommand(BasisCommandBase, Command):
     """
 
     def handle(self):
+        # Logout first
+        logout()
         em = self.option("email")
         pw = self.option("password")
         if not em:
             em = self.ask("Email:")
         if not pw:
             pw = self.secret("Password:")
-        resp = login({"email": em, "password": pw})
-        if not resp.ok:
-            self.line(f"<error>Login failed: {resp.text}</error>")
+        assert isinstance(em, str)
+        assert isinstance(pw, str)
+        try:
+            login(email=em, password=pw)
+        except Exception as e:
+            self.line(f"<error>Login failed: {e}</error>")
             exit(1)
-        data = resp.json()
-        update_local_basis_config(**data)
         self.line("<info>Logged in successfully</info>")
+        try:
+            organizations = list_organizations()
+        except Exception as e:
+            self.line(f"<error>Fetching organizations failed: {e}</error>")
+            exit(1)
+        if not organizations:
+            raise Exception("User has no organizations")
+        org_name = ""
+        if len(organizations) == 1:
+            org = organizations[0]
+            org_name = org["name"]
+            set_current_organization_uid(org["uid"])
+        else:
+            org_name = self.choice(
+                "Select an organization", [org["name"] for org in organizations]
+            )
+            uid = [org for org in organizations if org["name"] == org_name][0]["uid"]
+            set_current_organization_uid(uid)
+        self.line(f"Using organization <info>{org_name}</info>")

@@ -36,7 +36,7 @@ class ConfiguredGraphBuilder:
     configured_nodes: Optional[List[ConfiguredNode]] = None
     parent: Optional[ConfiguredGraphBuilder] = None
 
-    def build_metadata_from_config(self) -> ConfiguredNode:
+    def build_manifest_from_config(self) -> ConfiguredNode:
         self.configured_nodes = self.build_nodes()
         interface = self.build_node_interface()
         md = ConfiguredNode(
@@ -139,7 +139,7 @@ class ConfiguredGraphBuilder:
         dir_pth = yaml_pth.parent
         cfg = self.load_graph_cfg(str(yaml_pth))
         sub_builder = ConfiguredGraphBuilder(directory=dir_pth, cfg=cfg, parent=self,)
-        return sub_builder.build_metadata_from_config()
+        return sub_builder.build_manifest_from_config()
 
     @contextmanager
     def set_current_path(self):

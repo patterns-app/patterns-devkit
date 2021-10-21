@@ -2,7 +2,6 @@ import base64
 import os
 from io import BytesIO
 
-from basis.cli.api import download
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.helpers import expand_directory
 from cleo import Command

@@ -1,4 +1,4 @@
-from basis.cli.api import env_info, graph_info, node_info
+from basis.cli.services.api import env_info, graph_info, node_info
 from basis.cli.commands.base import BasisCommandBase
 from cleo import Command
 
