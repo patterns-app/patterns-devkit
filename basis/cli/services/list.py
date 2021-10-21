@@ -8,13 +8,8 @@ from basis.cli.services.api import Endpoints, post, get
 
 def list_objects(obj_type: str, organization_uid: str) -> List[Dict]:
     if obj_type == "env":
-        endpoint = Endpoints.ENVIRONMENTS_LIST
-    elif obj_type == "graph":
-        endpoint = Endpoints.GRAPHS_LIST
-    elif obj_type == "node":
-        endpoint = Endpoints.NODES_LIST
-    else:
-        raise ValueError(obj_type)
+        obj_type = "environment"
+    endpoint = getattr(Endpoints, f"{obj_type.upper()}S_LIST")
     resp = get(endpoint, params={"organization_uid": organization_uid})
     resp.raise_for_status()
     return resp.json()

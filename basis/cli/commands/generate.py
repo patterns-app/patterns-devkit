@@ -31,7 +31,6 @@ class GenerateCommand(BasisCommandBase, Command):
             raise ValueError(
                 f"Invalid type {type_}, must be one of {self.supported_types}"
             )
-
         cfg = getattr(self, f"{type_}_config_from_dialogue")(destination_path)
         if "template_name" not in cfg:
             cfg["template_name"] = f"{type_}"

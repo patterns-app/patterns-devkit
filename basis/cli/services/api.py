@@ -6,16 +6,37 @@ import requests
 from basis.cli.config import read_local_basis_config
 from requests import Request, Response, Session
 
+
 API_BASE_URL = os.environ.get("BASIS_API_URL", "https://api.getbasis.com/")
 AUTH_TOKEN_PREFIX = "JWT"
 
 
 def get_api_session() -> Session:
     s = requests.Session()
-    cfg = read_local_basis_config()
-    if cfg.get("token"):
-        s.headers.update({"Authorization": f"{AUTH_TOKEN_PREFIX} {cfg['token']}"})
+    auth_token = get_auth_token()
+    if auth_token:
+        s.headers.update({"Authorization": f"{AUTH_TOKEN_PREFIX} {auth_token}"})
     return s
+
+
+def get_auth_token():
+    cfg = read_local_basis_config()
+    auth_token = cfg.get("token")
+    if auth_token:
+        resp = requests.post(
+            API_BASE_URL + Endpoints.TOKEN_VERIFY, data={"token": auth_token}
+        )
+        if resp.status_code == 401:
+            refresh = cfg.get("refresh")
+            if refresh:
+                from basis.cli.services.auth import refresh_token
+
+                refresh_token(refresh)
+                cfg = read_local_basis_config()
+                auth_token = cfg.get("token")
+        else:
+            resp.raise_for_status()
+    return auth_token
 
 
 def get(path: str, params: Dict = None, session: Session = None, **kwargs) -> Response:
@@ -31,7 +52,9 @@ def post(path: str, data: Dict = None, session: Session = None, **kwargs) -> Res
 
 
 class Endpoints(str, Enum):
-    TOKEN_AUTH = "auth/jwt/create/"
+    TOKEN_CREATE = "auth/jwt/create/"
+    TOKEN_VERIFY = "auth/jwt/verify/"
+    TOKEN_REFRESH = "auth/jwt/refresh/"
     GRAPH_VERSIONS_UPLOAD = "api/graph-versions/upload/"
     GRAPH_VERSIONS_DOWNLOAD = "api/graph-versions/download/"
     ENVIRONMENTS_INFO = "api/environments/info/"
