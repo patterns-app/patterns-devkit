@@ -1,14 +1,14 @@
 from __future__ import annotations
-from collections import OrderedDict
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from basis.configuration.base import PydanticBase
 from basis.node.interface import (
     DEFAULT_OUTPUT_NAME,
-    NodeInterface,
     IoBase,
+    NodeInterface,
     Parameter,
     RecordStream,
     Table,

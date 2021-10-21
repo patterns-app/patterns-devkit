@@ -14,7 +14,7 @@ def is_git_directory(path: PathLike) -> bool:
 
 def list_all_files_not_gitignored(path: PathLike) -> List[str]:
     os.chdir(path)
-    cmd = "( git status --short| grep '^?' | cut -d\  -f2- && git ls-files )"
+    cmd = "( git status --short| grep '^?' | cut -d\\  -f2- && git ls-files )"
     files = subprocess.check_output(cmd, shell=True).splitlines()
     return [b.decode() for b in files]
 

@@ -52,7 +52,7 @@ class GenerateCommand(BasisCommandBase, Command):
         name = name.split(".")[0]
         name = self.ask(f"Node name [{name}]:", name)
         langs = ["sql", "python"]
-        lang_q = self.create_question(f"Node language [sql, python]:", default="python")
+        lang_q = self.create_question("Node language [sql, python]:", default="python")
         lang_q.set_autocomplete_values(langs)
         lang = self.ask(lang_q)
         complexity = "simple"

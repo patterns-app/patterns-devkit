@@ -25,5 +25,5 @@ def test_clone():
                 DEFAULT_BASE_URL + "graph-versions/download",
                 json={"zip": b64_zipf.decode()},
             )
-            command_tester.execute(f"mock_name")
+            command_tester.execute("mock_name")
         assert os.path.exists(proj_path / "graph.yml")

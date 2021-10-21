@@ -1,22 +1,21 @@
 from __future__ import annotations
-import sys
+
+import importlib
 import os
-from dataclasses import dataclass
-from types import ModuleType
+import sys
 import typing
 from collections import OrderedDict
-from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
-from pathlib import Path
-import importlib
 from contextlib import contextmanager
-from basis.configuration import graph
+from dataclasses import dataclass
+from pathlib import Path
+from types import ModuleType
+from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
+from basis.configuration import graph
 from basis.configuration.base import FrozenPydanticBase, load_yaml
 from basis.configuration.graph import GraphCfg, GraphInterfaceCfg
 from basis.configuration.node import GraphNodeCfg
-from pydantic.fields import Field
 from basis.graph.configured_node import ConfiguredNode
-
 from basis.node.interface import (
     IoBase,
     NodeInterface,
@@ -27,6 +26,7 @@ from basis.node.interface import (
 from basis.node.node import Node, parse_node_output_path
 from basis.node.sql.jinja import parse_interface_from_sql
 from basis.utils.modules import single_of_type_in_path
+from pydantic.fields import Field
 
 
 @dataclass
@@ -85,7 +85,11 @@ class ConfiguredGraphBuilder:
             parameters[name] = Parameter(
                 name=name, datatype=ParameterType("str"), default=value
             )
-        return NodeInterface(inputs=inputs, outputs=outputs, parameters=parameters,)
+        return NodeInterface(
+            inputs=inputs,
+            outputs=outputs,
+            parameters=parameters,
+        )
 
     def build_nodes(self) -> List[ConfiguredNode]:
         configured_nodes = []
@@ -134,7 +138,11 @@ class ConfiguredGraphBuilder:
         yaml_pth = self.directory / graph_node_cfg.subgraph
         dir_pth = yaml_pth.parent
         cfg = self.load_graph_cfg(str(yaml_pth))
-        builder = ConfiguredGraphBuilder(directory=dir_pth, cfg=cfg, parent=self,)
+        builder = ConfiguredGraphBuilder(
+            directory=dir_pth,
+            cfg=cfg,
+            parent=self,
+        )
         return builder.build_metadata_from_config()
 
     @contextmanager

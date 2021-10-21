@@ -1,11 +1,10 @@
-from pathlib import Path
-from collections import OrderedDict
-
 import shutil
+from collections import OrderedDict
+from pathlib import Path
+
 from basis.configuration.graph import GraphCfg
 from basis.graph.builder import ConfiguredGraphBuilder
 from tests.cli.base import set_tmp_dir
-
 
 TEST_GRAPH_DIR = Path(__file__).parent / "test_graph"
 
@@ -19,11 +18,17 @@ def test_simple_graph_builder():
             "outputs": OrderedDict(myoutput="test"),
             "parameters": {"myparam": 1},
         },
-        nodes=[{"python": "test.py"}, {"sql": "test.sql"},],
+        nodes=[
+            {"python": "test.py"},
+            {"sql": "test.sql"},
+        ],
     )
     pth = Path(set_tmp_dir()) / "test_simple"
     shutil.copytree(TEST_GRAPH_DIR, pth)
-    builder = ConfiguredGraphBuilder(directory=pth, cfg=cfg,)
+    builder = ConfiguredGraphBuilder(
+        directory=pth,
+        cfg=cfg,
+    )
     cfg_node = builder.build_metadata_from_config()
     assert cfg_node.name == cfg.name
     assert len(cfg_node.nodes) == 2
@@ -49,7 +54,10 @@ def test_sub_graph_builder():
     )
     pth = Path(set_tmp_dir()) / "test_subgraph"
     shutil.copytree(TEST_GRAPH_DIR, pth)
-    builder = ConfiguredGraphBuilder(directory=pth, cfg=cfg,)
+    builder = ConfiguredGraphBuilder(
+        directory=pth,
+        cfg=cfg,
+    )
     cfg_node = builder.build_metadata_from_config()
     assert cfg_node.name == cfg.name
     assert len(cfg_node.nodes) == 3
