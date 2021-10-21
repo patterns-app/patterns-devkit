@@ -34,7 +34,7 @@ class GenerateCommand(BasisCommandBase, Command):
 
         cfg = getattr(self, f"{type_}_config_from_dialogue")(destination_path)
         if "template_name" not in cfg:
-            cfg["template_name"] = f"{type_}_template"
+            cfg["template_name"] = f"{type_}"
         if "destination_path" not in cfg:
             cfg["destination_path"] = destination_path
         generate_template(**cfg)
@@ -57,7 +57,7 @@ class GenerateCommand(BasisCommandBase, Command):
         lang = self.ask(lang_q)
         complexity = "simple"
         return {
-            "template_name": f"node_{complexity}_{lang}_template",
+            "template_name": f"nodes/{lang}/node_{complexity}_{lang}_template",
             "destination_path": Path(destination_path).parent / name,
             "flatten": True,
             "node_name": name,

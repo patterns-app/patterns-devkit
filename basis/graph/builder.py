@@ -15,6 +15,7 @@ from basis.configuration.base import FrozenPydanticBase, load_yaml
 from basis.configuration.graph import GraphCfg, GraphInterfaceCfg
 from basis.configuration.node import GraphNodeCfg
 from pydantic.fields import Field
+from basis.graph.configured_node import ConfiguredNode
 
 from basis.node.interface import (
     IoBase,
@@ -26,18 +27,6 @@ from basis.node.interface import (
 from basis.node.node import Node, parse_node_output_path
 from basis.node.sql.jinja import parse_interface_from_sql
 from basis.utils.modules import single_of_type_in_path
-
-
-class ConfiguredNode(FrozenPydanticBase):
-    name: str
-    interface: NodeInterface
-    nodes: List[ConfiguredNode] = []
-    inputs: Dict[str, str] = {}
-    parameters: Dict[str, Any] = {}
-    original_cfg: Optional[Union[GraphCfg, GraphNodeCfg]] = None
-
-
-ConfiguredNode.update_forward_refs()
 
 
 @dataclass
@@ -65,12 +54,14 @@ class ConfiguredGraphBuilder:
                 return NodeInterface()
             else:
                 raise NotImplementedError(
-                    "Graph MUST declare interface (unless root-level graph)"
+                    "Sub-graphs must declare an explicit interface"
                 )
+                # Not supported for now
                 # return self.build_node_interface_from_child_interfaces()
 
         return self.build_node_interface_from_graph_interface()
 
+    # Not supported for now
     # def build_node_interface_from_child_interfaces(self) -> NodeInterface:
     #     interface = NodeInterface()
     #     assert self.configured_nodes is not None

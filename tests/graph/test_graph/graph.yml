@@ -1,0 +1,14 @@
+name: test_graph
+interface:
+  inputs:
+    - name: myinput
+      like: testpy
+  outputs:
+    myoutput: test
+    other_output: subgraph1.test_sub
+  parameters:
+    myparam: 1
+nodes:
+  - python: test.py
+  - sql: test.sql
+  - subgraph: subgraph1/graph.yml
