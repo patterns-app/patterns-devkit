@@ -28,6 +28,7 @@ from basis.node.interface import (
     OutputType,
     Parameter,
 )
+
 # from basis.utils.docstring import BasisParser, Docstring
 from dcp.data_format.formats.memory.records import Records
 from pandas import DataFrame
@@ -112,9 +113,7 @@ def node_decorator(
         name=name,
         node_callable=fn,
         interface=NodeInterface(
-            inputs=inputs_od,
-            outputs=outputs_od,
-            parameters=parameters_od,
+            inputs=inputs_od, outputs=outputs_od, parameters=parameters_od,
         ),
         **kwargs,
     )

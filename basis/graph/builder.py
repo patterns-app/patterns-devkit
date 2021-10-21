@@ -14,7 +14,7 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 from basis.configuration import graph
 from basis.configuration.base import FrozenPydanticBase, load_yaml
 from basis.configuration.graph import GraphCfg, GraphInterfaceCfg
-from basis.configuration.node import GraphNodeCfg
+from basis.configuration.node import GraphNodeCfg, NodeType
 from basis.graph.configured_node import ConfiguredNode
 from basis.node.interface import (
     IoBase,
@@ -41,6 +41,7 @@ class ConfiguredGraphBuilder:
         interface = self.build_node_interface()
         md = ConfiguredNode(
             name=self.cfg.name,
+            node_type=NodeType.GRAPH,
             interface=interface,
             nodes=self.configured_nodes,
             original_cfg=self.cfg,
@@ -85,11 +86,7 @@ class ConfiguredGraphBuilder:
             parameters[name] = Parameter(
                 name=name, datatype=ParameterType("str"), default=value
             )
-        return NodeInterface(
-            inputs=inputs,
-            outputs=outputs,
-            parameters=parameters,
-        )
+        return NodeInterface(inputs=inputs, outputs=outputs, parameters=parameters,)
 
     def build_nodes(self) -> List[ConfiguredNode]:
         configured_nodes = []
@@ -110,18 +107,21 @@ class ConfiguredGraphBuilder:
     ) -> ConfiguredNode:
         assert graph_node_cfg.python is not None
         node = self.load_python_node(graph_node_cfg.python)
-        return self.build_configured_node_from_node(graph_node_cfg, node)
+        return self.build_configured_node_from_node(
+            graph_node_cfg, node, NodeType.PYTHON
+        )
 
     def build_sql_configured_node(self, graph_node_cfg: GraphNodeCfg) -> ConfiguredNode:
         assert graph_node_cfg.sql is not None
         node = self.load_sql_node(graph_node_cfg.sql)
-        return self.build_configured_node_from_node(graph_node_cfg, node)
+        return self.build_configured_node_from_node(graph_node_cfg, node, NodeType.SQL)
 
     def build_configured_node_from_node(
-        self, graph_node_cfg: GraphNodeCfg, node: Node
+        self, graph_node_cfg: GraphNodeCfg, node: Node, node_type: NodeType
     ) -> ConfiguredNode:
         cfg_node = ConfiguredNode(
             name=node.name,
+            node_type=node_type,
             interface=node.interface,
             inputs=graph_node_cfg.inputs,
             parameters=graph_node_cfg.parameters,
@@ -138,12 +138,8 @@ class ConfiguredGraphBuilder:
         yaml_pth = self.directory / graph_node_cfg.subgraph
         dir_pth = yaml_pth.parent
         cfg = self.load_graph_cfg(str(yaml_pth))
-        builder = ConfiguredGraphBuilder(
-            directory=dir_pth,
-            cfg=cfg,
-            parent=self,
-        )
-        return builder.build_metadata_from_config()
+        sub_builder = ConfiguredGraphBuilder(directory=dir_pth, cfg=cfg, parent=self,)
+        return sub_builder.build_metadata_from_config()
 
     @contextmanager
     def set_current_path(self):
@@ -204,6 +200,7 @@ class ConfiguredGraphBuilder:
             node = Node(
                 name=name,
                 node_callable=lambda ctx: ctx,
+                language="sql",
                 interface=parse_interface_from_sql(tmpl),
             )
         return node

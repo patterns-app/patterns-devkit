@@ -3,6 +3,7 @@ from __future__ import annotations
 from io import StringIO
 from typing import TYPE_CHECKING, Dict, TypeVar
 
+import json
 import pydantic
 import yaml
 
@@ -52,3 +53,10 @@ def dump_yaml(d: Dict) -> str:
     io = StringIO()
     yaml.dump(d, io, Dumper=Dumper)
     return io.getvalue()
+
+
+def dump_json(obj: PydanticBase) -> str:
+    return json.dumps(
+        obj.dict(skip_defaults=True, exclude_unset=True, exclude_none=True)
+    )
+
