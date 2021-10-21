@@ -14,7 +14,7 @@ from basis.graph.builder import ConfiguredGraphBuilder
 
 
 def login(email: str, password: str):
-    resp = post(Endpoints.TOKEN_AUTH, data={"email": email, "password": password,})
+    resp = post(Endpoints.TOKEN_CREATE, data={"email": email, "password": password,})
     resp.raise_for_status()
     data = resp.json()
     update_basis_config_with_auth(data, email=email)

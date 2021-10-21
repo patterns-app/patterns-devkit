@@ -1,4 +1,3 @@
-from basis.cli.services.api import node_info, run_node
 from basis.cli.commands.base import BasisCommandBase
 from cleo import Command
 

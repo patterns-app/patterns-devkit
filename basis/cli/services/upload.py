@@ -1,6 +1,7 @@
 import base64
 import os
 from pathlib import Path
+from typing import Dict
 
 from requests.models import Response
 
@@ -23,7 +24,7 @@ def upload_graph_version(
         data={
             "graph_name": cfg.name,
             "organization_uid": organization_uid,
-            "graph_manifest": manifest,
+            "graph_manifest": manifest.dict(exclude_unset=True),
         },
         files={"zip": zipf},
     )

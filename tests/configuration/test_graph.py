@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 import requests_mock
-from basis.cli.services.api import DEFAULT_BASE_URL
+from basis.cli.services.api import API_BASE_URL
 from basis.cli.config import BASIS_CONFIG_ENV_VAR, read_local_basis_config
 from basis.configuration.graph import GraphCfg
 from basis.configuration.node import GraphNodeCfg

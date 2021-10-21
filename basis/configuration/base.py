@@ -56,7 +56,5 @@ def dump_yaml(d: Dict) -> str:
 
 
 def dump_json(obj: PydanticBase) -> str:
-    return json.dumps(
-        obj.dict(skip_defaults=True, exclude_unset=True, exclude_none=True)
-    )
+    return json.dumps(obj.dict(exclude_unset=True, exclude_none=True))
 

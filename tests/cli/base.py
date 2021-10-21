@@ -2,9 +2,13 @@ import os
 import tempfile
 from pathlib import Path
 
+import requests_mock
+from contextlib import contextmanager
 from basis.cli.app import app
 from basis.cli.config import BASIS_CONFIG_ENV_VAR, update_local_basis_config
 from cleo import CommandTester
+
+from basis.cli.services.api import API_BASE_URL, Endpoints
 
 IS_CI = os.environ.get("CI")
 
@@ -27,3 +31,14 @@ def get_test_command(name: str) -> CommandTester:
     command = app.find(name)
     command_tester = CommandTester(command)
     return command_tester
+
+
+@contextmanager
+def reqest_mocker():
+    with requests_mock.Mocker() as m:
+        m.post(
+            API_BASE_URL + Endpoints.TOKEN_CREATE,
+            json={"access": "access-token", "refresh": "refresh-token"},
+        )
+        m.post(API_BASE_URL + Endpoints.TOKEN_VERIFY,)
+        yield m
