@@ -11,7 +11,7 @@ from requests.models import Response
 
 
 def upload_graph_version(
-    cfg: GraphCfg, pth_to_root: Path, organization_uid: str
+    cfg: GraphCfg, pth_to_root: Path, organization_name: str
 ) -> Dict:
     manifest = ConfiguredGraphBuilder(
         directory=pth_to_root, cfg=cfg
@@ -21,7 +21,7 @@ def upload_graph_version(
         Endpoints.GRAPH_VERSIONS_UPLOAD,
         data={
             "graph_name": cfg.name,
-            "organization_uid": organization_uid,
+            "organization_name": organization_name,
             "graph_manifest": manifest.dict(exclude_unset=True),
         },
         files={"zip": zipf},

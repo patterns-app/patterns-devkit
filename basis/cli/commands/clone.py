@@ -3,7 +3,7 @@ import os
 from io import BytesIO
 
 from basis.cli.commands.base import BasisCommandBase
-from basis.cli.config import get_current_organization_uid
+from basis.cli.config import get_current_organization_name
 from basis.cli.helpers import expand_directory
 from basis.cli.services.download import download_graph_version
 from cleo import Command
@@ -25,7 +25,7 @@ class CloneCommand(BasisCommandBase, Command):
         expansion_path = self.option("path") or "."
         assert isinstance(graph_name, str)
         try:
-            data = download_graph_version(graph_name, get_current_organization_uid())
+            data = download_graph_version(graph_name, get_current_organization_name())
         except Exception as e:
             self.line(f"<error>Clone failed: {e}</error>")
             exit(1)

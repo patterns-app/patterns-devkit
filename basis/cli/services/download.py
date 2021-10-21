@@ -9,7 +9,7 @@ from basis.graph.builder import ConfiguredGraphBuilder
 from requests.models import Response
 
 
-def download_graph_version(name: str, organization_uid: str) -> Response:
+def download_graph_version(name: str, organization_name: str) -> Response:
     # manifest = ConfiguredGraphBuilder(
     #     directory=pth_to_root, cfg=cfg
     # ).build_manifest_from_config()

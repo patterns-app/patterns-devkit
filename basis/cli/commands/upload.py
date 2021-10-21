@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 from basis.cli.commands.base import BasisCommandBase
-from basis.cli.config import get_current_organization_uid
+from basis.cli.config import get_current_organization_name
 from basis.cli.helpers import compress_directory
 from basis.cli.services.upload import upload_graph_version
 from basis.configuration.base import load_yaml
@@ -28,7 +28,7 @@ class UploadCommand(BasisCommandBase, Command):
         cfg_dir = cfg_path.parent
         try:
             data = upload_graph_version(
-                graph_cfg, cfg_dir, get_current_organization_uid()
+                graph_cfg, cfg_dir, get_current_organization_name()
             )
         except Exception as e:
             self.line(f"<error>Upload failed: {e}</error>")

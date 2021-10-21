@@ -6,7 +6,7 @@ import sys
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.config import (
     remove_auth_from_basis_config,
-    set_current_organization_uid,
+    set_current_organization_name,
     update_local_basis_config,
 )
 from basis.cli.services.auth import list_organizations, login, logout
@@ -51,11 +51,10 @@ class LoginCommand(BasisCommandBase, Command):
         if len(organizations) == 1:
             org = organizations[0]
             org_name = org["name"]
-            set_current_organization_uid(org["uid"])
+            set_current_organization_name(org_name)
         else:
             org_name = self.choice(
                 "Select an organization", [org["name"] for org in organizations]
             )
-            uid = [org for org in organizations if org["name"] == org_name][0]["uid"]
-            set_current_organization_uid(uid)
+            set_current_organization_name(org_name)
         self.line(f"Using organization <info>{org_name}</info>")

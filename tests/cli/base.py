@@ -23,7 +23,7 @@ def set_tmp_dir(create_basis_config: bool = False):
 def create_authed_basis_config(pth: str) -> str:
     cfg_pth = Path(pth) / ".basis-config.json"
     os.environ[BASIS_CONFIG_ENV_VAR] = str(cfg_pth)
-    update_local_basis_config(token="test-token", organization_uid="test-org-uid")
+    update_local_basis_config(token="test-token", organization_name="test-org-uid")
 
 
 def get_test_command(name: str) -> CommandTester:
@@ -39,7 +39,5 @@ def reqest_mocker():
             API_BASE_URL + Endpoints.TOKEN_CREATE,
             json={"access": "access-token", "refresh": "refresh-token"},
         )
-        m.post(
-            API_BASE_URL + Endpoints.TOKEN_VERIFY,
-        )
+        m.post(API_BASE_URL + Endpoints.TOKEN_VERIFY,)
         yield m

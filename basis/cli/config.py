@@ -42,10 +42,10 @@ def remove_auth_from_basis_config():
     update_local_basis_config(token="")
 
 
-def get_current_organization_uid() -> str:
+def get_current_organization_name() -> str:
     cfg = read_local_basis_config()
-    return cfg["organization_uid"]
+    return cfg["organization_name"]
 
 
-def set_current_organization_uid(org_uid: str):
-    update_local_basis_config(organization_uid=org_uid)
+def set_current_organization_name(org_uid: str):
+    update_local_basis_config(organization_name=org_uid)
