@@ -1,6 +1,6 @@
 from __future__ import annotations
-from enum import Enum
 
+from enum import Enum
 from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 from basis.configuration.base import FrozenPydanticBase

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import json
 from io import StringIO
 from typing import TYPE_CHECKING, Dict, TypeVar
 
-import json
 import pydantic
 import yaml
 
@@ -57,4 +57,3 @@ def dump_yaml(d: Dict) -> str:
 
 def dump_json(obj: PydanticBase) -> str:
     return json.dumps(obj.dict(exclude_unset=True, exclude_none=True))
-

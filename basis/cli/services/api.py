@@ -1,11 +1,10 @@
-from typing import Dict
-
 import os
 from enum import Enum
+from typing import Dict
+
 import requests
 from basis.cli.config import read_local_basis_config
 from requests import Request, Response, Session
-
 
 API_BASE_URL = os.environ.get("BASIS_API_URL", "https://api.getbasis.com/")
 AUTH_TOKEN_PREFIX = "JWT"

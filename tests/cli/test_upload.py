@@ -12,6 +12,7 @@ def test_upload():
     command_tester = get_test_command("upload")
     with reqest_mocker() as m:
         m.post(
-            API_BASE_URL + Endpoints.GRAPH_VERSIONS_UPLOAD, json={"uid": 1},
+            API_BASE_URL + Endpoints.GRAPH_VERSIONS_UPLOAD,
+            json={"uid": 1},
         )
         command_tester.execute(f"{proj_path / 'graph.yml'}")

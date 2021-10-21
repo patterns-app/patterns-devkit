@@ -13,7 +13,8 @@ def test_list():
             Endpoints.NODES_LIST,
         ]:
             m.get(
-                API_BASE_URL + e, json=[{"name": "name"}],
+                API_BASE_URL + e,
+                json=[{"name": "name"}],
             )
         command_tester.execute(f"env")
         assert "name" in command_tester.io.fetch_output()

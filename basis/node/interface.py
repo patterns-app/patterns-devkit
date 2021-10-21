@@ -107,9 +107,12 @@ class ParameterType(str, Enum):
 def normalize_parameter_type(pt: Union[str, ParameterType]) -> ParameterType:
     if isinstance(pt, ParameterType):
         return pt
-    pt = dict(text="str", boolean="bool", number="float", integer="int",).get(
-        pt.lower(), pt
-    )
+    pt = dict(
+        text="str",
+        boolean="bool",
+        number="float",
+        integer="int",
+    ).get(pt.lower(), pt)
     return ParameterType(pt)
 
 
@@ -125,9 +128,13 @@ class Parameter(FrozenPydanticBase):
         return normalize_parameter_type(value)
 
 
-DEFAULT_TABLE_OUTPUT = Table(name=DEFAULT_OUTPUT_NAME,)
+DEFAULT_TABLE_OUTPUT = Table(
+    name=DEFAULT_OUTPUT_NAME,
+)
 # DEFAULT_TABLE_OUTPUTS = OrderedDict(DEFAULT_OUTPUT_NAME, DEFAULT_TABLE_OUTPUT])
-DEFAULT_RECORD_OUTPUT = RecordStream(name=DEFAULT_OUTPUT_NAME,)
+DEFAULT_RECORD_OUTPUT = RecordStream(
+    name=DEFAULT_OUTPUT_NAME,
+)
 # DEFAULT_RECORD_OUTPUTS = {DEFAULT_OUTPUT_NAME: DEFAULT_RECORD_OUTPUT}
 DEFAULT_STATE_OUTPUT_NAME = "state"
 DEFAULT_STATE_OUTPUT = Table(name=DEFAULT_STATE_OUTPUT_NAME)
@@ -193,4 +200,8 @@ def merge_interfaces(
     inputs.update(update.inputs)
     outputs.update(update.outputs)
     parameters.update(update.parameters)
-    return NodeInterface(inputs=inputs, outputs=outputs, parameters=parameters,)
+    return NodeInterface(
+        inputs=inputs,
+        outputs=outputs,
+        parameters=parameters,
+    )

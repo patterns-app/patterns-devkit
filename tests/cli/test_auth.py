@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 
 import requests_mock
-from basis.cli.services.api import API_BASE_URL, Endpoints
 from basis.cli.config import BASIS_CONFIG_ENV_VAR, read_local_basis_config
+from basis.cli.services.api import API_BASE_URL, Endpoints
 from tests.cli.base import IS_CI, get_test_command, reqest_mocker, set_tmp_dir
 
 

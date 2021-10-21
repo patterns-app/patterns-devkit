@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import Dict, List
 
-from basis.cli.services.api import Endpoints, post, get
+from basis.cli.services.api import Endpoints, get, post
 
 
 def list_objects(obj_type: str, organization_uid: str) -> List[Dict]:

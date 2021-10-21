@@ -1,9 +1,9 @@
 import base64
 import os
 from pathlib import Path
-from basis.cli.config import get_current_organization_uid
 
 from basis.cli.commands.base import BasisCommandBase
+from basis.cli.config import get_current_organization_uid
 from basis.cli.helpers import compress_directory
 from basis.cli.services.upload import upload_graph_version
 from basis.configuration.base import load_yaml

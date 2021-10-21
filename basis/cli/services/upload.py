@@ -3,13 +3,11 @@ import os
 from pathlib import Path
 from typing import Dict
 
-from requests.models import Response
-
 from basis.cli.helpers import compress_directory
 from basis.cli.services.api import Endpoints, post
 from basis.configuration.graph import GraphCfg
-
 from basis.graph.builder import ConfiguredGraphBuilder
+from requests.models import Response
 
 
 def upload_graph_version(

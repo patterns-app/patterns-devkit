@@ -21,7 +21,9 @@ class RunCommand(BasisCommandBase, Command):
         if ds:
             params["graph"] = ds
         if obj_type == "node":
-            resp = run_node(params)
+            pass
+            # TODO
+            # resp = run_node(params)
         elif obj_type == "component":
             raise NotImplementedError
             # TODO: upload current graph
@@ -30,8 +32,4 @@ class RunCommand(BasisCommandBase, Command):
         else:
             self.line(f"<error>Invalid type: {obj_type}</error>")
             exit(1)
-        if not resp.ok:
-            self.line(f"<error>Run failed: {resp.text}</error>")
-            exit(1)
-        data = resp.json()
-        self.line(f"<info>{data}</info>")
+        # self.line(f"<info>{data}</info>")

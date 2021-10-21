@@ -5,9 +5,8 @@ from io import BytesIO
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.config import get_current_organization_uid
 from basis.cli.helpers import expand_directory
-from cleo import Command
-
 from basis.cli.services.download import download_graph_version
+from cleo import Command
 
 
 class CloneCommand(BasisCommandBase, Command):

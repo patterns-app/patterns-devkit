@@ -86,7 +86,11 @@ class ConfiguredGraphBuilder:
             parameters[name] = Parameter(
                 name=name, datatype=ParameterType("str"), default=value
             )
-        return NodeInterface(inputs=inputs, outputs=outputs, parameters=parameters,)
+        return NodeInterface(
+            inputs=inputs,
+            outputs=outputs,
+            parameters=parameters,
+        )
 
     def build_nodes(self) -> List[ConfiguredNode]:
         configured_nodes = []
@@ -138,7 +142,11 @@ class ConfiguredGraphBuilder:
         yaml_pth = self.directory / graph_node_cfg.subgraph
         dir_pth = yaml_pth.parent
         cfg = self.load_graph_cfg(str(yaml_pth))
-        sub_builder = ConfiguredGraphBuilder(directory=dir_pth, cfg=cfg, parent=self,)
+        sub_builder = ConfiguredGraphBuilder(
+            directory=dir_pth,
+            cfg=cfg,
+            parent=self,
+        )
         return sub_builder.build_manifest_from_config()
 
     @contextmanager

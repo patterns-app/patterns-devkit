@@ -2,13 +2,11 @@ import base64
 import os
 from pathlib import Path
 
-from requests.models import Response
-
 from basis.cli.helpers import compress_directory
 from basis.cli.services.api import Endpoints, post
 from basis.configuration.graph import GraphCfg
-
 from basis.graph.builder import ConfiguredGraphBuilder
+from requests.models import Response
 
 
 def download_graph_version(name: str, organization_uid: str) -> Response:

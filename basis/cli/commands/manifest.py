@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
 import pprint
+from pathlib import Path
 
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.commands.upload import graph_cfg_from_argument
 from basis.cli.templates.generator import generate_template
-from cleo import Command
-
 from basis.graph.builder import ConfiguredGraphBuilder
+from cleo import Command
 
 
 class ManifestCommand(BasisCommandBase, Command):
