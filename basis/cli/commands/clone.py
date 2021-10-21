@@ -3,8 +3,11 @@ import os
 from io import BytesIO
 
 from basis.cli.commands.base import BasisCommandBase
+from basis.cli.config import get_current_organization_uid
 from basis.cli.helpers import expand_directory
 from cleo import Command
+
+from basis.cli.services.download import download_graph_version
 
 
 class CloneCommand(BasisCommandBase, Command):
@@ -19,14 +22,16 @@ class CloneCommand(BasisCommandBase, Command):
 
     def handle(self):
         self.ensure_authenticated()
-        ds_name = self.argument("name")
-        ds_path = self.option("path") or "."
-        resp = download({"name": ds_name})
-        if not resp.ok:
-            self.line(f"<error>Download failed: {resp.text}</error>")
+        graph_name = self.argument("name")
+        expansion_path = self.option("path") or "."
+        assert isinstance(graph_name, str)
+        try:
+            data = download_graph_version(graph_name, get_current_organization_uid())
+        except Exception as e:
+            self.line(f"<error>Clone failed: {e}</error>")
             exit(1)
-        data = resp.json()
-        b64_zipf = data["zip"]
-        zip_bytes = base64.b64decode(b64_zipf)
-        expand_directory(BytesIO(zip_bytes), ds_path)
-        self.line(f"<info>Cloned graph files {ds_name} into {ds_path}</info>")
+        # TODO
+        # b64_zipf = data["zip"]
+        # zip_bytes = base64.b64decode(b64_zipf)
+        # expand_directory(BytesIO(zip_bytes), ds_path)
+        # self.line(f"<info>Cloned graph files {ds_name} into {ds_path}</info>")

@@ -22,7 +22,7 @@ app.add(LoginCommand())
 app.add(LogoutCommand())
 # app.add(InfoCommand())
 # app.add(LogsCommand())
-app.add(RunCommand())
+# app.add(RunCommand())
 app.add(ListCommand())
 app.add(ManifestCommand())
 
