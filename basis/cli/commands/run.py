@@ -28,7 +28,7 @@ class RunCommand(BasisCommandBase, Command):
             raise NotImplementedError
             # TODO: upload current graph
             # And then run node
-            resp = run_node(params)
+            # resp = run_node(params)
         else:
             self.line(f"<error>Invalid type: {obj_type}</error>")
             exit(1)
