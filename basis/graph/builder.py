@@ -94,7 +94,11 @@ class GraphManifestBuilder:
             parameters[name] = Parameter(
                 name=name, datatype=ParameterType("str"), default=value
             )
-        return NodeInterface(inputs=inputs, outputs=outputs, parameters=parameters,)
+        return NodeInterface(
+            inputs=inputs,
+            outputs=outputs,
+            parameters=parameters,
+        )
 
     def build_nodes(self) -> list[ConfiguredNode]:
         configured_nodes = []
@@ -172,7 +176,11 @@ class GraphManifestBuilder:
         dir_pth = yaml_pth.parent
         cfg = self.load_graph_cfg(str(yaml_pth))
         # Build child graph
-        sub_builder = GraphManifestBuilder(directory=dir_pth, cfg=cfg, parent=self,)
+        sub_builder = GraphManifestBuilder(
+            directory=dir_pth,
+            cfg=cfg,
+            parent=self,
+        )
         cfg_node = sub_builder.build_manifest_from_config()
         # And finally set the inputs and parameters for inclusion in this parent graph
         return update(
