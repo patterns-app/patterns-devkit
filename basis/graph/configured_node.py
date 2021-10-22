@@ -10,6 +10,7 @@ from basis.node.interface import NodeInterface
 
 class ConfiguredNode(FrozenPydanticBase):
     name: str
+    node_path: str
     node_type: NodeType
     interface: NodeInterface
     readme: Optional[str] = None

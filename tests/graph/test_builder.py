@@ -56,12 +56,18 @@ def test_sub_graph_builder():
     # print(dump_json(cfg_node))
     # raise
     assert cfg_node.name == cfg.name
+    assert cfg_node.node_path == ""
     assert len(cfg_node.nodes) == 3
     assert len(cfg_node.interface.inputs) == 1
     assert len(cfg_node.interface.outputs) == 2
     assert len(cfg_node.interface.parameters) == 1
     sub_cfg_node = cfg_node.nodes[2]
+    assert sub_cfg_node.name == "subgraph1"
+    assert sub_cfg_node.node_path == "subgraph1"
     assert len(sub_cfg_node.nodes) == 1
     assert len(sub_cfg_node.interface.inputs) == 0
     assert len(sub_cfg_node.interface.outputs) == 1
     assert len(sub_cfg_node.interface.parameters) == 0
+    sub_sub_cfg_node = sub_cfg_node.nodes[0]
+    assert sub_sub_cfg_node.name == "test_sub"
+    assert sub_sub_cfg_node.node_path == "subgraph1.test_sub"

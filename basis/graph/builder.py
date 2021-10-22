@@ -29,6 +29,13 @@ from basis.utils.modules import single_of_type_in_path
 from pydantic.fields import Field
 
 
+def join_node_paths(*paths: str) -> str:
+    p = ".".join(paths)
+    p = p.replace("..", ".")
+    p = p.strip(".")
+    return p
+
+
 @dataclass
 class GraphManifestBuilder:
     directory: Path
@@ -41,6 +48,7 @@ class GraphManifestBuilder:
         interface = self.build_node_interface()
         md = ConfiguredNode(
             name=self.cfg.name,
+            node_path=self.node_path_to_graph_root(),
             node_type=NodeType.GRAPH,
             interface=interface,
             nodes=self.configured_nodes,
@@ -111,12 +119,12 @@ class GraphManifestBuilder:
         path_from_graph_root_to_node_file = None
         python_path_from_graph_root_to_node_object = None
         if path_to_python_file_or_module.endswith(".py"):
-            path_from_graph_root_to_node_file = self.relative_to_graph_root(
+            path_from_graph_root_to_node_file = self.file_path_relative_to_graph_root(
                 Path(path_to_python_file_or_module)
             )
         else:
             assert "/" not in path_to_python_file_or_module
-            root_path = self.path_to_graph_root()
+            root_path = self.file_path_to_graph_root()
             root_module_path = str(root_path).replace("/", ".")
             # TODO: this may be node object or node module containing node object
             python_path_from_graph_root_to_node_object = (
@@ -124,6 +132,7 @@ class GraphManifestBuilder:
             )
         cfg_node = ConfiguredNode(
             name=node.name,
+            node_path=join_node_paths(self.node_path_to_graph_root(), node.name),
             interface=node.interface,
             inputs=graph_node_cfg.inputs,
             parameters=graph_node_cfg.parameters,
@@ -138,11 +147,12 @@ class GraphManifestBuilder:
         assert graph_node_cfg.sql is not None
         path_to_sql_file = graph_node_cfg.sql
         node = self.load_sql_node(path_to_sql_file)
-        path_to_sql_file_from_graph_root = self.relative_to_graph_root(
+        path_to_sql_file_from_graph_root = self.file_path_relative_to_graph_root(
             Path(path_to_sql_file)
         )
         cfg_node = ConfiguredNode(
             name=node.name,
+            node_path=join_node_paths(self.node_path_to_graph_root(), node.name),
             interface=node.interface,
             inputs=graph_node_cfg.inputs,
             parameters=graph_node_cfg.parameters,
@@ -169,13 +179,20 @@ class GraphManifestBuilder:
             cfg_node, inputs=graph_node_cfg.inputs, parameters=graph_node_cfg.parameters
         )
 
-    def relative_to_graph_root(self, pth: Path) -> Path:
-        return self.path_to_graph_root() / pth
+    def node_path_to_graph_root(self) -> str:
+        if self.parent is None:
+            return ""
+        return join_node_paths(self.parent.node_path_to_graph_root(), self.cfg.name)
 
-    def path_to_graph_root(self) -> Path:
+    def file_path_relative_to_graph_root(self, pth: Path) -> Path:
+        return self.file_path_to_graph_root() / pth
+
+    def file_path_to_graph_root(self) -> Path:
         if self.parent is None:
             return Path(".")
-        return self.directory.relative_to(self.parent.path_to_graph_root().resolve())
+        return self.directory.relative_to(
+            self.parent.file_path_to_graph_root().resolve()
+        )
 
     @contextmanager
     def set_current_path(self):
