@@ -12,7 +12,7 @@ from types import ModuleType
 from typing import Any, Iterator, Optional, Tuple, TypeVar, Union
 
 from basis.configuration import graph
-from basis.configuration.base import FrozenPydanticBase, load_yaml
+from basis.configuration.base import FrozenPydanticBase, load_yaml, update
 from basis.configuration.graph import GraphCfg, GraphInterfaceCfg
 from basis.configuration.node import GraphNodeCfg, NodeType
 from basis.graph.configured_node import ConfiguredNode
@@ -45,7 +45,7 @@ class GraphManifestBuilder:
             interface=interface,
             nodes=self.configured_nodes,
             original_cfg=self.cfg,
-            # TODO: inputs and parameters at top-level? What about nested?
+            # TODO: is it ever valid to have inputs and parameters on graph node? (nested handled in sub_builder below)
         )
         return md
 
@@ -86,11 +86,7 @@ class GraphManifestBuilder:
             parameters[name] = Parameter(
                 name=name, datatype=ParameterType("str"), default=value
             )
-        return NodeInterface(
-            inputs=inputs,
-            outputs=outputs,
-            parameters=parameters,
-        )
+        return NodeInterface(inputs=inputs, outputs=outputs, parameters=parameters,)
 
     def build_nodes(self) -> list[ConfiguredNode]:
         configured_nodes = []
@@ -109,30 +105,50 @@ class GraphManifestBuilder:
     def build_python_configured_node(
         self, graph_node_cfg: GraphNodeCfg
     ) -> ConfiguredNode:
-        assert graph_node_cfg.python is not None
-        node = self.load_python_node(graph_node_cfg.python)
-        return self.build_configured_node_from_node(
-            graph_node_cfg, node, NodeType.PYTHON
-        )
-
-    def build_sql_configured_node(self, graph_node_cfg: GraphNodeCfg) -> ConfiguredNode:
-        assert graph_node_cfg.sql is not None
-        node = self.load_sql_node(graph_node_cfg.sql)
-        return self.build_configured_node_from_node(graph_node_cfg, node, NodeType.SQL)
-
-    def build_configured_node_from_node(
-        self,
-        graph_node_cfg: GraphNodeCfg,
-        node: Node,
-        node_type: NodeType,
-    ) -> ConfiguredNode:
+        path_to_python_file_or_module = graph_node_cfg.python
+        assert path_to_python_file_or_module is not None
+        node = self.load_python_node(path_to_python_file_or_module)
+        path_from_graph_root_to_node_file = None
+        python_path_from_graph_root_to_node_object = None
+        if path_to_python_file_or_module.endswith(".py"):
+            path_from_graph_root_to_node_file = self.relative_to_graph_root(
+                Path(path_to_python_file_or_module)
+            )
+        else:
+            assert "/" not in path_to_python_file_or_module
+            root_path = self.path_to_graph_root()
+            root_module_path = str(root_path).replace("/", ".")
+            # TODO: this may be node object or node module containing node object
+            python_path_from_graph_root_to_node_object = (
+                root_module_path + "." + path_to_python_file_or_module
+            )
         cfg_node = ConfiguredNode(
             name=node.name,
-            node_type=node_type,
             interface=node.interface,
             inputs=graph_node_cfg.inputs,
             parameters=graph_node_cfg.parameters,
             original_cfg=graph_node_cfg,
+            node_type=NodeType.PYTHON,
+            path_from_graph_root_to_node_file=str(path_from_graph_root_to_node_file),
+            python_path_from_graph_root_to_node_object=python_path_from_graph_root_to_node_object,
+        )
+        return cfg_node
+
+    def build_sql_configured_node(self, graph_node_cfg: GraphNodeCfg) -> ConfiguredNode:
+        assert graph_node_cfg.sql is not None
+        path_to_sql_file = graph_node_cfg.sql
+        node = self.load_sql_node(path_to_sql_file)
+        path_to_sql_file_from_graph_root = self.relative_to_graph_root(
+            Path(path_to_sql_file)
+        )
+        cfg_node = ConfiguredNode(
+            name=node.name,
+            interface=node.interface,
+            inputs=graph_node_cfg.inputs,
+            parameters=graph_node_cfg.parameters,
+            original_cfg=graph_node_cfg,
+            node_type=NodeType.SQL,
+            path_from_graph_root_to_node_file=str(path_to_sql_file_from_graph_root),
         )
         return cfg_node
 
@@ -145,12 +161,21 @@ class GraphManifestBuilder:
         yaml_pth = self.directory / graph_node_cfg.subgraph
         dir_pth = yaml_pth.parent
         cfg = self.load_graph_cfg(str(yaml_pth))
-        sub_builder = GraphManifestBuilder(
-            directory=dir_pth,
-            cfg=cfg,
-            parent=self,
+        # Build child graph
+        sub_builder = GraphManifestBuilder(directory=dir_pth, cfg=cfg, parent=self,)
+        cfg_node = sub_builder.build_manifest_from_config()
+        # And finally set the inputs and parameters for inclusion in this parent graph
+        return update(
+            cfg_node, inputs=graph_node_cfg.inputs, parameters=graph_node_cfg.parameters
         )
-        return sub_builder.build_manifest_from_config()
+
+    def relative_to_graph_root(self, pth: Path) -> Path:
+        return self.path_to_graph_root() / pth
+
+    def path_to_graph_root(self) -> Path:
+        if self.parent is None:
+            return Path(".")
+        return self.directory.relative_to(self.parent.path_to_graph_root().resolve())
 
     @contextmanager
     def set_current_path(self):

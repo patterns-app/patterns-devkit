@@ -14,6 +14,7 @@ class ConfiguredNode(FrozenPydanticBase):
     interface: NodeInterface
     readme: Optional[str] = None
     path_from_graph_root_to_node_file: Optional[str] = None
+    python_path_from_graph_root_to_node_object: Optional[str] = None
     nodes: List[ConfiguredNode] = []
     inputs: Dict[str, str] = {}
     parameters: Dict[str, Any] = {}
