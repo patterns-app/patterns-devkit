@@ -86,7 +86,11 @@ class GraphManifestBuilder:
             parameters[name] = Parameter(
                 name=name, datatype=ParameterType("str"), default=value
             )
-        return NodeInterface(inputs=inputs, outputs=outputs, parameters=parameters,)
+        return NodeInterface(
+            inputs=inputs,
+            outputs=outputs,
+            parameters=parameters,
+        )
 
     def build_nodes(self) -> list[ConfiguredNode]:
         configured_nodes = []
@@ -117,7 +121,10 @@ class GraphManifestBuilder:
         return self.build_configured_node_from_node(graph_node_cfg, node, NodeType.SQL)
 
     def build_configured_node_from_node(
-        self, graph_node_cfg: GraphNodeCfg, node: Node, node_type: NodeType,
+        self,
+        graph_node_cfg: GraphNodeCfg,
+        node: Node,
+        node_type: NodeType,
     ) -> ConfiguredNode:
         cfg_node = ConfiguredNode(
             name=node.name,
@@ -138,7 +145,11 @@ class GraphManifestBuilder:
         yaml_pth = self.directory / graph_node_cfg.subgraph
         dir_pth = yaml_pth.parent
         cfg = self.load_graph_cfg(str(yaml_pth))
-        sub_builder = GraphManifestBuilder(directory=dir_pth, cfg=cfg, parent=self,)
+        sub_builder = GraphManifestBuilder(
+            directory=dir_pth,
+            cfg=cfg,
+            parent=self,
+        )
         return sub_builder.build_manifest_from_config()
 
     @contextmanager
