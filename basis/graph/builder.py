@@ -181,7 +181,7 @@ class GraphManifestBuilder:
     def set_current_path(self):
         old_dr = os.curdir
         os.chdir(self.directory)
-        sys.path.append(str(self.directory))
+        sys.path.insert(0, str(self.directory))
         yield
         sys.path.remove(str(self.directory))
         os.chdir(old_dr)
