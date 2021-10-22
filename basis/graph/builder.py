@@ -30,11 +30,11 @@ from pydantic.fields import Field
 
 
 @dataclass
-class ConfiguredGraphBuilder:
+class GraphManifestBuilder:
     directory: Path
     cfg: GraphCfg
     configured_nodes: Optional[List[ConfiguredNode]] = None
-    parent: Optional[ConfiguredGraphBuilder] = None
+    parent: Optional[GraphManifestBuilder] = None
 
     def build_manifest_from_config(self) -> ConfiguredNode:
         self.configured_nodes = self.build_nodes()
@@ -86,11 +86,7 @@ class ConfiguredGraphBuilder:
             parameters[name] = Parameter(
                 name=name, datatype=ParameterType("str"), default=value
             )
-        return NodeInterface(
-            inputs=inputs,
-            outputs=outputs,
-            parameters=parameters,
-        )
+        return NodeInterface(inputs=inputs, outputs=outputs, parameters=parameters,)
 
     def build_nodes(self) -> List[ConfiguredNode]:
         configured_nodes = []
@@ -121,7 +117,7 @@ class ConfiguredGraphBuilder:
         return self.build_configured_node_from_node(graph_node_cfg, node, NodeType.SQL)
 
     def build_configured_node_from_node(
-        self, graph_node_cfg: GraphNodeCfg, node: Node, node_type: NodeType
+        self, graph_node_cfg: GraphNodeCfg, node: Node, node_type: NodeType,
     ) -> ConfiguredNode:
         cfg_node = ConfiguredNode(
             name=node.name,
@@ -142,11 +138,7 @@ class ConfiguredGraphBuilder:
         yaml_pth = self.directory / graph_node_cfg.subgraph
         dir_pth = yaml_pth.parent
         cfg = self.load_graph_cfg(str(yaml_pth))
-        sub_builder = ConfiguredGraphBuilder(
-            directory=dir_pth,
-            cfg=cfg,
-            parent=self,
-        )
+        sub_builder = GraphManifestBuilder(directory=dir_pth, cfg=cfg, parent=self,)
         return sub_builder.build_manifest_from_config()
 
     @contextmanager

@@ -20,7 +20,7 @@ def set_tmp_dir(create_basis_config: bool = False):
     return dr
 
 
-def create_authed_basis_config(pth: str) -> str:
+def create_authed_basis_config(pth: str):
     cfg_pth = Path(pth) / ".basis-config.json"
     os.environ[BASIS_CONFIG_ENV_VAR] = str(cfg_pth)
     update_local_basis_config(token="test-token", organization_name="test-org-uid")

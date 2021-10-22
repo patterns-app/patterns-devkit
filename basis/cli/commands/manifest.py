@@ -6,7 +6,7 @@ from pathlib import Path
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.commands.upload import graph_cfg_from_argument
 from basis.cli.templates.generator import generate_template
-from basis.graph.builder import ConfiguredGraphBuilder
+from basis.graph.builder import GraphManifestBuilder
 from cleo import Command
 
 
@@ -24,7 +24,7 @@ class ManifestCommand(BasisCommandBase, Command):
         graph_cfg = graph_cfg_from_argument(cfg_arg)
         cfg_path = Path(cfg_arg)
         cfg_dir = cfg_path.parent
-        manifest = ConfiguredGraphBuilder(
+        manifest = GraphManifestBuilder(
             directory=cfg_dir.absolute(), cfg=graph_cfg
         ).build_manifest_from_config()
         manifest_str = pprint.pformat(manifest.dict(exclude_unset=True))

@@ -5,12 +5,12 @@ from pathlib import Path
 from basis.cli.helpers import compress_directory
 from basis.cli.services.api import Endpoints, post
 from basis.configuration.graph import GraphCfg
-from basis.graph.builder import ConfiguredGraphBuilder
+from basis.graph.builder import GraphManifestBuilder
 from requests.models import Response
 
 
 def download_graph_version(name: str, organization_name: str) -> Response:
-    # manifest = ConfiguredGraphBuilder(
+    # manifest = GraphManifestBuilder(
     #     directory=pth_to_root, cfg=cfg
     # ).build_manifest_from_config()
     # zipf = compress_directory(pth_to_root)

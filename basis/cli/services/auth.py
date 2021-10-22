@@ -7,18 +7,12 @@ from basis.cli.config import remove_auth_from_basis_config, update_local_basis_c
 from basis.cli.helpers import compress_directory
 from basis.cli.services.api import Endpoints, get, post
 from basis.configuration.graph import GraphCfg
-from basis.graph.builder import ConfiguredGraphBuilder
+from basis.graph.builder import GraphManifestBuilder
 from requests.models import Response
 
 
 def login(email: str, password: str):
-    resp = post(
-        Endpoints.TOKEN_CREATE,
-        data={
-            "email": email,
-            "password": password,
-        },
-    )
+    resp = post(Endpoints.TOKEN_CREATE, data={"email": email, "password": password,},)
     resp.raise_for_status()
     data = resp.json()
     update_basis_config_with_auth(data, email=email)
@@ -45,9 +39,7 @@ def logout():
 
 def list_organizations() -> List[Dict]:
     # TODO
-    resp = get(
-        Endpoints.ORGANIZATIONS_LIST,
-    )
+    resp = get(Endpoints.ORGANIZATIONS_LIST,)
     resp.raise_for_status()
     organizations = resp.json()
     return organizations
