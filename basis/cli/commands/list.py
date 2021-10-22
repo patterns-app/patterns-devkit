@@ -4,9 +4,9 @@ from basis.cli.services.list import list_objects
 from cleo import Command
 
 
-class ListCommand(BasisCommandBase, Command):
+class listCommand(BasisCommandBase, Command):
     """
-    List all of given object type
+    list all of given object type
 
     list
         {type : Type of object, one of [env, graph, node]}

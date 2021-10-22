@@ -42,7 +42,7 @@ class GraphInterfaceCfg(FrozenPydanticBase):
 
 class GraphCfg(FrozenPydanticBase):
     name: str
-    # storages: List[StorageCfg] = []
+    # storages: list[StorageCfg] = []
     # default_storage: Optional[str] = None
     basis: BasisCfg = BasisCfg()
     interface: Optional[GraphInterfaceCfg] = None

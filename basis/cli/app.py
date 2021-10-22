@@ -3,7 +3,7 @@ from __future__ import annotations
 from basis.cli.commands.clone import CloneCommand
 from basis.cli.commands.generate import GenerateCommand
 # from basis.cli.commands.info import InfoCommand
-from basis.cli.commands.list import ListCommand
+from basis.cli.commands.list import listCommand
 from basis.cli.commands.login import LoginCommand
 from basis.cli.commands.logout import LogoutCommand
 from basis.cli.commands.manifest import ManifestCommand
@@ -21,7 +21,7 @@ app.add(LogoutCommand())
 # app.add(InfoCommand())
 # app.add(LogsCommand())
 # app.add(RunCommand())
-app.add(ListCommand())
+app.add(listCommand())
 app.add(ManifestCommand())
 
 

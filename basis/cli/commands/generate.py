@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
-from typing import List, Pattern
+from typing import Pattern
 
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.templates.generator import generate_template

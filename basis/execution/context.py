@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Iterator, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, Optional, Union
 
 from basis.configuration.node import GraphNodeCfg
 from basis.node.interface import (
@@ -27,7 +27,7 @@ class Context:
     node_cfg: GraphNodeCfg
 
     ### Input
-    def get_records(self, input_name: str) -> Iterator[Dict]:
+    def get_records(self, input_name: str) -> Iterator[dict]:
         """
         Returns an interator of data records for the given streaming input.
 
@@ -35,10 +35,10 @@ class Context:
         processed.
         """
 
-    def get_table(self, input_name: str) -> Optional[TableManager]:
+    def get_table(self, input_name: str) -> TableManager | None:
         "Returns a TableManager object for the given table input"
 
-    def get_state(self) -> Dict:
+    def get_state(self) -> dict:
         "Returns latest state object as dict"
 
     def get_state_value(self, key: str, default: Any = None) -> Any:
@@ -50,7 +50,7 @@ class Context:
         as processed.
         """
 
-    def get_raw_records(self, input_name: str) -> Iterator[Dict]:
+    def get_raw_records(self, input_name: str) -> Iterator[dict]:
         """
         Returns an iterator of raw Record objects for the given streaming input.
         These objects include the record id and timestamp. To iterate over actual
@@ -68,7 +68,7 @@ class Context:
         self,
         output_name: str,
         record: Any,
-        schema: Union[str, Schema, None] = None,
+        schema: str | Schema | None = None,
     ):
         "Appends single record to given output stream"
 
@@ -83,9 +83,9 @@ class Context:
         self,
         output_name: str,
         table_name: str = None,
-        storage: Union[str, Storage] = None,
-        schema: Union[str, Schema, None] = None,
-        data_format: Union[str, DataFormat] = None,
+        storage: str | Storage = None,
+        schema: str | Schema | None = None,
+        data_format: str | DataFormat = None,
     ):
         "Logs existing table as output from this node"
 
@@ -93,7 +93,7 @@ class Context:
         self,
         output_name: str,
         records_obj: Iterable[Any],
-        schema: Union[str, Schema, None] = None,
+        schema: str | Schema | None = None,
     ):
         "Appends batch of records to given output stream"
 
@@ -101,7 +101,7 @@ class Context:
         # TODO: create error record
         self.append_record(output_name=DEFAULT_ERROR_NAME, record=error_obj)
 
-    def set_state(self, state: Dict):
+    def set_state(self, state: dict):
         self.store_as_table(output_name=DEFAULT_STATE_NAME, records=[state])
 
     def set_state_value(self, key: str, value: Any):
@@ -118,7 +118,7 @@ class Context:
                 pass
         return self.node_cfg.node_params.get(key, default)
 
-    def get_params(self, defaults: Dict[str, Any] = None) -> Dict[str, Any]:
+    def get_params(self, defaults: dict[str, Any] = None) -> dict[str, Any]:
         # TODO: do this once
         final_params = {
             p.name: p.default for p in self.node.interface.parameters.values()

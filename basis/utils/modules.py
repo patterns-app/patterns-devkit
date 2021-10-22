@@ -5,18 +5,18 @@ import sys
 from importlib import import_module
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, List, Type, TypeVar
+from typing import Any, Type, TypeVar
 
 T = TypeVar("T")
 
 
-def find_all_of_type_in_module(module: ModuleType, typ: Type[T]) -> List[T]:
+def find_all_of_type_in_module(module: ModuleType, typ: Type[T]) -> list[T]:
     return [
         getattr(module, n) for n in dir(module) if isinstance(getattr(module, n), typ)
     ]
 
 
-def load_python_file(pth: str, **local_vars: Any) -> Dict[str, Any]:
+def load_python_file(pth: str, **local_vars: Any) -> dict[str, Any]:
     objects = {}
     objects.update(local_vars)
     exec(open(pth).read(), globals(), objects)

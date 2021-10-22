@@ -5,18 +5,7 @@ import typing
 from collections import OrderedDict
 from dataclasses import asdict, dataclass, field
 from functools import partial, wraps
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, Type, Union, cast
 
 from basis.configuration.graph import GraphCfg
 from basis.configuration.node import GraphNodeCfg
@@ -47,7 +36,7 @@ class InputExhaustedException(NodeException):
 NodeCallable = Callable[["Context"], None]
 
 
-def make_node_name(node: Union[NodeCallable, Node, str]) -> str:
+def make_node_name(node: NodeCallable | Node | str) -> str:
     # TODO: something more principled / explicit?
     if isinstance(node, str):
         return node
@@ -64,12 +53,12 @@ def make_node_name(node: Union[NodeCallable, Node, str]) -> str:
 class Node:
     name: str
     node_callable: Callable
-    required_storage_classes: List[str] = field(default_factory=list)
-    required_storage_engines: List[str] = field(default_factory=list)
+    required_storage_classes: list[str] = field(default_factory=list)
+    required_storage_engines: list[str] = field(default_factory=list)
     interface: NodeInterface = field(default_factory=NodeInterface)
-    display_name: Optional[str] = None
-    description: Optional[str] = None
-    language: Optional[str] = "python"
+    display_name: str | None = None
+    description: str | None = None
+    language: str | None = "python"
 
     def __call__(self, ctx: Context) -> None:
         return self.node_callable(ctx)
@@ -79,16 +68,16 @@ class Node:
 #     return BasisParser().parse(d)
 
 
-def list_to_ordered_dict(lst: List) -> OrderedDict:
+def list_to_ordered_dict(lst: list) -> OrderedDict:
     return OrderedDict([(i.name, i) for i in lst or []])
 
 
 def node_decorator(
-    node_or_name: Union[str, NodeCallable, Node] = None,
+    node_or_name: str | NodeCallable | Node = None,
     name: str = None,
-    inputs: List[IoBase] = None,
-    outputs: List[IoBase] = None,
-    parameters: List[Parameter] = None,
+    inputs: list[IoBase] = None,
+    outputs: list[IoBase] = None,
+    parameters: list[Parameter] = None,
     **kwargs,
 ) -> Callable:
     # if isinstance(node_or_name, Node):
@@ -120,7 +109,7 @@ def node_decorator(
     )
 
 
-def parse_node_output_path(pth: str) -> Tuple[str, Optional[str]]:
+def parse_node_output_path(pth: str) -> Tuple[str, str | None]:
     node_name = pth
     output_name = None
     if "." in pth:

@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import os
 import subprocess
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from typing import List, Union
+from typing import Union
 
 PathLike = Union[Path, str]
 
@@ -12,14 +14,14 @@ def is_git_directory(path: PathLike) -> bool:
     return os.path.exists(Path(path) / ".git")
 
 
-def list_all_files_not_gitignored(path: PathLike) -> List[str]:
+def list_all_files_not_gitignored(path: PathLike) -> list[str]:
     os.chdir(path)
     cmd = "( git status --short| grep '^?' | cut -d\\  -f2- && git ls-files )"
     files = subprocess.check_output(cmd, shell=True).splitlines()
     return [b.decode() for b in files]
 
 
-def list_all_files(path: PathLike) -> List[str]:
+def list_all_files(path: PathLike) -> list[str]:
     (_, _, filenames) = next(os.walk(path))
     return filenames
 

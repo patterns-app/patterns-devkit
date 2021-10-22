@@ -1,7 +1,6 @@
 import base64
 import os
 from pathlib import Path
-from typing import Dict
 
 from basis.cli.helpers import compress_directory
 from basis.cli.services.api import Endpoints, post
@@ -12,7 +11,7 @@ from requests.models import Response
 
 def upload_graph_version(
     cfg: GraphCfg, pth_to_root: Path, organization_name: str
-) -> Dict:
+) -> dict:
     manifest = GraphManifestBuilder(
         directory=pth_to_root, cfg=cfg
     ).build_manifest_from_config()

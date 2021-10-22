@@ -15,7 +15,7 @@ class BasisCommandBase:
             )
             exit(1)
 
-    # def get_current_project_yaml(self, config_file: str = "basis.yml") -> Dict:
+    # def get_current_project_yaml(self, config_file: str = "basis.yml") -> dict:
     #     return load_yaml(config_file)
 
     # def get_current_project(self, config_file: str = "basis.yml") -> ProjectCfg:

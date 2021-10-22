@@ -1,6 +1,4 @@
-import base64
-import os
-from io import BytesIO
+from __future__ import annotations
 
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.config import get_current_organization_name

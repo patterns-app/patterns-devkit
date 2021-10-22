@@ -1,6 +1,6 @@
+from __future__ import annotations
 import os
 from enum import Enum
-from typing import Dict
 
 import requests
 from basis.cli.config import read_local_basis_config
@@ -38,13 +38,13 @@ def get_auth_token():
     return auth_token
 
 
-def get(path: str, params: Dict = None, session: Session = None, **kwargs) -> Response:
+def get(path: str, params: dict = None, session: Session = None, **kwargs) -> Response:
     session = session or get_api_session()
     resp = session.get(API_BASE_URL + path, params=params or {}, **kwargs)
     return resp
 
 
-def post(path: str, data: Dict = None, session: Session = None, **kwargs) -> Response:
+def post(path: str, data: dict = None, session: Session = None, **kwargs) -> Response:
     session = session or get_api_session()
     resp = session.post(API_BASE_URL + path, json=data or {}, **kwargs)
     return resp

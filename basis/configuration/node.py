@@ -16,7 +16,7 @@ class NodeType(str, Enum):
 
 class NodeOutputCfg(FrozenPydanticBase):
     name: Optional[str] = None
-    storage: Optional[Union[str, StorageCfg]] = None
+    storage: Optional[Union[StorageCfg, str]] = None
     data_format: Optional[str] = None
     retention_policy: Optional[str] = None  # TODO
 
@@ -37,7 +37,7 @@ class GraphNodeCfg(FrozenPydanticBase):
     schedule: Optional[str] = None
 
     @root_validator
-    def check_node_type(cls, values: Dict) -> Dict:
+    def check_node_type(cls, values: dict) -> dict:
         python = values.get("python")
         sql = values.get("sql")
         subgraph = values.get("subgraph")

@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Iterator, Optional, Tuple, TypeVar, Union
 
 from basis.configuration import graph
 from basis.configuration.base import FrozenPydanticBase, load_yaml
@@ -33,7 +33,7 @@ from pydantic.fields import Field
 class GraphManifestBuilder:
     directory: Path
     cfg: GraphCfg
-    configured_nodes: Optional[List[ConfiguredNode]] = None
+    configured_nodes: Optional[list[ConfiguredNode]] = None
     parent: Optional[GraphManifestBuilder] = None
 
     def build_manifest_from_config(self) -> ConfiguredNode:
@@ -88,7 +88,7 @@ class GraphManifestBuilder:
             )
         return NodeInterface(inputs=inputs, outputs=outputs, parameters=parameters,)
 
-    def build_nodes(self) -> List[ConfiguredNode]:
+    def build_nodes(self) -> list[ConfiguredNode]:
         configured_nodes = []
         for graph_node_cfg in self.cfg.nodes:
             if graph_node_cfg.python:

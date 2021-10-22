@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from enum import Enum
-from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar
+from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 from basis.configuration.base import FrozenPydanticBase
 from basis.configuration.graph import GraphCfg
@@ -17,8 +16,8 @@ class ConfiguredNode(FrozenPydanticBase):
     path_from_graph_root_to_node_file: Optional[str] = None
     nodes: List[ConfiguredNode] = []
     inputs: Dict[str, str] = {}
-    parameters: dict[str, Any] = {}
-    original_cfg: Optional[GraphCfg | GraphNodeCfg] = None
+    parameters: Dict[str, Any] = {}
+    original_cfg: Union[GraphCfg, GraphNodeCfg, None] = None
 
 
 ConfiguredNode.update_forward_refs()

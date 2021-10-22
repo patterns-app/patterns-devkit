@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, field
+from typing import Any, Optional
 
 from basis.configuration.base import PydanticBase
 from basis.node.interface import (
@@ -16,10 +16,11 @@ from basis.node.interface import (
 from jinja2.sandbox import SandboxedEnvironment
 
 
-class BasisJinjaInspectContext(PydanticBase):
-    tables: List[IoBase] = []
-    records: List[IoBase] = []
-    parameters: List[Parameter] = []
+@dataclass
+class BasisJinjaInspectContext:
+    tables: list[IoBase] = field(default_factory=list)
+    records: list[IoBase] = field(default_factory=list)
+    parameters: list[Parameter] = field(default_factory=list)
 
     def record(self, *args, **kwargs):
         self.records.append(RecordStream(*args, **kwargs))
@@ -31,9 +32,10 @@ class BasisJinjaInspectContext(PydanticBase):
         self.parameters.append(Parameter(*args, **kwargs))
 
 
-class BasisJinjaRenderContext(PydanticBase):
-    inputs_sql: Dict[str, str]
-    params_sql: Dict[str, str]
+@dataclass
+class BasisJinjaRenderContext:
+    inputs_sql: dict[str, str]
+    params_sql: dict[str, str]
 
     def render_input(self, name: str, *args, **kwargs):
         return self.inputs_sql[name]
@@ -42,7 +44,7 @@ class BasisJinjaRenderContext(PydanticBase):
         return self.params_sql[name]
 
 
-def get_base_jinja_inspect_ctx() -> Dict[str, Any]:
+def get_base_jinja_inspect_ctx() -> dict[str, Any]:
     basis_ctx = BasisJinjaInspectContext()
     ctx = {
         "basis_ctx": basis_ctx,
@@ -54,8 +56,8 @@ def get_base_jinja_inspect_ctx() -> Dict[str, Any]:
 
 
 def get_base_jinja_render_ctx(
-    inputs_sql: Dict[str, str], params_sql: Dict[str, str]
-) -> Dict[str, Any]:
+    inputs_sql: dict[str, str], params_sql: dict[str, str]
+) -> dict[str, Any]:
     basis_ctx = BasisJinjaRenderContext(inputs_sql=inputs_sql, params_sql=params_sql)
     ctx = {
         "Record": basis_ctx.render_input,
@@ -69,7 +71,7 @@ def get_jinja_env() -> SandboxedEnvironment:
     return SandboxedEnvironment()
 
 
-def interface_from_jinja_ctx(ctx: Dict) -> NodeInterface:
+def interface_from_jinja_ctx(ctx: dict) -> NodeInterface:
     # TODO: multiple outputs?
     bc = ctx["basis_ctx"]
     inputs = []
@@ -83,7 +85,7 @@ def interface_from_jinja_ctx(ctx: Dict) -> NodeInterface:
     )
 
 
-def parse_interface_from_sql(t: str, ctx: Optional[Dict] = None):
+def parse_interface_from_sql(t: str, ctx: dict | None = None):
     env = get_jinja_env()
     ctx = ctx or {}
     ctx.update(get_base_jinja_inspect_ctx())
@@ -93,9 +95,9 @@ def parse_interface_from_sql(t: str, ctx: Optional[Dict] = None):
 
 def render_sql(
     t: str,
-    inputs_sql: Dict[str, str],
-    params_sql: Dict[str, str],
-    ctx: Optional[Dict] = None,
+    inputs_sql: dict[str, str],
+    params_sql: dict[str, str],
+    ctx: dict | None = None,
 ):
     env = get_jinja_env()
     ctx = ctx or {}

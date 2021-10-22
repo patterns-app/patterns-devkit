@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from io import StringIO
-from typing import TYPE_CHECKING, Dict, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 import pydantic
 import yaml
@@ -33,7 +33,7 @@ def update(o: F, **kwargs) -> F:
     return type(o)(**d)
 
 
-def load_yaml(yml: str) -> Dict:
+def load_yaml(yml: str) -> dict:
 
     try:
         from yaml import CLoader as Loader, CDumper as Dumper
@@ -45,7 +45,7 @@ def load_yaml(yml: str) -> Dict:
     return yaml.load(yml, Loader=Loader)
 
 
-def dump_yaml(d: Dict) -> str:
+def dump_yaml(d: dict) -> str:
     try:
         from yaml import CLoader as Loader, CDumper as Dumper
     except ImportError:

@@ -1,7 +1,8 @@
+from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Dict, Union
+from typing import Union
 
 BASIS_CONFIG_ENV_VAR = "BASIS_CONFIG"
 BASIS_CONFIG_NAME = ".basis-config.json"
@@ -12,11 +13,11 @@ def get_basis_config_path() -> str:
     return os.environ.get(BASIS_CONFIG_ENV_VAR, DEFAULT_LOCAL_BASIS_CONFIG_PATH)
 
 
-def get_default_config() -> Dict:
+def get_default_config() -> dict:
     return {}
 
 
-def read_local_basis_config() -> Dict:
+def read_local_basis_config() -> dict:
     if os.path.exists(get_basis_config_path()):
         with open(get_basis_config_path()) as f:
             return json.load(f)
@@ -24,7 +25,7 @@ def read_local_basis_config() -> Dict:
         return get_default_config()
 
 
-def write_local_basis_config(config: Union[str, Dict]):
+def write_local_basis_config(config: str | dict):
     with open(get_basis_config_path(), "w") as f:
         if isinstance(config, str):
             f.write(config)

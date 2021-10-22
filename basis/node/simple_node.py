@@ -2,7 +2,7 @@ import inspect
 import typing
 from collections import OrderedDict
 from functools import partial, wraps
-from typing import Callable, List, Optional, Union
+from typing import Callable, Optional, Union
 
 from basis.execution.context import Context
 from basis.node.interface import (
@@ -57,14 +57,14 @@ def create_node_callable_from_simple_node(
 
 
 def simple_node_decorator(
-    node_or_name: Union[str, NodeCallable, Node] = None,
+    node_or_name: str | NodeCallable | Node = None,
     name: str = None,
-    inputs: List[IoBase] = None,
-    outputs: List[IoBase] = None,
-    parameters: List[Parameter] = None,
+    inputs: list[IoBase] = None,
+    outputs: list[IoBase] = None,
+    parameters: list[Parameter] = None,
     mode: str = "streaming",
     **kwargs,
-) -> Union[Node, Callable]:
+) -> Node | Callable:
     if isinstance(node_or_name, str) or node_or_name is None:
         return partial(
             simple_node_decorator,
