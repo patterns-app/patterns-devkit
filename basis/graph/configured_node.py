@@ -21,5 +21,27 @@ class ConfiguredNode(FrozenPydanticBase):
     parameters: Dict[str, Any] = {}
     original_cfg: Union[GraphCfg, GraphNodeCfg, None] = None
 
+    def find_node(self, path: str, root_path: str = None) -> ConfiguredNode:
+        """
+        Note: This logic not really necessary now that we compute node_paths
+        when building, but this is more efficient search anyways.
+        """
+        path_parts = path.split(".")
+        current_name = path_parts[0]
+        remaining_path = ".".join(path_parts[1:])
+        found_node = None
+        for n in self.nodes:
+            if current_name == n.name:
+                if remaining_path:
+                    assert n.node_type == NodeType.GRAPH
+                    found_node = n.find_node(remaining_path, path)
+                else:
+                    found_node = n
+                break
+        if found_node is None:
+            raise KeyError(f"Node path not found: {path}")
+        assert found_node.node_path == (root_path or path)
+        return found_node
+
 
 ConfiguredNode.update_forward_refs()

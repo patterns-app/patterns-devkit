@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import pprint
 from pathlib import Path
 
@@ -28,4 +29,6 @@ class ManifestCommand(BasisCommandBase, Command):
             directory=cfg_dir.absolute(), cfg=graph_cfg
         ).build_manifest_from_config()
         manifest_str = pprint.pformat(manifest.dict(exclude_unset=True))
+        manifest_json_str = json.dumps(manifest.dict(exclude_unset=True))
         self.line(manifest_str)
+        self.line(manifest_json_str)

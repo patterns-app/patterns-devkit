@@ -21,17 +21,11 @@ def test_simple_graph_builder():
             "outputs": OrderedDict(myoutput="test"),
             "parameters": {"myparam": 1},
         },
-        nodes=[
-            {"python": "test.py"},
-            {"sql": "test.sql"},
-        ],
+        nodes=[{"python": "test.py"}, {"sql": "test.sql"},],
     )
     pth = Path(set_tmp_dir()) / "test_simple"
     shutil.copytree(TEST_GRAPH_DIR, pth)
-    builder = GraphManifestBuilder(
-        directory=pth.resolve(),
-        cfg=cfg,
-    )
+    builder = GraphManifestBuilder(directory=pth.resolve(), cfg=cfg,)
     cfg_node = builder.build_manifest_from_config()
     assert cfg_node.name == cfg.name
     assert len(cfg_node.nodes) == 2
@@ -57,13 +51,8 @@ def test_sub_graph_builder():
     )
     pth = Path(set_tmp_dir()) / "test_subgraph"
     shutil.copytree(TEST_GRAPH_DIR, pth)
-    builder = GraphManifestBuilder(
-        directory=pth.resolve(),
-        cfg=cfg,
-    )
+    builder = GraphManifestBuilder(directory=pth.resolve(), cfg=cfg,)
     cfg_node = builder.build_manifest_from_config()
-    # print(dump_json(cfg_node))
-    # raise
     assert cfg_node.name == cfg.name
     assert cfg_node.node_path == ""
     assert len(cfg_node.nodes) == 3
@@ -80,3 +69,7 @@ def test_sub_graph_builder():
     sub_sub_cfg_node = sub_cfg_node.nodes[0]
     assert sub_sub_cfg_node.name == "test_sub"
     assert sub_sub_cfg_node.node_path == "subgraph1.test_sub"
+
+    # Test node paths
+    n = cfg_node.find_node("subgraph1.test_sub")
+    assert n is sub_sub_cfg_node

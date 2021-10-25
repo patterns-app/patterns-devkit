@@ -10,5 +10,9 @@ interface:
     myparam: 1
 nodes:
   - python: test.py
+    inputs:
+      table_input: subgraph1.test_sub
   - sql: test.sql
+    inputs:
+      mytable: testpy
   - subgraph: subgraph1/graph.yml

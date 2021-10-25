@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 import typing
 from collections import OrderedDict
@@ -126,10 +128,7 @@ def node_interface_from_callable(
         else:
             # Additional inputs must be table
             inputs[name] = Table(name=name, required=not optional)
-    return NodeInterface(
-        inputs=inputs,
-        outputs=outputs,
-    )
+    return NodeInterface(inputs=inputs, outputs=outputs,)
 
 
 simple_streaming_node = partial(simple_node_decorator, mode="streaming")
