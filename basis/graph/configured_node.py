@@ -8,6 +8,11 @@ from basis.configuration.node import GraphNodeCfg, NodeType
 from basis.node.interface import NodeInterface
 
 
+class ConfiguredNodeInput(FrozenPydanticBase):
+    input_name: str
+    input_node_path: str
+
+
 class ConfiguredNode(FrozenPydanticBase):
     name: str
     node_path: str
