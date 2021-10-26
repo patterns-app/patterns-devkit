@@ -1,7 +1,7 @@
 name: nested_nodes_example
 default_storage: ${{ secrets.my_primary_storage }}
 nodes:
-  - import: basis_marketplace.salesforce.extract.extract_contacts
+  - component: basis_marketplace.salesforce.extract.extract_contacts
     parameters:
       api_key: ${{ secrets.salesforce_api_key }}
   - subgraph: subgraph1

@@ -16,3 +16,41 @@ nodes:
     inputs:
       mytable: testpy
   - subgraph: subgraph1/graph.yml
+
+
+name: test_graph
+ports:
+  output_tables:
+    - myoutput_table
+  output_streams:
+    - myoutput_stream
+  input_table_slots:
+    - mynode/inputs/input1
+  input_stream_slots:
+    - othernode/inputs/input2
+nodes:
+  - python: nodefile.py
+  - component: webhook
+    name: webflow_lead_importer
+    # parameters:
+    #   batching_freq: hourly
+    # output_names: @webflow_leads_raw
+    # table_inputs:
+    #   - mytable
+    # stream_inputs:
+    #   - mystream
+  - component: path_to_importer
+    name: stripe_importer
+    parameters:
+        api_key: asdfasdfasdf
+        obejects:
+            - invoices_table
+            - charges_stream
+            # stripe_importer__invoices_table if not
+    output_stream_names:
+      charges_stream: @charges
+    output_table_names:
+      invoices_table: @invoices 
+
+  - python: clean_raw_webflow_leads.py ## filename or python path clean_raw_webflow_leads
+  - sql: node3.sql
