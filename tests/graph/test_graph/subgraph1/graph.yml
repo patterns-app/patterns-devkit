@@ -1,6 +1,31 @@
 name: subgraph1
-interface:
-  outputs:
-    test_sub: test_sub
+graph_interface:
+  exposed_inputs:
+    - input_name: myinput
+      proxy_of: testpy
+  exposed_outputs:
+    - output_name: myoutput
+      proxy_of: test
+    - output_name: other_output
+      proxy_of: test_sub
+  exposed_parameters:
+    myparam: 1
 nodes:
   - python: test_sub.py
+
+
+name: nested_nodes_example
+default_storage: ${{ secrets.my_primary_storage }}
+nodes:
+  - node_from_python: basis_marketplace.salesforce.extract.extract_contacts
+    node_parameters:
+      api_key: ${{ secrets.salesforce_api_key }}
+    input_connections:
+      - from_table: mynode@output1
+        connect_to_input: customers
+    output_names:
+      - output: ltv_table
+        rename_to: myltv_table
+
+  - subgraph: subgraph2
+  - reference: someother_public_env/output1

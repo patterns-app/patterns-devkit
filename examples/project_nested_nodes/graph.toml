@@ -1,0 +1,3 @@
+[[nodes]]
+ltv_table => Table(my_ltv_data)from_template = "basis_marketplace.salesforce.extract.extract_contacts"
+inputs = []

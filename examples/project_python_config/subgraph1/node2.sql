@@ -1,3 +1,10 @@
+{% python %}
+node(
+    display_options
+)
+{% endpython %}
+
+
 select
     *
 from {{ Table('inputtable') }}
