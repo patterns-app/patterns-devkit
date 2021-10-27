@@ -1,27 +1,22 @@
 from basis import Node, Table, Graph, Stream
 
-from .othernode import OtherNode
+from .stripe import StripeImporter
 
 
 class MyNode(Node):
-    my_output_table = Table(schema="common.Transaction")
+    uses = [StripeImporter.returns, StripeImporter.charges, WebHookLeads.leads]
+    summary_table = Table()
+    enriched_stream = Stream()
 
-    def run(self, ctx):
-        cust_table = ctx.get_table(OtherNode.customer_summary_table)
-        ctx.append_to_table(self.my_output_table, my_record)
-
-
-
-
-
-
-
-from marketplace import MyMarketpalceNode
-
+    def run(self):
+        df = StripeImporter.returns.as_dataframe()
+        df = StripeImporter.charges.as_dataframe()
+        for r in WebHookLeads.leads:
+            ...
+        self.summary_table.write(df)
+        for r in df:
+            enriched_stream.append(r)
 
 
-class MyNode(MyMarketpalceNode):
-    assigned_inputs = dict(customer_summary_table=my_customer_summary_table)
 
 
-assign_inputs(MyMarketpalceNode, customer_summary_table=my_customer_summary_table)

@@ -1,15 +1,26 @@
-from basis import BasisProtocol, nodedef
+from basis import use_table, use_stream, create_table, create_stream, node
 
+# Inputs
+returns_table = use_table("stripe_importer.returns")
+charges_table = use_table("stripe_importer.charges")
+raw_stream = use_stream("webhook_leads")
 
-@nodedef
-def mynode(protocol: BasisProtocol):
-    returns_table = protocol.load_table("returns").as_dataframe()
-    # OR as chunks: returns_table = protocol.load_table("returns").as_dataframe_chunks(1000)
-    charges_table = protocol.load_table("charges").as_records()
-    events_stream = protocol.load_stream_iterator("events")
+# # Outputs
+summary_table = create_table("summary")
+enriched_stream = create_stream("enriched_leads")
+
+# Code
+@node
+def enrich_leads():
+    cdf = charges_table.as_dataframe()
+    rdf = returns_table.as_dataframe()
+    for r in raw_stream:
+        ...
     # MATH
     ltv_df = []
     churn_df = []
-    protocol.store_as_table("ltv", ltv_df)
+    summary_table.write("ltv", ltv_df)
     for r in churn_df:
-        protocol.emit_to_stream("churn_rate", r)
+        enriched_stream.append(r)
+
+
