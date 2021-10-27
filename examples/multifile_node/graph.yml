@@ -1,15 +1,50 @@
-name: nested_nodes_example
-default_storage: ${{ secrets.my_primary_storage }}
-nodes:
-  - node_from_template: basis_marketplace.salesforce.extract.extract_contacts
-    node_parameters:
-      api_key: ${{ secrets.salesforce_api_key }}
-    input_connections:
-      - from_table: mynode@output1
-        connect_to_input: customers
-    output_names:
-      - output: ltv_table
-        rename_to: myltv_table
-
-  - subgraph: subgraph2
-  - reference: someother_public_env/output1
+name: multifile_node
+parameter_ports:
+  - name: stripe_api_key
+    type: secret
+    default: My default text
+# graph specific
+graph:
+  node_configurations:
+    - node: basic_python_node/node.yml
+      name: mynode
+      labels:
+        - sales
+    - uid: grumpy-giraffe2-df8ws
+      node: basic_python_node/node.yml
+      labels:
+        - sales
+    - uid: grumpy-giraffe-df8ws
+      name: stripe_importer
+      node: https://getbasis.com/marketplace/stripe-importer-23djs8
+      node_parameters:
+        api_key: ${{ parameters.stripe_api_key }}
+      output_names:
+        charges: mycharges
+      schedule: "daily"
+    - node: basic_sql_node/node.yml
+    - node: subgraph1/graph.yml
+      name: subgraph1
+  connections:
+    - stripe_importer[charges] => basic_sql[customers]
+    - stripe_importer[charges] => basic_sql[customers]
+---
+input_ports:
+  - name: xxxxxxx
+    type: table
+    schema: myschema.Schema
+output_ports:
+  - name: xxxxx
+    type: stream
+    schema: myschema.OtherSchema
+parameter_ports:
+  - name: xxxx
+    type: parameter
+    parameter_type: text
+    default: My default text
+graph:
+  node_configurations:
+    - node: subnode/node.yml
+    - node: subnode2/node.yml
+  connections:
+    - subnode[myoutput] => subnode2[myinput]

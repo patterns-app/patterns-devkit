@@ -1,4 +1,4 @@
 select
     *
-from {{ Table('customer_summary_table') }}
+from {{ Table('customers') }}
 limit {{ Parameter('limit', 10)}}

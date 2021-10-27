@@ -4,7 +4,10 @@ from .stripe import StripeImporter
 
 
 class MyNode(Node):
-    uses = [StripeImporter.returns, StripeImporter.charges, WebHookLeads.leads]
+    """
+    Documentation goes here
+    """
+
     summary_table = Table()
     enriched_stream = Stream()
 
@@ -15,7 +18,7 @@ class MyNode(Node):
             ...
         self.summary_table.write(df)
         for r in df:
-            enriched_stream.append(r)
+            self.enriched_stream.append(r)
 
 
 

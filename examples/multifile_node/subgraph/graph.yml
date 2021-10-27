@@ -3,6 +3,12 @@ name: mynode
 node_definition: node1.py
 description: >
   This is my node, it does magical things with data
+inputs:
+  - stripe_importer.refunds as returns
+  - stripe_importer.charges as charges
+  - webhook_leads as leads
+outputs:
+  - summary as my_summary
 parameters:
   - name: myparam
     type: text

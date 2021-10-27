@@ -23,31 +23,3 @@ def enrich_leads():
     for r in churn_df:
         enriched_stream.append(r)
 
-
-class EnrichLeads(Node):
-    """
-    Documentation goes here
-    """
-    inputs = [
-        returns_table,
-        charges_table,
-        raw_stream,
-
-    ]
-    outputs = [
-        summary_table,
-        enriched_stream,
-    ]
-    def run(self):
-        cdf = charges_table.as_dataframe()
-        rdf = returns_table.as_dataframe()
-        for r in raw_stream:
-            ...
-        # MATH
-        ltv_df = []
-        churn_df = []
-        summary_table.write("ltv", ltv_df)
-        for r in churn_df:
-            enriched_stream.append(r)
-
-
