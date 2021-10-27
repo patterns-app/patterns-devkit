@@ -1,0 +1,14 @@
+name: mynode
+description: >
+  This is my node, it does magical things with data
+inputs:
+  - webhook_leads as leads
+  - stripe_imports@charges as charges
+outputs:
+  -
+  - name: output1_stream
+    type: stream
+parameters:
+  - name: myparam
+    type: text
+    default: My default text

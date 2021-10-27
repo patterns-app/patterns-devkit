@@ -1,0 +1,34 @@
+name: mega-graph
+description: >
+  My amazing graph
+nodes:
+  - node_from_python_file: mynode.py
+  - node_from_sql_file: sqlnode.sql
+  - node_from_template: basis_marketplace.salesforce.extract.extract_contacts
+    node_parameters:
+      api_key: ${{ secrets.salesforce_api_key }}
+      objects_to_import:
+        - charges
+        - refunds
+  - node_from_subgraph: subgraph2
+edges:
+  - extract_contacts.charges => mynode as charges
+  - extract_contacts.refunds => mynode as returns
+  - mynode.ltv => sqlnode as customer_ltv
+  - customer_dedupe.deduped_customers => sqlnode as customers
+  # OR:
+  - customer_dedupe.deduped_customers as customers => sqlnode
+---
+name: customer_dedupe
+description: >
+  My amazing SUB graph
+nodes:
+  - node_from_python_file: subnode1.py
+  - node_from_python_file: subnode2.py
+edges:
+  - subnode1 => subnode2
+expose:
+  inputs:
+    - subnode1.raw_customers as raw_customers
+  outputs:
+    - subnode2.deduped_customers as deduped_customers
