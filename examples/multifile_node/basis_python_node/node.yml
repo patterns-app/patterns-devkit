@@ -14,6 +14,6 @@ parameter_ports:
     parameter_type: text
     default: My default text
 # node specific
-node:
+contents:
   node_type: sql
   node_definition: sqlnode.sql

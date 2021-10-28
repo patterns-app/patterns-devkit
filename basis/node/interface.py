@@ -22,6 +22,8 @@ class OutputType(str, Enum):
     RecordStream = "RecordStream"
     Table = "Table"
 
+# def normalize_output_type(ot: str | OutputType) -> OutputType:
+#     pass
 
 class IoBase(FrozenPydanticBase):
     name: str

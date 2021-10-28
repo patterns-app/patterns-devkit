@@ -10,12 +10,10 @@ graph:
       name: mynode
       labels:
         - sales
-    - uid: grumpy-giraffe2-df8ws
-      node: basic_python_node/node.yml
+    - node: basic_python_node/node.yml
       labels:
         - sales
-    - uid: grumpy-giraffe-df8ws
-      name: stripe_importer
+    - name: stripe_importer
       node: https://getbasis.com/marketplace/stripe-importer-23djs8
       node_parameters:
         api_key: ${{ parameters.stripe_api_key }}
