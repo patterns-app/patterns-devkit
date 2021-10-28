@@ -5,29 +5,10 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 from basis.configuration.base import FrozenPydanticBase
 from basis.configuration.graph import (
-    GraphCfg,
-    InterfaceCfg,
-    NodeCfg,
     NodeDefinitionCfg,
-    NodeEdge,
+    NodeConnection,
 )
-
-
-class AbsolutePortPath(FrozenPydanticBase):
-    node: str
-    port: str
-    path_to_node: Optional[str] = None
-
-    def __str__(self) -> str:
-        return f"{self.path_to_node}.{self.node}[{self.port}]"
-
-
-class AbsoluteNodeEdge(FrozenPydanticBase):
-    input_path: AbsolutePortPath
-    output_path: AbsolutePortPath
-
-    def __str__(self) -> str:
-        return f"{self.input_path} => {self.output_path}"
+from basis.configuration.path import AbsoluteNodeConnection
 
 
 class NodeType(str, Enum):
@@ -52,8 +33,18 @@ class ConfiguredNode(FrozenPydanticBase):
     schedule: Optional[str] = None
     labels: Optional[List[str]] = None
     # Graph configuration
-    declared_inputs: List[NodeEdge] = []
-    flattened_inputs: List[AbsoluteNodeEdge] = []
+    declared_connections: List[NodeConnection] = []
+    flattened_connections: List[AbsoluteNodeConnection] = []
+
+    def input_connections(self) -> Iterator[AbsoluteNodeConnection]:
+        for abs_conn in self.flattened_connections:
+            if abs_conn.output_path.absolute_node_path == self.absolute_node_path:
+                yield abs_conn
+
+    def output_connections(self) -> Iterator[AbsoluteNodeConnection]:
+        for abs_conn in self.flattened_connections:
+            if abs_conn.input_path.absolute_node_path == self.absolute_node_path:
+                yield abs_conn
 
 
 ConfiguredNode.update_forward_refs()

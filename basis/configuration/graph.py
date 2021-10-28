@@ -5,52 +5,15 @@ from enum import Enum
 from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 from basis.configuration.base import FrozenPydanticBase
-from basis.configuration.node import GraphNodeCfg
+from basis.configuration.path import NodeConnection
 from pydantic.fields import Field
-
-re_port_path = re.compile(r"\s*(\w+)\[(\w+)\]\s*")
-re_node_connection = re.compile(r"^({0})=>({0})$".format(re_port_path))
+from pydantic.class_validators import root_validator, validator
+from commonmodel import Schema
 
 
 class BasisCfg(FrozenPydanticBase):
     version: str = None
     # TODO other global settings (retention policy, error handling, logging, etc)
-
-
-class PortType(str, Enum):
-    TABLE = "table"
-    STREAM = "stream"
-    PARAMETER = "parameter"
-
-
-class PortPath:
-    node: str
-    port: str
-
-    def __init__(self, path: str):
-        m = re.match(f"^{re_port_path}$", path)
-        if m is None:
-            raise ValueError(path)
-        self.node = m.group(1)
-        self.port = m.group(2)
-
-    def __str__(self) -> str:
-        return f"{self.node}[{self.port}]"
-
-
-class NodeEdge:
-    input_path: PortPath
-    output_path: PortPath
-
-    def __init__(self, connection: str):
-        m = re_node_connection.match(connection)
-        if m is None:
-            raise ValueError(connection)
-        self.input_path = PortPath(m.group(1))
-        self.output_path = PortPath(m.group(4))
-
-    def __str__(self) -> str:
-        return f"{self.input_path} => {self.output_path}"
 
 
 class GraphPortCfg(FrozenPydanticBase):
@@ -68,7 +31,7 @@ class GraphNodeCfg(FrozenPydanticBase):
     name: str
     node_definition: str
     parameter_values: Dict[str, Any] = {}
-    output_aliases: Dict[str, str]
+    output_aliases: Dict[str, str] = {}
     schedule: Optional[str] = None
     labels: Optional[List[str]] = None
     # TODO
@@ -78,7 +41,14 @@ class GraphNodeCfg(FrozenPydanticBase):
 
 class GraphDefinitionCfg(FrozenPydanticBase):
     node_configurations: List[GraphNodeCfg] = []
-    node_connections: List[NodeEdge] = []
+    node_connections: List[NodeConnection] = []
+
+    @validator("node_connections", pre=True)
+    def check_node_connections(cls, connections: Any) -> list[NodeConnection]:
+        conns = []
+        for conn in connections:
+            conns.append(NodeConnection.from_str(conn))
+        return conns
 
 
 class ScriptType(str, Enum):
@@ -88,7 +58,7 @@ class ScriptType(str, Enum):
 
 class ScriptCfg(FrozenPydanticBase):
     script_type: ScriptType
-    script: str
+    script_definition: str
 
 
 class InterfaceCfg(FrozenPydanticBase):
@@ -98,5 +68,6 @@ class InterfaceCfg(FrozenPydanticBase):
 
 
 class NodeDefinitionCfg(InterfaceCfg):
+    description: Optional[str] = None
     graph: Optional[GraphDefinitionCfg] = None
     script: Optional[ScriptCfg] = None

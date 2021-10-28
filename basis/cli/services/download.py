@@ -4,8 +4,6 @@ from pathlib import Path
 
 from basis.cli.helpers import compress_directory
 from basis.cli.services.api import Endpoints, post
-from basis.configuration.graph import GraphCfg
-from basis.graph.builder import GraphManifestBuilder
 from requests.models import Response
 
 

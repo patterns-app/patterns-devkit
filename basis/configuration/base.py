@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from io import StringIO
+from pathlib import Path
 from typing import TYPE_CHECKING, TypeVar
 
 import pydantic
@@ -33,8 +34,9 @@ def update(o: F, **kwargs) -> F:
     return type(o)(**d)
 
 
-def load_yaml(yml: str) -> dict:
-
+def load_yaml(yml: str | Path) -> dict:
+    if isinstance(yml, Path):
+        yml = str(yml)
     try:
         from yaml import CLoader as Loader, CDumper as Dumper
     except ImportError:

@@ -9,7 +9,7 @@ def myf():
 
 
 test_node = Node(
-    name="test_sub",
+    name="testpy",
     node_callable=lambda ctx: ctx,
     interface=NodeInterface(
         inputs=OrderedDict(table_input=Table("table_input")),
