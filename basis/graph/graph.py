@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from basis.configuration.node import NODE_PATH_OUTPUT_SEPARATOR, NodePath
-
-
-from basis.graph.configured_node import ConfiguredNode
 import networkx as nx
+from basis.configuration.node import NODE_PATH_OUTPUT_SEPARATOR, NodePath
+from basis.graph.configured_node import ConfiguredNode
 
 
 def compute_node_digraph(root_node: ConfiguredNode) -> nx.DiGraph:
@@ -24,7 +22,7 @@ def compute_node_digraph(root_node: ConfiguredNode) -> nx.DiGraph:
             downstream_node_path.io_name = input_name
             g.add_node( str(downstream_node_path))
             input_node_path = NodePath(input_node.node_path)
-            input_node_path.io_name = 
+            input_node_path.io_name =
             g.add_node(input_node.node_path)
 
     return g

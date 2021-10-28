@@ -28,15 +28,15 @@ graph:
     - stripe_importer[charges] => basic_sql[customers]
 ---
 input_ports:
-  - name: xxxxxxx
+  - name: input1
     type: table
     schema: myschema.Schema
 output_ports:
-  - name: xxxxx
+  - name: output1
     type: stream
     schema: myschema.OtherSchema
 parameter_ports:
-  - name: xxxx
+  - name: param1
     type: parameter
     parameter_type: text
     default: My default text
@@ -45,4 +45,6 @@ graph:
     - node: subnode/node.yml
     - node: subnode2/node.yml
   connections:
+    - self[input1] => subnode[myinput]
     - subnode[myoutput] => subnode2[myinput]
+    - subnode2[output] => self[output1]

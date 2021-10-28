@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-from enum import Enum
 import re
+from enum import Enum
 from typing import Any, Dict, List, Optional, Union
-
-from pydantic.utils import path_type
 
 from basis.configuration.base import FrozenPydanticBase
 from basis.configuration.storage import StorageCfg
 from pydantic.class_validators import root_validator, validator
-
+from pydantic.utils import path_type
 
 NODE_PATH_GRAPH_SEPARATOR = "."
 NODE_PATH_OUTPUT_SEPARATOR = "@"

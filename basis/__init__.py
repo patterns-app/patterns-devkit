@@ -2,9 +2,6 @@ __version__ = "0.1.0"
 
 # Must import in correct order
 
-# FIRST
-from .configuration.node import GraphNodeCfg, NodeOutputCfg, NodeType
-
 # SECOND
 from .configuration.graph import (
     BasisCfg,
@@ -14,6 +11,8 @@ from .configuration.graph import (
     GraphNodeCfg,
     GraphParameterCfg,
 )
+# FIRST
+from .configuration.node import GraphNodeCfg, NodeOutputCfg, NodeType
 from .execution.context import Context
 from .graph.configured_node import ConfiguredNode
 from .node.interface import (

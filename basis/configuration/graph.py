@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-import typing
-from collections import OrderedDict
+import re
 from enum import Enum
 from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
-
-import re
 
 from basis.configuration.base import FrozenPydanticBase
 from basis.configuration.node import GraphNodeCfg
@@ -41,7 +38,7 @@ class PortPath:
         return f"{self.node}[{self.port}]"
 
 
-class NodeConnection:
+class NodeEdge:
     input_path: PortPath
     output_path: PortPath
 
@@ -81,29 +78,29 @@ class GraphNodeCfg(FrozenPydanticBase):
 
 class GraphDefinitionCfg(FrozenPydanticBase):
     node_configurations: List[GraphNodeCfg] = []
-    node_connections: List[NodeConnection] = []
+    node_connections: List[NodeEdge] = []
 
 
-class NodeType(str, Enum):
+class ScriptType(str, Enum):
     PYTHON = "python"
     SQL = "sql"
 
 
 class NodeDefinitionCfg(FrozenPydanticBase):
-    node_type: NodeType
-    node_script: str
+    script_type: ScriptType
+    script: str
 
 
-class InterfaceBaseCfg(FrozenPydanticBase):
+class InterfaceCfg(FrozenPydanticBase):
     input_ports: Optional[List[GraphPortCfg]] = None
     output_ports: Optional[List[GraphPortCfg]] = None
     parameter_ports: Optional[List[GraphPortCfg]] = None
 
 
-class NodeCfg(InterfaceBaseCfg):
+class NodeCfg(InterfaceCfg):
     node: Optional[NodeDefinitionCfg] = None
 
 
-class GraphCfg(InterfaceBaseCfg):
+class GraphCfg(InterfaceCfg):
     basis: BasisCfg = BasisCfg()
     graph: Optional[GraphDefinitionCfg] = None
