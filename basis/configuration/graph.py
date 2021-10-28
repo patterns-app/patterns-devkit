@@ -86,7 +86,7 @@ class ScriptType(str, Enum):
     SQL = "sql"
 
 
-class NodeDefinitionCfg(FrozenPydanticBase):
+class ScriptCfg(FrozenPydanticBase):
     script_type: ScriptType
     script: str
 
@@ -97,10 +97,6 @@ class InterfaceCfg(FrozenPydanticBase):
     parameter_ports: Optional[List[GraphPortCfg]] = None
 
 
-class NodeCfg(InterfaceCfg):
-    node: Optional[NodeDefinitionCfg] = None
-
-
-class GraphCfg(InterfaceCfg):
-    basis: BasisCfg = BasisCfg()
+class NodeDefinitionCfg(InterfaceCfg):
     graph: Optional[GraphDefinitionCfg] = None
+    script: Optional[ScriptCfg] = None

@@ -43,7 +43,6 @@ class ConfiguredNode(FrozenPydanticBase):
     node_depth: int
     # Basic attrs
     node_type: NodeType
-    interface: InterfaceCfg
     description: Optional[str] = None
     absolute_file_path_to_config_yaml: Optional[str] = None
     node_definition: Optional[NodeDefinitionCfg] = None
@@ -53,10 +52,8 @@ class ConfiguredNode(FrozenPydanticBase):
     schedule: Optional[str] = None
     labels: Optional[List[str]] = None
     # Graph configuration
-    declared_edges: List[NodeEdge] = []
-    flattened_edges: List[AbsoluteNodeEdge] = []
-    # Original cfg for reference
-    original_cfg: Union[GraphCfg, NodeCfg, None] = None
+    declared_inputs: List[NodeEdge] = []
+    flattened_inputs: List[AbsoluteNodeEdge] = []
 
 
 ConfiguredNode.update_forward_refs()
