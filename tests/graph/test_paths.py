@@ -25,3 +25,10 @@ def test_paths():
     p = as_absolute_port_path(PortPath.from_str("path[port]"), "my.abs")
     assert str(p.absolute_node_path) == "my.abs.path"
     assert p.port == "port"
+    p = as_absolute_port_path(PortPath.from_str("self[port]"), "my.abs")
+    assert str(p.absolute_node_path) == "my.abs"
+    assert p.port == "port"
+    # TODO: do we want this?
+    # p = as_absolute_port_path(PortPath.from_str("port]"), "my.abs")
+    # assert str(p.absolute_node_path) == "my.abs"
+    # assert p.port == "port"

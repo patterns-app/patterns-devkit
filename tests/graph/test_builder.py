@@ -14,10 +14,24 @@ def test_simple_graph_builder():
     nodes = configured_nodes_from_yaml(TEST_GRAPH_DIR / "graph.yml")
     assert len(nodes) == 3 + 2
     connection_count = 0
+    testpy_node = None
+    subgraph1_node = None
     for node in nodes:
         pprint(node.dict(exclude_none=True))
         connection_count += len(node.flattened_connections)
-    assert connection_count == 2 * 2 + 3 * 2 - 1
+        if node.node_name == "testpy":
+            testpy_node = node
+        if node.node_name == "subgraph1":
+            subgraph1_node = node
+    assert testpy_node is not None
+    assert len(testpy_node.flattened_connections) == 1
+    testpy_conn = testpy_node.flattened_connections[0]
+    assert str(testpy_conn.input_path) == "testpy[charges]"
+    assert subgraph1_node is not None
+    assert len(subgraph1_node.flattened_connections) == 3
+    subgraph1_conn = subgraph1_node.flattened_connections[0]
+    assert str(subgraph1_conn.input_path) == "subgraph1[input1]"
+    assert str(subgraph1_conn.output_path) == "subgraph1.testsub1[input_table]"
 
 
 # def test_simple_graph_builder():

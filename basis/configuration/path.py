@@ -67,7 +67,10 @@ class AbsoluteNodePath(FrozenPydanticBase):
         return AbsoluteNodePath(node=parts[-1], path_to_node=".".join(parts[:-1]))
 
     def __str__(self) -> str:
-        return f"{self.path_to_node}.{self.node}"
+        s = self.node
+        if self.path_to_node:
+            s = self.path_to_node + "." + s
+        return s
 
 
 class AbsolutePortPath(FrozenPydanticBase):
@@ -81,7 +84,7 @@ class AbsolutePortPath(FrozenPydanticBase):
         return AbsolutePortPath(
             port=port_path.port,
             absolute_node_path=AbsoluteNodePath.from_str(
-                join_node_paths(".".join(parts[:-1]), port_path.node)
+                join_node_paths(*parts[:-1], port_path.node)
             ),
         )
 

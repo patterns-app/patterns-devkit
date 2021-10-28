@@ -40,7 +40,7 @@ def graph_as_configured_nodes(
     assert root_node.graph is not None, "Graph is empty"
     for node_cfg in root_node.graph.node_configurations:
         graph_build = build_configured_nodes(
-            node_cfg, abs_filepath_to_root=abs_filepath_to_root
+            node_cfg, root_node, abs_filepath_to_root=abs_filepath_to_root
         )
         nodes.append(graph_build.node)
         nodes.extend(graph_build.child_nodes)
@@ -49,7 +49,7 @@ def graph_as_configured_nodes(
 
 def build_configured_nodes(
     node_cfg: GraphNodeCfg,
-    # parent_graph: NodeDefinitionCfg, <- unused?
+    parent_graph: NodeDefinitionCfg | None = None,
     depth: int = 0,
     absolute_node_path: str = "",
     abs_filepath_to_root: str = "",
@@ -69,40 +69,35 @@ def build_configured_nodes(
         schedule=node_cfg.schedule,
         labels=node_cfg.labels,
     )
-    child_nodes: list[ConfiguredNode] = []
+    # child_nodes: list[ConfiguredNode] = []
+    connections = []
     if node_def.graph is not None:
+        connections.extend(node_def.graph.node_connections)
         for sub_node_cfg in node_def.graph.node_configurations:
             # Recurse
             graph_build = build_configured_nodes(
                 sub_node_cfg,
-                # node_def,
+                node_def,
                 depth + 1,
                 join_node_paths(absolute_node_path, node_cfg.name),
                 abs_filepath_to_node_root,
             )
-            child_nodes.append(graph_build.node)
+            # child_nodes.append(graph_build.node)
             configured_nodes.append(graph_build.node)
             configured_nodes.extend(graph_build.child_nodes)
-        for connection in node_def.graph.node_connections:
-            # TODO: normalize connection (replace self, turn into absolute paths?)
-            abs_connection = as_absolute_connection(
-                connection, cfg_node.absolute_node_path
-            )
-            # Check for graph port connections
-            if cfg_node.absolute_node_path in (
-                abs_connection.output_path.absolute_node_path,
-                abs_connection.input_path.absolute_node_path,
-            ):
-                cfg_node.declared_connections.append(connection)
-                cfg_node.flattened_connections.append(abs_connection)
-            # Then all children
-            for n in child_nodes:
-                if n.absolute_node_path in (
-                    abs_connection.output_path.absolute_node_path,
-                    abs_connection.input_path.absolute_node_path,
-                ):
-                    n.declared_connections.append(connection)
-                    n.flattened_connections.append(abs_connection)
+    if parent_graph is not None and parent_graph.graph is not None:
+        connections.extend(parent_graph.graph.node_connections)
+    for connection in connections:
+        abs_connection = as_absolute_connection(connection, cfg_node.absolute_node_path)
+        # Check for graph port connections
+        input_node_path = str(abs_connection.input_path.absolute_node_path)
+        output_node_path = str(abs_connection.output_path.absolute_node_path)
+        if cfg_node.absolute_node_path in (
+            input_node_path,
+            output_node_path,
+        ):
+            cfg_node.declared_connections.append(connection)
+            cfg_node.flattened_connections.append(abs_connection)
     return GraphBuild(
         node=cfg_node,
         child_nodes=configured_nodes,
