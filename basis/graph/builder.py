@@ -16,7 +16,7 @@ from basis.configuration.path import (
     as_absolute_connection,
     join_node_paths,
 )
-from basis.graph.configured_node import ConfiguredNode, NodeType
+from basis.graph.configured_node import ConfiguredNode, GraphManifest, NodeType
 
 
 @dataclass
@@ -26,7 +26,7 @@ class GraphBuild:
     # connections: list[AbsoluteNodeConnection]
 
 
-def configured_nodes_from_yaml(yml_path: str | Path) -> list[ConfiguredNode]:
+def configured_nodes_from_yaml(yml_path: str | Path) -> GraphManifest:
     yml_path = Path(yml_path)
     yml_path = yml_path.resolve()
     node_def = NodeDefinitionCfg(**load_yaml(yml_path))
@@ -35,7 +35,7 @@ def configured_nodes_from_yaml(yml_path: str | Path) -> list[ConfiguredNode]:
 
 def graph_as_configured_nodes(
     root_node: NodeDefinitionCfg, abs_filepath_to_root: str = ""
-) -> list[ConfiguredNode]:
+) -> GraphManifest:
     nodes: list[ConfiguredNode] = []
     assert root_node.graph is not None, "Graph is empty"
     for node_cfg in root_node.graph.node_configurations:
@@ -44,7 +44,7 @@ def graph_as_configured_nodes(
         )
         nodes.append(graph_build.node)
         nodes.extend(graph_build.child_nodes)
-    return nodes
+    return GraphManifest(graph_name=root_node.name, nodes=nodes)
 
 
 def build_configured_nodes(

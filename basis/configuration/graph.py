@@ -71,3 +71,4 @@ class NodeDefinitionCfg(InterfaceCfg):
     description: Optional[str] = None
     graph: Optional[GraphDefinitionCfg] = None
     script: Optional[ScriptCfg] = None
+    name: Optional[str] = None

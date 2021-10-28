@@ -47,7 +47,9 @@ class ConfiguredNode(FrozenPydanticBase):
                 yield abs_conn
 
 
-ConfiguredNode.update_forward_refs()
+class GraphManifest(FrozenPydanticBase):
+    graph_name: str
+    nodes: List[ConfiguredNode] = []
 
 
 # def find_node(self, path: str, root_path: str = None) -> ConfiguredNode:

@@ -7,8 +7,9 @@ from basis.cli.config import get_current_organization_name
 from basis.cli.helpers import compress_directory
 from basis.cli.services.upload import upload_graph_version
 from basis.configuration.base import load_yaml
-from basis.configuration.graph import GraphCfg
 from cleo import Command
+
+from basis.configuration.graph import NodeDefinitionCfg
 
 
 class UploadCommand(BasisCommandBase, Command):
@@ -36,7 +37,7 @@ class UploadCommand(BasisCommandBase, Command):
         self.line(f"Graph uploaded successfully (Version <info>{data['uid']}</info>)")
 
 
-def graph_cfg_from_argument(cfg_arg: str) -> GraphCfg:
+def graph_cfg_from_argument(cfg_arg: str) -> NodeDefinitionCfg:
     graph_cfg = load_yaml(cfg_arg)
-    cfg = GraphCfg(**graph_cfg)
+    cfg = NodeDefinitionCfg(**graph_cfg)
     return cfg

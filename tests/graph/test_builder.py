@@ -11,7 +11,8 @@ TEST_GRAPH_DIR = Path(__file__).parent / "test_graph"
 
 
 def test_simple_graph_builder():
-    nodes = configured_nodes_from_yaml(TEST_GRAPH_DIR / "graph.yml")
+    manifest = configured_nodes_from_yaml(TEST_GRAPH_DIR / "graph.yml")
+    nodes = manifest.nodes
     assert len(nodes) == 3 + 2
     connection_count = 0
     testpy_node = None
