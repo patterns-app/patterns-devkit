@@ -12,3 +12,15 @@ graph(
     # output_ports=[Port("ltv_table", proxy_to="node2@ltv_table")],
     nodes=[node1, node2, node3, nestedgraph1],
 )
+
+
+
+
+customer_summary_table = Table(schema="common.Customer")
+
+class MyMarketplaceNode(Node):
+    my_output_table = Table(schema="common.Transaction")
+
+    def run(self, ctx):
+        cust_table = ctx.get_table(customer_summary_table)
+        ctx.append_to_table(self.my_output_table, my_record)

@@ -1,56 +1,12 @@
 name: test_graph
-interface:
-  inputs:
-    - name: myinput
-      like: testpy
-  outputs:
-    myoutput: test
-    other_output: subgraph1.test_sub
-  parameters:
-    myparam: 1
-nodes:
-  - python: test.py
-    inputs:
-      table_input: subgraph1.test_sub
-  - sql: test.sql
-    inputs:
-      mytable: testpy
-  - subgraph: subgraph1/graph.yml
-
-
-name: test_graph
-ports:
-  output_tables:
-    - myoutput_table
-  output_streams:
-    - myoutput_stream
-  input_table_slots:
-    - mynode/inputs/input1
-  input_stream_slots:
-    - othernode/inputs/input2
-nodes:
-  - python: nodefile.py
-  - component: webhook
-    name: webflow_lead_importer
-    # parameters:
-    #   batching_freq: hourly
-    # output_names: @webflow_leads_raw
-    # table_inputs:
-    #   - mytable
-    # stream_inputs:
-    #   - mystream
-  - component: path_to_importer
-    name: stripe_importer
-    parameters:
-        api_key: asdfasdfasdf
-        obejects:
-            - invoices_table
-            - charges_stream
-            # stripe_importer__invoices_table if not
-    output_stream_names:
-      charges_stream: @charges
-    output_table_names:
-      invoices_table: @invoices 
-
-  - python: clean_raw_webflow_leads.py ## filename or python path clean_raw_webflow_leads
-  - sql: node3.sql
+graph:
+  node_configurations:
+    - name: testpy
+      node_definition: testpy
+    - name: testsql
+      node_definition: testsql/node.yml
+    - name: subgraph1
+      node_definition: subgraph1
+  node_connections:
+    - testpy[charges] => testsql[customers]
+    - testsql[ltv] => subgraph1[input1]

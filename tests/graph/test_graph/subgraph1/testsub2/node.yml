@@ -1,0 +1,13 @@
+description: >
+  This is my node
+input_ports:
+  - name: input_table
+    type: table
+    schema: myschema.Schema
+output_ports:
+  - name: output_table
+    type: table
+    schema: myschema.OtherSchema
+script:
+  script_type: python
+  script_definition: testsub2.py

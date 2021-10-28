@@ -1,0 +1,19 @@
+description: >
+  This is my node, it does magical things with data
+input_ports:
+  - name: returns
+    type: table
+    schema: myschema.Schema
+output_ports:
+  - name: ltv
+    type: stream
+    schema: myschema.OtherSchema
+parameter_ports:
+  - name: myparam
+    type: parameter
+    parameter_type: text
+    default: My default text
+# node specific
+contents:
+  node_type: sql
+  node_definition: sqlnode.sql
