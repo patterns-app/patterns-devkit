@@ -73,6 +73,7 @@ class InterfaceCfg(FrozenPydanticBase):
 
 
 class NodeDefinitionCfg(InterfaceCfg):
+    basis: Optional[BasisCfg] = None
     description: Optional[str] = None
     graph: Optional[GraphDefinitionCfg] = None
     script: Optional[ScriptCfg] = None

@@ -37,13 +37,14 @@ def graph_as_configured_nodes(
     root_node: NodeDefinitionCfg, abs_filepath_to_root: str = ""
 ) -> GraphManifest:
     nodes: list[ConfiguredNode] = []
-    assert root_node.graph is not None, "Graph is empty"
-    for node_cfg in root_node.graph.node_configurations:
-        graph_build = build_configured_nodes(
-            node_cfg, root_node, abs_filepath_to_root=abs_filepath_to_root
-        )
-        nodes.append(graph_build.node)
-        nodes.extend(graph_build.child_nodes)
+    # assert root_node.graph is not None, "Graph is empty"
+    if root_node.graph is not None:
+        for node_cfg in root_node.graph.node_configurations:
+            graph_build = build_configured_nodes(
+                node_cfg, root_node, abs_filepath_to_root=abs_filepath_to_root
+            )
+            nodes.append(graph_build.node)
+            nodes.extend(graph_build.child_nodes)
     return GraphManifest(graph_name=root_node.name, nodes=nodes)
 
 
