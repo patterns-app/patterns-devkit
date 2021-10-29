@@ -1,4 +1,4 @@
-name: test_graph
+name: test-graph
 graph:
   node_configurations:
     - name: testpy

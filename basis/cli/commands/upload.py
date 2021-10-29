@@ -32,7 +32,7 @@ class UploadCommand(BasisCommandBase, Command):
                 graph_cfg, cfg_dir, get_current_organization_name()
             )
         except Exception as e:
-            self.line(f"<error>Upload failed: {e}</error>")
+            self.line(f"<error>Upload failed: {e.response.json()}</error>")
             exit(1)
         self.line(f"Graph uploaded successfully (Version <info>{data['uid']}</info>)")
 

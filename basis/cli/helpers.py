@@ -39,6 +39,7 @@ def compress_directory(path: PathLike) -> BytesIO:
         zipf.write(f_path, os.path.relpath(f_path, os.path.join(path, "..")))
     zipf.close()
     io.seek(0)
+    io.name = "graph_manifest.zip"
     return io
 
 

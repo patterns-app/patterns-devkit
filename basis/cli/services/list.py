@@ -9,4 +9,4 @@ def list_objects(obj_type: str, organization_name: str) -> list[dict]:
     endpoint = getattr(Endpoints, f"{obj_type.upper()}S_LIST")
     resp = get(endpoint, params={"organization_name": organization_name})
     resp.raise_for_status()
-    return resp.json()
+    return resp.json().get(obj_type + "s", [])

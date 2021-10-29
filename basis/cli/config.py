@@ -51,3 +51,9 @@ def get_current_organization_name() -> str:
 
 def set_current_organization_name(org_uid: str):
     update_local_basis_config(organization_name=org_uid)
+
+
+def update_basis_config_with_auth(auth_data: dict, **kwargs):
+    update_local_basis_config(token=auth_data["access"])
+    if "refresh" in auth_data:
+        update_local_basis_config(refresh=auth_data["refresh"], **kwargs)

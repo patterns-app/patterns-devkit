@@ -12,9 +12,10 @@ def test_list():
             Endpoints.GRAPHS_LIST,
             Endpoints.NODES_LIST,
         ]:
+            obj_name = e.split("/")[-2]
             m.get(
                 API_BASE_URL + e,
-                json=[{"name": "name"}],
+                json={obj_name: [{"name": "name"}]},
             )
         command_tester.execute(f"env")
         assert "name" in command_tester.io.fetch_output()
