@@ -10,9 +10,9 @@ version = "0.1.0"
 
 [tool.poetry.dependencies]
 cleo = "^0.8.1"
-common-model = "~0.2.0"
+common-model = { git = "https://github.com/kvh/common-model.git" }
 cookiecutter = "^1.7.3"
-datacopy = "~0.1.9"
+datacopy = { git = "https://github.com/kvh/dcp.git" }
 jinja2 = "^3.0.0"
 pyarrow = "^5.0.0"
 pydantic = "^1.8.1"
