@@ -25,24 +25,26 @@ class ConfiguredNode(FrozenPydanticBase):
     # Basic attrs
     node_type: NodeType
     description: Optional[str] = None
-    absolute_file_path_to_config_yaml: Optional[str] = None
     node_definition: Optional[NodeDefinitionCfg] = None
+    # Relative paths to relevant files
+    file_path_to_yaml_definition_relative_to_root: Optional[str] = None
+    file_path_to_node_script_relative_to_root: Optional[str] = None
     # Configuration
-    parameter_values: Dict[str, Any] = {}
-    output_aliases: Dict[str, str] = {}
+    parameter_values: Optional[Dict[str, Any]] = None
+    output_aliases: Optional[Dict[str, str]] = None
     schedule: Optional[str] = None
     labels: Optional[List[str]] = None
     # Graph configuration
-    declared_connections: List[NodeConnection] = []
-    flattened_connections: List[AbsoluteNodeConnection] = []
+    declared_connections: Optional[List[NodeConnection]] = None
+    flattened_connections: Optional[List[AbsoluteNodeConnection]] = None
 
     def input_connections(self) -> Iterator[AbsoluteNodeConnection]:
-        for abs_conn in self.flattened_connections:
+        for abs_conn in self.flattened_connections or []:
             if abs_conn.output_path.absolute_node_path == self.absolute_node_path:
                 yield abs_conn
 
     def output_connections(self) -> Iterator[AbsoluteNodeConnection]:
-        for abs_conn in self.flattened_connections:
+        for abs_conn in self.flattened_connections or []:
             if abs_conn.input_path.absolute_node_path == self.absolute_node_path:
                 yield abs_conn
 
@@ -50,6 +52,12 @@ class ConfiguredNode(FrozenPydanticBase):
 class GraphManifest(FrozenPydanticBase):
     graph_name: str
     nodes: List[ConfiguredNode] = []
+
+    def get_node(self, abs_node_path: str) -> ConfiguredNode:
+        for n in self.nodes:
+            if n.absolute_node_path == abs_node_path:
+                return n
+        raise KeyError(abs_node_path)
 
 
 # def find_node(self, path: str, root_path: str = None) -> ConfiguredNode:

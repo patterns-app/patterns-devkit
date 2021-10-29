@@ -55,9 +55,17 @@ def build_configured_nodes(
     abs_filepath_to_root: str = "",
 ) -> GraphBuild:
     configured_nodes = []
-    (abs_filepath_to_node_root, node_def) = find_node_definition(
+    (abs_filepath_to_yaml_config, node_def) = find_node_definition(
         node_cfg.node_definition, abs_filepath_to_root
     )
+    node_script_path = None
+    if node_def.script is not None:
+        node_script_path = str(
+            (
+                Path(abs_filepath_to_yaml_config).parent
+                / node_def.script.script_definition
+            ).relative_to(abs_filepath_to_root)
+        )
     cfg_node = ConfiguredNode(
         node_name=node_cfg.name,
         absolute_node_path=join_node_paths(absolute_node_path, node_cfg.name),
@@ -66,8 +74,14 @@ def build_configured_nodes(
         node_definition=node_def,
         parameter_values=node_cfg.parameter_values,
         output_aliases=node_cfg.output_aliases,
+        file_path_to_yaml_definition_relative_to_root=str(
+            Path(abs_filepath_to_yaml_config).relative_to(abs_filepath_to_root)
+        ),
+        file_path_to_node_script_relative_to_root=node_script_path,
         schedule=node_cfg.schedule,
         labels=node_cfg.labels,
+        declared_connections=[],
+        flattened_connections=[],
     )
     # child_nodes: list[ConfiguredNode] = []
     connections = []
@@ -80,7 +94,7 @@ def build_configured_nodes(
                 node_def,
                 depth + 1,
                 join_node_paths(absolute_node_path, node_cfg.name),
-                abs_filepath_to_node_root,
+                str(Path(abs_filepath_to_yaml_config).parent),
             )
             # child_nodes.append(graph_build.node)
             configured_nodes.append(graph_build.node)
@@ -119,5 +133,4 @@ def find_node_definition(
         else:
             raise NotImplementedError(f"Could not find a yml def in {ref_path}")
     node_def = NodeDefinitionCfg(**load_yaml(yaml_path))
-    abs_filepath_to_node_root = str(yaml_path.parent)
-    return abs_filepath_to_node_root, node_def
+    return str(yaml_path), node_def

@@ -28,7 +28,7 @@ class ManifestCommand(BasisCommandBase, Command):
         manifest = graph_as_configured_nodes(
             graph_cfg, abs_filepath_to_root=str(cfg_dir.resolve())
         )
-        manifest_str = pprint.pformat(manifest.dict(exclude_unset=True))
-        manifest_json_str = json.dumps(manifest.dict(exclude_unset=True))
+        manifest_str = pprint.pformat(manifest.dict(exclude_none=True))
+        manifest_json_str = json.dumps(manifest.dict(exclude_none=True))
         self.line(manifest_str)
         self.line(manifest_json_str)

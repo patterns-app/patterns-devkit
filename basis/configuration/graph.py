@@ -47,7 +47,12 @@ class GraphDefinitionCfg(FrozenPydanticBase):
     def check_node_connections(cls, connections: Any) -> list[NodeConnection]:
         conns = []
         for conn in connections:
-            conns.append(NodeConnection.from_str(conn))
+            if isinstance(conn, str):
+                conns.append(NodeConnection.from_str(conn))
+            elif isinstance(conn, dict):
+                conns.append(NodeConnection(**conn))
+            else:
+                raise TypeError(conn)
         return conns
 
 

@@ -10,9 +10,9 @@ version = "0.1.0"
 
 [tool.poetry.dependencies]
 cleo = "^0.8.1"
-common-model = "~0.2.0"
+# common-model = "~0.2.0"
 cookiecutter = "^1.7.3"
-datacopy = "~0.1.9"
+# datacopy = "~0.1.9"
 jinja2 = "^3.0.0"
 pyarrow = "^5.0.0"
 pydantic = "^1.8.1"
@@ -22,8 +22,8 @@ strictyaml = "^1.0.6"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
-# common-model = {path = "../common-model/python", develop = true}
-# datacopy = {path = "../dcp", develop = true}
+common-model = {path = "../common-model/python", develop = true}
+datacopy = {path = "../dcp", develop = true}
 flake8 = "^3.8.1"
 ipython = "^7.13.0"
 isort = "^4.3.21"

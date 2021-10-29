@@ -2,18 +2,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Iterable, Iterator, Optional, Union
+from basis.graph.configured_node import ConfiguredNode
 
-from basis.configuration.node import GraphNodeCfg
-from basis.node.interface import (
-    DEFAULT_ERROR_NAME,
-    DEFAULT_STATE_NAME,
-    IoBase,
-    NodeInterface,
-)
-from basis.node.node import Node
-from commonmodel.base import Schema
-from dcp.data_format.base import DataFormat
-from dcp.storage.base import Storage
+# from basis.configuration.node import GraphNodeCfg
+# from basis.node.interface import (
+#     DEFAULT_ERROR_NAME,
+#     DEFAULT_STATE_NAME,
+#     IoBase,
+#     NodeInterface,
+# )
+# from basis.node.node import Node
+# from commonmodel.base import Schema
+# from dcp.data_format.base import DataFormat
+# from dcp.storage.base import Storage
 
 
 class TableManager:
@@ -24,7 +25,7 @@ class TableManager:
 @dataclass(frozen=True)
 class Context:
     node: Node
-    node_cfg: GraphNodeCfg
+    node_cfg: ConfiguredNode
 
     ### Input
     def get_records(self, input_name: str) -> Iterator[dict]:

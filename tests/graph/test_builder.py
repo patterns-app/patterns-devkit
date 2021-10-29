@@ -6,12 +6,19 @@ from pprint import pprint
 
 from basis.configuration.base import dump_json
 from basis.graph.builder import configured_nodes_from_yaml, graph_as_configured_nodes
+from basis.node.node import NodeFunction, get_node_function
+import sys
 
 TEST_GRAPH_DIR = Path(__file__).parent / "test_graph"
 
 
-def test_simple_graph_builder():
+def get_test_manifest():
     manifest = configured_nodes_from_yaml(TEST_GRAPH_DIR / "graph.yml")
+    return manifest
+
+
+def test_simple_graph_builder():
+    manifest = get_test_manifest()
     nodes = manifest.nodes
     assert len(nodes) == 3 + 2
     connection_count = 0
@@ -33,6 +40,14 @@ def test_simple_graph_builder():
     subgraph1_conn = subgraph1_node.flattened_connections[0]
     assert str(subgraph1_conn.input_path) == "subgraph1[input1]"
     assert str(subgraph1_conn.output_path) == "subgraph1.testsub1[input_table]"
+
+
+def test_find_node_function():
+    sys.path.append(str(TEST_GRAPH_DIR))
+    manifest = get_test_manifest()
+    node = manifest.get_node("testpy")
+    node_fn = get_node_function(node)
+    assert isinstance(node_fn, NodeFunction)
 
 
 # def test_simple_graph_builder():
