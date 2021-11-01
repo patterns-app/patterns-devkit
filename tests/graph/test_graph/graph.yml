@@ -1,8 +1,7 @@
 name: test-graph
 graph:
   node_configurations:
-    - name: testpy
-      node_definition: testpy
+    - node_definition: testpy
     - name: testsql
       node_definition: testsql/node.yml
     - name: subgraph1

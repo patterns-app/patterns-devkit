@@ -28,8 +28,8 @@ class GraphPortCfg(FrozenPydanticBase):
 
 
 class GraphNodeCfg(FrozenPydanticBase):
-    name: str
     node_definition: str
+    name: Optional[str] = None
     parameter_values: Dict[str, Any] = {}
     output_aliases: Dict[str, str] = {}
     schedule: Optional[str] = None

@@ -25,6 +25,7 @@ class ConfiguredNode(FrozenPydanticBase):
     # Basic attrs
     node_type: NodeType
     description: Optional[str] = None
+    parent_node: Optional[str] = None
     node_definition: Optional[NodeDefinitionCfg] = None
     # Relative paths to relevant files
     file_path_to_yaml_definition_relative_to_root: Optional[str] = None

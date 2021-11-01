@@ -59,6 +59,7 @@ def build_configured_nodes(
     (abs_filepath_to_yaml_config, node_def) = find_node_definition(
         node_cfg.node_definition, abs_filepath_to_root
     )
+    node_def_default_name = abs_filepath_to_yaml_config.split("/")[-2]
     node_script_path = None
     if node_def.script is not None:
         node_script_path = str(
@@ -67,11 +68,13 @@ def build_configured_nodes(
                 / node_def.script.script_definition
             ).relative_to(abs_filepath_to_root)
         )
+    node_name = node_cfg.name or node_def.name or node_def_default_name
     cfg_node = ConfiguredNode(
-        node_name=node_cfg.name,
-        absolute_node_path=join_node_paths(absolute_node_path, node_cfg.name),
+        node_name=node_name,
+        absolute_node_path=join_node_paths(absolute_node_path, node_name),
         node_depth=depth,
         node_type=NodeType.GRAPH if node_def.graph is not None else NodeType.NODE,
+        parent_node=absolute_node_path if absolute_node_path else None,
         node_definition=node_def,
         parameter_values=node_cfg.parameter_values,
         output_aliases=node_cfg.output_aliases,
@@ -94,7 +97,7 @@ def build_configured_nodes(
                 sub_node_cfg,
                 node_def,
                 depth + 1,
-                join_node_paths(absolute_node_path, node_cfg.name),
+                join_node_paths(absolute_node_path, node_name),
                 str(Path(abs_filepath_to_yaml_config).parent),
             )
             # child_nodes.append(graph_build.node)

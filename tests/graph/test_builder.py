@@ -25,21 +25,26 @@ def test_simple_graph_builder():
     testpy_node = None
     subgraph1_node = None
     for node in nodes:
-        pprint(node.dict(exclude_none=True))
+        # pprint(node.dict(exclude_none=True))
         connection_count += len(node.flattened_connections)
         if node.node_name == "testpy":
             testpy_node = node
         if node.node_name == "subgraph1":
             subgraph1_node = node
+        if node.node_name == "testsub1":
+            testsub1_node = node
     assert testpy_node is not None
+    assert testpy_node.parent_node is None
     assert len(testpy_node.flattened_connections) == 1
     testpy_conn = testpy_node.flattened_connections[0]
     assert str(testpy_conn.input_path) == "testpy[charges]"
     assert subgraph1_node is not None
+    # assert subgraph1_node.parent_node == "subgraph1"
     assert len(subgraph1_node.flattened_connections) == 3
     subgraph1_conn = subgraph1_node.flattened_connections[0]
     assert str(subgraph1_conn.input_path) == "subgraph1[input1]"
     assert str(subgraph1_conn.output_path) == "subgraph1.testsub1[input_table]"
+    assert testsub1_node.parent_node == "subgraph1"
 
 
 def test_find_node_function():
