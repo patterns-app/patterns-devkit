@@ -1,0 +1,17 @@
+---
+# Calculate LTV
+name: Calcualte LTV
+children_nodes:
+  - subgraph1.sql
+  - subgraph2.sql
+  - subgraph3.sql
+exposed_inputs:
+  - table(transactions)
+exposed_outputs:
+  - table(step3)
+---
+# Another subgraph
+---
+# Another subgraph
+---
+# Another subgraph

@@ -1,0 +1,6 @@
+connnections:
+  - table('import_transactions.raw_transactions') => clean_transactions
+  - table('clean_transactions.staging_transactions') => subgraph1
+  - table('subgraph1.step1') => subgraph2
+  - table('subgraph2.step2') => subgraph3 
+  - table('subgraph3.step3') => export_to_crm
