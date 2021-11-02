@@ -1,5 +1,5 @@
 # Quad YAML format
-Named "quad" because there are 4 main elements::
+Named "quad" because there are 4 main elements:
 1. graph.yml -> node config for the entire graph
 2. connections.yml -> node declarations for the entire graph 
 3. subgraph.yml -> optional, if any, declar subgraphs and their interfaces here
