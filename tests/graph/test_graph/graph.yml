@@ -1,11 +1,11 @@
 name: test-graph
 graph:
   node_configurations:
-    - node_definition: testpy
-    - name: testsql
-      node_definition: testsql/node.yml
+    - node_definition: import_transactions
+    - name: clean_transactions
+      node_definition: clean_transactions/node.yml
     - name: subgraph1
       node_definition: subgraph1
   node_connections:
-    - testpy[charges] => testsql[customers]
-    - testsql[ltv] => subgraph1[input1]
+    - import_transactions[raw_transactions] => clean_transactions[raw_transactions]
+    - clean_transactions[transactions] => subgraph1[input1]

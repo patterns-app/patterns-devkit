@@ -1,13 +1,12 @@
 description: >
-  This is my node, it does magical things with data
+  This is a node that pulls and outputs transactions
 input_ports:
   - name: input_stream
     type: stream
     schema: myschema.Schema
 output_ports:
-  - name: charges
+  - name: raw_transactions
     type: table
-    schema: myschema.OtherSchema
 parameter_ports:
   - name: myparam
     type: parameter
@@ -15,4 +14,4 @@ parameter_ports:
     default_value: My default text
 script:
   script_type: python
-  script_definition: testpy.py
+  script_definition: raw_transactions.py
