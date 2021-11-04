@@ -1,9 +1,8 @@
 from basis.cli.commands.base import BasisCommandBase
-from cleo import Command
-
 from basis.cli.config import get_current_organization_name
 from basis.cli.services.graph_versions import get_latest_graph_version
 from basis.cli.services.run import trigger_node
+from cleo import Command
 
 
 class RunCommand(BasisCommandBase, Command):

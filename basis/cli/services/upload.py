@@ -3,20 +3,17 @@ from pathlib import Path
 
 from basis.cli.helpers import compress_directory
 from basis.cli.services.api import Endpoints, post
-from basis.configuration.graph import NodeDefinitionCfg
-
-from basis.graph.builder import graph_as_configured_nodes
+from basis.graph.builder import graph_manifest_from_yaml
 
 
-def upload_graph_version(
-    cfg: NodeDefinitionCfg, pth_to_root: Path, organization_name: str
-) -> dict:
-    manifest = graph_as_configured_nodes(cfg, str(pth_to_root))
+def upload_graph_version(graph_yaml_path: Path, organization_name: str) -> dict:
+    manifest = graph_manifest_from_yaml(graph_yaml_path)
+    pth_to_root = graph_yaml_path.parent
     zipf = compress_directory(pth_to_root)
     resp = post(
         Endpoints.GRAPH_VERSIONS_CREATE,
         params={
-            "graph_name": cfg.name,
+            "graph_name": manifest.graph_name,
             "organization_name": organization_name,
         },
         data={

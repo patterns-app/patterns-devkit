@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Iterable, Iterator, Optional, Union
+
 from basis.graph.configured_node import ConfiguredNode
 
 # from basis.configuration.node import GraphNodeCfg

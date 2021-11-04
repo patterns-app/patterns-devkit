@@ -5,11 +5,11 @@ from pathlib import Path
 
 from basis.configuration.base import FrozenPydanticBase, load_yaml, update
 from basis.configuration.graph import (
+    GraphDefinitionCfg,
+    GraphNodeCfg,
     InterfaceCfg,
     NodeConnection,
     NodeDefinitionCfg,
-    GraphNodeCfg,
-    GraphDefinitionCfg,
 )
 from basis.configuration.path import (
     AbsoluteNodeConnection,
@@ -26,7 +26,7 @@ class GraphBuild:
     # connections: list[AbsoluteNodeConnection]
 
 
-def configured_nodes_from_yaml(yml_path: str | Path) -> GraphManifest:
+def graph_manifest_from_yaml(yml_path: str | Path) -> GraphManifest:
     yml_path = Path(yml_path)
     yml_path = yml_path.resolve()
     node_def = NodeDefinitionCfg(**load_yaml(yml_path))

@@ -1,19 +1,14 @@
-import json
-import shutil
-from collections import OrderedDict
-from pathlib import Path
-from pprint import pprint
-
-from basis.configuration.base import dump_json
-from basis.graph.builder import configured_nodes_from_yaml, graph_as_configured_nodes
-from basis.node.node import NodeFunction, get_node_function
 import sys
+from pathlib import Path
+
+from basis.graph.builder import graph_manifest_from_yaml
+from basis.node.node import NodeFunction, get_node_function
 
 TEST_GRAPH_DIR = Path(__file__).parent / "test_graph"
 
 
 def get_test_manifest():
-    manifest = configured_nodes_from_yaml(TEST_GRAPH_DIR / "graph.yml")
+    manifest = graph_manifest_from_yaml(TEST_GRAPH_DIR / "graph.yml")
     return manifest
 
 

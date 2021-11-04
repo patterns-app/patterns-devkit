@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 

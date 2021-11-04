@@ -1,7 +1,8 @@
+import importlib
 from dataclasses import dataclass
 from typing import Callable
+
 from basis.configuration.graph import ScriptType
-import importlib
 from basis.graph.configured_node import ConfiguredNode
 from basis.utils.modules import find_single_of_type_in_module
 

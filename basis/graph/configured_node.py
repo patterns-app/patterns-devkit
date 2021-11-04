@@ -4,10 +4,7 @@ from enum import Enum
 from typing import Any, Dict, Iterator, List, Optional
 
 from basis.configuration.base import FrozenPydanticBase
-from basis.configuration.graph import (
-    NodeDefinitionCfg,
-    NodeConnection,
-)
+from basis.configuration.graph import NodeConnection, NodeDefinitionCfg
 from basis.configuration.path import AbsoluteNodeConnection
 
 

@@ -4,13 +4,11 @@ from basis.cli.commands.clone import CloneCommand
 from basis.cli.commands.create import CreateCommand
 from basis.cli.commands.deploy import DeployCommand
 from basis.cli.commands.generate import GenerateCommand
-
 # from basis.cli.commands.info import InfoCommand
 from basis.cli.commands.list import listCommand
 from basis.cli.commands.login import LoginCommand
 from basis.cli.commands.logout import LogoutCommand
 from basis.cli.commands.manifest import ManifestCommand
-
 # from basis.cli.commands.logs import LogsCommand
 from basis.cli.commands.run import RunCommand
 from basis.cli.commands.upload import UploadCommand

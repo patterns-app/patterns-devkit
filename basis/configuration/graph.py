@@ -6,9 +6,9 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
 
 from basis.configuration.base import FrozenPydanticBase
 from basis.configuration.path import NodeConnection
-from pydantic.fields import Field
-from pydantic.class_validators import root_validator, validator
 from commonmodel import Schema
+from pydantic.class_validators import root_validator, validator
+from pydantic.fields import Field
 
 
 class BasisCfg(FrozenPydanticBase):

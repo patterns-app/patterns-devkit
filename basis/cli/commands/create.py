@@ -8,14 +8,13 @@ from basis.cli.helpers import compress_directory
 from basis.cli.services.create import create_environment
 from basis.cli.services.deploy import deploy_graph_version
 from basis.cli.services.graph_versions import (
-    list_graph_versions,
     get_latest_graph_version,
+    list_graph_versions,
 )
 from basis.cli.services.upload import upload_graph_version
 from basis.configuration.base import load_yaml
-from cleo import Command
-
 from basis.configuration.graph import NodeDefinitionCfg
+from cleo import Command
 
 
 class CreateCommand(BasisCommandBase, Command):
