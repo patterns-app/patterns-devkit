@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from basis.cli.commands.clone import CloneCommand
+from basis.cli.commands.create import CreateCommand
 from basis.cli.commands.deploy import DeployCommand
 from basis.cli.commands.generate import GenerateCommand
 
@@ -27,6 +28,7 @@ app.add(listCommand())
 app.add(ManifestCommand())
 app.add(DeployCommand())
 app.add(RunCommand())
+app.add(CreateCommand())
 
 
 if __name__ == "__main__":

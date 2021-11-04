@@ -67,6 +67,7 @@ class Endpoints(str, Enum):
     GRAPH_VERSIONS_CREATE = "api/graph_versions/"
     GRAPH_VERSIONS_LIST = "api/graph_versions/"
     # GRAPH_VERSIONS_DOWNLOAD = "api/graph-versions/download/"
+    ENVIRONMENTS_CREATE = "api/environments/"
     ENVIRONMENTS_INFO = "api/environments/info/"
     GRAPHS_INFO = "api/graphs/info/"
     NODES_INFO = "api/nodes/info/"
