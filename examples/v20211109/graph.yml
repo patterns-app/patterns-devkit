@@ -1,0 +1,9 @@
+nodes:
+  - node_file: node.py
+  - node_file: basis_marketplace.stripe.import_stripe_charges
+    name: optional....
+    inputs:
+      - myoutput -> input1 
+    parameter_values: 
+    description: mymarkdown.md
+  - node_file: sqlnode.sql
