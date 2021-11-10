@@ -3,16 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from basis.configuration.base import FrozenPydanticBase, load_yaml, update
+from basis.configuration.base import load_yaml
 from basis.configuration.graph import (
-    GraphDefinitionCfg,
     GraphNodeCfg,
-    InterfaceCfg,
-    NodeConnection,
     NodeDefinitionCfg,
 )
 from basis.configuration.path import (
-    AbsoluteNodeConnection,
     as_absolute_connection,
     join_node_paths,
 )
@@ -59,7 +55,7 @@ def build_configured_nodes(
     (abs_filepath_to_yaml_config, node_def) = find_node_definition(
         node_cfg.node_definition, abs_filepath_to_root
     )
-    node_def_default_name = abs_filepath_to_yaml_config.split("/")[-2]
+    node_def_default_name = abs_filepath_to_yaml_config.parent.name
     node_script_path = None
     if node_def.script is not None:
         node_script_path = str(
@@ -124,9 +120,9 @@ def build_configured_nodes(
 
 def find_node_definition(
     reference: str, abs_filepath_to_root: str
-) -> tuple[str, NodeDefinitionCfg]:
+) -> tuple[Path, NodeDefinitionCfg]:
     ref_path = Path(abs_filepath_to_root) / reference
-    if reference.endswith(".yaml") or reference.endswith(".yml"):
+    if ref_path.suffix in (".yaml", ".yml"):
         yaml_path = ref_path
     else:
         # For now assume it is a dir containing a yaml
@@ -137,4 +133,4 @@ def find_node_definition(
         else:
             raise NotImplementedError(f"Could not find a yml def in {ref_path}")
     node_def = NodeDefinitionCfg(**load_yaml(yaml_path))
-    return str(yaml_path), node_def
+    return yaml_path, node_def
