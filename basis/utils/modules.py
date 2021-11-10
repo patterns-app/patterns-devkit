@@ -24,9 +24,6 @@ def load_python_file(pth: str, **local_vars: Any) -> dict[str, Any]:
 
 
 def load_module(pth: Path) -> ModuleType:
-    name = pth.parts[-1]
-    if name.endswith(".py"):
-        name = name[:-3]
     parent = str(pth.parent)
     if parent in sys.path:
         exists = True
@@ -34,7 +31,7 @@ def load_module(pth: Path) -> ModuleType:
         exists = False
         sys.path.insert(0, parent)
     try:
-        return import_module(name)
+        return import_module(pth.stem)
     finally:
         if not exists:
             sys.path.remove(parent)
@@ -49,7 +46,7 @@ def find_single_of_type_in_module(module: ModuleType, typ: Type[T]) -> T:
 
 
 def single_of_type_in_path(pth: str, typ: Type[T]) -> T:
-    if "/" in pth or ".py" in pth:
+    if Path(pth).exists():
         # It's a file path to a python file ("folder1/folder2/node1.py")
         return find_single_of_type_in_module(load_module(Path(pth)), typ)
     # Otherwise it is a python import path ("pckg1.mod1.node1")
