@@ -4,7 +4,7 @@ from basis.cli.services.list import list_objects
 from cleo import Command
 
 
-class listCommand(BasisCommandBase, Command):
+class ListCommand(BasisCommandBase, Command):
     """
     list all of given object type
 
