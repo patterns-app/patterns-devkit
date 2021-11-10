@@ -4,9 +4,9 @@ from basis.cli.services.api import Endpoints, get, post
 
 
 def deploy_graph_version(graph_version_uid: str, environment_name: str) -> list[dict]:
-    resp = get(
+    resp = post(
         Endpoints.DEPLOYMENTS_DEPLOY,
-        params={
+        json={
             "environment_name": environment_name,
             "graph_version_uid": graph_version_uid,
         },

@@ -38,7 +38,7 @@ pytest-cov = "^2.8.1"
 sqlalchemy-stubs = "^0.3"
 
 [tool.poetry.scripts]
-basis = "basis.cli:app"
+basis = "basis.cli.app:app.run"
 
 [tool.black]
 exclude = '''
