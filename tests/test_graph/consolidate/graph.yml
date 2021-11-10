@@ -1,0 +1,6 @@
+name: consolidate
+nodes:
+  # Aggregator
+  - node_file: aggregator/aggregatory.py
+  # Dedupe
+  - node_file: dedupe/dedupe.py

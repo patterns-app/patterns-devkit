@@ -1,11 +1,11 @@
 from basis.node.node import node, stream, table, input, output
 
-output_table = table("output_table")
+aggregated = table("aggregated")
 input_stream = stream("input_stream")
 
 
 @input(input_stream)
-@output(output_table)
+@output(aggregated)
 def aggregator():
     records = list(input_stream)
-    output_table.write(records)
+    aggregated.write(records)

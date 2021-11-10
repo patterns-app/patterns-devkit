@@ -30,5 +30,21 @@ nodes:
       - stripe_charges -> input_stream
     outputs:
       - output_table -> stripe_charges_table
+  # Summary
   - node_file: summary/summary.sql
-  
+  # LTV import
+  - node_package: https://marketplace.getbasis.com/bi/customer_ltv
+  # Consolidate floats
+  - node_package: consolidate
+    name: conslidate_floats
+    inputs:
+      - random_floats
+    outputs:
+      - random_floats_consolidated
+  # Consolidate ints
+  - node_package: consolidate
+    name: conslidate_ints
+    inputs:
+      - random_ints
+    outputs:
+      - random_ints_consolidated

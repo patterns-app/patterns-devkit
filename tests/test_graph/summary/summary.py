@@ -1,0 +1,3 @@
+@sql
+def summary():
+    pass
