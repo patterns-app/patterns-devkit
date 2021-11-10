@@ -1,0 +1,34 @@
+name: test-basic-math
+nodes:
+  # Random source
+  - node_file: random_source_ints/random_source_ints.py
+  # Aggregator
+  - node_file: aggregator/aggregator.py
+    inputs:
+      - random_ints -> input_stream
+    outputs:
+      - output_table -> random_ints_table
+  # Random source floats
+  - node_file: random_source_floats/random_source_floats.py
+  # Aggregator
+  - node_file: aggregator/aggregator.py
+    inputs:
+      - random_floats -> input_stream
+    outputs:
+      - output_table -> random_floats_table
+  # Stripe import
+  - node_package: basis_marketplace.stripe.import_stripe
+    parameters:
+      api_key: xxxxxxxxx
+      resources:
+        - charges
+    outputs:
+      - charges -> stripe_charges
+  # Aggregator
+  - node_file: aggregator/aggregator.py
+    inputs:
+      - stripe_charges -> input_stream
+    outputs:
+      - output_table -> stripe_charges_table
+  - node_file: summary/summary.sql
+  
