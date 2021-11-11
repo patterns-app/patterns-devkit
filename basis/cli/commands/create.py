@@ -23,7 +23,7 @@ class CreateCommand(BasisCommandBase, Command):
 
     create
         {type : Only `env` supported for now}
-        {--name : Environment name}
+        {--name= : Environment name}
     """
 
     def handle(self):

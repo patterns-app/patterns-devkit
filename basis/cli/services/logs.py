@@ -1,10 +1,21 @@
+from __future__ import annotations
+
 from basis.cli.services.api import Endpoints, get, post
 
 
-def list_objects(obj_type: str, organization_name: str) -> list[dict]:
-    if obj_type == "env":
-        obj_type = "environment"
-    endpoint = getattr(Endpoints, f"{obj_type.upper()}S_LIST")
-    resp = get(endpoint, params={"organization_name": organization_name})
+def get_execution_logs(
+    organization_name: str,
+    environment_name: str,
+    graph_name: str,
+    node_path: str | None
+) -> list[dict]:
+    params = {
+        'organization_name': organization_name,
+        'environment_name': environment_name,
+        'graph_name': graph_name,
+    }
+    if node_path:
+        params['node_path'] = node_path
+    resp = get(Endpoints.EXECUTION_EVENTS, params=params)
     resp.raise_for_status()
-    return resp.json()
+    return resp.json()['execution_events']
