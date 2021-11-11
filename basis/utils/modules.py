@@ -45,8 +45,8 @@ def find_single_of_type_in_module(module: ModuleType, typ: Type[T]) -> T:
     return objs[0]
 
 
-def single_of_type_in_path(pth: str, typ: Type[T]) -> T:
-    if Path(pth).exists():
+def single_of_type_in_path(pth: Path, typ: Type[T]) -> T:
+    if pth.exists():
         # It's a file path to a python file ("folder1/folder2/node1.py")
         return find_single_of_type_in_module(load_module(Path(pth)), typ)
     # Otherwise it is a python import path ("pckg1.mod1.node1")

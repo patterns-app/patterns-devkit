@@ -1,25 +1,14 @@
-from __future__ import annotations
-
-from basis import simple_streaming_node, simple_table_node
+from basis import node, InputStream, OutputTable, Parameter
 
 
-@simple_streaming_node
+@node
 def {{ cookiecutter.node_name }}(
-    input_record,
-    # input_table  # <- Can optionally accept table inputs for reference
+    input_stream=InputStream,
+    output_table=OutputTable,
+    myparam=Parameter(type='text'),
 ):
-    """Example docstring format. Short description goes here.
+    # Do things with the records:
+    records = list(input_stream.records())
 
-    This is the long description. *Accepts
-    [markdown](https://daringfireball.net/projects/markdown/) formatting*.
-
-    Inputs:
-        input_record: Description of this input
-
-    Output:
-        Description of output
-    """
-    # Do things with the record:
-    input_record["new_value"] = 1.0
-    # Return new or updated record:
-    return input_record
+    # Write records to the table:
+    output_table.write(records)

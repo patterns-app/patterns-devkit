@@ -1,0 +1,15 @@
+nodes:
+  - node_file: source.py
+  - node_file: pass.py
+    name: pass1
+    inputs:
+      - source_stream -> pass_in
+    outputs:
+      - pass_out -> sink_stream1
+  - node_file: pass.py
+    name: pass2
+    inputs:
+      - source_stream -> pass_in
+    outputs:
+      - pass_out -> sink_stream2
+  - node_file: sink.py

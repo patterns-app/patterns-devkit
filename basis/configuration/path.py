@@ -1,120 +1,83 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Dict, Iterator, List, Optional, Tuple, TypeVar, Union
+from typing import List
 
 from basis.configuration.base import FrozenPydanticBase
 
-re_port_path = re.compile(r"\s*(\w+)\[(\w+)\]\s*")
-re_node_connection = re.compile(r"^({0})=>({0})$".format(re_port_path.pattern))
 
+class NodePath(str):
+    """A dotted path to a node.
 
-def join_node_paths(*paths: str) -> str:
-    p = ".".join(paths)
-    p = p.replace("..", ".")
-    p = p.strip(".")
-    return p
+    e.g.
+    - NodePath('a') # top level node
+    - NodePath('a.b.c') # nested node
+    """
 
+    @classmethod
+    def from_parts(cls, *parts):
+        if len(parts) == 1 and isinstance(parts[0], List):
+            parts = parts[0]
+        return NodePath('.'.join(parts))
 
-class PortType(str, Enum):
-    TABLE = "table"
-    STREAM = "stream"
-    PARAMETER = "parameter"
+    @property
+    def parts(self):
+        """AbsoluteNodePath('a.b.c').parts == ['a', 'b', 'c']"""
+        return self.split('.')
+
+    @property
+    def name(self):
+        """AbsoluteNodePath('a.b.c').name == 'c'"""
+        return self.parts[-1]
+
+    @property
+    def parent(self):
+        """AbsoluteNodePath('a.b.c').parent == 'a.b'"""
+        return '.'.join(self.parents)
+
+    @property
+    def parents(self):
+        """AbsoluteNodePath('a.b.c').parents == ['a', 'b']"""
+        return self.parts[:-1]
+
+    # pydantic methods
+
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    _regex = re.compile(r'^\w+(?:\.\w+)*$')
+
+    @classmethod
+    def __modify_schema__(cls, field_schema):
+        field_schema.update(
+            pattern=cls._regex.pattern,
+            examples=['node', 'graph.node'],
+        )
+
+    @classmethod
+    def validate(cls, v):
+        if not cls._regex.fullmatch(v):
+            raise ValueError('invalid alias format')
+        return cls(v)
+
+    def __repr__(self):
+        return f'NodePath({super().__repr__()})'
 
 
 class PortPath(FrozenPydanticBase):
-    node: str
+    """A NodePath and a port name"""
+    node_path: NodePath
     port: str
 
-    @classmethod
-    def from_str(cls, path: str) -> PortPath:
-        m = re.match(r"^{0}$".format(re_port_path.pattern), path)
-        if m is None:
-            raise ValueError(path)
-        return cls(node=m.group(1), port=m.group(2))
 
-    def __str__(self) -> str:
-        return f"{self.node}[{self.port}]"
-
-
-class NodeConnection(FrozenPydanticBase):
+class AbsoluteEdge(FrozenPydanticBase):
+    """An edge with the port names resolved to absolute node paths"""
     input_path: PortPath
     output_path: PortPath
 
-    @classmethod
-    def from_str(cls, connection: str) -> NodeConnection:
-        m = re_node_connection.match(connection)
-        if m is None:
-            raise ValueError(connection)
-        return cls(
-            input_path=PortPath.from_str(m.group(1)),
-            output_path=PortPath.from_str(m.group(4)),
-        )
 
-    def __str__(self) -> str:
-        return f"{self.input_path} => {self.output_path}"
-
-
-class AbsoluteNodePath(FrozenPydanticBase):
-    node: str
-    path_to_node: Optional[str] = None
-
-    @classmethod
-    def from_str(cls, path: str) -> AbsoluteNodePath:
-        parts = path.split(".")
-        return AbsoluteNodePath(node=parts[-1], path_to_node=".".join(parts[:-1]))
-
-    def __str__(self) -> str:
-        s = self.node
-        if self.path_to_node:
-            s = self.path_to_node + "." + s
-        return s
-
-
-class AbsolutePortPath(FrozenPydanticBase):
-    absolute_node_path: AbsoluteNodePath
-    port: str
-
-    @classmethod
-    def from_str(cls, path: str) -> AbsoluteNodePath:
-        parts = path.split(".")
-        port_path = PortPath.from_str(parts[-1])
-        return AbsolutePortPath(
-            port=port_path.port,
-            absolute_node_path=AbsoluteNodePath.from_str(
-                join_node_paths(*parts[:-1], port_path.node)
-            ),
-        )
-
-    def __str__(self) -> str:
-        return f"{self.absolute_node_path}[{self.port}]"
-
-
-class AbsoluteNodeConnection(FrozenPydanticBase):
-    input_path: AbsolutePortPath
-    output_path: AbsolutePortPath
-
-    def __str__(self) -> str:
-        return f"{self.input_path} => {self.output_path}"
-
-
-def as_absolute_port_path(
-    path: PortPath, parent_absolute_path: str
-) -> AbsolutePortPath:
-    parent_abs_path = AbsoluteNodePath.from_str(parent_absolute_path)
-    if path.node == "self" or path.node == "" or path.node == parent_abs_path.node:
-        # It's a ref to the parent
-        return AbsolutePortPath(absolute_node_path=parent_abs_path, port=path.port)
-    # Otherwise it's a ref to sibling
-    return AbsolutePortPath.from_str(join_node_paths(parent_absolute_path, str(path)))
-
-
-def as_absolute_connection(
-    connection: NodeConnection, parent_absolute_path: str
-) -> AbsoluteNodeConnection:
-    return AbsoluteNodeConnection(
-        input_path=as_absolute_port_path(connection.input_path, parent_absolute_path),
-        output_path=as_absolute_port_path(connection.output_path, parent_absolute_path),
-    )
+class DeclaredEdge(FrozenPydanticBase):
+    """An edge like `my_table -> input_port` explicitly declared in the graph yml"""
+    input_port: str
+    output_port: str
