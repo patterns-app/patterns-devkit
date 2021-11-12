@@ -1,9 +1,10 @@
-name: test-basic-math
+name: test-graph
 nodes:
   # Random source
   - node_file: random_source_ints/random_source_ints.py
   # Aggregator
   - node_file: aggregator/aggregator.py
+    name: ints_aggregator
     inputs:
       - random_ints -> input_stream
     outputs:
@@ -12,10 +13,11 @@ nodes:
   - node_file: random_source_floats/random_source_floats.py
   # Aggregator
   - node_file: aggregator/aggregator.py
+    name: float_aggregator
     inputs:
       - random_floats -> input_stream
     outputs:
-      - output_table -> random_floats_table
+      - output_table as random_floats_table
   # Stripe import
   - node_package: basis_marketplace.stripe.import_stripe
     parameters:
@@ -26,25 +28,43 @@ nodes:
       - charges -> stripe_charges
   # Aggregator
   - node_file: aggregator/aggregator.py
+    name: stripe_aggregate
     inputs:
       - stripe_charges -> input_stream
     outputs:
-      - output_table -> stripe_charges_table
+      - output_table as stripe_charges_table
   # Summary
   - node_file: summary/summary.sql
   # LTV import
   - node_package: https://marketplace.getbasis.com/bi/customer_ltv
   # Consolidate floats
-  - node_package: consolidate
+  - graph_folder: consolidate
     name: conslidate_floats
     inputs:
       - random_floats
     outputs:
       - random_floats_consolidated
   # Consolidate ints
-  - node_package: consolidate
+  - graph_folder: consolidate
     name: conslidate_ints
     inputs:
       - random_ints
     outputs:
       - random_ints_consolidated
+    parameters:
+      myparam: myvalue
+  # Kitchen sink
+  - node_package: basis_marketplace.databases.import_snowflake_table
+    #OR:  - graph_folder: consolidate
+    #OR:  - node_file: consolidate
+    name: my_snowflake_table
+    parameters:
+      snowflake_api_key: xxxxxx
+      table_name: table1
+    inputs:
+      - random_ints -> input_stream
+    outputs:
+      - snowflake_table -> my_snowflake_table1
+    schedule: daily
+    description: >
+      my great node
