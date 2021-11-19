@@ -1,0 +1,18 @@
+nodes:
+  - node_file: source.py
+  - node_file: pass.py
+    inputs:
+      - source_stream -> pass_in
+  - node_file: subgraph/graph.yml
+    name: sub1
+    inputs:
+      - pass_out -> subgraph_in
+    outputs:
+      - subgraph_out -> subgraph_1_out
+  - node_file: subgraph/graph.yml
+    name: sub2
+    inputs:
+      - subgraph_1_out -> subgraph_in
+    outputs:
+      - subgraph_out -> sink_stream
+  - node_file: sink.py

@@ -32,6 +32,7 @@ class NodeAssertion:
     name: Union[str, _IgnoreType]
     node_type: Union[NodeType, _IgnoreType]
     id: Union[NodeId, _IgnoreType]
+    parent_node_id: Union[str, None, _IgnoreType]
     interface: Union[NodeInterface, _IgnoreType]
     node_depth: Union[int, _IgnoreType]
     description: Union[str, _IgnoreType]
@@ -69,6 +70,8 @@ def _assert_node(node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: di
             v = [_de(s) for s in v]
         elif k == "absolute_edges":
             v = [_ae(s, ids_by_path) for s in v]
+        elif k == 'parent_node_id' and v is not None:
+            v = ids_by_path[v]
 
         assert actual == v, f"{k}: {actual} != {v}"
 
@@ -91,6 +94,7 @@ def n(
     name: str,
     node_type: Union[NodeType, _IgnoreType] = NodeType.Node,
     id: Union[str, _IgnoreType] = IGNORE,
+    parent: Union[str, None, _IgnoreType] = None,
     interface: Union[
         List[Union[InputDefinition, OutputDefinition, ParameterDefinition]], _IgnoreType
     ] = IGNORE,
@@ -106,6 +110,7 @@ def n(
         name=name,
         node_type=node_type,
         id=IGNORE if id == IGNORE else NodeId(id.lower()),
+        parent_node_id=parent,
         interface=interface
         if interface == IGNORE
         else NodeInterface(
@@ -113,7 +118,7 @@ def n(
             outputs=[i for i in interface if isinstance(i, OutputDefinition)],
             parameters=[i for i in interface if isinstance(i, ParameterDefinition)],
         ),
-        node_depth=node_depth,
+        node_depth=parent.count('.') + 1 if parent else 0,
         description=description,
         file_path_to_node_script_relative_to_root=file_path,
         parameter_values=parameter_values,
