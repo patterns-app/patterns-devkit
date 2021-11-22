@@ -27,7 +27,8 @@ class PortMappingCfg:
 
     @classmethod
     def validate(cls, v):
-        if not (m := cls._regex.fullmatch(v)):
+        m = cls._regex.fullmatch(v)
+        if not m:
             raise ValueError('invalid alias format')
         return cls(*m.groups())
 
