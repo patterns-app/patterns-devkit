@@ -1,3 +1,0 @@
-@sql
-def summary():
-    pass

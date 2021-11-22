@@ -1,4 +1,5 @@
+create table {{ "{{" }} OutputTable("my_output_table") {{ "}}" }}
 select
     *
-from {{ "{{" }} Table("other_node") {{ "}}" }}
+from {{ "{{" }} InputTable("other_node") {{ "}}" }}
 limit {{ "{{" }} Parameter("limit", "int", default=100) {{ "}}" }}

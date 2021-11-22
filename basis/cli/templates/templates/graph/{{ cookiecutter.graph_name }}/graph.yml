@@ -1,16 +1,16 @@
 name: {{ cookiecutter.graph_name }}
-basis:
-  version: {{ cookiecutter.basis_version }}
 # Example graph config
-#graph:
-#  node_configurations:
-#    - name: testpy
-#      node_definition: testpy
-#    - name: testsql
-#      node_definition: testsql/node.yml
-#    - name: subgraph1
-#      node_definition: subgraph1
-#  node_connections:
-#    - testpy[charges] => testsql[customers]
-#    - testsql[ltv] => subgraph1[input1]
+nodes:
+#  - name: testpy
+#    node_file: test.py
+#    parameters:
+#      myparam: 'value'
+#  - name: testsql
+#    node_file: testsql/test.sql
+#    inputs:
+#      - testpy_table -> testsql_table
+#    outputs:
+#      - testsql_table -> subgraph1_input
+#  - name: subgraph1
+#    node_package: subgraph1
 

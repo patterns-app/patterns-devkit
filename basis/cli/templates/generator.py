@@ -12,7 +12,7 @@ tmp_folder_name = "_tmp"
 def generate_template(
     template_name: str, destination_path: str, flatten: bool = False, **ctx
 ):
-    template_root = dir_path / f"templates/{template_name}"
+    template_root = dir_path / 'templates' / template_name
     output_dir = Path(destination_path).parent
     cookiecutter(
         str(template_root), no_input=True, extra_context=ctx, output_dir=output_dir
@@ -28,7 +28,7 @@ def flatten_files_remove_folder(path: str):
                 continue
             os.rename(
                 Path(path) / Path(f),
-                Path(path) / ".." / Path(f).name,
+                Path(path).parent / Path(f).name,
             )
     shutil.rmtree(path)
 
@@ -41,7 +41,7 @@ def insert_into_file(pth: str, insert: str, after: str):
             s = s + "\n" + insert + "\n"
         else:
             last_match = matches[-1]
-            s = s[0 : last_match.end()] + f"\n{insert}\n" + s[(last_match.end() + 1) :]
+            s = s[0: last_match.end()] + f"\n{insert}\n" + s[(last_match.end() + 1):]
     with open(pth, "w") as f:
         f.write(s)
 

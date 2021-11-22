@@ -1,9 +1,10 @@
 from pathlib import Path
 
+from cleo import Command
+
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.config import get_current_organization_name
 from basis.cli.services.upload import upload_graph_version
-from cleo import Command
 
 
 class UploadCommand(BasisCommandBase, Command):

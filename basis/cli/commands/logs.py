@@ -1,8 +1,7 @@
-from basis.cli.commands.base import BasisCommandBase
-from basis.cli.config import get_current_organization_name
-from basis.cli.services.list import list_objects
 from cleo import Command
 
+from basis.cli.commands.base import BasisCommandBase
+from basis.cli.config import get_current_organization_name
 from basis.cli.services.logs import get_execution_logs
 
 

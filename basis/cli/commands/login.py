@@ -1,17 +1,12 @@
 from __future__ import annotations
 
-import os
-import sys
+from cleo import Command
 
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.config import (
-    remove_auth_from_basis_config,
     set_current_organization_name,
-    update_local_basis_config,
 )
 from basis.cli.services.auth import list_organizations, login, logout
-from basis.cli.templates.generator import generate_template
-from cleo import Command
 
 
 class LoginCommand(BasisCommandBase, Command):

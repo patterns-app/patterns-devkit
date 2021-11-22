@@ -1,19 +1,11 @@
-import base64
-import os
-from pathlib import Path
+from cleo import Command
 
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.config import get_current_organization_name
-from basis.cli.helpers import compress_directory
 from basis.cli.services.deploy import deploy_graph_version
 from basis.cli.services.graph_versions import (
     get_latest_graph_version,
-    list_graph_versions,
 )
-from basis.cli.services.upload import upload_graph_version
-from basis.configuration.base import load_yaml
-from basis.configuration.graph import NodeDefinitionCfg
-from cleo import Command
 
 
 class DeployCommand(BasisCommandBase, Command):

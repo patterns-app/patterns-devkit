@@ -1,54 +1,101 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Union
+
+from commonmodel import Schema
 
 from basis.configuration.base import FrozenPydanticBase
-from basis.configuration.graph import NodeConnection, NodeDefinitionCfg
-from basis.configuration.path import AbsoluteNodeConnection
+from basis.configuration.path import AbsoluteEdge, NodePath, DeclaredEdge
+
+"""The version of schemas generated with this code"""
+CURRENT_MANIFEST_SCHEMA_VERSION = 1
+
+
+class ParameterType(str, Enum):
+    Text = "text"
+    Boolean = "bool"
+    Integer = "int"
+    Float = "float"
+    Date = "date"
+    DateTime = "datetime"
 
 
 class NodeType(str, Enum):
-    NODE = "node"
-    GRAPH = "graph"
+    Node = 'node'
+    Graph = 'graph'
+
+
+class PortType(str, Enum):
+    Table = 'table'
+    Stream = 'stream'
+
+
+class InputDefinition(FrozenPydanticBase):
+    port_type: PortType
+
+    # for python files: the name of the node function parameter
+    # for sql: the name of the table used
+    # for graphs: the exposed port name
+    name: str
+
+    description: str = None
+    schema_or_name: Union[str, Schema] = None
+    required: bool
+
+
+class OutputDefinition(FrozenPydanticBase):
+    port_type: PortType
+    name: str
+    description: str = None
+    schema_or_name: Union[str, Schema] = None
+
+
+class ParameterDefinition(FrozenPydanticBase):
+    name: str
+    parameter_type: ParameterType = None
+    description: str = None
+    default: Any = None
+
+
+class NodeInterface(FrozenPydanticBase):
+    inputs: List[InputDefinition]
+    outputs: List[OutputDefinition]
+    parameters: List[ParameterDefinition]
 
 
 class ConfiguredNode(FrozenPydanticBase):
-    # Name
-    node_name: str
-    # Computed graph attrs
-    absolute_node_path: str
-    node_depth: int
-    # Basic attrs
+    name: str
     node_type: NodeType
-    description: Optional[str] = None
-    parent_node: Optional[str] = None
-    node_definition: Optional[NodeDefinitionCfg] = None
-    # Relative paths to relevant files
-    file_path_to_yaml_definition_relative_to_root: Optional[str] = None
-    file_path_to_node_script_relative_to_root: Optional[str] = None
+    absolute_node_path: NodePath
+    # declared ports
+    interface: NodeInterface
+    # distance from root graph, starts at 0
+    node_depth: int
+    description: str = None
+    parent_node: NodePath = None
+    file_path_to_node_script_relative_to_root: str = None
     # Configuration
-    parameter_values: Optional[Dict[str, Any]] = None
-    output_aliases: Optional[Dict[str, str]] = None
-    schedule: Optional[str] = None
-    labels: Optional[List[str]] = None
+    parameter_values: Dict[str, Any]
+    schedule: str = None
     # Graph configuration
-    declared_connections: Optional[List[NodeConnection]] = None
-    flattened_connections: Optional[List[AbsoluteNodeConnection]] = None
+    declared_edges: List[DeclaredEdge]
+    absolute_edges: List[AbsoluteEdge]
 
-    def input_connections(self) -> Iterator[AbsoluteNodeConnection]:
-        for abs_conn in self.flattened_connections or []:
-            if abs_conn.output_path.absolute_node_path == self.absolute_node_path:
-                yield abs_conn
+    def input_edges(self) -> Iterator[AbsoluteEdge]:
+        for e in self.absolute_edges:
+            if e.output_path.node_path == self.absolute_node_path:
+                yield e
 
-    def output_connections(self) -> Iterator[AbsoluteNodeConnection]:
-        for abs_conn in self.flattened_connections or []:
-            if abs_conn.input_path.absolute_node_path == self.absolute_node_path:
-                yield abs_conn
+    def output_edges(self) -> Iterator[AbsoluteEdge]:
+        for e in self.absolute_edges:
+            if e.input_path.node_path == self.absolute_node_path:
+                yield e
 
 
 class GraphManifest(FrozenPydanticBase):
     graph_name: str
+    manifest_version: int
     nodes: List[ConfiguredNode] = []
 
     def get_node(self, abs_node_path: str) -> ConfiguredNode:
@@ -56,26 +103,3 @@ class GraphManifest(FrozenPydanticBase):
             if n.absolute_node_path == abs_node_path:
                 return n
         raise KeyError(abs_node_path)
-
-
-# def find_node(self, path: str, root_path: str = None) -> ConfiguredNode:
-#     """
-#     Note: This logic not really necessary now that we compute node_paths
-#     when building, but this is more efficient search anyways.
-#     """
-#     path_parts = path.split(".")
-#     current_name = path_parts[0]
-#     remaining_path = ".".join(path_parts[1:])
-#     found_node = None
-#     for n in self.nodes:
-#         if current_name == n.name:
-#             if remaining_path:
-#                 assert n.node_type == NodeType.GRAPH
-#                 found_node = n.find_node(remaining_path, path)
-#             else:
-#                 found_node = n
-#             break
-#     if found_node is None:
-#         raise KeyError(f"Node path not found: {path}")
-#     assert found_node.node_path == (root_path or path)
-#     return found_node
