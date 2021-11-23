@@ -1,17 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple, Dict, Union
+from typing import List, Tuple, Dict
 
 from basis.configuration.base import load_yaml
 from basis.configuration.graph import GraphDefinitionCfg, NodeCfg
 from basis.configuration.path import NodePath, DeclaredEdge, AbsoluteEdge, PortPath
-from basis.graph.configured_node import ConfiguredNode, GraphManifest, NodeInterface, ParameterDefinition, \
-    PortType, OutputDefinition, InputDefinition, ParameterType, CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
-from basis.node.node import NodeFunction, InputTable, OutputTable, InputStream, OutputStream, Parameter
+from basis.graph.configured_node import ConfiguredNode, GraphManifest, NodeInterface, OutputDefinition, \
+    CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
 from basis.node.sql.jinja import parse_interface_from_sql
-from basis.utils.modules import load_module, find_single_of_type_in_module
+from basis.utils.ast_parser import read_interface_from_py_node_file
 
 
 def graph_manifest_from_yaml(yml_path: Path | str) -> GraphManifest:
@@ -131,51 +129,7 @@ class _GraphBuilder:
             raise ValueError(f'Invalid node file type {node_file_path}')
 
     def _parse_python_file(self, file: Path) -> NodeInterface:
-        fn = find_single_of_type_in_module(load_module(file), NodeFunction)
-        i: List[InputDefinition] = []
-        o: List[OutputDefinition] = []
-        p: List[ParameterDefinition] = []
-        for arg in fn.args:
-            if isinstance(arg, InputTable):
-                i.append(InputDefinition(
-                    port_type=PortType.Table,
-                    name=arg.param_name,
-                    description=arg.description,
-                    schema_or_name=arg.schema,
-                    required=arg.required,
-                ))
-            elif isinstance(arg, OutputTable):
-                o.append(OutputDefinition(
-                    port_type=PortType.Table,
-                    name=arg.param_name,
-                    description=arg.description,
-                    schema_or_name=arg.schema,
-                ))
-            elif isinstance(arg, InputStream):
-                i.append(InputDefinition(
-                    port_type=PortType.Stream,
-                    name=arg.param_name,
-                    description=arg.description,
-                    schema_or_name=arg.schema,
-                    required=arg.required,
-                ))
-            elif isinstance(arg, OutputStream):
-                o.append(OutputDefinition(
-                    port_type=PortType.Stream,
-                    name=arg.param_name,
-                    description=arg.description,
-                    schema_or_name=arg.schema,
-                ))
-            elif isinstance(arg, Parameter):
-                p.append(ParameterDefinition(
-                    name=arg.param_name,
-                    parameter_type=None if arg.type is None else ParameterType(arg.type),
-                    description=arg.description,
-                    default=arg.default,
-                ))
-            else:
-                raise TypeError(f'unexpected parameter type {type(arg)}')
-        return NodeInterface(inputs=i, outputs=o, parameters=p)
+        return read_interface_from_py_node_file(file)
 
     def _parse_sql_file(self, file: Path) -> NodeInterface:
         return parse_interface_from_sql(file.read_text())

@@ -1,13 +1,11 @@
 from pathlib import Path
-from typing import Union, Any
-
-from commonmodel import Schema
 
 from basis import GraphManifest
-from basis.configuration.path import AbsoluteEdge, PortPath, NodePath, DeclaredEdge
+from basis.configuration.path import NodePath
 from basis.graph.builder import graph_manifest_from_yaml
 from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, ConfiguredNode, NodeInterface, \
-    OutputDefinition, PortType, InputDefinition, ParameterType, ParameterDefinition, NodeType
+    NodeType
+from tests.graph.utils import p, ostream, istream, itable, otable, ae, de
 
 
 def _build_manifest(name: str) -> GraphManifest:
@@ -105,159 +103,72 @@ def test_flat_graph():
         absolute_edges=[ae('query:sink_table -> sink:sink_table')]
     )
 
-# TODO: disabled pending dynamic import fix
-# def test_fanout_graph():
-#     manifest = _build_manifest('fanout_graph')
-#     assert manifest.graph_name == 'fanout_graph'
-#     assert len(manifest.nodes) == 4
-#     assert manifest.nodes[0] == ConfiguredNode(
-#         name='source',
-#         node_type=NodeType.Node,
-#         absolute_node_path=NodePath('source'),
-#         interface=NodeInterface(
-#             inputs=[],
-#             outputs=[ostream('source_stream')],
-#             parameters=[]
-#         ),
-#         node_depth=0,
-#         file_path_to_node_script_relative_to_root='source.py',
-#         parameter_values={},
-#         declared_edges=[],
-#         absolute_edges=[ae('source:source_stream -> pass1:pass_in'),
-#                         ae('source:source_stream -> pass2:pass_in')]
-#     )
-#     assert manifest.nodes[1] == ConfiguredNode(
-#         name='pass1',
-#         node_type=NodeType.Node,
-#         absolute_node_path=NodePath('pass1'),
-#         interface=NodeInterface(
-#             inputs=[istream('pass_in')],
-#             outputs=[ostream('pass_out')],
-#             parameters=[]
-#         ),
-#         node_depth=0,
-#         file_path_to_node_script_relative_to_root='pass.py',
-#         parameter_values={},
-#         declared_edges=[de('source_stream -> pass_in'), de('pass_out -> sink_stream1')],
-#         absolute_edges=[ae('source:source_stream -> pass1:pass_in'),
-#                         ae('pass1:pass_out -> sink:sink_stream1')]
-#     )
-#     assert manifest.nodes[2] == ConfiguredNode(
-#         name='pass2',
-#         node_type=NodeType.Node,
-#         absolute_node_path=NodePath('pass2'),
-#         interface=NodeInterface(
-#             inputs=[istream('pass_in')],
-#             outputs=[ostream('pass_out')],
-#             parameters=[]
-#         ),
-#         node_depth=0,
-#         file_path_to_node_script_relative_to_root='pass.py',
-#         parameter_values={},
-#         declared_edges=[de('source_stream -> pass_in'), de('pass_out -> sink_stream2')],
-#         absolute_edges=[ae('source:source_stream -> pass2:pass_in'),
-#                         ae('pass2:pass_out -> sink:sink_stream2')]
-#     )
-#     assert manifest.nodes[3] == ConfiguredNode(
-#         name='sink',
-#         node_type=NodeType.Node,
-#         absolute_node_path=NodePath('sink'),
-#         interface=NodeInterface(
-#             inputs=[istream('sink_stream1'), istream('sink_stream2')],
-#             outputs=[],
-#             parameters=[]
-#         ),
-#         node_depth=0,
-#         file_path_to_node_script_relative_to_root='sink.py',
-#         parameter_values={},
-#         declared_edges=[],
-#         absolute_edges=[ae('pass1:pass_out -> sink:sink_stream1'),
-#                         ae('pass2:pass_out -> sink:sink_stream2')]
-#     )
 
-
-def p(
-    name: str,
-    parameter_type: str = None,
-    description: str = None,
-    default: Any = None,
-) -> ParameterDefinition:
-    return ParameterDefinition(
-        name=name,
-        parameter_type=ParameterType(parameter_type) if parameter_type else None,
-        description=description,
-        default=default,
+def test_fanout_graph():
+    manifest = _build_manifest('fanout_graph')
+    assert manifest.graph_name == 'fanout_graph'
+    assert len(manifest.nodes) == 4
+    assert manifest.nodes[0] == ConfiguredNode(
+        name='source',
+        node_type=NodeType.Node,
+        absolute_node_path=NodePath('source'),
+        interface=NodeInterface(
+            inputs=[],
+            outputs=[ostream('source_stream')],
+            parameters=[]
+        ),
+        node_depth=0,
+        file_path_to_node_script_relative_to_root='source.py',
+        parameter_values={},
+        declared_edges=[],
+        absolute_edges=[ae('source:source_stream -> pass1:pass_in'),
+                        ae('source:source_stream -> pass2:pass_in')]
     )
-
-
-def ostream(
-    name: str,
-    description: str = None,
-    schema: Union[str, Schema] = None,
-) -> OutputDefinition:
-    return OutputDefinition(
-        port_type=PortType.Stream,
-        name=name,
-        description=description,
-        schema_or_name=schema
+    assert manifest.nodes[1] == ConfiguredNode(
+        name='pass1',
+        node_type=NodeType.Node,
+        absolute_node_path=NodePath('pass1'),
+        interface=NodeInterface(
+            inputs=[istream('pass_in')],
+            outputs=[ostream('pass_out')],
+            parameters=[]
+        ),
+        node_depth=0,
+        file_path_to_node_script_relative_to_root='pass.py',
+        parameter_values={},
+        declared_edges=[de('source_stream -> pass_in'), de('pass_out -> sink_stream1')],
+        absolute_edges=[ae('source:source_stream -> pass1:pass_in'),
+                        ae('pass1:pass_out -> sink:sink_stream1')]
     )
-
-
-def istream(
-    name: str,
-    description: str = None,
-    schema: Union[str, Schema] = None,
-    required: bool = True
-
-) -> InputDefinition:
-    return InputDefinition(
-        port_type=PortType.Stream,
-        name=name,
-        description=description,
-        schema_or_name=schema,
-        required=required
+    assert manifest.nodes[2] == ConfiguredNode(
+        name='pass2',
+        node_type=NodeType.Node,
+        absolute_node_path=NodePath('pass2'),
+        interface=NodeInterface(
+            inputs=[istream('pass_in')],
+            outputs=[ostream('pass_out')],
+            parameters=[]
+        ),
+        node_depth=0,
+        file_path_to_node_script_relative_to_root='pass.py',
+        parameter_values={},
+        declared_edges=[de('source_stream -> pass_in'), de('pass_out -> sink_stream2')],
+        absolute_edges=[ae('source:source_stream -> pass2:pass_in'),
+                        ae('pass2:pass_out -> sink:sink_stream2')]
     )
-
-
-def itable(
-    name: str,
-    description: str = None,
-    schema: Union[str, Schema] = None,
-    required: bool = True
-
-) -> InputDefinition:
-    return InputDefinition(
-        port_type=PortType.Table,
-        name=name,
-        description=description,
-        schema_or_name=schema,
-        required=required
+    assert manifest.nodes[3] == ConfiguredNode(
+        name='sink',
+        node_type=NodeType.Node,
+        absolute_node_path=NodePath('sink'),
+        interface=NodeInterface(
+            inputs=[istream('sink_stream1'), istream('sink_stream2')],
+            outputs=[],
+            parameters=[]
+        ),
+        node_depth=0,
+        file_path_to_node_script_relative_to_root='sink.py',
+        parameter_values={},
+        declared_edges=[],
+        absolute_edges=[ae('pass1:pass_out -> sink:sink_stream1'),
+                        ae('pass2:pass_out -> sink:sink_stream2')]
     )
-
-
-def otable(
-    name: str,
-    description: str = None,
-    schema: Union[str, Schema] = None,
-) -> OutputDefinition:
-    return OutputDefinition(
-        port_type=PortType.Table,
-        name=name,
-        description=description,
-        schema_or_name=schema
-    )
-
-
-def ae(s: str) -> AbsoluteEdge:
-    l, r = s.split(' -> ')
-    ln, lp = l.split(':')
-    rn, rp = r.split(':')
-    return AbsoluteEdge(
-        input_path=PortPath(node_path=NodePath(ln), port=lp),
-        output_path=PortPath(node_path=NodePath(rn), port=rp),
-    )
-
-
-def de(s: str) -> DeclaredEdge:
-    l, r = s.split(' -> ')
-    return DeclaredEdge(input_port=l, output_port=r, )
