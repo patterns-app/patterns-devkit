@@ -3,8 +3,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from icecream import ic
-
 from basis.graph.configured_node import NodeInterface, InputDefinition, OutputDefinition, ParameterDefinition, PortType
 
 
@@ -131,7 +129,6 @@ def _get_qualified_name_parts(node) -> list[str]:
             break
         elif isinstance(node, ast.Attribute):
             parts.append(node.attr)
-            ic(node.value, node.attr)
             node = node.value
         else:
             raise RuntimeError(f'unexpected node type {node}')
