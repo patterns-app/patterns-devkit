@@ -5,44 +5,42 @@ import subprocess
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from typing import Union
-
-PathLike = Union[Path, str]
+from typing import Generator
 
 
-def is_git_directory(path: PathLike) -> bool:
-    return os.path.exists(Path(path) / ".git")
+def _is_git_directory(path: Path) -> bool:
+    return (path / ".git").is_dir()
 
 
-def list_all_files_not_gitignored(path: PathLike) -> list[str]:
-    os.chdir(path)
-    cmd = "( git status --short| grep '^?' | cut -d\\  -f2- && git ls-files )"
-    files = subprocess.check_output(cmd, shell=True).splitlines()
-    return [b.decode() for b in files]
+def _all_files_not_gitignored(path: Path) -> Generator[Path]:
+    files = subprocess.check_output([
+        'git', '-C', str(path), 'ls-files', '-co', '--exclude-standard'
+    ]).splitlines()
+    for f in files:
+        yield path / Path(f.decode())
 
 
-def list_all_files(path: PathLike) -> list[str]:
-    (_, _, filenames) = next(os.walk(path))
-    return filenames
+def _all_files(path: Path) -> Generator[str]:
+    for dirname, dirnames, files in os.walk(path):
+        if '__pycache__' in dirnames:
+            dirnames.remove('__pycache__')
+        for f in files:
+            p = Path(dirname) / f
+            if p.suffix != '.pyc':
+                yield p
 
 
-def compress_directory(path: PathLike) -> BytesIO:
+def compress_directory(path: Path) -> BytesIO:
     io = BytesIO()
     zipf = zipfile.ZipFile(io, "w", zipfile.ZIP_DEFLATED)
-    if is_git_directory(path):
+    if _is_git_directory(path):
         # Respect .gitignore
-        all_files = list_all_files_not_gitignored(path)
+        contents = _all_files_not_gitignored(path)
     else:
-        all_files = list_all_files(path)
-    for f in all_files:
-        f_path = os.path.join(path, f)
-        zipf.write(f_path, os.path.relpath(f_path, os.path.join(path, "..")))
+        contents = _all_files(path)
+    for f in contents:
+        zipf.write(f, f.relative_to(path))
     zipf.close()
     io.seek(0)
     io.name = "graph_manifest.zip"
     return io
-
-
-def expand_directory(zip_io: BytesIO, path: PathLike = None):
-    zipf = zipfile.ZipFile(zip_io)
-    zipf.extractall(path)
