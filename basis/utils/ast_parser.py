@@ -1,7 +1,8 @@
 import ast
+from ast import Str
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, List, Dict
 
 from basis.graph.configured_node import NodeInterface, InputDefinition, OutputDefinition, ParameterDefinition, PortType
 
@@ -20,14 +21,14 @@ def read_interface_from_py_node_file(path: Path) -> NodeInterface:
 @dataclass
 class _Call:
     name: str
-    kwargs: dict[str, Any]
+    kwargs: Dict[Str, Any]
 
 
 class _NodeFuncFinder(ast.NodeVisitor):
     def __init__(self):
-        self.i: list[InputDefinition] = []
-        self.o: list[OutputDefinition] = []
-        self.p: list[ParameterDefinition] = []
+        self.i: List[InputDefinition] = []
+        self.o: List[OutputDefinition] = []
+        self.p: List[ParameterDefinition] = []
         self.found = 0
 
     def interface(self):
@@ -121,7 +122,7 @@ def _get_qualified_name(node) -> str:
     return '.'.join(_get_qualified_name_parts(node))
 
 
-def _get_qualified_name_parts(node) -> list[str]:
+def _get_qualified_name_parts(node) -> List[str]:
     parts = []
     while True:
         if isinstance(node, ast.Name):
