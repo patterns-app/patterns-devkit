@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from basis import GraphManifest
+from basis.configuration.path import NodeId
 from basis.graph.builder import graph_manifest_from_yaml
 from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
 from tests.graph.utils import p, ostream, istream, itable, otable, assert_nodes, n
@@ -19,6 +20,7 @@ def test_flat_graph():
     assert_nodes(
         manifest.nodes,
         n('source',
+          id=NodeId.from_path('source'),
           interface=[ostream('source_stream')],
           node_depth=0,
           file_path='source.py',
@@ -51,6 +53,7 @@ def test_flat_graph():
                           'query:sink_table -> sink:sink_table']
           ),
         n('sink',
+          id='ManualId',
           interface=[itable('sink_table')],
           file_path='sink.py',
           absolute_edges=['query:sink_table -> sink:sink_table']

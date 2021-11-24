@@ -1,80 +1,53 @@
 from __future__ import annotations
 
-import re
-from typing import List
+import random
+from base64 import b32encode
+from hashlib import blake2b
 
 from basis.configuration.base import FrozenPydanticBase
 
 
-class NodePath(str):
-    """A dotted path to a node.
+class NodeId(str):
+    """An id that is unique within a graph.
 
-    e.g.
-    - NodePath('a') # top level node
-    - NodePath('a.b.c') # nested node
+    Represented as an eight character base32 encoded string.
     """
 
     @classmethod
-    def from_parts(cls, *parts):
-        if len(parts) == 1 and isinstance(parts[0], List):
-            parts = parts[0]
-        return NodePath('.'.join(parts))
-
-    @property
-    def parts(self):
-        """AbsoluteNodePath('a.b.c').parts == ['a', 'b', 'c']"""
-        return self.split('.')
-
-    @property
-    def name(self):
-        """AbsoluteNodePath('a.b.c').name == 'c'"""
-        return self.parts[-1]
-
-    @property
-    def parent(self):
-        """AbsoluteNodePath('a.b.c').parent == 'a.b'"""
-        return '.'.join(self.parents)
-
-    @property
-    def parents(self):
-        """AbsoluteNodePath('a.b.c').parents == ['a', 'b']"""
-        return self.parts[:-1]
-
-    # pydantic methods
+    def random(cls) -> 'NodeId':
+        """Generate a new random id"""
+        return cls.from_bytes(b32encode(random.randbytes(5)))
 
     @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
-
-    _regex = re.compile(r'^\w+(?:\.\w+)*$')
-
-    @classmethod
-    def __modify_schema__(cls, field_schema):
-        field_schema.update(
-            pattern=cls._regex.pattern,
-            examples=['node', 'graph.node'],
-        )
+    def from_bytes(cls, b: bytes) -> 'NodeId':
+        """Encode a byte string as a base32 NodeId"""
+        return cls(b32encode(b).decode().lower())
 
     @classmethod
-    def validate(cls, v):
-        if not cls._regex.fullmatch(v):
-            raise ValueError('invalid alias format')
-        return cls(v)
+    def from_path(cls, *parts: str) -> 'NodeId':
+        """Generate a new id deterministically from a node name and the ids of its parents.
 
-    def __repr__(self):
-        return f'NodePath({super().__repr__()})'
+        >> NodeId.from_path('grandparent', 'parent', 'node')
+        """
+        # We choose BLAKE2 as the hash function due to its speed and configurable digest size
+        # We choose 40 bits of state since that can be base32 encoded with no padding, and
+        # in a graph with 50 nodes, the odds of collision is less than 10⁻⁹.
+        h = blake2b(digest_size=5)
+        for part in parts:
+            h.update(part.encode())
+        return cls.from_bytes(h.digest())
 
 
-class PortPath(FrozenPydanticBase):
-    """A NodePath and a port name"""
-    node_path: NodePath
+class PortId(FrozenPydanticBase):
+    """A NodeId and a port name"""
+    node_id: NodeId
     port: str
 
 
 class AbsoluteEdge(FrozenPydanticBase):
     """An edge with the port names resolved to absolute node paths"""
-    input_path: PortPath
-    output_path: PortPath
+    input_path: PortId
+    output_path: PortId
 
 
 class DeclaredEdge(FrozenPydanticBase):

@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterator, List, Union
 from commonmodel import Schema
 
 from basis.configuration.base import FrozenPydanticBase
-from basis.configuration.path import AbsoluteEdge, NodePath, DeclaredEdge
+from basis.configuration.path import AbsoluteEdge, DeclaredEdge, NodeId
 
 """The version of schemas generated with this code"""
 CURRENT_MANIFEST_SCHEMA_VERSION = 1
@@ -67,13 +67,13 @@ class NodeInterface(FrozenPydanticBase):
 class ConfiguredNode(FrozenPydanticBase):
     name: str
     node_type: NodeType
-    absolute_node_path: NodePath
+    id: NodeId
     # declared ports
     interface: NodeInterface
     # distance from root graph, starts at 0
     node_depth: int
     description: str = None
-    parent_node: NodePath = None
+    parent_node_id: NodeId = None
     file_path_to_node_script_relative_to_root: str = None
     # Configuration
     parameter_values: Dict[str, Any]

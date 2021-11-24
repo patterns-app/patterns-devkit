@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
+from pydantic import constr
+
 from basis.configuration.base import FrozenPydanticBase
 
 
@@ -36,6 +38,7 @@ class NodeCfg(FrozenPydanticBase):
     node_file: str = None
 
     name: str = None
+    id: constr(to_lower=True, regex=r'[a-zA-Z34567]{8}') = None
     description: str = None
     schedule: str = None
     inputs: List[PortMappingCfg] = None
