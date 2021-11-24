@@ -1,5 +1,6 @@
 from basis.node.node import node, OutputStream, InputStream, Parameter
 
+
 @node
 def passthrough_node(
     source_stream=InputStream(
