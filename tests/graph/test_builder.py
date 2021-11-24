@@ -1,11 +1,9 @@
 from pathlib import Path
 
 from basis import GraphManifest
-from basis.configuration.path import NodePath
 from basis.graph.builder import graph_manifest_from_yaml
-from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, ConfiguredNode, NodeInterface, \
-    NodeType
-from tests.graph.utils import p, ostream, istream, itable, otable, ae, de
+from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
+from tests.graph.utils import p, ostream, istream, itable, otable, assert_nodes, n
 
 
 def _build_manifest(name: str) -> GraphManifest:
@@ -17,158 +15,78 @@ def test_flat_graph():
     manifest = _build_manifest('flat_graph')
     assert manifest.graph_name == 'Test graph'
     assert manifest.manifest_version == CURRENT_MANIFEST_SCHEMA_VERSION
-    assert len(manifest.nodes) == 5
 
-    assert manifest.nodes[0] == ConfiguredNode(
-        name='source',
-        node_type=NodeType.Node,
-        absolute_node_path=NodePath('source'),
-        interface=NodeInterface(
-            inputs=[],
-            outputs=[ostream('source_stream')],
-            parameters=[]
-        ),
-        node_depth=0,
-        file_path_to_node_script_relative_to_root='source.py',
-        parameter_values={},
-        declared_edges=[],
-        absolute_edges=[ae('source:source_stream -> pass:source_stream')]
-    )
-
-    assert manifest.nodes[1] == ConfiguredNode(
-        name='pass',
-        node_type=NodeType.Node,
-        absolute_node_path=NodePath('pass'),
-        description='Passthrough Desc',
-        interface=NodeInterface(
-            inputs=[istream('source_stream', 'in desc', 'TestSchema'), istream('optional_stream', required=False)],
-            outputs=[ostream('passthrough_stream', 'out desc', 'TestSchema2')],
-            parameters=[p('explicit_param', 'bool', 'param desc', False), p('plain_param')]
-        ),
-        node_depth=0,
-        file_path_to_node_script_relative_to_root='passthrough.py',
-        parameter_values={'plain_param': 'test value'},
-        declared_edges=[],
-        absolute_edges=[ae('source:source_stream -> pass:source_stream'),
-                        ae('pass:passthrough_stream -> mapper:input_stream')]
-    )
-
-    assert manifest.nodes[2] == ConfiguredNode(
-        name='mapper',
-        node_type=NodeType.Node,
-        absolute_node_path=NodePath('mapper'),
-        interface=NodeInterface(
-            inputs=[istream('input_stream')],
-            outputs=[otable('output_table')],
-            parameters=[]
-        ),
-        node_depth=0,
-        file_path_to_node_script_relative_to_root='mapper/mapper.py',
-        parameter_values={},
-        declared_edges=[de('passthrough_stream -> input_stream'), de('output_table -> query_table')],
-        absolute_edges=[ae('pass:passthrough_stream -> mapper:input_stream'),
-                        ae('mapper:output_table -> query:query_table')]
-    )
-
-    assert manifest.nodes[3] == ConfiguredNode(
-        name='query',
-        node_type=NodeType.Node,
-        absolute_node_path=NodePath('query'),
-        interface=NodeInterface(
-            inputs=[itable('query_table')],
-            outputs=[otable('sink_table')],
-            parameters=[p('num', parameter_type='int')]
-        ),
-        node_depth=0,
-        file_path_to_node_script_relative_to_root='query.sql',
-        parameter_values={'num': 0},
-        declared_edges=[],
-        absolute_edges=[ae('mapper:output_table -> query:query_table'),
-                        ae('query:sink_table -> sink:sink_table')]
-    )
-
-    assert manifest.nodes[4] == ConfiguredNode(
-        name='sink',
-        node_type=NodeType.Node,
-        absolute_node_path=NodePath('sink'),
-        interface=NodeInterface(
-            inputs=[itable('sink_table')],
-            outputs=[],
-            parameters=[]
-        ),
-        node_depth=0,
-        file_path_to_node_script_relative_to_root='sink.py',
-        parameter_values={},
-        declared_edges=[],
-        absolute_edges=[ae('query:sink_table -> sink:sink_table')]
+    assert_nodes(
+        manifest.nodes,
+        n('source',
+          interface=[ostream('source_stream')],
+          node_depth=0,
+          file_path='source.py',
+          absolute_edges=['source:source_stream -> pass:source_stream']),
+        n('pass',
+          description='Passthrough Desc',
+          interface=[
+              istream('source_stream', 'in desc', 'TestSchema'), istream('optional_stream', required=False),
+              ostream('passthrough_stream', 'out desc', 'TestSchema2'),
+              p('explicit_param', 'bool', 'param desc', False), p('plain_param')
+          ],
+          node_depth=0,
+          file_path='passthrough.py',
+          parameter_values={'plain_param': 'test value'},
+          absolute_edges=['source:source_stream -> pass:source_stream',
+                          'pass:passthrough_stream -> mapper:input_stream']
+          ),
+        n('mapper',
+          interface=[istream('input_stream'), otable('output_table')],
+          file_path='mapper/mapper.py',
+          declared_edges=['passthrough_stream -> input_stream', 'output_table -> query_table'],
+          absolute_edges=['pass:passthrough_stream -> mapper:input_stream',
+                          'mapper:output_table -> query:query_table']
+          ),
+        n('query',
+          interface=[itable('query_table'), otable('sink_table'), p('num', parameter_type='int')],
+          file_path='query.sql',
+          parameter_values={'num': 0},
+          absolute_edges=['mapper:output_table -> query:query_table',
+                          'query:sink_table -> sink:sink_table']
+          ),
+        n('sink',
+          interface=[itable('sink_table')],
+          file_path='sink.py',
+          absolute_edges=['query:sink_table -> sink:sink_table']
+          )
     )
 
 
 def test_fanout_graph():
     manifest = _build_manifest('fanout_graph')
     assert manifest.graph_name == 'fanout_graph'
-    assert len(manifest.nodes) == 4
-    assert manifest.nodes[0] == ConfiguredNode(
-        name='source',
-        node_type=NodeType.Node,
-        absolute_node_path=NodePath('source'),
-        interface=NodeInterface(
-            inputs=[],
-            outputs=[ostream('source_stream')],
-            parameters=[]
-        ),
-        node_depth=0,
-        file_path_to_node_script_relative_to_root='source.py',
-        parameter_values={},
-        declared_edges=[],
-        absolute_edges=[ae('source:source_stream -> pass1:pass_in'),
-                        ae('source:source_stream -> pass2:pass_in')]
-    )
-    assert manifest.nodes[1] == ConfiguredNode(
-        name='pass1',
-        node_type=NodeType.Node,
-        absolute_node_path=NodePath('pass1'),
-        interface=NodeInterface(
-            inputs=[istream('pass_in')],
-            outputs=[ostream('pass_out')],
-            parameters=[]
-        ),
-        node_depth=0,
-        file_path_to_node_script_relative_to_root='pass.py',
-        parameter_values={},
-        declared_edges=[de('source_stream -> pass_in'), de('pass_out -> sink_stream1')],
-        absolute_edges=[ae('source:source_stream -> pass1:pass_in'),
-                        ae('pass1:pass_out -> sink:sink_stream1')]
-    )
-    assert manifest.nodes[2] == ConfiguredNode(
-        name='pass2',
-        node_type=NodeType.Node,
-        absolute_node_path=NodePath('pass2'),
-        interface=NodeInterface(
-            inputs=[istream('pass_in')],
-            outputs=[ostream('pass_out')],
-            parameters=[]
-        ),
-        node_depth=0,
-        file_path_to_node_script_relative_to_root='pass.py',
-        parameter_values={},
-        declared_edges=[de('source_stream -> pass_in'), de('pass_out -> sink_stream2')],
-        absolute_edges=[ae('source:source_stream -> pass2:pass_in'),
-                        ae('pass2:pass_out -> sink:sink_stream2')]
-    )
-    assert manifest.nodes[3] == ConfiguredNode(
-        name='sink',
-        node_type=NodeType.Node,
-        absolute_node_path=NodePath('sink'),
-        interface=NodeInterface(
-            inputs=[istream('sink_stream1'), istream('sink_stream2')],
-            outputs=[],
-            parameters=[]
-        ),
-        node_depth=0,
-        file_path_to_node_script_relative_to_root='sink.py',
-        parameter_values={},
-        declared_edges=[],
-        absolute_edges=[ae('pass1:pass_out -> sink:sink_stream1'),
-                        ae('pass2:pass_out -> sink:sink_stream2')]
-    )
+    assert_nodes(manifest.nodes,
+                 n('source',
+                   interface=[ostream('source_stream')],
+                   file_path='source.py',
+                   absolute_edges=['source:source_stream -> pass1:pass_in',
+                                   'source:source_stream -> pass2:pass_in']
+                   ),
+                 n('pass1',
+                   interface=[istream('pass_in'), ostream('pass_out')],
+                   file_path='pass.py',
+                   declared_edges=['source_stream -> pass_in', 'pass_out -> sink_stream1'],
+                   absolute_edges=['source:source_stream -> pass1:pass_in',
+                                   'pass1:pass_out -> sink:sink_stream1']
+                   ),
+                 n('pass2',
+                   node_type=NodeType.Node,
+                   interface=[istream('pass_in'), ostream('pass_out')],
+                   file_path='pass.py',
+                   declared_edges=['source_stream -> pass_in', 'pass_out -> sink_stream2'],
+                   absolute_edges=['source:source_stream -> pass2:pass_in',
+                                   'pass2:pass_out -> sink:sink_stream2']
+                   ),
+                 n('sink',
+                   interface=[istream('sink_stream1'), istream('sink_stream2')],
+                   file_path='sink.py',
+                   absolute_edges=['pass1:pass_out -> sink:sink_stream1',
+                                   'pass2:pass_out -> sink:sink_stream2']
+                   ),
+                 )
