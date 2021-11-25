@@ -3,6 +3,8 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, Iterator, List, Union
 
+from commonmodel import Schema
+
 from basis.configuration.base import FrozenPydanticBase
 from basis.configuration.path import AbsoluteEdge, DeclaredEdge, NodeId
 
