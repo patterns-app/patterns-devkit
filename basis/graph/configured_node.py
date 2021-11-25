@@ -3,8 +3,6 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, Iterator, List, Union
 
-from commonmodel import Schema
-
 from basis.configuration.base import FrozenPydanticBase
 from basis.configuration.path import AbsoluteEdge, DeclaredEdge, NodeId
 
@@ -22,13 +20,13 @@ class ParameterType(str, Enum):
 
 
 class NodeType(str, Enum):
-    Node = 'node'
-    Graph = 'graph'
+    Node = "node"
+    Graph = "graph"
 
 
 class PortType(str, Enum):
-    Table = 'table'
-    Stream = 'stream'
+    Table = "table"
+    Stream = "stream"
 
 
 class InputDefinition(FrozenPydanticBase):
@@ -108,3 +106,8 @@ class GraphManifest(FrozenPydanticBase):
         for node in self.nodes:
             if node.name == name:
                 yield node
+
+    def get_single_node_by_name(self, name: str) -> ConfiguredNode:
+        nodes = list(self.get_nodes_by_name(name))
+        assert len(nodes) == 1
+        return nodes[0]
