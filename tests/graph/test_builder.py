@@ -8,8 +8,8 @@ from tests.graph.utils import p, ostream, istream, itable, otable, assert_nodes,
 
 
 def _build_manifest(name: str) -> GraphManifest:
-    p = Path(__file__).parent / name / 'graph.yml'
-    return graph_manifest_from_yaml(p)
+    pth = Path(__file__).parent / name / 'graph.yml'
+    return graph_manifest_from_yaml(pth)
 
 
 def test_flat_graph():
@@ -17,10 +17,18 @@ def test_flat_graph():
     assert manifest.graph_name == 'Test graph'
     assert manifest.manifest_version == CURRENT_MANIFEST_SCHEMA_VERSION
 
+    result = list(manifest.get_nodes_by_name('pass'))
+    assert len(result) == 1
+    node = result[0]
+    assert manifest.get_node_by_id(node.id) == node
+
+    assert list(node.input_edges()) == [node.absolute_edges[0]]
+    assert list(node.output_edges()) == [node.absolute_edges[1]]
+
     assert_nodes(
         manifest.nodes,
         n('source',
-          id=NodeId.from_path('source'),
+          id=NodeId.from_name('source', None),
           interface=[ostream('source_stream')],
           node_depth=0,
           file_path='source.py',
@@ -64,6 +72,8 @@ def test_flat_graph():
 def test_fanout_graph():
     manifest = _build_manifest('fanout_graph')
     assert manifest.graph_name == 'fanout_graph'
+    assert next(manifest.get_nodes_by_name('pass1')).id != next(manifest.get_nodes_by_name('pass2')).id
+
     assert_nodes(manifest.nodes,
                  n('source',
                    interface=[ostream('source_stream')],

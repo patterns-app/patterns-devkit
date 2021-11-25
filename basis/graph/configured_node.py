@@ -84,12 +84,12 @@ class ConfiguredNode(FrozenPydanticBase):
 
     def input_edges(self) -> Iterator[AbsoluteEdge]:
         for e in self.absolute_edges:
-            if e.output_path.node_path == self.absolute_node_path:
+            if e.output_path.node_id == self.id:
                 yield e
 
     def output_edges(self) -> Iterator[AbsoluteEdge]:
         for e in self.absolute_edges:
-            if e.input_path.node_path == self.absolute_node_path:
+            if e.input_path.node_id == self.id:
                 yield e
 
 
@@ -98,8 +98,13 @@ class GraphManifest(FrozenPydanticBase):
     manifest_version: int
     nodes: List[ConfiguredNode] = []
 
-    def get_node(self, abs_node_path: str) -> ConfiguredNode:
+    def get_node_by_id(self, node_id: Union[str, NodeId]) -> ConfiguredNode:
         for n in self.nodes:
-            if n.absolute_node_path == abs_node_path:
+            if n.id == node_id:
                 return n
-        raise KeyError(abs_node_path)
+        raise KeyError(node_id)
+
+    def get_nodes_by_name(self, name: str) -> Iterator[ConfiguredNode]:
+        for node in self.nodes:
+            if node.name == name:
+                yield node

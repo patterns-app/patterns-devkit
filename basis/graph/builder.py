@@ -92,7 +92,8 @@ class _GraphBuilder:
                           outputs_by_name: _OutputsByName) -> ConfiguredNode:
         node_file_path = node_dir / node.node_file
         node_name = node.name or node_file_path.stem
-        node_id = node.id or NodeId.from_path(*parents, node_name)
+        parent_node_id = parents[-1] if parents else None
+        node_id = node.id or NodeId.from_name(node_name, parent_node_id)
         path = parents + [node_id]
         interface, node_type = self._parse_node_interface(node_file_path, path)
         configured_node = ConfiguredNode(
@@ -102,7 +103,7 @@ class _GraphBuilder:
             interface=interface,
             node_depth=len(parents),
             description=node.description,
-            parent_node_id=parents[-1] if parents else None,
+            parent_node_id=parent_node_id,
             file_path_to_node_script_relative_to_root=self._relative_path_str(node_file_path),
             parameter_values=node.parameters or {},
             schedule=node.schedule,
