@@ -111,5 +111,7 @@ class GraphManifest(FrozenPydanticBase):
 
     def get_single_node_by_name(self, name: str) -> ConfiguredNode:
         nodes = list(self.get_nodes_by_name(name))
-        assert len(nodes) == 1
+        assert (
+            len(nodes) == 1
+        ), f"Must be exactly one node of name `{name}`, found {len(nodes)}"
         return nodes[0]
