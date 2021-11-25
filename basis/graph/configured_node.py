@@ -22,13 +22,13 @@ class ParameterType(str, Enum):
 
 
 class NodeType(str, Enum):
-    Node = 'node'
-    Graph = 'graph'
+    Node = "node"
+    Graph = "graph"
 
 
 class PortType(str, Enum):
-    Table = 'table'
-    Stream = 'stream'
+    Table = "table"
+    Stream = "stream"
 
 
 class InputDefinition(FrozenPydanticBase):

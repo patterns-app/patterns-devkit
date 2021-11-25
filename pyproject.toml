@@ -44,6 +44,7 @@ exclude = '''
   | \.venv
   | build
   | dist
+  | examples
   | basis/cli/templates/templates
 )/
 '''

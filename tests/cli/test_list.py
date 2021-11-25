@@ -14,8 +14,7 @@ def test_list():
         ]:
             obj_name = e.split("/")[-2]
             m.get(
-                API_BASE_URL + e,
-                json={obj_name: [{"name": "name"}]},
+                API_BASE_URL + e, json={obj_name: [{"name": "name"}]},
             )
         command_tester.execute(f"env")
         assert "name" in command_tester.io.fetch_output()

@@ -5,8 +5,13 @@ from typing import Callable, List, Union, Any
 
 from commonmodel import Schema
 
-from basis.node._methods import InputTableMethods, OutputTableMethods, ParameterMethods, InputStreamMethods, \
-    OutputStreamMethods
+from basis.node._methods import (
+    InputTableMethods,
+    OutputTableMethods,
+    ParameterMethods,
+    InputStreamMethods,
+    OutputStreamMethods,
+)
 
 
 class _NodeInterfaceEntry:
@@ -17,7 +22,9 @@ def _mixin_attrs():
     def init(self, param_name):
         self.param_name = param_name
 
-    return {'__init__': init, }
+    return {
+        "__init__": init,
+    }
 
 
 # In order to support type inference with both `Parameter` and `Parameter()` forms, we need to use the metaclass
@@ -47,17 +54,13 @@ class _InputMeta(type, _NodeInterfaceEntry):
 
 class _OutputMeta(type, _NodeInterfaceEntry):
     def __new__(
-        mcs,
-        description: str = None,
-        schema: Union[str, Schema] = None,
+        mcs, description: str = None, schema: Union[str, Schema] = None,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
     def __init__(
-        cls,
-        description: str = None,
-        schema: Union[str, Schema] = None,
+        cls, description: str = None, schema: Union[str, Schema] = None,
     ):
         cls.description = description
         cls.schema = schema
@@ -65,19 +68,13 @@ class _OutputMeta(type, _NodeInterfaceEntry):
 
 class _ParameterMeta(type, _NodeInterfaceEntry):
     def __new__(
-        mcs,
-        description: str = None,
-        type: str = None,
-        default: Any = None,
+        mcs, description: str = None, type: str = None, default: Any = None,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
     def __init__(
-        cls,
-        description: str = None,
-        type: str = None,
-        default: Any = None,
+        cls, description: str = None, type: str = None, default: Any = None,
     ):
         cls.description = description
         cls.type = type
@@ -119,7 +116,7 @@ def node(function: Callable):
     for (name, param) in sig.parameters.items():
         value = param.default
         if value is inspect.Parameter.empty:
-            raise TypeError(f'{name} must have a type (e.g. {name}=InputTable)')
+            raise TypeError(f"{name} must have a type (e.g. {name}=InputTable)")
 
         if inspect.isclass(value) and issubclass(value, _NodeInterfaceEntry):
             if value.__class__ in (type, abc.ABCMeta):
@@ -127,5 +124,5 @@ def node(function: Callable):
             # noinspection PyCallingNonCallable
             args.append(value(name))
         else:
-            raise TypeError(f'{name} is not a valid node parameter type')
+            raise TypeError(f"{name} is not a valid node parameter type")
     return NodeFunction(function, args)

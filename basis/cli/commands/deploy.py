@@ -3,9 +3,7 @@ from cleo import Command
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.config import get_current_organization_name
 from basis.cli.services.deploy import deploy_graph_version
-from basis.cli.services.graph_versions import (
-    get_latest_graph_version,
-)
+from basis.cli.services.graph_versions import get_latest_graph_version
 
 
 class DeployCommand(BasisCommandBase, Command):

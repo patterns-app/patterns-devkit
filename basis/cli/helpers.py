@@ -13,20 +13,20 @@ def _is_git_directory(path: Path) -> bool:
 
 
 def _all_files_not_gitignored(path: Path) -> Generator[Path]:
-    files = subprocess.check_output([
-        'git', '-C', str(path), 'ls-files', '-co', '--exclude-standard'
-    ]).splitlines()
+    files = subprocess.check_output(
+        ["git", "-C", str(path), "ls-files", "-co", "--exclude-standard"]
+    ).splitlines()
     for f in files:
         yield path / Path(f.decode())
 
 
 def _all_files(path: Path) -> Generator[str]:
     for dirname, dirnames, files in os.walk(path):
-        if '__pycache__' in dirnames:
-            dirnames.remove('__pycache__')
+        if "__pycache__" in dirnames:
+            dirnames.remove("__pycache__")
         for f in files:
             p = Path(dirname) / f
-            if p.suffix != '.pyc':
+            if p.suffix != ".pyc":
                 yield p
 
 

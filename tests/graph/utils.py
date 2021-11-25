@@ -4,8 +4,16 @@ from typing import Any, Union, List, Dict
 from commonmodel import Schema
 
 from basis.configuration.path import AbsoluteEdge, DeclaredEdge, NodeId, PortId
-from basis.graph.configured_node import ParameterDefinition, ParameterType, OutputDefinition, PortType, InputDefinition, \
-    ConfiguredNode, NodeType, NodeInterface
+from basis.graph.configured_node import (
+    ParameterDefinition,
+    ParameterType,
+    OutputDefinition,
+    PortType,
+    InputDefinition,
+    ConfiguredNode,
+    NodeType,
+    NodeInterface,
+)
 
 
 class _IgnoreType:
@@ -13,7 +21,7 @@ class _IgnoreType:
         return isinstance(other, _IgnoreType)
 
     def __repr__(self):
-        return 'IGNORE'
+        return "IGNORE"
 
 
 IGNORE = _IgnoreType()
@@ -45,7 +53,7 @@ def _calculate_graph(nodes: List[ConfiguredNode]):
             n = nodes_by_id[parent]
             parts.append(n.name)
             parent = n.parent_node_id
-        ids_by_path['.'.join(reversed(parts))] = node.id
+        ids_by_path[".".join(reversed(parts))] = node.id
 
     return ids_by_path
 
@@ -57,18 +65,16 @@ def _assert_node(node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: di
 
         actual = getattr(node, k)
 
-        if k == 'declared_edges':
+        if k == "declared_edges":
             v = [_de(s) for s in v]
-        elif k == 'absolute_edges':
+        elif k == "absolute_edges":
             v = [_ae(s, ids_by_path) for s in v]
 
-        assert actual == v, f'{k}: {actual} != {v}'
+        assert actual == v, f"{k}: {actual} != {v}"
 
 
 def assert_nodes(
-    nodes: List[ConfiguredNode],
-    *expected: NodeAssertion,
-    assert_length: bool = True
+    nodes: List[ConfiguredNode], *expected: NodeAssertion, assert_length: bool = True
 ):
     if assert_length:
         assert len(nodes) == len(expected)
@@ -76,7 +82,7 @@ def assert_nodes(
     nodes_by_name = {node.name: node for node in nodes}
     ids_by_path = _calculate_graph(nodes)
     for assertion in expected:
-        assert assertion.name in nodes_by_name, f'No node named {assertion.name}'
+        assert assertion.name in nodes_by_name, f"No node named {assertion.name}"
         _assert_node(nodes_by_name[assertion.name], assertion, ids_by_path)
 
 
@@ -85,7 +91,9 @@ def n(
     name: str,
     node_type: Union[NodeType, _IgnoreType] = NodeType.Node,
     id: Union[str, _IgnoreType] = IGNORE,
-    interface: Union[List[Union[InputDefinition, OutputDefinition, ParameterDefinition]], _IgnoreType] = IGNORE,
+    interface: Union[
+        List[Union[InputDefinition, OutputDefinition, ParameterDefinition]], _IgnoreType
+    ] = IGNORE,
     node_depth: Union[int, _IgnoreType] = 0,
     description: Union[str, None, _IgnoreType] = None,
     file_path: Union[str, _IgnoreType] = IGNORE,
@@ -98,7 +106,9 @@ def n(
         name=name,
         node_type=node_type,
         id=IGNORE if id == IGNORE else NodeId(id.lower()),
-        interface=interface if interface == IGNORE else NodeInterface(
+        interface=interface
+        if interface == IGNORE
+        else NodeInterface(
             inputs=[i for i in interface if isinstance(i, InputDefinition)],
             outputs=[i for i in interface if isinstance(i, OutputDefinition)],
             parameters=[i for i in interface if isinstance(i, ParameterDefinition)],
@@ -114,10 +124,7 @@ def n(
 
 
 def p(
-    name: str,
-    parameter_type: str = None,
-    description: str = None,
-    default: Any = None,
+    name: str, parameter_type: str = None, description: str = None, default: Any = None,
 ) -> ParameterDefinition:
     return ParameterDefinition(
         name=name,
@@ -128,15 +135,13 @@ def p(
 
 
 def ostream(
-    name: str,
-    description: str = None,
-    schema: Union[str, Schema] = None,
+    name: str, description: str = None, schema: Union[str, Schema] = None,
 ) -> OutputDefinition:
     return OutputDefinition(
         port_type=PortType.Stream,
         name=name,
         description=description,
-        schema_or_name=schema
+        schema_or_name=schema,
     )
 
 
@@ -144,15 +149,14 @@ def istream(
     name: str,
     description: str = None,
     schema: Union[str, Schema] = None,
-    required: bool = True
-
+    required: bool = True,
 ) -> InputDefinition:
     return InputDefinition(
         port_type=PortType.Stream,
         name=name,
         description=description,
         schema_or_name=schema,
-        required=required
+        required=required,
     )
 
 
@@ -160,35 +164,32 @@ def itable(
     name: str,
     description: str = None,
     schema: Union[str, Schema] = None,
-    required: bool = True
-
+    required: bool = True,
 ) -> InputDefinition:
     return InputDefinition(
         port_type=PortType.Table,
         name=name,
         description=description,
         schema_or_name=schema,
-        required=required
+        required=required,
     )
 
 
 def otable(
-    name: str,
-    description: str = None,
-    schema: Union[str, Schema] = None,
+    name: str, description: str = None, schema: Union[str, Schema] = None,
 ) -> OutputDefinition:
     return OutputDefinition(
         port_type=PortType.Table,
         name=name,
         description=description,
-        schema_or_name=schema
+        schema_or_name=schema,
     )
 
 
 def _ae(s: str, ids_by_path: dict) -> AbsoluteEdge:
-    l, r = s.split(' -> ')
-    ln, lp = l.split(':')
-    rn, rp = r.split(':')
+    l, r = s.split(" -> ")
+    ln, lp = l.split(":")
+    rn, rp = r.split(":")
     return AbsoluteEdge(
         input_path=PortId(node_id=ids_by_path[ln], port=lp),
         output_path=PortId(node_id=ids_by_path[rn], port=rp),
@@ -196,5 +197,5 @@ def _ae(s: str, ids_by_path: dict) -> AbsoluteEdge:
 
 
 def _de(s: str) -> DeclaredEdge:
-    l, r = s.split(' -> ')
-    return DeclaredEdge(input_port=l, output_port=r, )
+    l, r = s.split(" -> ")
+    return DeclaredEdge(input_port=l, output_port=r,)
