@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterator, List, Union
 from commonmodel import Schema
 
 from basis.configuration.base import FrozenPydanticBase
-from basis.configuration.path import AbsoluteEdge, NodePath, DeclaredEdge
+from basis.configuration.path import AbsoluteEdge, DeclaredEdge, NodeId
 
 """The version of schemas generated with this code"""
 CURRENT_MANIFEST_SCHEMA_VERSION = 1
@@ -67,13 +67,13 @@ class NodeInterface(FrozenPydanticBase):
 class ConfiguredNode(FrozenPydanticBase):
     name: str
     node_type: NodeType
-    absolute_node_path: NodePath
+    id: NodeId
     # declared ports
     interface: NodeInterface
     # distance from root graph, starts at 0
     node_depth: int
     description: str = None
-    parent_node: NodePath = None
+    parent_node_id: NodeId = None
     file_path_to_node_script_relative_to_root: str = None
     # Configuration
     parameter_values: Dict[str, Any]
@@ -84,12 +84,12 @@ class ConfiguredNode(FrozenPydanticBase):
 
     def input_edges(self) -> Iterator[AbsoluteEdge]:
         for e in self.absolute_edges:
-            if e.output_path.node_path == self.absolute_node_path:
+            if e.output_path.node_id == self.id:
                 yield e
 
     def output_edges(self) -> Iterator[AbsoluteEdge]:
         for e in self.absolute_edges:
-            if e.input_path.node_path == self.absolute_node_path:
+            if e.input_path.node_id == self.id:
                 yield e
 
 
@@ -98,8 +98,13 @@ class GraphManifest(FrozenPydanticBase):
     manifest_version: int
     nodes: List[ConfiguredNode] = []
 
-    def get_node(self, abs_node_path: str) -> ConfiguredNode:
+    def get_node_by_id(self, node_id: Union[str, NodeId]) -> ConfiguredNode:
         for n in self.nodes:
-            if n.absolute_node_path == abs_node_path:
+            if n.id == node_id:
                 return n
-        raise KeyError(abs_node_path)
+        raise KeyError(node_id)
+
+    def get_nodes_by_name(self, name: str) -> Iterator[ConfiguredNode]:
+        for node in self.nodes:
+            if node.name == name:
+                yield node

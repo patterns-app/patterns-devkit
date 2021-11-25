@@ -5,7 +5,7 @@ from typing import List, Tuple, Dict
 
 from basis.configuration.base import load_yaml
 from basis.configuration.graph import GraphDefinitionCfg, NodeCfg
-from basis.configuration.path import NodePath, DeclaredEdge, AbsoluteEdge, PortPath
+from basis.configuration.path import DeclaredEdge, AbsoluteEdge, NodeId, PortId
 from basis.graph.configured_node import ConfiguredNode, GraphManifest, NodeInterface, OutputDefinition, \
     CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
 from basis.node.sql.jinja import parse_interface_from_sql
@@ -45,7 +45,7 @@ class _GraphBuilder:
         # Always use unix path separators
         return '/'.join(parts)
 
-    def _parse_graph_cfg(self, parents: List[str], node_yaml_path: Path) -> GraphDefinitionCfg:
+    def _parse_graph_cfg(self, parents: List[NodeId], node_yaml_path: Path) -> GraphDefinitionCfg:
         config = self._read_graph_yml(node_yaml_path)
         node_dir = node_yaml_path.parent
         outputs_by_name: _OutputsByName = {}
@@ -74,8 +74,8 @@ class _GraphBuilder:
                 continue
             (src, o) = outputs_by_name[name]
 
-            edge = AbsoluteEdge(input_path=PortPath(node_path=src.absolute_node_path, port=o.name),
-                                output_path=PortPath(node_path=node.absolute_node_path, port=i.name))
+            edge = AbsoluteEdge(input_path=PortId(node_id=src.id, port=o.name),
+                                output_path=PortId(node_id=node.id, port=i.name))
             node.absolute_edges.append(edge)
             src.absolute_edges.append(edge)
 
@@ -88,20 +88,22 @@ class _GraphBuilder:
                 raise ValueError(f'Duplicate output name {it}')
         outputs_by_name.update({names[o.name]: (node, o) for o in outputs})
 
-    def _parse_node_entry(self, node: NodeCfg, node_dir: Path, parents: List[str],
+    def _parse_node_entry(self, node: NodeCfg, node_dir: Path, parents: List[NodeId],
                           outputs_by_name: _OutputsByName) -> ConfiguredNode:
         node_file_path = node_dir / node.node_file
         node_name = node.name or node_file_path.stem
-        absolute_node_path = NodePath.from_parts(parents + [node_name])
-        interface, node_type = self._parse_node_interface(node_file_path, absolute_node_path.parts)
+        parent_node_id = parents[-1] if parents else None
+        node_id = node.id or NodeId.from_name(node_name, parent_node_id)
+        path = parents + [node_id]
+        interface, node_type = self._parse_node_interface(node_file_path, path)
         configured_node = ConfiguredNode(
             name=node_name,
             node_type=node_type,
-            absolute_node_path=absolute_node_path,
+            id=node_id,
             interface=interface,
             node_depth=len(parents),
             description=node.description,
-            parent_node=NodePath.from_parts(parents) if parents else None,
+            parent_node_id=parent_node_id,
             file_path_to_node_script_relative_to_root=self._relative_path_str(node_file_path),
             parameter_values=node.parameters or {},
             schedule=node.schedule,
