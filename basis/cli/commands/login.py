@@ -3,9 +3,7 @@ from __future__ import annotations
 from cleo import Command
 
 from basis.cli.commands.base import BasisCommandBase
-from basis.cli.config import (
-    set_current_organization_name,
-)
+from basis.cli.config import set_current_organization_name
 from basis.cli.services.auth import list_organizations, login, logout
 
 

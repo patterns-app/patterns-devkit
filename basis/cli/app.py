@@ -6,6 +6,7 @@ from basis.cli.commands.clone import CloneCommand
 from basis.cli.commands.create import CreateCommand
 from basis.cli.commands.deploy import DeployCommand
 from basis.cli.commands.generate import GenerateCommand
+
 # from basis.cli.commands.info import InfoCommand
 from basis.cli.commands.list import ListCommand
 from basis.cli.commands.login import LoginCommand

@@ -17,12 +17,14 @@ class LogsCommand(BasisCommandBase, Command):
 
     def handle(self):
         self.ensure_authenticated()
-        graph_name = self.argument('graph')
-        environment_name = self.argument('environment')
-        node_path = self.argument('absolute-node-path')
+        graph_name = self.argument("graph")
+        environment_name = self.argument("environment")
+        node_path = self.argument("absolute-node-path")
 
         try:
-            events = get_execution_logs(get_current_organization_name(), environment_name, graph_name, node_path)
+            events = get_execution_logs(
+                get_current_organization_name(), environment_name, graph_name, node_path
+            )
         except Exception as e:
             self.line(f"<error>Error reading logs: {e}</error>")
             exit(1)
@@ -33,7 +35,7 @@ class LogsCommand(BasisCommandBase, Command):
             table.set_header_row(list(events[0].keys()))
             for e in events:
                 # cleo can't properly display tables with large cells, so truncate error tracebacks if there are any
-                if 'error' in e:
-                    e['error'] = e['error'][:80] + ('…' if len(e['error']) > 80 else '')
+                if "error" in e:
+                    e["error"] = e["error"][:80] + ("…" if len(e["error"]) > 80 else "")
                 table.add_row(list(str(v) for v in e.values()))
             table.render(self.io)

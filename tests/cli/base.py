@@ -41,7 +41,5 @@ def reqest_mocker():
             API_BASE_URL + Endpoints.TOKEN_CREATE,
             json={"access": "access-token", "refresh": "refresh-token"},
         )
-        m.post(
-            API_BASE_URL + Endpoints.TOKEN_VERIFY,
-        )
+        m.post(API_BASE_URL + Endpoints.TOKEN_VERIFY,)
         yield m

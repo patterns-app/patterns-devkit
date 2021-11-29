@@ -15,17 +15,17 @@ class NodeId(str):
     """
 
     @classmethod
-    def random(cls) -> 'NodeId':
+    def random(cls) -> "NodeId":
         """Generate a new random id"""
         return cls.from_bytes(b32encode(random.randbytes(5)))
 
     @classmethod
-    def from_bytes(cls, b: bytes) -> 'NodeId':
+    def from_bytes(cls, b: bytes) -> "NodeId":
         """Encode a byte string as a base32 NodeId"""
         return cls(b32encode(b).decode().lower())
 
     @classmethod
-    def from_name(cls, node_name: str, parent_id: Optional[NodeId]) -> 'NodeId':
+    def from_name(cls, node_name: str, parent_id: Optional[NodeId]) -> "NodeId":
         """Generate a new id deterministically from a node name and the id of its parent.
 
         >> NodeId.from_name('node name', 'parentid')
@@ -42,17 +42,20 @@ class NodeId(str):
 
 class PortId(FrozenPydanticBase):
     """A NodeId and a port name"""
+
     node_id: NodeId
     port: str
 
 
 class AbsoluteEdge(FrozenPydanticBase):
     """An edge with the port names resolved to absolute node paths"""
+
     input_path: PortId
     output_path: PortId
 
 
 class DeclaredEdge(FrozenPydanticBase):
     """An edge like `my_table -> input_port` explicitly declared in the graph yml"""
+
     input_port: str
     output_port: str

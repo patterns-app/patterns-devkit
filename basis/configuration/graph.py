@@ -14,7 +14,7 @@ class PortMappingCfg:
     src: str
     dst: str
 
-    _regex = re.compile(r'^(\S+)\s*->\s*(\S+)$')
+    _regex = re.compile(r"^(\S+)\s*->\s*(\S+)$")
 
     @classmethod
     def __get_validators__(cls):
@@ -24,13 +24,13 @@ class PortMappingCfg:
     def __modify_schema__(cls, field_schema):
         field_schema.update(
             pattern=cls._regex.pattern,
-            examples=['mytable -> input', 'output -> mytable'],
+            examples=["mytable -> input", "output -> mytable"],
         )
 
     @classmethod
     def validate(cls, v):
         if not (m := cls._regex.fullmatch(v)):
-            raise ValueError('invalid alias format')
+            raise ValueError("invalid alias format")
         return cls(*m.groups())
 
 
@@ -38,7 +38,7 @@ class NodeCfg(FrozenPydanticBase):
     node_file: str = None
 
     name: str = None
-    id: constr(to_lower=True, regex=r'[a-zA-Z34567]{8}') = None
+    id: constr(to_lower=True, regex=r"[a-zA-Z34567]{8}") = None
     description: str = None
     schedule: str = None
     inputs: List[PortMappingCfg] = None
