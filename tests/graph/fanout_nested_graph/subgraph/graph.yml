@@ -1,3 +1,10 @@
+# Pass in the id="sg"
+# hook up and return
+#  sg:in->pass:in
+#  ssg:out->sg:out
+# hook up
+#  pass:out->ssg:in
+#  pass:out->ssg.pass:in
 exposes:
   inputs:
     - subgraph_in

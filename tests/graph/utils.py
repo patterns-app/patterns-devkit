@@ -3,7 +3,7 @@ from typing import Any, Union, List, Dict
 
 from commonmodel import Schema
 
-from basis.configuration.path import AbsoluteEdge, DeclaredEdge, NodeId, PortId
+from basis.configuration.path import GraphEdge, NodeId, PortId
 from basis.graph.configured_node import (
     ParameterDefinition,
     ParameterType,
@@ -39,8 +39,8 @@ class NodeAssertion:
     file_path_to_node_script_relative_to_root: Union[str, _IgnoreType]
     parameter_values: Union[Dict[str, Any], _IgnoreType]
     schedule: Union[str, _IgnoreType]
-    declared_edges: Union[List[str], _IgnoreType]
-    absolute_edges: Union[List[str], _IgnoreType]
+    local_edges: Union[List[str], _IgnoreType]
+    resolved_edges: Union[List[str], _IgnoreType]
 
 
 def _calculate_graph(nodes: List[ConfiguredNode]):
@@ -61,16 +61,15 @@ def _calculate_graph(nodes: List[ConfiguredNode]):
 
 def _assert_node(node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: dict):
     for k, v in asdict(assertion).items():
+        actual = getattr(node, k)
+        if k == "id":
+            assert actual, "all ids must be defined"
         if v == IGNORE:
             continue
 
-        actual = getattr(node, k)
-
-        if k == "declared_edges":
-            v = [_de(s) for s in v]
-        elif k == "absolute_edges":
-            v = [_ae(s, ids_by_path) for s in v]
-        elif k == 'parent_node_id' and v is not None:
+        if k in ("local_edges", "resolved_edges"):
+            v = [_ge(s, ids_by_path) for s in v]
+        elif k == "parent_node_id" and v is not None:
             v = ids_by_path[v]
 
         assert actual == v, f"{k}: {actual} != {v}"
@@ -79,6 +78,7 @@ def _assert_node(node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: di
 def assert_nodes(
     nodes: List[ConfiguredNode], *expected: NodeAssertion, assert_length: bool = True
 ):
+    assert len(nodes) == len({node.id for node in nodes}), "all ids must be unique"
     if assert_length:
         assert len(nodes) == len(expected)
 
@@ -98,13 +98,12 @@ def n(
     interface: Union[
         List[Union[InputDefinition, OutputDefinition, ParameterDefinition]], _IgnoreType
     ] = IGNORE,
-    node_depth: Union[int, _IgnoreType] = 0,
     description: Union[str, None, _IgnoreType] = None,
     file_path: Union[str, _IgnoreType] = IGNORE,
     parameter_values: Union[Dict[str, Any], _IgnoreType] = {},
     schedule: Union[str, None, _IgnoreType] = None,
-    declared_edges: Union[List[str], _IgnoreType] = [],
-    absolute_edges: Union[List[str], _IgnoreType] = [],
+    local_edges: Union[List[str], None, _IgnoreType] = None,
+    resolved_edges: Union[List[str], None, _IgnoreType] = None,
 ) -> NodeAssertion:
     return NodeAssertion(
         name=name,
@@ -118,13 +117,15 @@ def n(
             outputs=[i for i in interface if isinstance(i, OutputDefinition)],
             parameters=[i for i in interface if isinstance(i, ParameterDefinition)],
         ),
-        node_depth=parent.count('.') + 1 if parent else 0,
+        node_depth=parent.count(".") + 1 if parent else 0,
         description=description,
         file_path_to_node_script_relative_to_root=file_path,
         parameter_values=parameter_values,
         schedule=schedule,
-        declared_edges=declared_edges,
-        absolute_edges=absolute_edges,
+        local_edges=local_edges or [],
+        resolved_edges=(local_edges or [])
+        if resolved_edges is None
+        else resolved_edges,
     )
 
 
@@ -191,16 +192,11 @@ def otable(
     )
 
 
-def _ae(s: str, ids_by_path: dict) -> AbsoluteEdge:
+def _ge(s: str, ids_by_path: dict) -> GraphEdge:
     l, r = s.split(" -> ")
     ln, lp = l.split(":")
     rn, rp = r.split(":")
-    return AbsoluteEdge(
+    return GraphEdge(
         input_path=PortId(node_id=ids_by_path[ln], port=lp),
         output_path=PortId(node_id=ids_by_path[rn], port=rp),
     )
-
-
-def _de(s: str) -> DeclaredEdge:
-    l, r = s.split(" -> ")
-    return DeclaredEdge(input_port=l, output_port=r,)

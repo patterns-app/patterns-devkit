@@ -47,15 +47,6 @@ class PortId(FrozenPydanticBase):
     port: str
 
 
-class AbsoluteEdge(FrozenPydanticBase):
-    """An edge with the port names resolved to absolute node paths"""
-
+class GraphEdge(FrozenPydanticBase):
     input_path: PortId
     output_path: PortId
-
-
-class DeclaredEdge(FrozenPydanticBase):
-    """An edge like `my_table -> input_port` explicitly declared in the graph yml"""
-
-    input_port: str
-    output_port: str
