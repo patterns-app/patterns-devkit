@@ -9,7 +9,7 @@ def list_graph_versions(graph_name: str, organization_name: str) -> list[dict]:
         params={"organization_name": organization_name, "graph_name": graph_name},
     )
     resp.raise_for_status()
-    return resp.json().get("graph_versions", [])
+    return resp.json().get("results", [])
 
 
 def get_latest_graph_version(graph_name: str, organization_name: str) -> dict:
