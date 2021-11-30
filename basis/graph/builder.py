@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import dataclasses
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple, Dict
-
+from typing import List, Tuple, Dict, Set, Optional
+from itertools import chain
 from basis.configuration.base import load_yaml
 from basis.configuration.graph import GraphDefinitionCfg, NodeCfg, PortMappingCfg
 from basis.configuration.path import GraphEdge, NodeId, PortId
@@ -33,12 +32,23 @@ _InputMappingByNodeId = Dict[NodeId, Dict[str, str]]
 class _Mapping:
     outputs: _OutputsByName
     inputs: _InputMappingByNodeId
+    local_edges_by_exposed_input: Dict[str, List[GraphEdge]]
+    local_edges_by_exposed_output: Dict[str, List[GraphEdge]]
 
 
 @dataclass
 class _Interface:
     node: NodeInterface
     node_type: NodeType
+    # empty for non-graph nodes
+    local_edges: List[GraphEdge]
+
+
+@dataclass
+class _ParsedGraph:
+    name: Optional[str]
+    interface: NodeInterface
+    local_edges: List[GraphEdge]
 
 
 class _GraphBuilder:
@@ -49,9 +59,9 @@ class _GraphBuilder:
         self._interfaces_by_file: Dict[Path, _Interface] = {}
 
     def build(self) -> GraphManifest:
-        config = self._parse_graph_cfg([], self.root_graph_location)
+        parse = self._parse_graph_cfg(self.root_graph_location, None)
         return GraphManifest(
-            graph_name=config.name or self.root_dir.name,  # todo:need name
+            graph_name=parse.name or self.root_dir.name,
             manifest_version=CURRENT_MANIFEST_SCHEMA_VERSION,
             nodes=self.nodes,
         )
@@ -68,46 +78,74 @@ class _GraphBuilder:
         # Always use unix path separators
         return "/".join(parts)
 
-    def _parse_graph_cfg(
-        self, parents: List[NodeId], node_yaml_path: Path
-    ) -> GraphDefinitionCfg:
+    def _parse_graph_cfg(self, node_yaml_path: Path, parent: Optional[NodeId]) -> _ParsedGraph:
         config = self._read_graph_yml(node_yaml_path)
         node_dir = node_yaml_path.parent
-        mapping = _Mapping({}, {})
+        exposed_inputs = config.exposes.inputs if config.exposes and config.exposes.inputs else []
+        exposed_outputs = config.exposes.outputs if config.exposes and config.exposes.outputs else []
+        mapping = _Mapping({}, {}, {i: [] for i in exposed_inputs}, {i: [] for i in exposed_outputs})
 
         # step 1: parse all the interfaces
         nodes = [
-            self._parse_node_entry(node, node_dir, parents, mapping)
+            self._parse_node_entry(node, node_dir, parent, mapping)
             for node in config.nodes
         ]
 
-        # step 2: resolve absolute edges
+        # step 2: resolve edges
         for node in nodes:
-            self._apply_edges(node, mapping)
+            self._apply_input_edges(parent, node, mapping)
+        self._apply_exposed_output_edges(parent, mapping)
 
         self.nodes += nodes
-        return config
 
-    # set the absolute edges on a node based on its interface and the name mapping in the yaml file
-    def _apply_edges(self, node: ConfiguredNode, mapping: _Mapping):
+        interface = self._build_graph_interface(nodes, mapping, exposed_inputs, exposed_outputs)
+        local_edges = list(chain(
+            chain.from_iterable(mapping.local_edges_by_exposed_input.values()),
+            chain.from_iterable(mapping.local_edges_by_exposed_output.values()),
+        ))
+
+        return _ParsedGraph(config.name, interface, local_edges)
+
+    def _build_graph_interface(self, nodes: List[ConfiguredNode], mapping: _Mapping, exposed_inputs: List[str],
+                               exposed_outputs: List[str]):
+        input_defs_by_name = {mapping.inputs[n.id][i.name]: i for n in nodes for i in n.interface.inputs}
+        # Copy the graph port definitions from the originating node, changing the name to the exposed name
+        outputs = [mapping.outputs[o][1].copy(update={'name': o}) for o in exposed_outputs]
+        inputs = [input_defs_by_name[i].copy(update={'name': i}) for i in exposed_inputs]
+        return NodeInterface(inputs=inputs, outputs=outputs, parameters=[])
+
+    # set local edges on a node based on its inputs
+    def _apply_input_edges(self, graph_id: Optional[NodeId], node: ConfiguredNode, mapping: _Mapping):
         for i in node.interface.inputs:
             name = mapping.inputs[node.id][i.name]
-            if name not in mapping.outputs:
-                if i.required:
-                    raise ValueError(f'Cannot find output named "{name}"')
-                continue
-            (src, o) = mapping.outputs[name]
+            if name in mapping.outputs:
+                (src, o) = mapping.outputs[name]
+                self._apply_edge(src.id, o.name, node.id, i.name, node.local_edges, src.local_edges)
+            elif name in mapping.local_edges_by_exposed_input:
+                self._apply_edge(graph_id, i.name, node.id, i.name, node.local_edges,
+                                 mapping.local_edges_by_exposed_input[name])
+            elif i.required:
+                raise ValueError(f'Cannot find output named "{name}"')
 
-            edge = GraphEdge(
-                input_path=PortId(node_id=src.id, port=o.name),
-                output_path=PortId(node_id=node.id, port=i.name),
-            )
-            node.local_edges.append(edge)
-            src.local_edges.append(edge)
+    # set local edges on any nodes connected to exposed outputs
+    def _apply_exposed_output_edges(self, graph_id: Optional[NodeId], mapping: _Mapping):
+        for (name, edges) in mapping.local_edges_by_exposed_output.items():
+            if name in mapping.outputs:
+                (src, o) = mapping.outputs[name]
+                self._apply_edge(src.id, o.name, graph_id, name, edges, src.local_edges)
+            else:
+                raise ValueError(f'Cannot find output named "{name}"')
 
-            # TODO: resolve
-            node.resolved_edges.append(edge)
-            src.resolved_edges.append(edge)
+    def _apply_edge(self, src_id: NodeId, src_name: str, dst_id: NodeId, dst_name: str,
+                    *all_edges: List[GraphEdge]):
+        assert src_id is not None
+        assert dst_id is not None
+        edge = GraphEdge(
+            input_path=PortId(node_id=src_id, port=src_name),
+            output_path=PortId(node_id=dst_id, port=dst_name),
+        )
+        for edges in all_edges:
+            edges.append(edge)
 
     # record all the output name mappings in this node's config
     def _track_outputs(
@@ -135,40 +173,41 @@ class _GraphBuilder:
         names.update({c.dst: c.src for c in (mappings or [])})
         mapping.inputs[node_id] = names
 
+    def _default_node_name(self, path: Path) -> str:
+        # For 'graph.yml' files, use the directory name
+        if path.suffix in ('.yml', '.yaml'):
+            return path.parent.name
+        # For py and sql files, use the file name
+        return path.stem
+
     def _parse_node_entry(
-        self, node: NodeCfg, node_dir: Path, parents: List[NodeId], mapping: _Mapping,
+        self, node: NodeCfg, node_dir: Path, parent: Optional[NodeId], mapping: _Mapping,
     ) -> ConfiguredNode:
         node_file_path = node_dir / node.node_file
-        node_name = node.name or node_file_path.stem
-        parent_node_id = parents[-1] if parents else None
-        node_id = node.id or NodeId.from_name(node_name, parent_node_id)
-        interface = self._get_node_interface(node_file_path, parents + [node_id])
+        node_name = node.name or self._default_node_name(node_file_path)
+        node_id = node.id or NodeId.from_name(node_name, parent)
+        interface = self._get_node_interface(node_file_path, node_id)
         configured_node = ConfiguredNode(
             name=node_name,
             node_type=interface.node_type,
             id=node_id,
             interface=interface.node,
-            node_depth=len(parents),
             description=node.description,
-            parent_node_id=parent_node_id,
+            parent_node_id=parent,
             file_path_to_node_script_relative_to_root=self._relative_path_str(
                 node_file_path
             ),
             parameter_values=node.parameters or {},
             schedule=node.schedule,
-            local_edges=[],  # we'll fill these in once we have all the nodes parsed
-            resolved_edges=[],
+            local_edges=interface.local_edges,
+            resolved_edges=[],  # we'll fill these in once we have all the nodes parsed
         )
 
-        self._track_outputs(
-            configured_node, interface.node.outputs, node.outputs, mapping
-        )
+        self._track_outputs(configured_node, interface.node.outputs, node.outputs, mapping)
         self._track_inputs(node_id, interface.node.inputs, node.inputs, mapping)
         return configured_node
 
-    def _get_node_interface(
-        self, node_file_path: Path, parents: List[str]
-    ) -> _Interface:
+    def _get_node_interface(self, node_file_path: Path, parent: Optional[NodeId]) -> _Interface:
         if not node_file_path.exists():
             raise ValueError(f"File {node_file_path} does not exist")
         if node_file_path in self._interfaces_by_file:
@@ -180,18 +219,18 @@ class _GraphBuilder:
         elif ext == ".sql":
             interface = self._parse_sql_file(node_file_path)
         elif ext in (".yml", ".yaml"):
-            interface = self._parse_subgraph_yaml(node_file_path, parents)
+            interface = self._parse_subgraph_yaml(node_file_path, parent)
         else:
             raise ValueError(f"Invalid node file type {node_file_path}")
         self._interfaces_by_file[node_file_path] = interface
         return interface
 
     def _parse_python_file(self, file: Path) -> _Interface:
-        return _Interface(read_interface_from_py_node_file(file), NodeType.Node)
+        return _Interface(read_interface_from_py_node_file(file), NodeType.Node, [])
 
     def _parse_sql_file(self, file: Path) -> _Interface:
-        return _Interface(parse_interface_from_sql(file.read_text()), NodeType.Node)
+        return _Interface(parse_interface_from_sql(file.read_text()), NodeType.Node, [])
 
-    def _parse_subgraph_yaml(self, file: Path, parents: List[str]) -> _Interface:
-        node_id = parents[-1]
-        raise NotImplementedError("Subgraphs are not currently supported")
+    def _parse_subgraph_yaml(self, file: Path, parent: Optional[NodeId]) -> _Interface:
+        parse = self._parse_graph_cfg(file, parent)
+        return _Interface(parse.interface, NodeType.Graph, parse.local_edges)

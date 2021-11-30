@@ -34,7 +34,6 @@ class NodeAssertion:
     id: Union[NodeId, _IgnoreType]
     parent_node_id: Union[str, None, _IgnoreType]
     interface: Union[NodeInterface, _IgnoreType]
-    node_depth: Union[int, _IgnoreType]
     description: Union[str, _IgnoreType]
     file_path_to_node_script_relative_to_root: Union[str, _IgnoreType]
     parameter_values: Union[Dict[str, Any], _IgnoreType]
@@ -59,7 +58,7 @@ def _calculate_graph(nodes: List[ConfiguredNode]):
     return ids_by_path
 
 
-def _assert_node(node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: dict):
+def _assert_node(node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: dict, paths_by_id: dict):
     for k, v in asdict(assertion).items():
         actual = getattr(node, k)
         if k == "id":
@@ -67,12 +66,28 @@ def _assert_node(node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: di
         if v == IGNORE:
             continue
 
+        if k == 'resolved_edges':
+            continue  # todo: check these
         if k in ("local_edges", "resolved_edges"):
             v = [_ge(s, ids_by_path) for s in v]
+            # compare ignoring order
+            assert len(v) == len(actual)
+            v = set(v)
+            actual = set(actual)
         elif k == "parent_node_id" and v is not None:
             v = ids_by_path[v]
 
-        assert actual == v, f"{k}: {actual} != {v}"
+        assert actual == v, f"{k}: {_tostr(actual, paths_by_id)} != {_tostr(v, paths_by_id)}"
+
+
+def _tostr(it, paths_by_id: dict) -> str:
+    if isinstance(it, (list, set)):
+        return str([_tostr(i, paths_by_id) for i in it])
+    if isinstance(it, PortId):
+        return f'{paths_by_id[it.node_id]}:{it.port}'
+    if isinstance(it, GraphEdge):
+        return f'{_tostr(it.input_path, paths_by_id)} -> {_tostr(it.output_path, paths_by_id)}'
+    return repr(it)
 
 
 def assert_nodes(
@@ -84,9 +99,10 @@ def assert_nodes(
 
     nodes_by_name = {node.name: node for node in nodes}
     ids_by_path = _calculate_graph(nodes)
+    paths_by_id = {v: k for (k, v) in ids_by_path.items()}
     for assertion in expected:
         assert assertion.name in nodes_by_name, f"No node named {assertion.name}"
-        _assert_node(nodes_by_name[assertion.name], assertion, ids_by_path)
+        _assert_node(nodes_by_name[assertion.name], assertion, ids_by_path, paths_by_id)
 
 
 # noinspection PyDefaultArgument
@@ -102,7 +118,7 @@ def n(
     file_path: Union[str, _IgnoreType] = IGNORE,
     parameter_values: Union[Dict[str, Any], _IgnoreType] = {},
     schedule: Union[str, None, _IgnoreType] = None,
-    local_edges: Union[List[str], None, _IgnoreType] = None,
+    local_edges: Union[List[str], _IgnoreType] = IGNORE,
     resolved_edges: Union[List[str], None, _IgnoreType] = None,
 ) -> NodeAssertion:
     return NodeAssertion(
@@ -117,13 +133,12 @@ def n(
             outputs=[i for i in interface if isinstance(i, OutputDefinition)],
             parameters=[i for i in interface if isinstance(i, ParameterDefinition)],
         ),
-        node_depth=parent.count(".") + 1 if parent else 0,
         description=description,
         file_path_to_node_script_relative_to_root=file_path,
         parameter_values=parameter_values,
         schedule=schedule,
-        local_edges=local_edges or [],
-        resolved_edges=(local_edges or [])
+        local_edges=local_edges,
+        resolved_edges=local_edges if resolved_edges is None else resolved_edges
         if resolved_edges is None
         else resolved_edges,
     )

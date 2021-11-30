@@ -70,8 +70,6 @@ class ConfiguredNode(FrozenPydanticBase):
     id: NodeId
     # declared ports
     interface: NodeInterface
-    # distance from root graph, starts at 0
-    node_depth: int
     description: str = None
     parent_node_id: NodeId = None
     file_path_to_node_script_relative_to_root: str = None

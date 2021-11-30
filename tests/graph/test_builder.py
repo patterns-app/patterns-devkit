@@ -116,7 +116,6 @@ def test_fanout_graph():
         ),
         n(
             "pass2",
-            node_type=NodeType.Node,
             interface=[istream("pass_in"), ostream("pass_out")],
             file_path="pass.py",
             local_edges=[
@@ -136,129 +135,56 @@ def test_fanout_graph():
     )
 
 
-def test_fanout_nested_graph():
-    manifest = _build_manifest("fanout_nested_graph")
-    assert manifest.graph_name == "fanout_nested_graph"
+def test_nested_graph():
+    manifest = _build_manifest("nested_graph")
 
     assert_nodes(
         manifest.nodes,
-        n("source"),
         n(
-            "pass",
-            interface=[istream("pass_in"), ostream("pass_out")],
-            file_path="pass.py",
-            resolved_edges=[],  # TODO
+            "source",
+            interface=[ostream("source_stream")],
+            file_path="source.py",
+            local_edges=["source:source_stream -> mid:leaf_in"],
+            resolved_edges=["source:source_stream -> mid.leaf.node:leaf_in"],
         ),
         n(
-            "sub1",
+            "mid",
             node_type=NodeType.Graph,
-            interface=[istream("subgraph_in"), ostream("subgraph_out")],
-            file_path="subgraph/graph.yml",
-            resolved_edges=[
-                "pass:pass_out -> sub1:subgraph_in",
-                "sub1:subgraph_out -> sub2:subgraph_in",
-                "sub1:subgraph_in -> sub1.pass:pass_in",
-                "sub1.subgraph:subgraph_out -> sub1:subgraph_out",
-            ],
+            interface=[istream("leaf_in", 'd', "S"), otable("leaf_out")],
+            file_path="mid/graph.yml",
+            local_edges=["source:source_stream -> mid:leaf_in",
+                         "mid:leaf_out -> sink:sink_table",
+                         "mid:leaf_in -> mid.leaf:leaf_in",
+                         "mid.leaf:leaf_out -> mid:leaf_out"],
+            resolved_edges=[],
         ),
         n(
-            name="sub2",
-            node_type=NodeType.Graph,
-            interface=[istream("subgraph_in"), ostream("subgraph_out")],
-            file_path="subgraph/graph.yml",
-            resolved_edges=[
-                "sub1:subgraph_out -> sub2:subgraph_in",
-                "sub2:subgraph_out -> sink:sink_stream",
-                "sub2:subgraph_in -> sub2.pass:pass_in",
-                "sub2.subgraph:subgraph_out -> sub2:subgraph_out",
-            ],
-        ),
-        n(
-            name="sink",
-            node_type=NodeType.Node,
-            interface=[istream("sink_stream")],
+            "sink",
+            interface=[itable("sink_table")],
             file_path="sink.py",
-            resolved_edges=[
-                "sub2:subgraph_out -> sink:sink_stream",
-                "sub2.subgraph.pass:subgraph_out -> sink:sink_stream",
-            ],
-        ),
-        # sub1
-        n(
-            name="pass",
-            node_type=NodeType.Node,
-            parent="sub1",
-            interface=[istream("pass_in"), ostream("pass_out")],
-            file_path="subgraph/pass.py",
-            resolved_edges=[
-                "pass:pass_out -> sub1.pass:pass_in",
-                "sub1:subgraph_in -> sub1.pass:pass_in",
-                "sub1.pass:pass_in -> sub1.subgraph:subgraph_in",
-                "sub1.pass:pass_out -> sub1.subgraph.pass:pass_in",
-            ],
+            local_edges=["mid:leaf_out -> sink:sink_table"],
+            resolved_edges=["mid.leaf.node:leaf_out -> sink:sink_table"],
         ),
         n(
-            name="subgraph",
+            "leaf",
             node_type=NodeType.Graph,
-            parent="sub1",
-            interface=[istream("subgraph_in"), ostream("subgraph_out")],
-            file_path="subgraph/subgraph/graph.yml",
-            resolved_edges=[
-                "sub1.pass:pass_in -> sub1.subgraph:subgraph_in",
-                "sub1.subgraph:subgraph_out -> sub1:subgraph_out",
-            ],
-        ),
-        # sub1.subgraph
-        n(
-            name="pass",
-            node_type=NodeType.Node,
-            parent="sub1.subgraph",
-            interface=[istream("pass_in"), ostream("pass_out")],
-            file_path="subgraph/subgraph/pass.py",
-            resolved_edges=[
-                "sub1.pass:pass_out -> sub1.subgraph.pass:pass_in",
-                "sub1.subgraph:subgraph_in -> sub1.subgraph.pass:pass_in",
-                "sub1.subgraph.pass:subgraph_out -> sub1.subgraph:subgraph_out",
-                "sub1.subgraph.pass:subgraph_out -> sub2.pass:pass_in",
-            ],
-        ),
-        # sub2
-        n(
-            name="pass",
-            node_type=NodeType.Node,
-            parent="sub2",
-            interface=[istream("pass_in"), ostream("pass_out")],
-            file_path="subgraph/pass.py",
-            resolved_edges=[
-                "sub1.subgraph.pass:subgraph_out -> sub2.pass:pass_in",
-                "sub2:subgraph_in -> sub2.pass:pass_in",
-                "sub2.pass:pass_in -> sub2.subgraph:subgraph_in",
-                "sub2.pass:pass_out -> sub2.subgraph.pass:pass_in",
-            ],
+            parent='mid',
+            interface=[istream("leaf_in", 'd', "S"), otable("leaf_out")],
+            file_path="mid/leaf/graph.yml",
+            local_edges=["mid:leaf_in -> mid.leaf:leaf_in",
+                         "mid.leaf:leaf_out -> mid:leaf_out",
+                         "mid.leaf:leaf_in -> mid.leaf.node:leaf_in",
+                         "mid.leaf.node:leaf_out -> mid.leaf:leaf_out"],
+            resolved_edges=[],
         ),
         n(
-            name="subgraph",
-            node_type=NodeType.Graph,
-            parent="sub2",
-            interface=[istream("subgraph_in"), ostream("subgraph_out")],
-            file_path="subgraph/subgraph/graph.yml",
-            resolved_edges=[
-                "sub2.pass:pass_in -> sub2.subgraph:subgraph_in",
-                "sub2.subgraph:subgraph_out -> sub2:subgraph_out",
-            ],
-        ),
-        # sub2.subgraph
-        n(
-            name="pass",
-            node_type=NodeType.Node,
-            parent="sub2.subgraph",
-            interface=[istream("pass_in"), ostream("pass_out")],
-            file_path="subgraph/subgraph/pass.py",
-            resolved_edges=[
-                "sub2.pass:pass_out -> sub2.subgraph.pass:pass_in",
-                "sub2.subgraph:subgraph_in -> sub2.subgraph.pass:pass_in",
-                "sub2.subgraph.pass:subgraph_out -> sub2.subgraph:subgraph_out",
-                "sub2.subgraph.pass:subgraph_out -> sink:sink_stream",
-            ],
+            "node",
+            interface=[istream("leaf_in", 'd', "S"), otable("leaf_out")],
+            file_path="mid/leaf/node.py",
+            parent='mid.leaf',
+            local_edges=["mid.leaf:leaf_in -> mid.leaf.node:leaf_in",
+                         "mid.leaf.node:leaf_out -> mid.leaf:leaf_out"],
+            resolved_edges=["source:source_stream -> mid.leaf.node:leaf_in",
+                            "mid.leaf.node:leaf_out -> sink:sink_table"],
         ),
     )

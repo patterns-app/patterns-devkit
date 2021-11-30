@@ -1,0 +1,7 @@
+exposes:
+  inputs:
+    - leaf_in
+  outputs:
+    - leaf_out
+nodes:
+  - node_file: node.py
