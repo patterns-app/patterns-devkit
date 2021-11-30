@@ -18,4 +18,4 @@ def get_execution_logs(
         params["node_path"] = node_path
     resp = get(Endpoints.EXECUTION_EVENTS, params=params)
     resp.raise_for_status()
-    return resp.json()["execution_events"]
+    return resp.json().get("results", [])
