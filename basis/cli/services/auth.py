@@ -23,4 +23,4 @@ def list_organizations() -> list[dict]:
     resp = get(Endpoints.ORGANIZATIONS_LIST,)
     resp.raise_for_status()
     organizations = resp.json()
-    return organizations.get("organizations", [])
+    return organizations.get("results", [])
