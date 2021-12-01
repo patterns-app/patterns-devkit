@@ -7,7 +7,7 @@ import requests
 from basis.cli.config import read_local_basis_config, update_basis_config_with_auth
 from requests import Request, Response, Session
 
-API_BASE_URL = os.environ.get("BASIS_API_URL", "https://api-staging.getbasis.com/")
+API_BASE_URL = os.environ.get("BASIS_API_URL", "https://api.getbasis.com/")
 AUTH_TOKEN_PREFIX = "JWT"
 
 
