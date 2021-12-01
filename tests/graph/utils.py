@@ -32,7 +32,7 @@ class NodeAssertion:
     name: Union[str, _IgnoreType]
     node_type: Union[NodeType, _IgnoreType]
     id: Union[NodeId, _IgnoreType]
-    parent_node_id: Union[str, None, _IgnoreType]
+    parent_node_id: Union[str, None]
     interface: Union[NodeInterface, _IgnoreType]
     description: Union[str, _IgnoreType]
     file_path_to_node_script_relative_to_root: Union[str, _IgnoreType]
@@ -44,7 +44,7 @@ class NodeAssertion:
 
 def _calculate_graph(nodes: List[ConfiguredNode]):
     nodes_by_id = {n.id: n for n in nodes}
-    ids_by_path = {}
+    ids_by_path = {None: None}
 
     for node in nodes:
         parts = [node.name]
@@ -74,9 +74,9 @@ def _assert_node(node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: di
             v = set(v)
             actual = set(actual)
         elif k == "parent_node_id" and v is not None:
-            v = ids_by_path[v]
+            actual = paths_by_id[actual]
 
-        assert actual == v, f"{k}: {_tostr(actual, paths_by_id)} != {_tostr(v, paths_by_id)}"
+        assert actual == v, f"{k}: expected: {_tostr(v, paths_by_id)} but was: {_tostr(actual, paths_by_id)}"
 
 
 def _tostr(it, paths_by_id: dict) -> str:
@@ -93,15 +93,17 @@ def assert_nodes(
     nodes: List[ConfiguredNode], *expected: NodeAssertion, assert_length: bool = True
 ):
     assert len(nodes) == len({node.id for node in nodes}), "all ids must be unique"
-    if assert_length:
-        assert len(nodes) == len(expected)
 
-    nodes_by_name = {node.name: node for node in nodes}
+    if assert_length:
+        assert len(nodes) == len(expected), f'expected {len(expected)} nodes, got {len(nodes)}'
+
+    nodes_by_name_and_parent = {(node.name, node.parent_node_id): node for node in nodes}
     ids_by_path = _calculate_graph(nodes)
     paths_by_id = {v: k for (k, v) in ids_by_path.items()}
     for assertion in expected:
-        assert assertion.name in nodes_by_name, f"No node named {assertion.name}"
-        _assert_node(nodes_by_name[assertion.name], assertion, ids_by_path, paths_by_id)
+        parent_id = ids_by_path[assertion.parent_node_id]
+        node = nodes_by_name_and_parent[assertion.name, parent_id]
+        _assert_node(node, assertion, ids_by_path, paths_by_id)
 
 
 # noinspection PyDefaultArgument
@@ -109,7 +111,7 @@ def n(
     name: str,
     node_type: Union[NodeType, _IgnoreType] = NodeType.Node,
     id: Union[str, _IgnoreType] = IGNORE,
-    parent: Union[str, None, _IgnoreType] = None,
+    parent: Union[str, None] = None,
     interface: Union[
         List[Union[InputDefinition, OutputDefinition, ParameterDefinition]], _IgnoreType
     ] = IGNORE,

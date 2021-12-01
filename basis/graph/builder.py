@@ -28,14 +28,19 @@ _OutputsByName = Dict[str, Tuple[ConfiguredNode, OutputDefinition]]
 _InputMappingByNodeId = Dict[NodeId, Dict[str, str]]
 
 
+# per-graph node port name mapping and exposed edges
 @dataclass
 class _Mapping:
+    # dict of port name (with mapping applied) -> (node exposing that port, port definition)
     outputs: _OutputsByName
+    # dict of node id -> port name mapping from yaml
     inputs: _InputMappingByNodeId
+    # dicts of exposed port name -> list of edges connecting to that port
     local_edges_by_exposed_input: Dict[str, List[GraphEdge]]
     local_edges_by_exposed_output: Dict[str, List[GraphEdge]]
 
 
+# node parse result
 @dataclass
 class _Interface:
     node: NodeInterface
@@ -44,6 +49,7 @@ class _Interface:
     local_edges: List[GraphEdge]
 
 
+# graph parse result
 @dataclass
 class _ParsedGraph:
     name: Optional[str]
@@ -56,7 +62,6 @@ class _GraphBuilder:
         self.root_graph_location = root_graph_location
         self.root_dir = root_graph_location.parent
         self.nodes: List[ConfiguredNode] = []
-        self._interfaces_by_file: Dict[Path, _Interface] = {}
 
     def build(self) -> GraphManifest:
         parse = self._parse_graph_cfg(self.root_graph_location, None)
@@ -185,10 +190,12 @@ class _GraphBuilder:
                 vertex = nodes_by_id[vertex_port.node_id]
                 while vertex.node_type == NodeType.Graph:
                     vertex_port = next(
-                        e.input
-                        for e in vertex.local_edges
-                        if e.output == vertex_port
-                    )
+                        (e.input
+                         for e in vertex.local_edges
+                         if e.output == vertex_port)
+                        , None)
+                    if not vertex_port:
+                        raise RuntimeError(f'Could not find port for edge {local_edge}')
                     vertex = nodes_by_id[vertex_port.node_id]
                 self._set_edge(vertex_port.node_id, vertex_port.port, local_edge.output.node_id, local_edge.output.port,
                                node.resolved_edges, vertex.resolved_edges)
@@ -206,7 +213,7 @@ class _GraphBuilder:
         node_file_path = node_dir / node.node_file
         node_name = node.name or self._default_node_name(node_file_path)
         node_id = node.id or NodeId.from_name(node_name, parent)
-        interface = self._get_node_interface(node_file_path, node_id)
+        interface = self._parse_node_interface(node_file_path, node_id)
         configured_node = ConfiguredNode(
             name=node_name,
             node_type=interface.node_type,
@@ -227,11 +234,9 @@ class _GraphBuilder:
         self._track_inputs(node_id, interface.node.inputs, node.inputs, mapping)
         return configured_node
 
-    def _get_node_interface(self, node_file_path: Path, parent: Optional[NodeId]) -> _Interface:
+    def _parse_node_interface(self, node_file_path: Path, parent: Optional[NodeId]) -> _Interface:
         if not node_file_path.exists():
             raise ValueError(f"File {node_file_path} does not exist")
-        if node_file_path in self._interfaces_by_file:
-            return self._interfaces_by_file[node_file_path]
 
         ext = node_file_path.suffix
         if ext == ".py":
@@ -242,7 +247,6 @@ class _GraphBuilder:
             interface = self._parse_subgraph_yaml(node_file_path, parent)
         else:
             raise ValueError(f"Invalid node file type {node_file_path}")
-        self._interfaces_by_file[node_file_path] = interface
         return interface
 
     def _parse_python_file(self, file: Path) -> _Interface:

@@ -1,0 +1,14 @@
+nodes:
+  - node_file: source.py
+  - node_file: sub/graph.yml
+    inputs:
+      - source_stream -> sub_in
+    outputs:
+      - sub_out -> sub1_out
+  - node_file: sub/graph.yml
+    name: sub2
+    inputs:
+      - sub1_out -> sub_in
+    outputs:
+      - sub_out -> sink_table
+  - node_file: sink.py
