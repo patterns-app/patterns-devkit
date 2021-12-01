@@ -17,7 +17,7 @@ def test_login():
     with reqest_mocker() as m:
         m.get(
             API_BASE_URL + Endpoints.ORGANIZATIONS_LIST,
-            json={"organizations": [{"uid": "org-1-uid", "name": "org-1"}]},
+            json={"results": [{"uid": "org-1-uid", "name": "org-1"}]},
         )
         inputs = "\n".join([un]) + "\n"
         command_tester.execute(f"-p {pw}", inputs=inputs)
