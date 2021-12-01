@@ -1,7 +1,11 @@
 exposes:
   inputs:
-    - leaf_in
+    - mid_in
   outputs:
-    - leaf_out
+    - mid_out
 nodes:
   - node_file: leaf/graph.yml
+    inputs:
+      - mid_in -> leaf_in
+    outputs:
+      - leaf_out -> mid_out

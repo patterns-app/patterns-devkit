@@ -66,12 +66,11 @@ def _assert_node(node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: di
         if v == IGNORE:
             continue
 
-        if k == 'resolved_edges':
-            continue  # todo: check these
         if k in ("local_edges", "resolved_edges"):
             v = [_ge(s, ids_by_path) for s in v]
             # compare ignoring order
-            assert len(v) == len(actual)
+            assert len(v) == len(set(v))
+            assert len(actual) == len(set(actual)), f'{k}, dupe: {_tostr(actual, paths_by_id)}'
             v = set(v)
             actual = set(actual)
         elif k == "parent_node_id" and v is not None:
@@ -86,7 +85,7 @@ def _tostr(it, paths_by_id: dict) -> str:
     if isinstance(it, PortId):
         return f'{paths_by_id[it.node_id]}:{it.port}'
     if isinstance(it, GraphEdge):
-        return f'{_tostr(it.input_path, paths_by_id)} -> {_tostr(it.output_path, paths_by_id)}'
+        return f'{_tostr(it.input, paths_by_id)} -> {_tostr(it.output, paths_by_id)}'
     return repr(it)
 
 
@@ -212,6 +211,6 @@ def _ge(s: str, ids_by_path: dict) -> GraphEdge:
     ln, lp = l.split(":")
     rn, rp = r.split(":")
     return GraphEdge(
-        input_path=PortId(node_id=ids_by_path[ln], port=lp),
-        output_path=PortId(node_id=ids_by_path[rn], port=rp),
+        input=PortId(node_id=ids_by_path[ln], port=lp),
+        output=PortId(node_id=ids_by_path[rn], port=rp),
     )

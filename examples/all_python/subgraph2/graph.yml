@@ -1,8 +1,0 @@
-name: app2
-nodes:
-  - name: cross_app_ref
-    component: basis_modules.core.dedupe
-    input: app1.source1_refunds # Reference across apps
-  - name: sql_comp
-    component: component3
-    # input: cross_app_ref

@@ -5,3 +5,7 @@ exposes:
     - leaf_out
 nodes:
   - node_file: node.py
+    inputs:
+      - leaf_in -> node_in
+    outputs:
+      - node_out -> leaf_out

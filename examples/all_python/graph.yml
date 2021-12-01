@@ -1,8 +1,0 @@
-nodes:
-  - node_file: import_transactions.py
-  - node_file: basis_marketplace.stripe.import_stripe_charges
-    name: optional....
-    inputs:
-      - myoutput -> input1 
-    parameter_values: 
-    description: mymarkdown.md

@@ -48,5 +48,5 @@ class PortId(FrozenPydanticBase):
 
 
 class GraphEdge(FrozenPydanticBase):
-    input_path: PortId
-    output_path: PortId
+    input: PortId
+    output: PortId

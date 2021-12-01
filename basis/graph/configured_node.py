@@ -82,22 +82,22 @@ class ConfiguredNode(FrozenPydanticBase):
 
     def local_input_edges(self) -> Iterator[GraphEdge]:
         for e in self.local_edges:
-            if e.output_path.node_id == self.id:
+            if e.output.node_id == self.id:
                 yield e
 
     def local_output_edges(self) -> Iterator[GraphEdge]:
         for e in self.local_edges:
-            if e.input_path.node_id == self.id:
+            if e.input.node_id == self.id:
                 yield e
 
     def resolved_input_edges(self) -> Iterator[GraphEdge]:
         for e in self.resolved_edges:
-            if e.output_path.node_id == self.id:
+            if e.output.node_id == self.id:
                 yield e
 
     def resolved_output_edges(self) -> Iterator[GraphEdge]:
         for e in self.resolved_edges:
-            if e.input_path.node_id == self.id:
+            if e.input.node_id == self.id:
                 yield e
 
 

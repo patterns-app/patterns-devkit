@@ -60,6 +60,7 @@ class _GraphBuilder:
 
     def build(self) -> GraphManifest:
         parse = self._parse_graph_cfg(self.root_graph_location, None)
+        self._resolve_edges()
         return GraphManifest(
             graph_name=parse.name or self.root_dir.name,
             manifest_version=CURRENT_MANIFEST_SCHEMA_VERSION,
@@ -91,10 +92,9 @@ class _GraphBuilder:
             for node in config.nodes
         ]
 
-        # step 2: resolve edges
-        for node in nodes:
-            self._apply_input_edges(parent, node, mapping)
-        self._apply_exposed_output_edges(parent, mapping)
+        # step 2: set local edges
+        self._set_local_input_edges(parent, nodes, mapping)
+        self._set_local_exposed_output_edges(parent, mapping)
 
         self.nodes += nodes
 
@@ -106,43 +106,45 @@ class _GraphBuilder:
 
         return _ParsedGraph(config.name, interface, local_edges)
 
+    # create a NodeInterface from a graph node's exposed ports
     def _build_graph_interface(self, nodes: List[ConfiguredNode], mapping: _Mapping, exposed_inputs: List[str],
-                               exposed_outputs: List[str]):
+                               exposed_outputs: List[str]) -> NodeInterface:
         input_defs_by_name = {mapping.inputs[n.id][i.name]: i for n in nodes for i in n.interface.inputs}
         # Copy the graph port definitions from the originating node, changing the name to the exposed name
         outputs = [mapping.outputs[o][1].copy(update={'name': o}) for o in exposed_outputs]
         inputs = [input_defs_by_name[i].copy(update={'name': i}) for i in exposed_inputs]
         return NodeInterface(inputs=inputs, outputs=outputs, parameters=[])
 
-    # set local edges on a node based on its inputs
-    def _apply_input_edges(self, graph_id: Optional[NodeId], node: ConfiguredNode, mapping: _Mapping):
-        for i in node.interface.inputs:
-            name = mapping.inputs[node.id][i.name]
-            if name in mapping.outputs:
-                (src, o) = mapping.outputs[name]
-                self._apply_edge(src.id, o.name, node.id, i.name, node.local_edges, src.local_edges)
-            elif name in mapping.local_edges_by_exposed_input:
-                self._apply_edge(graph_id, i.name, node.id, i.name, node.local_edges,
-                                 mapping.local_edges_by_exposed_input[name])
-            elif i.required:
-                raise ValueError(f'Cannot find output named "{name}"')
+    # set local edges connected to nodes' inputs
+    def _set_local_input_edges(self, graph_id: Optional[NodeId], nodes: List[ConfiguredNode], mapping: _Mapping):
+        for node in nodes:
+            for i in node.interface.inputs:
+                name = mapping.inputs[node.id][i.name]
+                if name in mapping.outputs:
+                    (src, o) = mapping.outputs[name]
+                    self._set_edge(src.id, o.name, node.id, i.name, node.local_edges, src.local_edges)
+                elif name in mapping.local_edges_by_exposed_input:
+                    self._set_edge(graph_id, name, node.id, i.name, node.local_edges,
+                                   mapping.local_edges_by_exposed_input[name])
+                elif i.required:
+                    raise ValueError(f'Cannot find output named "{name}"')
 
     # set local edges on any nodes connected to exposed outputs
-    def _apply_exposed_output_edges(self, graph_id: Optional[NodeId], mapping: _Mapping):
+    def _set_local_exposed_output_edges(self, graph_id: Optional[NodeId], mapping: _Mapping):
         for (name, edges) in mapping.local_edges_by_exposed_output.items():
             if name in mapping.outputs:
                 (src, o) = mapping.outputs[name]
-                self._apply_edge(src.id, o.name, graph_id, name, edges, src.local_edges)
+                self._set_edge(src.id, o.name, graph_id, name, edges, src.local_edges)
             else:
                 raise ValueError(f'Cannot find output named "{name}"')
 
-    def _apply_edge(self, src_id: NodeId, src_name: str, dst_id: NodeId, dst_name: str,
-                    *all_edges: List[GraphEdge]):
+    def _set_edge(self, src_id: NodeId, src_name: str, dst_id: NodeId, dst_name: str,
+                  *all_edges: List[GraphEdge]):
         assert src_id is not None
         assert dst_id is not None
         edge = GraphEdge(
-            input_path=PortId(node_id=src_id, port=src_name),
-            output_path=PortId(node_id=dst_id, port=dst_name),
+            input=PortId(node_id=src_id, port=src_name),
+            output=PortId(node_id=dst_id, port=dst_name),
         )
         for edges in all_edges:
             edges.append(edge)
@@ -172,6 +174,24 @@ class _GraphBuilder:
         names = {n.name: n.name for n in inputs}
         names.update({c.dst: c.src for c in (mappings or [])})
         mapping.inputs[node_id] = names
+
+    def _resolve_edges(self):
+        nodes_by_id: Dict[NodeId, ConfiguredNode] = {node.id: node for node in self.nodes}
+        for node in self.nodes:
+            if node.node_type == NodeType.Graph:
+                continue
+            for local_edge in node.local_input_edges():
+                vertex_port = local_edge.input
+                vertex = nodes_by_id[vertex_port.node_id]
+                while vertex.node_type == NodeType.Graph:
+                    vertex_port = next(
+                        e.input
+                        for e in vertex.local_edges
+                        if e.output == vertex_port
+                    )
+                    vertex = nodes_by_id[vertex_port.node_id]
+                self._set_edge(vertex_port.node_id, vertex_port.port, local_edge.output.node_id, local_edge.output.port,
+                               node.resolved_edges, vertex.resolved_edges)
 
     def _default_node_name(self, path: Path) -> str:
         # For 'graph.yml' files, use the directory name

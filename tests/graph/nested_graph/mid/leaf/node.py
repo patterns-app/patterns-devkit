@@ -2,8 +2,8 @@ from basis.node.node import node, InputStream, OutputTable
 
 
 @node
-def leaf(
-    leaf_in=InputStream(description="d", schema="S"),
-    leaf_out=OutputTable,
+def node(
+    node_in=InputStream(description="d", schema="S"),
+    node_out=OutputTable,
 ):
     pass
