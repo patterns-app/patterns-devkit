@@ -73,7 +73,7 @@ class ConfiguredNode(FrozenPydanticBase):
     description: str = None
     parent_node_id: NodeId = None
     file_path_to_node_script_relative_to_root: str = None
-    parameter_values: Dict[str, Any]  # todo: copy into children?
+    parameter_values: Dict[str, Any]
     schedule: str = None
     # edges as declared in the node, may point to graph nodes, will not point to nodes in sub- or super-graphs.
     local_edges: List[GraphEdge]

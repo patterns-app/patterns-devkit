@@ -58,7 +58,9 @@ def _calculate_graph(nodes: List[ConfiguredNode]):
     return ids_by_path
 
 
-def _assert_node(node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: dict, paths_by_id: dict):
+def _assert_node(
+    node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: dict, paths_by_id: dict
+):
     for k, v in asdict(assertion).items():
         actual = getattr(node, k)
         if k == "id":
@@ -70,22 +72,26 @@ def _assert_node(node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: di
             v = [_ge(s, ids_by_path) for s in v]
             # compare ignoring order
             assert len(v) == len(set(v))
-            assert len(actual) == len(set(actual)), f'{k}, dupe: {_tostr(actual, paths_by_id)}'
+            assert len(actual) == len(
+                set(actual)
+            ), f"{k}, dupe: {_tostr(actual, paths_by_id)}"
             v = set(v)
             actual = set(actual)
         elif k == "parent_node_id" and v is not None:
             actual = paths_by_id[actual]
 
-        assert actual == v, f"{k}: expected: {_tostr(v, paths_by_id)} but was: {_tostr(actual, paths_by_id)}"
+        assert (
+            actual == v
+        ), f"{k}: expected: {_tostr(v, paths_by_id)} but was: {_tostr(actual, paths_by_id)}"
 
 
 def _tostr(it, paths_by_id: dict) -> str:
     if isinstance(it, (list, set)):
         return str([_tostr(i, paths_by_id) for i in it])
     if isinstance(it, PortId):
-        return f'{paths_by_id[it.node_id]}:{it.port}'
+        return f"{paths_by_id[it.node_id]}:{it.port}"
     if isinstance(it, GraphEdge):
-        return f'{_tostr(it.input, paths_by_id)} -> {_tostr(it.output, paths_by_id)}'
+        return f"{_tostr(it.input, paths_by_id)} -> {_tostr(it.output, paths_by_id)}"
     return repr(it)
 
 
@@ -95,9 +101,13 @@ def assert_nodes(
     assert len(nodes) == len({node.id for node in nodes}), "all ids must be unique"
 
     if assert_length:
-        assert len(nodes) == len(expected), f'expected {len(expected)} nodes, got {len(nodes)}'
+        assert len(nodes) == len(
+            expected
+        ), f"expected {len(expected)} nodes, got {len(nodes)}"
 
-    nodes_by_name_and_parent = {(node.name, node.parent_node_id): node for node in nodes}
+    nodes_by_name_and_parent = {
+        (node.name, node.parent_node_id): node for node in nodes
+    }
     ids_by_path = _calculate_graph(nodes)
     paths_by_id = {v: k for (k, v) in ids_by_path.items()}
     for assertion in expected:
@@ -139,7 +149,9 @@ def n(
         parameter_values=parameter_values,
         schedule=schedule,
         local_edges=local_edges,
-        resolved_edges=local_edges if resolved_edges is None else resolved_edges
+        resolved_edges=local_edges
+        if resolved_edges is None
+        else resolved_edges
         if resolved_edges is None
         else resolved_edges,
     )
