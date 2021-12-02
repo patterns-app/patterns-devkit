@@ -9,7 +9,7 @@ def trigger_node(
     resp = post(
         Endpoints.DEPLOYMENTS_TRIGGER_NODE,
         json={
-            "absolute_node_path": absolute_node_path,
+            "node_id": absolute_node_path,
             "environment_name": environment_name,
             "graph_version_uid": graph_version_uid,
         },
