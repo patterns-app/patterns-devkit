@@ -1,8 +1,7 @@
 from pathlib import Path
 
-from basis import GraphManifest
 from basis.configuration.path import NodeId
-from basis.graph.builder import graph_manifest_from_yaml
+from basis.graph.builder import graph_manifest_from_yaml, GraphManifest
 from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
 from tests.graph.utils import p, ostream, istream, itable, otable, assert_nodes, n
 

@@ -1,4 +1,4 @@
-from basis.node.node import node, OutputStream, InputStream, Parameter
+from basis import *
 
 
 @node

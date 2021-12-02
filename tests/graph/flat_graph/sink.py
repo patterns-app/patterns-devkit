@@ -1,6 +1,6 @@
-from basis.node.node import node, InputTable
+from basis import *
 
 
 @node
-def sink(sink_table=InputTable,):
+def sink(sink_table=InputTable):
     pass
