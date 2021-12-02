@@ -1,4 +1,4 @@
-from basis.node.node import node, InputTable
+from basis import *
 
 
 @node
