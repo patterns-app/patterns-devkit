@@ -1,0 +1,8 @@
+nodes:
+  - node_file: source.py
+    outputs:
+      - source_stream -> mid_in
+  - node_file: mid/graph.yml
+  - node_file: sink.py
+    inputs:
+      - mid_out -> sink_table

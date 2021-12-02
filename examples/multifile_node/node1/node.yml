@@ -1,9 +1,0 @@
-uid: sexy-hippo-f23d
-name: mynode
-node_definition: node1.py
-description: >
-  This is my node, it does magical things with data
-parameters:
-  - name: myparam
-    type: text
-    default: My default text

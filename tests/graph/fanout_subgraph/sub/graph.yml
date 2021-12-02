@@ -1,0 +1,11 @@
+exposes:
+  inputs:
+    - sub_in
+  outputs:
+    - sub_out
+nodes:
+  - node_file: node.py
+    inputs:
+      - sub_in -> node_in
+    outputs:
+      - node_out -> sub_out

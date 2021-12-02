@@ -1,0 +1,11 @@
+exposes:
+  inputs:
+    - mid_in
+  outputs:
+    - mid_out
+nodes:
+  - node_file: leaf/graph.yml
+    inputs:
+      - mid_in -> leaf_in
+    outputs:
+      - leaf_out -> mid_out

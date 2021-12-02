@@ -22,8 +22,10 @@ def test_flat_graph():
     node = result[0]
     assert manifest.get_node_by_id(node.id) == node
 
-    assert list(node.input_edges()) == [node.absolute_edges[0]]
-    assert list(node.output_edges()) == [node.absolute_edges[1]]
+    assert list(node.local_input_edges()) == [node.local_edges[0]]
+    assert list(node.resolved_input_edges()) == [node.local_edges[0]]
+    assert list(node.local_output_edges()) == [node.resolved_edges[1]]
+    assert list(node.resolved_output_edges()) == [node.resolved_edges[1]]
 
     assert_nodes(
         manifest.nodes,
@@ -31,9 +33,8 @@ def test_flat_graph():
             "source",
             id=NodeId.from_name("source", None),
             interface=[ostream("source_stream")],
-            node_depth=0,
             file_path="source.py",
-            absolute_edges=["source:source_stream -> pass:source_stream"],
+            local_edges=["source:source_stream -> pass:source_stream"],
         ),
         n(
             "pass",
@@ -45,10 +46,9 @@ def test_flat_graph():
                 p("explicit_param", "bool", "param desc", False),
                 p("plain_param"),
             ],
-            node_depth=0,
             file_path="passthrough.py",
             parameter_values={"plain_param": "test value"},
-            absolute_edges=[
+            local_edges=[
                 "source:source_stream -> pass:source_stream",
                 "pass:passthrough_stream -> mapper:input_stream",
             ],
@@ -57,11 +57,7 @@ def test_flat_graph():
             "mapper",
             interface=[istream("input_stream"), otable("output_table")],
             file_path="mapper/mapper.py",
-            declared_edges=[
-                "passthrough_stream -> input_stream",
-                "output_table -> query_table",
-            ],
-            absolute_edges=[
+            local_edges=[
                 "pass:passthrough_stream -> mapper:input_stream",
                 "mapper:output_table -> query:query_table",
             ],
@@ -75,7 +71,7 @@ def test_flat_graph():
             ],
             file_path="query.sql",
             parameter_values={"num": 0},
-            absolute_edges=[
+            local_edges=[
                 "mapper:output_table -> query:query_table",
                 "query:sink_table -> sink:sink_table",
             ],
@@ -85,7 +81,7 @@ def test_flat_graph():
             id="ManualId",
             interface=[itable("sink_table")],
             file_path="sink.py",
-            absolute_edges=["query:sink_table -> sink:sink_table"],
+            local_edges=["query:sink_table -> sink:sink_table"],
         ),
     )
 
@@ -104,7 +100,7 @@ def test_fanout_graph():
             "source",
             interface=[ostream("source_stream")],
             file_path="source.py",
-            absolute_edges=[
+            local_edges=[
                 "source:source_stream -> pass1:pass_in",
                 "source:source_stream -> pass2:pass_in",
             ],
@@ -113,19 +109,16 @@ def test_fanout_graph():
             "pass1",
             interface=[istream("pass_in"), ostream("pass_out")],
             file_path="pass.py",
-            declared_edges=["source_stream -> pass_in", "pass_out -> sink_stream1"],
-            absolute_edges=[
+            local_edges=[
                 "source:source_stream -> pass1:pass_in",
                 "pass1:pass_out -> sink:sink_stream1",
             ],
         ),
         n(
             "pass2",
-            node_type=NodeType.Node,
             interface=[istream("pass_in"), ostream("pass_out")],
             file_path="pass.py",
-            declared_edges=["source_stream -> pass_in", "pass_out -> sink_stream2"],
-            absolute_edges=[
+            local_edges=[
                 "source:source_stream -> pass2:pass_in",
                 "pass2:pass_out -> sink:sink_stream2",
             ],
@@ -134,9 +127,147 @@ def test_fanout_graph():
             "sink",
             interface=[istream("sink_stream1"), istream("sink_stream2")],
             file_path="sink.py",
-            absolute_edges=[
+            local_edges=[
                 "pass1:pass_out -> sink:sink_stream1",
                 "pass2:pass_out -> sink:sink_stream2",
             ],
+        ),
+    )
+
+
+def test_nested_graph():
+    manifest = _build_manifest("nested_graph")
+
+    assert_nodes(
+        manifest.nodes,
+        n(
+            "source",
+            interface=[ostream("source_stream")],
+            file_path="source.py",
+            local_edges=["source:source_stream -> mid:mid_in"],
+            resolved_edges=["source:source_stream -> mid.leaf.node:node_in"],
+        ),
+        n(
+            "mid",
+            node_type=NodeType.Graph,
+            interface=[istream("mid_in", "d", "S"), otable("mid_out")],
+            file_path="mid/graph.yml",
+            local_edges=[
+                "source:source_stream -> mid:mid_in",
+                "mid:mid_out -> sink:sink_table",
+                "mid:mid_in -> mid.leaf:leaf_in",
+                "mid.leaf:leaf_out -> mid:mid_out",
+            ],
+            resolved_edges=[],
+        ),
+        n(
+            "sink",
+            interface=[itable("sink_table")],
+            file_path="sink.py",
+            local_edges=["mid:mid_out -> sink:sink_table"],
+            resolved_edges=["mid.leaf.node:node_out -> sink:sink_table"],
+        ),
+        n(
+            "leaf",
+            node_type=NodeType.Graph,
+            parent="mid",
+            interface=[istream("leaf_in", "d", "S"), otable("leaf_out")],
+            file_path="mid/leaf/graph.yml",
+            local_edges=[
+                "mid:mid_in -> mid.leaf:leaf_in",
+                "mid.leaf:leaf_out -> mid:mid_out",
+                "mid.leaf:leaf_in -> mid.leaf.node:node_in",
+                "mid.leaf.node:node_out -> mid.leaf:leaf_out",
+            ],
+            resolved_edges=[],
+        ),
+        n(
+            "node",
+            interface=[istream("node_in", "d", "S"), otable("node_out")],
+            file_path="mid/leaf/node.py",
+            parent="mid.leaf",
+            local_edges=[
+                "mid.leaf:leaf_in -> mid.leaf.node:node_in",
+                "mid.leaf.node:node_out -> mid.leaf:leaf_out",
+            ],
+            resolved_edges=[
+                "source:source_stream -> mid.leaf.node:node_in",
+                "mid.leaf.node:node_out -> sink:sink_table",
+            ],
+        ),
+    )
+
+
+def test_fanout_subgraph():
+    manifest = _build_manifest("fanout_subgraph")
+    assert_nodes(
+        manifest.nodes,
+        n(
+            "source",
+            interface=[ostream("source_stream")],
+            file_path="source.py",
+            local_edges=["source:source_stream -> sub:sub_in"],
+            resolved_edges=["source:source_stream -> sub.node:node_in"],
+        ),
+        n(
+            "sub",
+            node_type=NodeType.Graph,
+            interface=[istream("sub_in", "d", "S"), otable("sub_out")],
+            file_path="sub/graph.yml",
+            local_edges=[
+                "source:source_stream -> sub:sub_in",
+                "sub:sub_out -> sub2:sub_in",
+                "sub:sub_in -> sub.node:node_in",
+                "sub.node:node_out -> sub:sub_out",
+            ],
+            resolved_edges=[],
+        ),
+        n(
+            "sub2",
+            node_type=NodeType.Graph,
+            interface=[istream("sub_in", "d", "S"), otable("sub_out")],
+            file_path="sub/graph.yml",
+            local_edges=[
+                "sub:sub_out -> sub2:sub_in",
+                "sub2:sub_out -> sink:sink_table",
+                "sub2:sub_in -> sub2.node:node_in",
+                "sub2.node:node_out -> sub2:sub_out",
+            ],
+            resolved_edges=[],
+        ),
+        n(
+            "node",
+            interface=[istream("node_in", "d", "S"), otable("node_out")],
+            file_path="sub/node.py",
+            parent="sub",
+            local_edges=[
+                "sub:sub_in -> sub.node:node_in",
+                "sub.node:node_out -> sub:sub_out",
+            ],
+            resolved_edges=[
+                "source:source_stream -> sub.node:node_in",
+                "sub.node:node_out -> sub2.node:node_in",
+            ],
+        ),
+        n(
+            "node",
+            interface=[istream("node_in", "d", "S"), otable("node_out")],
+            file_path="sub/node.py",
+            parent="sub2",
+            local_edges=[
+                "sub2:sub_in -> sub2.node:node_in",
+                "sub2.node:node_out -> sub2:sub_out",
+            ],
+            resolved_edges=[
+                "sub.node:node_out -> sub2.node:node_in",
+                "sub2.node:node_out -> sink:sink_table",
+            ],
+        ),
+        n(
+            "sink",
+            interface=[itable("sink_table")],
+            file_path="sink.py",
+            local_edges=["sub2:sub_out -> sink:sink_table"],
+            resolved_edges=["sub2.node:node_out -> sink:sink_table"],
         ),
     )

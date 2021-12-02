@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterator, List, Union
 from commonmodel import Schema
 
 from basis.configuration.base import FrozenPydanticBase
-from basis.configuration.path import AbsoluteEdge, DeclaredEdge, NodeId
+from basis.configuration.path import GraphEdge, NodeId
 
 """The version of schemas generated with this code"""
 CURRENT_MANIFEST_SCHEMA_VERSION = 1
@@ -70,26 +70,34 @@ class ConfiguredNode(FrozenPydanticBase):
     id: NodeId
     # declared ports
     interface: NodeInterface
-    # distance from root graph, starts at 0
-    node_depth: int
     description: str = None
     parent_node_id: NodeId = None
     file_path_to_node_script_relative_to_root: str = None
-    # Configuration
     parameter_values: Dict[str, Any]
     schedule: str = None
-    # Graph configuration
-    declared_edges: List[DeclaredEdge]
-    absolute_edges: List[AbsoluteEdge]
+    # edges as declared in the node, may point to graph nodes, will not point to nodes in sub- or super-graphs.
+    local_edges: List[GraphEdge]
+    # resolved edges will only point to execution nodes, may point to nodes in sub- or super-graphs.
+    resolved_edges: List[GraphEdge]
 
-    def input_edges(self) -> Iterator[AbsoluteEdge]:
-        for e in self.absolute_edges:
-            if e.output_path.node_id == self.id:
+    def local_input_edges(self) -> Iterator[GraphEdge]:
+        for e in self.local_edges:
+            if e.output.node_id == self.id:
                 yield e
 
-    def output_edges(self) -> Iterator[AbsoluteEdge]:
-        for e in self.absolute_edges:
-            if e.input_path.node_id == self.id:
+    def local_output_edges(self) -> Iterator[GraphEdge]:
+        for e in self.local_edges:
+            if e.input.node_id == self.id:
+                yield e
+
+    def resolved_input_edges(self) -> Iterator[GraphEdge]:
+        for e in self.resolved_edges:
+            if e.output.node_id == self.id:
+                yield e
+
+    def resolved_output_edges(self) -> Iterator[GraphEdge]:
+        for e in self.resolved_edges:
+            if e.input.node_id == self.id:
                 yield e
 
 
