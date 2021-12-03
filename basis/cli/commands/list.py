@@ -28,5 +28,5 @@ class ListCommand(BasisCommandBase, Command):
             table = self.table()
             keys = list(objects[0].keys())
             table.set_header_row(keys)
-            table.set_rows([list(d.values()) for d in objects])
+            table.set_rows([[str(d.get(k)) for k in keys] for d in objects])
             table.render(self.io)
