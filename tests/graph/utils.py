@@ -120,7 +120,7 @@ def assert_nodes(
         parent_id = ids_by_path[assertion.parent_node_id]
         node = nodes_by_name_and_parent[assertion.name, parent_id]
         errors.extend(GraphError(node_id=node.id, message=e) for e in assertion.errors)
-        # _assert_node(node, assertion, ids_by_path, paths_by_id)
+        _assert_node(node, assertion, ids_by_path, paths_by_id)
 
     ac = _unordered(manifest.errors)
     ex = _unordered(errors)
@@ -249,7 +249,7 @@ def _unordered(c: Collection) -> Set:
 
 def read_manifest(name: str) -> GraphManifest:
     pth = Path(__file__).parent / name / "graph.yml"
-    return graph_manifest_from_yaml(pth)
+    return graph_manifest_from_yaml(pth, allow_errors=True)
 
 
 def setup_manifest(root: Path, files: Dict[str, str]) -> GraphManifest:
@@ -263,4 +263,4 @@ def setup_manifest(root: Path, files: Dict[str, str]) -> GraphManifest:
         if len(Path(path).parts) > 1:
             abspath.parent.mkdir(parents=True, exist_ok=True)
         abspath.write_text(content)
-    return graph_manifest_from_yaml(root / "graph.yml")
+    return graph_manifest_from_yaml(root / "graph.yml", allow_errors=True)

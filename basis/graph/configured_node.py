@@ -130,3 +130,9 @@ class GraphManifest(FrozenPydanticBase):
             len(nodes) == 1
         ), f"Must be exactly one node of name `{name}`, found {len(nodes)}"
         return nodes[0]
+
+    def get_errors_for_node(self, node_or_id: Union[str, NodeId, ConfiguredNode]) -> Iterator[GraphError]:
+        id = node_or_id.id if isinstance(node_or_id, ConfiguredNode) else node_or_id
+        for error in self.errors:
+            if error.node_id == id:
+                yield error

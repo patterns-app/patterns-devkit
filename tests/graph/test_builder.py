@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from basis.configuration.path import NodeId
-from basis.graph.builder import graph_manifest_from_yaml, GraphManifest
+from basis.graph.builder import graph_manifest_from_yaml, GraphManifest, GraphError
 from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
 from tests.graph.utils import (
     p,
@@ -216,7 +216,7 @@ def test_fanout_subgraph():
         n(
             "sub",
             node_type=NodeType.Graph,
-            interface=[istream("sub_in", "d", "S"), otable("sub_out")],
+            interface=[istream("sub_in", "d", "S"), ostream("sub_out")],
             file_path="sub/graph.yml",
             local_edges=[
                 "source:source_stream -> sub:sub_in",
@@ -229,7 +229,7 @@ def test_fanout_subgraph():
         n(
             "sub2",
             node_type=NodeType.Graph,
-            interface=[istream("sub_in", "d", "S"), otable("sub_out")],
+            interface=[istream("sub_in", "d", "S"), ostream("sub_out")],
             file_path="sub/graph.yml",
             local_edges=[
                 "sub:sub_out -> sub2:sub_in",
@@ -241,7 +241,7 @@ def test_fanout_subgraph():
         ),
         n(
             "node",
-            interface=[istream("node_in", "d", "S"), otable("node_out")],
+            interface=[istream("node_in", "d", "S"), ostream("node_out")],
             file_path="sub/node.py",
             parent="sub",
             local_edges=[
@@ -255,7 +255,7 @@ def test_fanout_subgraph():
         ),
         n(
             "node",
-            interface=[istream("node_in", "d", "S"), otable("node_out")],
+            interface=[istream("node_in", "d", "S"), ostream("node_out")],
             file_path="sub/node.py",
             parent="sub2",
             local_edges=[
@@ -269,7 +269,7 @@ def test_fanout_subgraph():
         ),
         n(
             "sink",
-            interface=[itable("sink_table")],
+            interface=[istream("sink_table")],
             file_path="sink.py",
             local_edges=["sub2:sub_out -> sink:sink_table"],
             resolved_edges=["sub2.node:node_out -> sink:sink_table"],
@@ -344,7 +344,7 @@ def test_unconnected_outputs(tmp_path: Path):
         manifest,
         n("source", interface=[ostream("source_stream")]),
         n("sub", node_type=NodeType.Graph, interface=[otable("from_graph")]),
-        n("node", parent='sub', node_type=NodeType.Graph, interface=[otable("from_graph"), ostream("node_out")]),
+        n("node", parent='sub', interface=[otable("from_graph"), ostream("node_out")]),
     )
 
 
@@ -436,6 +436,11 @@ def test_err_duplicate_outputs(tmp_path: Path):
         n("source2", errors=["Duplicate output 'port'"]),
         n("sink"),
     )
+
+    node = manifest.get_single_node_by_name('source1')
+    assert list(manifest.get_errors_for_node(node)) == [
+        GraphError(node_id=node.id, message="Duplicate output 'port'")
+    ]
 
 
 def test_err_unresolved_ports(tmp_path: Path):
