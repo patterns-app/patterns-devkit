@@ -256,9 +256,9 @@ def setup_manifest(root: Path, files: Dict[str, str]) -> GraphManifest:
     for path, content in files.items():
         content = textwrap.dedent(content).strip()
         if path.endswith(".py"):
-            if not content.startswith('@node'):
-                content = f'@node\ndef generated_node(\n{content}\n):\n    pass'
-            content = 'from basis import *\n\n' + content
+            if not content.startswith("@node"):
+                content = f"@node\ndef generated_node(\n{content}\n):\n    pass"
+            content = "from basis import *\n\n" + content
         abspath = root / path
         if len(Path(path).parts) > 1:
             abspath.parent.mkdir(parents=True, exist_ok=True)

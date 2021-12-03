@@ -344,7 +344,7 @@ def test_unconnected_outputs(tmp_path: Path):
         manifest,
         n("source", interface=[ostream("source_stream")]),
         n("sub", node_type=NodeType.Graph, interface=[otable("from_graph")]),
-        n("node", parent='sub', interface=[otable("from_graph"), ostream("node_out")]),
+        n("node", parent="sub", interface=[otable("from_graph"), ostream("node_out")]),
     )
 
 
@@ -362,9 +362,7 @@ def test_err_unconnected_implicit_input(tmp_path: Path):
     )
 
     assert_nodes(
-        manifest,
-        n("source"),
-        n("sink", errors=['Cannot find output named "input"']),
+        manifest, n("source"), n("sink", errors=['Cannot find output named "input"']),
     )
 
 
@@ -386,9 +384,7 @@ def test_err_unconnected_explicit_input(tmp_path: Path):
     )
 
     assert_nodes(
-        manifest,
-        n("source"),
-        n("sink", errors=['Cannot find output named "nosink"']),
+        manifest, n("source"), n("sink", errors=['Cannot find output named "nosink"']),
     )
 
 
@@ -437,7 +433,7 @@ def test_err_duplicate_outputs(tmp_path: Path):
         n("sink"),
     )
 
-    node = manifest.get_single_node_by_name('source1')
+    node = manifest.get_single_node_by_name("source1")
     assert list(manifest.get_errors_for_node(node)) == [
         GraphError(node_id=node.id, message="Duplicate output 'port'")
     ]
@@ -465,11 +461,7 @@ def test_err_unresolved_ports(tmp_path: Path):
     assert_nodes(
         manifest,
         n("node", parent="sub"),
-        n(
-            "sub",
-            node_type=NodeType.Graph,
-            errors=['Cannot find output named "subi"'],
-        ),
+        n("sub", node_type=NodeType.Graph, errors=['Cannot find output named "subi"'],),
     )
 
 
@@ -521,14 +513,14 @@ def test_err_invalid_node_file(tmp_path: Path):
             """,
             "oksql.sql": "{{ InputTable('table') }} syntax error",
             "badpy.py": "foo, bar",
-            "badsql.sql": "SELECT * FROM {{ Err('table') }}"
+            "badsql.sql": "SELECT * FROM {{ Err('table') }}",
         },
     )
 
     assert_nodes(
         manifest,
-        n("oksource", local_edges=['oksource:table -> oksql:table']),
-        n("oksql", local_edges=['oksource:table -> oksql:table']),
-        n('badpy', errors=['Error parsing file badpy.py']),
-        n('badsql', errors=['Error parsing file badsql.sql']),
+        n("oksource", local_edges=["oksource:table -> oksql:table"]),
+        n("oksql", local_edges=["oksource:table -> oksql:table"]),
+        n("badpy", errors=["Error parsing file badpy.py"]),
+        n("badsql", errors=["Error parsing file badsql.sql"]),
     )

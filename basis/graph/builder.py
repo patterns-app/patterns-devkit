@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Tuple, Dict, Set, Optional
+from typing import List, Tuple, Dict, Set, Optional, Union
 from itertools import chain
 from basis.configuration.base import load_yaml
 from basis.configuration.graph import GraphDefinitionCfg, NodeCfg, PortMappingCfg
@@ -22,10 +22,12 @@ from basis.node.sql.jinja import parse_interface_from_sql
 from basis.utils.ast_parser import read_interface_from_py_node_file
 
 
-def graph_manifest_from_yaml(yml_path: Path | str, allow_errors:bool = False) -> GraphManifest:
+def graph_manifest_from_yaml(
+    yml_path: Path | str, allow_errors: bool = False
+) -> GraphManifest:
     manifest = _GraphBuilder(Path(yml_path)).build()
     if manifest.errors and not allow_errors:
-        raise ValueError(f'Invalid graph: {[e.message for e in manifest.errors]}')
+        raise ValueError(f"Invalid graph: {[e.message for e in manifest.errors]}")
     return manifest
 
 
@@ -344,10 +346,10 @@ class _GraphBuilder:
             interface = _Interface(
                 node=NodeInterface(inputs=[], outputs=[], parameters=[]),
                 node_type=NodeType.Node,
-                local_edges=[]
+                local_edges=[],
             )
             parse_err = True
-            self._err(node_id, f'Error parsing file {relative_node_path}')
+            self._err(node_id, f"Error parsing file {relative_node_path}")
 
         configured_node = ConfiguredNode(
             name=node_name,
