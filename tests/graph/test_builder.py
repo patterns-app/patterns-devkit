@@ -321,7 +321,34 @@ def test_exposing_implicit_ports(tmp_path: Path):
     )
 
 
-def test_err_unconnected_implicit_port(tmp_path: Path):
+def test_unconnected_outputs(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+                nodes:
+                  - node_file: source.py
+                  - node_file: sub/graph.yml""",
+            "sub/graph.yml": """
+                exposes:
+                  outputs:
+                    - from_graph
+                nodes:
+                  - node_file: node.py""",
+            "source.py": "source_stream=OutputStream",
+            "sub/node.py": "from_graph=OutputTable, node_out=OutputStream",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n("source", interface=[ostream("source_stream")]),
+        n("sub", node_type=NodeType.Graph, interface=[otable("from_graph")]),
+        n("node", parent='sub', node_type=NodeType.Graph, interface=[otable("from_graph"), ostream("node_out")]),
+    )
+
+
+def test_err_unconnected_implicit_input(tmp_path: Path):
     manifest = setup_manifest(
         tmp_path,
         {
@@ -336,12 +363,12 @@ def test_err_unconnected_implicit_port(tmp_path: Path):
 
     assert_nodes(
         manifest,
-        n("source", errors=['Cannot find input named "output"']),
+        n("source"),
         n("sink", errors=['Cannot find output named "input"']),
     )
 
 
-def test_err_unconnected_explicit_port(tmp_path: Path):
+def test_err_unconnected_explicit_input(tmp_path: Path):
     manifest = setup_manifest(
         tmp_path,
         {
@@ -360,7 +387,7 @@ def test_err_unconnected_explicit_port(tmp_path: Path):
 
     assert_nodes(
         manifest,
-        n("source", errors=['Cannot find input named "nosource"']),
+        n("source"),
         n("sink", errors=['Cannot find output named "nosink"']),
     )
 
@@ -436,10 +463,7 @@ def test_err_unresolved_ports(tmp_path: Path):
         n(
             "sub",
             node_type=NodeType.Graph,
-            errors=[
-                'Cannot find input named "subo"',
-                'Cannot find output named "subi"',
-            ],
+            errors=['Cannot find output named "subi"'],
         ),
     )
 

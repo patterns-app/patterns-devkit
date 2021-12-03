@@ -118,7 +118,6 @@ class _GraphBuilder:
         # step 2: set local edges
         self._set_local_input_edges(parent, nodes, mapping)
         self._set_local_exposed_output_edges(parent, mapping)
-        self._check_for_unconnected_outputs(nodes, mapping)
 
         self.nodes_by_id.update({node.id: node for node in nodes})
 
@@ -229,25 +228,6 @@ class _GraphBuilder:
                 dst_id,
                 f"Cannot connect {name}: input is a {src_t}, but output is a {dst_t}",
             )
-
-    def _check_for_unconnected_outputs(
-        self, nodes: List[ConfiguredNode], mapping: _Mapping
-    ):
-        for node in nodes:
-            connected_outputs = {e.input.port for e in node.local_output_edges()}
-            for output in node.interface.outputs:
-                if (
-                    output.name not in connected_outputs
-                    and PortId(node_id=node.id, port=output.name)
-                    not in self.broken_ports
-                ):
-                    name = output.name
-                    for (nm, (nd, definition)) in mapping.outputs.items():
-                        if nd == node and definition.name == name:
-                            name = nm
-                            break
-
-                    self._err(node, f'Cannot find input named "{name}"')
 
     def _check_for_unconnected_exposed_inputs(
         self, graph_id: Optional[NodeId], mapping: _Mapping
