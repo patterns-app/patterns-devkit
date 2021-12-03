@@ -22,8 +22,11 @@ from basis.node.sql.jinja import parse_interface_from_sql
 from basis.utils.ast_parser import read_interface_from_py_node_file
 
 
-def graph_manifest_from_yaml(yml_path: Path | str) -> GraphManifest:
-    return _GraphBuilder(Path(yml_path)).build()
+def graph_manifest_from_yaml(yml_path: Path | str, allow_errors:bool = False) -> GraphManifest:
+    manifest = _GraphBuilder(Path(yml_path)).build()
+    if manifest.errors and not allow_errors:
+        raise ValueError(f'Invalid graph: {[e.message for e in manifest.errors]}')
+    return manifest
 
 
 class NodeParseException(RuntimeError):
