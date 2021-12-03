@@ -2,6 +2,7 @@ import requests_mock
 from basis.cli.services.api import API_BASE_URL, Endpoints
 from tests.cli.base import IS_CI, get_test_command, reqest_mocker, set_tmp_dir
 
+
 def test_list():
     set_tmp_dir(create_basis_config=True)
     command_tester = get_test_command("list")

@@ -1,5 +1,8 @@
+import textwrap
+from pathlib import Path
 from dataclasses import dataclass, asdict
-from typing import Any, Union, List, Dict
+from typing import Any, Union, List, Dict, Collection, Set
+from basis.graph.builder import graph_manifest_from_yaml, GraphManifest
 
 from commonmodel import Schema
 
@@ -13,6 +16,8 @@ from basis.graph.configured_node import (
     ConfiguredNode,
     NodeType,
     NodeInterface,
+    GraphManifest,
+    GraphError,
 )
 
 
@@ -40,6 +45,7 @@ class NodeAssertion:
     schedule: Union[str, _IgnoreType]
     local_edges: Union[List[str], _IgnoreType]
     resolved_edges: Union[List[str], _IgnoreType]
+    errors: List[str]
 
 
 def _calculate_graph(nodes: List[ConfiguredNode]):
@@ -62,6 +68,8 @@ def _assert_node(
     node: ConfiguredNode, assertion: NodeAssertion, ids_by_path: dict, paths_by_id: dict
 ):
     for k, v in asdict(assertion).items():
+        if k == "errors":
+            continue
         actual = getattr(node, k)
         if k == "id":
             assert actual, "all ids must be defined"
@@ -69,14 +77,8 @@ def _assert_node(
             continue
 
         if k in ("local_edges", "resolved_edges"):
-            v = [_ge(s, ids_by_path) for s in v]
-            # compare ignoring order
-            assert len(v) == len(set(v))
-            assert len(actual) == len(
-                set(actual)
-            ), f"{k}, dupe: {_tostr(actual, paths_by_id)}"
-            v = set(v)
-            actual = set(actual)
+            v = _unordered([_ge(s, ids_by_path) for s in v])
+            actual = _unordered(actual)
         elif k == "parent_node_id" and v is not None:
             actual = paths_by_id[actual]
 
@@ -87,33 +89,44 @@ def _assert_node(
 
 def _tostr(it, paths_by_id: dict) -> str:
     if isinstance(it, (list, set)):
-        return str([_tostr(i, paths_by_id) for i in it])
+        return str(sorted(_tostr(i, paths_by_id) for i in it))
     if isinstance(it, PortId):
         return f"{paths_by_id[it.node_id]}:{it.port}"
     if isinstance(it, GraphEdge):
         return f"{_tostr(it.input, paths_by_id)} -> {_tostr(it.output, paths_by_id)}"
+    if isinstance(it, GraphError):
+        return f"{paths_by_id[it.node_id] if it.node_id else '<root>'}: {it.message}"
     return repr(it)
 
 
 def assert_nodes(
-    nodes: List[ConfiguredNode], *expected: NodeAssertion, assert_length: bool = True
+    manifest: GraphManifest, *expected: NodeAssertion, assert_length: bool = True
 ):
+    nodes = manifest.nodes
     assert len(nodes) == len({node.id for node in nodes}), "all ids must be unique"
 
     if assert_length:
         assert len(nodes) == len(
             expected
-        ), f"expected {len(expected)} nodes, got {len(nodes)}"
+        ), f"expected nodes {[n.name for n in expected]} , got {[n.name for n in nodes]}"
 
     nodes_by_name_and_parent = {
         (node.name, node.parent_node_id): node for node in nodes
     }
     ids_by_path = _calculate_graph(nodes)
     paths_by_id = {v: k for (k, v) in ids_by_path.items()}
+    errors = []
     for assertion in expected:
         parent_id = ids_by_path[assertion.parent_node_id]
         node = nodes_by_name_and_parent[assertion.name, parent_id]
-        _assert_node(node, assertion, ids_by_path, paths_by_id)
+        errors.extend(GraphError(node_id=node.id, message=e) for e in assertion.errors)
+        # _assert_node(node, assertion, ids_by_path, paths_by_id)
+
+    ac = _unordered(manifest.errors)
+    ex = _unordered(errors)
+    assert (
+        ex == ac
+    ), f"errors:\nexpected:\n{_tostr(ex, paths_by_id)}\nbut was:\n{_tostr(ac, paths_by_id)}"
 
 
 # noinspection PyDefaultArgument
@@ -131,6 +144,7 @@ def n(
     schedule: Union[str, None, _IgnoreType] = None,
     local_edges: Union[List[str], _IgnoreType] = IGNORE,
     resolved_edges: Union[List[str], None, _IgnoreType] = None,
+    errors: List[str] = [],
 ) -> NodeAssertion:
     return NodeAssertion(
         name=name,
@@ -149,11 +163,8 @@ def n(
         parameter_values=parameter_values,
         schedule=schedule,
         local_edges=local_edges,
-        resolved_edges=local_edges
-        if resolved_edges is None
-        else resolved_edges
-        if resolved_edges is None
-        else resolved_edges,
+        resolved_edges=local_edges if resolved_edges is None else resolved_edges,
+        errors=errors,
     )
 
 
@@ -228,3 +239,28 @@ def _ge(s: str, ids_by_path: dict) -> GraphEdge:
         input=PortId(node_id=ids_by_path[ln], port=lp),
         output=PortId(node_id=ids_by_path[rn], port=rp),
     )
+
+
+def _unordered(c: Collection) -> Set:
+    s = set(c)
+    assert len(c) == len(s)
+    return s
+
+
+def read_manifest(name: str) -> GraphManifest:
+    pth = Path(__file__).parent / name / "graph.yml"
+    return graph_manifest_from_yaml(pth)
+
+
+def setup_manifest(root: Path, files: Dict[str, str]) -> GraphManifest:
+    for path, content in files.items():
+        content = textwrap.dedent(content).strip()
+        if path.endswith(".py"):
+            if not content.startswith('@node'):
+                content = f'@node\ndef generated_node(\n{content}\n):\n    pass'
+            content = 'from basis import *\n\n' + content
+        abspath = root / path
+        if len(Path(path).parts) > 1:
+            abspath.parent.mkdir(parents=True, exist_ok=True)
+        abspath.write_text(content)
+    return graph_manifest_from_yaml(root / "graph.yml")

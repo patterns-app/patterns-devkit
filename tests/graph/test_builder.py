@@ -3,16 +3,21 @@ from pathlib import Path
 from basis.configuration.path import NodeId
 from basis.graph.builder import graph_manifest_from_yaml, GraphManifest
 from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
-from tests.graph.utils import p, ostream, istream, itable, otable, assert_nodes, n
-
-
-def _build_manifest(name: str) -> GraphManifest:
-    pth = Path(__file__).parent / name / "graph.yml"
-    return graph_manifest_from_yaml(pth)
+from tests.graph.utils import (
+    p,
+    ostream,
+    istream,
+    itable,
+    otable,
+    assert_nodes,
+    n,
+    read_manifest,
+    setup_manifest,
+)
 
 
 def test_flat_graph():
-    manifest = _build_manifest("flat_graph")
+    manifest = read_manifest("flat_graph")
     assert manifest.graph_name == "Test graph"
     assert manifest.manifest_version == CURRENT_MANIFEST_SCHEMA_VERSION
 
@@ -27,7 +32,7 @@ def test_flat_graph():
     assert list(node.resolved_output_edges()) == [node.resolved_edges[1]]
 
     assert_nodes(
-        manifest.nodes,
+        manifest,
         n(
             "source",
             id=NodeId.from_name("source", None),
@@ -86,7 +91,7 @@ def test_flat_graph():
 
 
 def test_fanout_graph():
-    manifest = _build_manifest("fanout_graph")
+    manifest = read_manifest("fanout_graph")
     assert manifest.graph_name == "fanout_graph"
     assert (
         next(manifest.get_nodes_by_name("pass1")).id
@@ -94,7 +99,7 @@ def test_fanout_graph():
     )
 
     assert_nodes(
-        manifest.nodes,
+        manifest,
         n(
             "source",
             interface=[ostream("source_stream")],
@@ -135,10 +140,10 @@ def test_fanout_graph():
 
 
 def test_nested_graph():
-    manifest = _build_manifest("nested_graph")
+    manifest = read_manifest("nested_graph")
 
     assert_nodes(
-        manifest.nodes,
+        manifest,
         n(
             "source",
             interface=[ostream("source_stream")],
@@ -198,9 +203,9 @@ def test_nested_graph():
 
 
 def test_fanout_subgraph():
-    manifest = _build_manifest("fanout_subgraph")
+    manifest = read_manifest("fanout_subgraph")
     assert_nodes(
-        manifest.nodes,
+        manifest,
         n(
             "source",
             interface=[ostream("source_stream")],
@@ -269,4 +274,232 @@ def test_fanout_subgraph():
             local_edges=["sub2:sub_out -> sink:sink_table"],
             resolved_edges=["sub2.node:node_out -> sink:sink_table"],
         ),
+    )
+
+
+def test_empty_graph(tmp_path: Path):
+    manifest = setup_manifest(tmp_path, {"graph.yml": ""})
+    assert_nodes(manifest)
+
+
+def test_exposing_implicit_ports(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+                nodes:
+                  - node_file: source.py
+                  - node_file: sink.py
+                  - node_file: sub/graph.yml""",
+            "sub/graph.yml": """
+                exposes:
+                  inputs:
+                    - to_graph
+                  outputs:
+                    - from_graph
+                nodes:
+                  - node_file: node.py""",
+            "source.py": "to_graph=OutputStream",
+            "sink.py": "from_graph=InputStream",
+            "sub/node.py": "to_graph=InputStream, from_graph=OutputStream",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n("source", resolved_edges=["source:to_graph -> sub.node:to_graph"]),
+        n("sink", resolved_edges=["sub.node:from_graph -> sink:from_graph"]),
+        n(
+            "node",
+            parent="sub",
+            resolved_edges=[
+                "source:to_graph -> sub.node:to_graph",
+                "sub.node:from_graph -> sink:from_graph",
+            ],
+        ),
+        n("sub", node_type=NodeType.Graph),
+    )
+
+
+def test_err_unconnected_implicit_port(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+            nodes:
+              - node_file: source.py
+              - node_file: sink.py""",
+            "source.py": "output=OutputStream",
+            "sink.py": "input=InputStream",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n("source", errors=['Cannot find input named "output"']),
+        n("sink", errors=['Cannot find output named "input"']),
+    )
+
+
+def test_err_unconnected_explicit_port(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+            nodes:
+              - node_file: source.py
+                outputs:
+                  - port -> nosource
+              - node_file: sink.py
+                inputs:
+                  - nosink -> port""",
+            "source.py": "port=OutputStream",
+            "sink.py": "port=InputStream",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n("source", errors=['Cannot find input named "nosource"']),
+        n("sink", errors=['Cannot find output named "nosink"']),
+    )
+
+
+def test_err_mismatched_ports(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+            nodes:
+              - node_file: source.py
+              - node_file: sink.py""",
+            "source.py": "erport=OutputTable",
+            "sink.py": "erport=InputStream",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n("source"),
+        n(
+            "sink",
+            errors=["Cannot connect erport: input is a stream, but output is a table"],
+        ),
+    )
+
+
+def test_err_duplicate_outputs(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+            nodes:
+              - node_file: source1.py
+              - node_file: source2.py
+              - node_file: sink.py""",
+            "source1.py": "port=OutputStream",
+            "source2.py": "port=OutputStream",
+            "sink.py": "port=InputStream",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n("source1", errors=["Duplicate output 'port'"]),
+        n("source2", errors=["Duplicate output 'port'"]),
+        n("sink"),
+    )
+
+
+def test_err_unresolved_ports(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+                nodes:
+                  - node_file: sub/graph.yml""",
+            "sub/graph.yml": """
+                exposes:
+                  inputs:
+                    - subi
+                  outputs:
+                    - subo
+                nodes:
+                  - node_file: node.py""",
+            "sub/node.py": "subi=InputStream, subo=OutputStream",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n("node", parent="sub"),
+        n(
+            "sub",
+            node_type=NodeType.Graph,
+            errors=[
+                'Cannot find input named "subo"',
+                'Cannot find output named "subi"',
+            ],
+        ),
+    )
+
+
+def test_err_exposing_nonexistant_ports(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+                nodes:
+                  - node_file: sub/graph.yml""",
+            "sub/graph.yml": """
+                exposes:
+                  inputs:
+                    - noin
+                  outputs:
+                    - noout""",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n(
+            "sub",
+            node_type=NodeType.Graph,
+            errors=[
+                'Exposed input does not exist: "noin"',
+                'Exposed output does not exist: "noout"',
+            ],
+        ),
+    )
+
+
+def test_err_invalid_node_file(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+            nodes:
+              - node_file: oksource.py
+              - node_file: oksql.sql
+              - node_file: badpy.py
+              - node_file: badsql.sql""",
+            "oksource.py": """
+            @node
+            def foo(table=OutputTable):
+                pass
+            
+            undefined[0] = undefined
+            """,
+            "oksql.sql": "{{ InputTable('table') }} syntax error",
+            "badpy.py": "foo, bar",
+            "badsql.sql": "SELECT * FROM {{ Err('table') }}"
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n("oksource", local_edges=['oksource:table -> oksql:table']),
+        n("oksql", local_edges=['oksource:table -> oksql:table']),
+        n('badpy', errors=['Error parsing file badpy.py']),
+        n('badsql', errors=['Error parsing file badsql.sql']),
     )

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Dict, Iterator, List, Union
+from typing import Any, Dict, Iterator, List, Union, Optional
 
 from commonmodel import Schema
 
@@ -10,6 +10,12 @@ from basis.configuration.path import GraphEdge, NodeId
 
 """The version of schemas generated with this code"""
 CURRENT_MANIFEST_SCHEMA_VERSION = 1
+
+
+class GraphError(FrozenPydanticBase):
+    # id of the node that created the error, or None for errors on the root graph yaml
+    node_id: Optional[NodeId]
+    message: str
 
 
 class ParameterType(str, Enum):
@@ -105,6 +111,7 @@ class GraphManifest(FrozenPydanticBase):
     graph_name: str
     manifest_version: int
     nodes: List[ConfiguredNode] = []
+    errors: List[GraphError] = []
 
     def get_node_by_id(self, node_id: Union[str, NodeId]) -> ConfiguredNode:
         for n in self.nodes:
