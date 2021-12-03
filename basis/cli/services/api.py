@@ -79,4 +79,4 @@ class Endpoints(str, Enum):
     GRAPHS_LIST = "api/graphs/"
     NODES_LIST = "api/nodes/"
     NODES_RUN = "api/nodes/"
-    EXECUTION_EVENTS = "api/execution-events/"
+    EXECUTION_EVENTS = "api/execution_events/"
