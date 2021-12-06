@@ -8,5 +8,6 @@ def passthrough_node(
     passthrough_stream=OutputStream(description="out desc", schema="TestSchema2"),
     explicit_param=Parameter(description="param desc", type="bool", default=False),
     plain_param=Parameter,
+    state_param=State,
 ):
     pass

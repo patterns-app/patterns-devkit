@@ -2,7 +2,7 @@ import ast
 from ast import Str
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Optional
 
 from basis.graph.configured_node import (
     NodeInterface,
@@ -10,6 +10,7 @@ from basis.graph.configured_node import (
     OutputDefinition,
     ParameterDefinition,
     PortType,
+    StateDefinition,
 )
 
 
@@ -35,6 +36,7 @@ class _NodeFuncFinder(ast.NodeVisitor):
         self.i: List[InputDefinition] = []
         self.o: List[OutputDefinition] = []
         self.p: List[ParameterDefinition] = []
+        self.s: Optional[StateDefinition] = None
         self.found = 0
 
     def interface(self):
@@ -67,6 +69,18 @@ class _NodeFuncFinder(ast.NodeVisitor):
             self._consume_call(arg.arg, _parse_call(default))
 
     def _consume_call(self, name: str, call: _Call):
+        if call.name not in (
+            "InputTable",
+            "OutputTable",
+            "InputStream",
+            "OutputStream",
+            "Parameter",
+            "State",
+        ):
+            raise ValueError(
+                f"node function parameter {name} must specify an input, output, or parameter, not {call.name}"
+            )
+
         port_type = PortType.Table if call.name.endswith("Table") else PortType.Stream
 
         def get(k, t=None, d=None):
@@ -103,10 +117,10 @@ class _NodeFuncFinder(ast.NodeVisitor):
                     default=get("default"),
                 )
             )
+        elif call.name == "State":
+            self.s = StateDefinition(name=name)
         else:
-            raise ValueError(
-                f"Node functions must declare inputs, outputs, or parameters: {call.name}"
-            )
+            raise RuntimeError("error in file parsing")  # unreachable
         if call.kwargs:
             raise ValueError(
                 f"got an unexpected keyword argument {call.kwargs.popitem()[0]}"
@@ -124,13 +138,15 @@ def _parse_call(node) -> _Call:
         raise ValueError(f"Node functions only accept keyword arguments")
     return _Call(
         name=_get_qualified_name(node.func),
-        kwargs={a.arg: _parse_port_arg(a.value) for a in node.keywords},
+        kwargs={a.arg: _parse_port_arg(a.arg, a.value) for a in node.keywords},
     )
 
 
-def _parse_port_arg(node):
+def _parse_port_arg(name: str, node):
     if not isinstance(node, ast.Constant):
-        raise ValueError(f"Node function arguments must be literal values")
+        raise ValueError(
+            f"Node function argument {name}: {ast.unparse(node)} in not a literal value"
+        )
     return node.value
 
 

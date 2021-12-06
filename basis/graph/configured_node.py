@@ -64,10 +64,15 @@ class ParameterDefinition(FrozenPydanticBase):
     default: Any = None
 
 
+class StateDefinition(FrozenPydanticBase):
+    name: str
+
+
 class NodeInterface(FrozenPydanticBase):
     inputs: List[InputDefinition]
     outputs: List[OutputDefinition]
     parameters: List[ParameterDefinition]
+    state: StateDefinition = None
 
 
 class ConfiguredNode(FrozenPydanticBase):

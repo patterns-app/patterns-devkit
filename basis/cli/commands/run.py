@@ -36,7 +36,7 @@ class RunCommand(BasisCommandBase, Command):
         try:
             # manifest = version["manifest"]
             data = trigger_node(
-                node_id=node_name, # TODO
+                node_id=node_name,  # TODO
                 graph_version_uid=version["uid"],
                 environment_name=env_name,
                 local_execution=bool(local_exec),

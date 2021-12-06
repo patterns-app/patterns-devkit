@@ -11,6 +11,7 @@ from basis.node._methods import (
     ParameterMethods,
     InputStreamMethods,
     OutputStreamMethods,
+    StateMethods,
 )
 
 
@@ -98,6 +99,10 @@ class OutputStream(_OutputMeta, OutputStreamMethods):
 
 
 class Parameter(_ParameterMeta, ParameterMethods):
+    pass
+
+
+class State(_ParameterMeta, StateMethods):
     pass
 
 

@@ -161,7 +161,7 @@ class _GraphBuilder:
             for i in exposed_inputs
             if i in input_defs_by_name  # may be missing in broken graphs
         ]
-        return NodeInterface(inputs=inputs, outputs=outputs, parameters=[])
+        return NodeInterface(inputs=inputs, outputs=outputs, parameters=[], state=None)
 
     # set local edges connected to nodes' inputs
     def _set_local_input_edges(
@@ -344,12 +344,14 @@ class _GraphBuilder:
             parse_err = False
         except NodeParseException as e:
             interface = _Interface(
-                node=NodeInterface(inputs=[], outputs=[], parameters=[]),
+                node=NodeInterface(inputs=[], outputs=[], parameters=[], state=None),
                 node_type=NodeType.Node,
                 local_edges=[],
             )
             parse_err = True
-            self._err(node_id, f"Error parsing file {relative_node_path}")
+            self._err(
+                node_id, f"Error parsing file {relative_node_path}: {e.__cause__}"
+            )
 
         configured_node = ConfiguredNode(
             name=node_name,
