@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Dict, Iterator, List, Union
+from typing import Any, Dict, Iterator, List, Union, Optional
 
 from commonmodel import Schema
 
@@ -10,6 +10,12 @@ from basis.configuration.path import GraphEdge, NodeId
 
 """The version of schemas generated with this code"""
 CURRENT_MANIFEST_SCHEMA_VERSION = 1
+
+
+class GraphError(FrozenPydanticBase):
+    # id of the node that created the error, or None for errors on the root graph yaml
+    node_id: Optional[NodeId]
+    message: str
 
 
 class ParameterType(str, Enum):
@@ -105,6 +111,7 @@ class GraphManifest(FrozenPydanticBase):
     graph_name: str
     manifest_version: int
     nodes: List[ConfiguredNode] = []
+    errors: List[GraphError] = []
 
     def get_node_by_id(self, node_id: Union[str, NodeId]) -> ConfiguredNode:
         for n in self.nodes:
@@ -123,3 +130,11 @@ class GraphManifest(FrozenPydanticBase):
             len(nodes) == 1
         ), f"Must be exactly one node of name `{name}`, found {len(nodes)}"
         return nodes[0]
+
+    def get_errors_for_node(
+        self, node_or_id: Union[str, NodeId, ConfiguredNode]
+    ) -> Iterator[GraphError]:
+        id = node_or_id.id if isinstance(node_or_id, ConfiguredNode) else node_or_id
+        for error in self.errors:
+            if error.node_id == id:
+                yield error
