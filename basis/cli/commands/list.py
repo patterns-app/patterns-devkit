@@ -1,8 +1,8 @@
 from cleo import Command
 
 from basis.cli.commands.base import BasisCommandBase
-from basis.cli.config import get_current_organization_name
 from basis.cli.services.list import list_objects
+from basis.cli.config import read_local_basis_config
 
 
 class ListCommand(BasisCommandBase, Command):
@@ -18,7 +18,8 @@ class ListCommand(BasisCommandBase, Command):
         obj_type = self.argument("type")
         assert isinstance(obj_type, str)
         try:
-            objects = list_objects(obj_type, get_current_organization_name())
+            cfg = read_local_basis_config()
+            objects = list_objects(obj_type, cfg.organization_name)
         except Exception as e:
             self.line(f"<error>Error listing objects: {e}</error>")
             exit(1)

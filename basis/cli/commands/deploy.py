@@ -1,9 +1,9 @@
 from cleo import Command
 
 from basis.cli.commands.base import BasisCommandBase
-from basis.cli.config import get_current_organization_name
 from basis.cli.services.deploy import deploy_graph_version
 from basis.cli.services.graph_versions import get_latest_graph_version
+from basis.cli.config import read_local_basis_config
 
 
 class DeployCommand(BasisCommandBase, Command):
@@ -24,7 +24,8 @@ class DeployCommand(BasisCommandBase, Command):
         assert not graph_version, "Graph version not supported yet"
         assert isinstance(graph_name, str)
         assert isinstance(env_name, str)
-        org_name = get_current_organization_name()
+        cfg = read_local_basis_config()
+        org_name = cfg.organization_name
         try:
             version = get_latest_graph_version(graph_name, org_name)
         except Exception as e:

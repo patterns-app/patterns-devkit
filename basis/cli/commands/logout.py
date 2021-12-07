@@ -3,7 +3,7 @@ from __future__ import annotations
 from cleo import Command
 
 from basis.cli.commands.base import BasisCommandBase
-from basis.cli.config import remove_auth_from_basis_config
+from basis.cli.services.auth import logout
 
 
 class LogoutCommand(BasisCommandBase, Command):
@@ -14,5 +14,5 @@ class LogoutCommand(BasisCommandBase, Command):
     """
 
     def handle(self):
-        remove_auth_from_basis_config()
+        logout()
         self.line("<info>Logged out successfully</info>")

@@ -1,8 +1,8 @@
 from cleo import Command
 
 from basis.cli.commands.base import BasisCommandBase
-from basis.cli.config import get_current_organization_name
 from basis.cli.services.logs import get_execution_logs
+from basis.cli.config import read_local_basis_config
 
 
 class LogsCommand(BasisCommandBase, Command):
@@ -22,8 +22,9 @@ class LogsCommand(BasisCommandBase, Command):
         node_path = self.argument("absolute-node-path")
 
         try:
+            cfg = read_local_basis_config()
             events = get_execution_logs(
-                get_current_organization_name(), environment_name, graph_name, node_path
+                cfg.organization_name, environment_name, graph_name, node_path
             )
         except Exception as e:
             self.line(f"<error>Error reading logs: {e}</error>")

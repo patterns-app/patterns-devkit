@@ -3,8 +3,8 @@ from __future__ import annotations
 from cleo import Command
 
 from basis.cli.commands.base import BasisCommandBase
-from basis.cli.config import get_current_organization_name
 from basis.cli.services.download import download_graph_version
+from basis.cli.config import read_local_basis_config
 
 
 class CloneCommand(BasisCommandBase, Command):
@@ -23,7 +23,8 @@ class CloneCommand(BasisCommandBase, Command):
         expansion_path = self.option("path") or "."
         assert isinstance(graph_name, str)
         try:
-            data = download_graph_version(graph_name, get_current_organization_name())
+            cfg = read_local_basis_config()
+            data = download_graph_version(graph_name, cfg.organization_name)
         except Exception as e:
             self.line(f"<error>Clone failed: {e}</error>")
             exit(1)
