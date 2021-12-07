@@ -21,16 +21,6 @@ def test_flat_graph():
     assert manifest.graph_name == "Test graph"
     assert manifest.manifest_version == CURRENT_MANIFEST_SCHEMA_VERSION
 
-    result = list(manifest.get_nodes_by_name("pass"))
-    assert len(result) == 1
-    node = result[0]
-    assert manifest.get_node_by_id(node.id) == node
-
-    assert list(node.local_input_edges()) == [node.local_edges[0]]
-    assert list(node.resolved_input_edges()) == [node.local_edges[0]]
-    assert list(node.local_output_edges()) == [node.resolved_edges[1]]
-    assert list(node.resolved_output_edges()) == [node.resolved_edges[1]]
-
     assert_nodes(
         manifest,
         n(
@@ -88,6 +78,16 @@ def test_flat_graph():
             local_edges=["query:sink_table -> sink:sink_table"],
         ),
     )
+
+    result = list(manifest.get_nodes_by_name("pass"))
+    assert len(result) == 1
+    node = result[0]
+    assert manifest.get_node_by_id(node.id) == node
+
+    assert list(node.local_input_edges()) == [node.local_edges[0]]
+    assert list(node.resolved_input_edges()) == [node.local_edges[0]]
+    assert list(node.local_output_edges()) == [node.resolved_edges[1]]
+    assert list(node.resolved_output_edges()) == [node.resolved_edges[1]]
 
 
 def test_fanout_graph():
@@ -521,6 +521,11 @@ def test_err_invalid_node_file(tmp_path: Path):
         manifest,
         n("oksource", local_edges=["oksource:table -> oksql:table"]),
         n("oksql", local_edges=["oksource:table -> oksql:table"]),
-        n("badpy", errors=["Error parsing file badpy.py"]),
-        n("badsql", errors=["Error parsing file badsql.sql"]),
+        n(
+            "badpy",
+            errors=[
+                "Error parsing file badpy.py: Node function generated_node must specify an input, output, or parameter for all arguments."
+            ],
+        ),
+        n("badsql", errors=["Error parsing file badsql.sql: 'Err' is undefined"]),
     )

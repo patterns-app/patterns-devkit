@@ -29,3 +29,13 @@ class ParameterMethods:
     @classmethod
     def get(cls):
         ...
+
+
+class StateMethods:
+    @classmethod
+    def records(cls) -> Iterator[dict]:
+        ...
+
+    @classmethod
+    def write_records(cls):
+        ...

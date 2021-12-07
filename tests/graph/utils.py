@@ -18,6 +18,7 @@ from basis.graph.configured_node import (
     NodeInterface,
     GraphManifest,
     GraphError,
+    StateDefinition,
 )
 
 
@@ -120,13 +121,17 @@ def assert_nodes(
         parent_id = ids_by_path[assertion.parent_node_id]
         node = nodes_by_name_and_parent[assertion.name, parent_id]
         errors.extend(GraphError(node_id=node.id, message=e) for e in assertion.errors)
-        _assert_node(node, assertion, ids_by_path, paths_by_id)
 
     ac = _unordered(manifest.errors)
     ex = _unordered(errors)
     assert (
         ex == ac
     ), f"errors:\nexpected:\n{_tostr(ex, paths_by_id)}\nbut was:\n{_tostr(ac, paths_by_id)}"
+
+    for assertion in expected:
+        parent_id = ids_by_path[assertion.parent_node_id]
+        node = nodes_by_name_and_parent[assertion.name, parent_id]
+        _assert_node(node, assertion, ids_by_path, paths_by_id)
 
 
 # noinspection PyDefaultArgument
@@ -136,7 +141,12 @@ def n(
     id: Union[str, _IgnoreType] = IGNORE,
     parent: Union[str, None] = None,
     interface: Union[
-        List[Union[InputDefinition, OutputDefinition, ParameterDefinition]], _IgnoreType
+        List[
+            Union[
+                InputDefinition, OutputDefinition, ParameterDefinition, StateDefinition
+            ]
+        ],
+        _IgnoreType,
     ] = IGNORE,
     description: Union[str, None, _IgnoreType] = None,
     file_path: Union[str, _IgnoreType] = IGNORE,
@@ -157,6 +167,7 @@ def n(
             inputs=[i for i in interface if isinstance(i, InputDefinition)],
             outputs=[i for i in interface if isinstance(i, OutputDefinition)],
             parameters=[i for i in interface if isinstance(i, ParameterDefinition)],
+            state=next((i for i in interface if isinstance(i, StateDefinition)), None),
         ),
         description=description,
         file_path_to_node_script_relative_to_root=file_path,
