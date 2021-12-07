@@ -48,16 +48,20 @@ class OutputStreamMethods:
 
 
 class StateMethods:
-    def set_state(self, state: dict):
+    @classmethod
+    def set_state(cls, state: dict):
         ...
 
-    def set_state_value(self, key: str, value: Any):
+    @classmethod
+    def set_state_value(cls, key: str, value: Any):
         ...
 
-    def get_state(self) -> dict:
+    @classmethod
+    def get_state(cls) -> dict:
         ...
 
-    def get_state_value(self, key: str) -> Any:
+    @classmethod
+    def get_state_value(cls, key: str) -> Any:
         ...
 
 
