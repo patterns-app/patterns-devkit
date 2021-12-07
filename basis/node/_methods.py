@@ -14,11 +14,11 @@ class InputTableMethods:
         ...
 
     @classmethod
-    def sql(cls, sql: str) -> OutputTableMethods:
+    def sql(cls, sql: str) -> InputTableMethods:
         ...
 
     @classmethod
-    def chunks(cls, chunk_size: int) -> OutputTableMethods:
+    def chunks(cls, chunk_size: int) -> InputTableMethods:
         ...
 
 
