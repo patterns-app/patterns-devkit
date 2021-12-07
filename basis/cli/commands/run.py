@@ -42,6 +42,9 @@ class RunCommand(BasisCommandBase, Command):
                 local_execution=bool(local_exec),
             )
         except Exception as e:
-            self.line(f"<error>Couldn't run node: {e}</error>")
+            if hasattr(e, "response"):
+                self.line(f"<error>Couldn't run node: {e.response.json()}</error>")
+            else:
+                self.line(f"<error>Couldn't run node: {e}</error>")
             exit(1)
         self.line(f"Node triggered to run")
