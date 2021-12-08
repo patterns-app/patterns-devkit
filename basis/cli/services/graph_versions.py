@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from basis.cli.services.api import Endpoints, get, post
+from basis.cli.services.output import abort
 
 
 def list_graph_versions(graph_name: str, organization_name: str) -> list[dict]:
@@ -15,10 +16,5 @@ def list_graph_versions(graph_name: str, organization_name: str) -> list[dict]:
 def get_latest_graph_version(graph_name: str, organization_name: str) -> dict:
     versions = list_graph_versions(graph_name, organization_name)
     if not versions:
-        raise ValueError("No graph versions exist")
-    latest_version = versions[0]
-    # TODO
-    # for v in versions:
-    #     if v["created_at"] > latest_version["created_at"]:
-    #         latest_version = v
-    return latest_version
+        abort("No graph versions exist")
+    return versions[0]

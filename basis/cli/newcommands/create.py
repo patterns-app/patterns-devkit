@@ -4,7 +4,6 @@ from pathlib import Path
 import click
 import typer
 from typer import Option, Argument
-from typer import secho
 
 from basis.cli.config import (
     read_local_basis_config,
@@ -29,11 +28,8 @@ def graph(
 ):
     """Add a new node to a graph"""
     if not location:
-        location = Path(
-            typer.prompt(
-                "Enter a location for the graph", type=click.Path(exists=False)
-            )
-        )
+        prompt = "Enter a location for the graph"
+        location = Path(typer.prompt(prompt, type=click.Path(exists=False)))
 
     cfg = read_local_basis_config()
     path = resolve_graph_path(location, exists=False)
@@ -42,21 +38,18 @@ def graph(
     cfg.default_graph = path
     write_local_basis_config(cfg)
 
-    print_success(f"Created graph {name}")
+    print_success(f"Created graph {name}\n")
     print_info(f"You can add nodes with 'cd {location}', then 'basis create node'")
+
+
+_graph_help = "The graph to add this node to"
+_name_help = "The name of the node. The location will be used as a name by default"
 
 
 @create.command()
 def node(
-    graph: Path = Option(
-        None, "--graph", "-g", exists=True, help="The graph to add this node to"
-    ),
-    name: str = Option(
-        "",
-        "--name",
-        "-n",
-        help="The name of the node. The location will be used as a name by default",
-    ),
+    explicit_graph: Path = Option(None, "--graph", "-g", exists=True, help=_graph_help),
+    name: str = Option("", "--name", "-n", help=_name_help),
     location: Path = Argument(None),
 ):
     """Add a new node to a graph
@@ -75,7 +68,7 @@ def node(
         abort(f"{location} already exists")
 
     cfg = read_local_basis_config()
-    graph_path = resolve_graph_path(graph or cfg.default_graph, exists=True)
+    graph_path = resolve_graph_path(explicit_graph or cfg.default_graph, exists=True)
     graph_dir = graph_path.parent
     if not location.is_absolute() and not Path(os.getcwd()).resolve().is_relative_to(
         graph_dir

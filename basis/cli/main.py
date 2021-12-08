@@ -1,5 +1,3 @@
-import typer
-
 from .newapp import app
 from .newcommands import *
 

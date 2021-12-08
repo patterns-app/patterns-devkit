@@ -20,8 +20,7 @@ AUTH_TOKEN_PREFIX = "JWT"
 def _get_api_session() -> Session:
     s = requests.Session()
     auth_token = _get_auth_token()
-    if auth_token:
-        s.headers.update({"Authorization": f"{AUTH_TOKEN_PREFIX} {auth_token}"})
+    s.headers.update({"Authorization": f"{AUTH_TOKEN_PREFIX} {auth_token}"})
     return s
 
 
@@ -31,15 +30,16 @@ def _get_auth_token() -> str:
         return override
 
     cfg = read_local_basis_config()
-    if cfg.token:
-        resp = requests.post(
-            API_BASE_URL + Endpoints.TOKEN_VERIFY, json={"token": cfg.token}
-        )
-        if resp.status_code == 401:
-            if refresh := cfg.refresh:
-                cfg = _refresh_token(refresh)
-        else:
-            resp.raise_for_status()
+    if not cfg.token:
+        abort("You must be logged in to use this command. Run 'basis login'.")
+    resp = requests.post(
+        API_BASE_URL + Endpoints.TOKEN_VERIFY, json={"token": cfg.token}
+    )
+    if resp.status_code == 401:
+        if refresh := cfg.refresh:
+            cfg = _refresh_token(refresh)
+    else:
+        resp.raise_for_status()
     return cfg.token
 
 
@@ -65,7 +65,7 @@ def post(path: str, json: dict = None, session: Session = None, **kwargs) -> Res
 
 
 @contextlib.contextmanager
-def exit_on_http_error(message: str, prefix=": "):
+def abort_on_http_error(message: str, prefix=": "):
     try:
         yield
     except HTTPError as e:
