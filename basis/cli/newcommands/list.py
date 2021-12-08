@@ -1,6 +1,7 @@
 import json
 from enum import Enum
 
+import typer
 from rich.table import Table
 from typer import Option, Argument
 
@@ -17,18 +18,23 @@ class Listable(str, Enum):
 _type_help = "The type of object to list"
 _json_help = "Output the object as JSON Lines"
 
+list_command = typer.Typer(name="list", help="List objects of a given type")
+app.add_typer(list_command)
 
-@app.command()
-def list(
-    print_json: bool = Option(False, "--json", help=_json_help),
-    type: Listable = Argument(..., help=_type_help),
-):
-    """List all objects of a given type"""
-    if type == Listable.graph:
-        objects = list_graphs()
-    else:
-        objects = list_environments()
 
+@list_command.command()
+def graphs(print_json: bool = Option(False, "--json", help=_json_help)):
+    """List graphs"""
+    _print_objects(list_graphs(), print_json)
+
+
+@list_command.command()
+def environments(print_json: bool = Option(False, "--json", help=_json_help)):
+    """List environments"""
+    _print_objects(list_environments(), print_json)
+
+
+def _print_objects(objects: list, print_json: bool):
     if not objects:
         return
 

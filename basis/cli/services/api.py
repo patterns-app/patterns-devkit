@@ -33,9 +33,11 @@ def _get_auth_token() -> str:
     cfg = read_local_basis_config()
     if not cfg.token:
         abort("You must be logged in to use this command. Run 'basis login'.")
-    resp = requests.post(
-        API_BASE_URL + Endpoints.TOKEN_VERIFY, json={"token": cfg.token}
-    )
+
+    with abort_on_http_error("Failed verifying auth token"):
+        resp = requests.post(
+            API_BASE_URL + Endpoints.TOKEN_VERIFY, json={"token": cfg.token}
+        )
     if resp.status_code == 401:
         if refresh := cfg.refresh:
             cfg = _refresh_token(refresh)
@@ -45,9 +47,10 @@ def _get_auth_token() -> str:
 
 
 def _refresh_token(token: str) -> CliConfig:
-    resp = requests.post(
-        API_BASE_URL + Endpoints.TOKEN_REFRESH, json={"refresh": token}
-    )
+    with abort_on_http_error("Failed refreshing auth token"):
+        resp = requests.post(
+            API_BASE_URL + Endpoints.TOKEN_REFRESH, json={"refresh": token}
+        )
     resp.raise_for_status()
     data = resp.json()
     cfg = read_local_basis_config()
@@ -55,7 +58,8 @@ def _refresh_token(token: str) -> CliConfig:
         cfg.refresh = data["refresh"]
     cfg.token = data["access"]
 
-    return write_local_basis_config(cfg)
+    write_local_basis_config(cfg)
+    return cfg
 
 
 def get(path: str, params: dict = None, session: Session = None, **kwargs) -> Response:
@@ -80,6 +84,8 @@ def abort_on_http_error(message: str, prefix=": "):
         except Exception:
             details = e.response.text
         abort(f"{message}{prefix}{details}")
+    except Exception as e:
+        abort(f"{message}{prefix}{e}")
 
 
 class Endpoints(str, Enum):

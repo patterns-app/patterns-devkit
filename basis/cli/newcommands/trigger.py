@@ -7,7 +7,7 @@ from basis.cli.newapp import app
 from basis.cli.newcommands._util import _get_graph_version_id, _get_graph_path
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.output import abort
-from basis.cli.services.run import trigger_node
+from basis.cli.services.trigger import trigger_node
 from basis.graph.builder import graph_manifest_from_yaml
 from basis.graph.configured_node import GraphManifest
 
