@@ -12,7 +12,7 @@ from basis.cli.config import (
 )
 from basis.cli.newapp import app
 from basis.cli.services.output import abort, prompt_path
-from basis.cli.services.output import print
+from basis.cli.services.output import sprint
 from basis.configuration.base import dump_yaml, load_yaml
 
 create = typer.Typer()
@@ -39,8 +39,8 @@ def graph(
     cfg.default_graph = path
     write_local_basis_config(cfg)
 
-    print(f"\n[success]Created graph [b]{name}")
-    print(
+    sprint(f"\n[success]Created graph [b]{name}")
+    sprint(
         f"\n[info]You can add nodes with [code]cd {location}[/code], then [code]basis create node[/code]"
     )
 
@@ -72,13 +72,13 @@ def node(
     if not location.is_absolute() and not Path(os.getcwd()).resolve().is_relative_to(
         graph_dir
     ):
-        print(
+        sprint(
             f"[error]Cannot use a relative node location outside of the graph directory."
         )
-        print(
+        sprint(
             f"[info]Try changing your directory to the graph directory [code]({graph_dir})"
         )
-        print(
+        sprint(
             f"[info]You can change the graph directory for this command with the --graph option, or you can change the "
             f"default graph with 'basis config --graph'"
         )
@@ -108,8 +108,8 @@ def node(
     location.write_text(content)
     graph_path.write_text(yaml)
 
-    print(f"\n[success]Created node [b]{location}")
-    print(
+    sprint(f"\n[success]Created node [b]{location}")
+    sprint(
         f"\n[info]Once you've edited the node and are ready to run the graph, use [code]basis upload"
     )
 

@@ -32,9 +32,9 @@ def prompt_path(
     while True:
         p = _PathPrompt.ask(message, default=default)
         if exists is True and not p.exists():
-            print("[prompt.invalid]Path already exists")
+            sprint("[prompt.invalid]Path already exists")
         elif exists is False and p.exists():
-            print("[prompt.invalid]Path does not exist")
+            sprint("[prompt.invalid]Path does not exist")
         else:
             break
     return p
@@ -51,12 +51,12 @@ def prompt_str(
     )
 
 
-def print(message: str):
+def sprint(message):
     """Print styled content"""
     console.print(message)
 
 
 def abort(message: str) -> typing.NoReturn:
     """Print an error message and raise an Exit exception"""
-    print(f"[error]{message}")
+    sprint(f"[error]{message}")
     raise typer.Exit(1)

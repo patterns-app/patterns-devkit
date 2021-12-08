@@ -7,7 +7,7 @@ from basis.cli.newapp import app
 from basis.cli.newcommands._util import _get_graph_version_id
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.deploy import deploy_graph_version
-from basis.cli.services.output import print
+from basis.cli.services.output import sprint
 
 _graph_help = "The location of the graph.yml file of the graph to deploy"
 _graph_version_id_help = "The id of the graph version to deploy"
@@ -35,4 +35,4 @@ def deploy(
             graph_version_id, environment or cfg.environment_name
         )
 
-    print(f"[success]Graph [code]{resp['graph_name']}[/code] deployed.")
+    sprint(f"[success]Graph [code]{resp['graph_name']}[/code] deployed.")

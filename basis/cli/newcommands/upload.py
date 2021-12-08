@@ -6,7 +6,7 @@ from basis.cli.config import read_local_basis_config
 from basis.cli.newapp import app
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.deploy import deploy_graph_version
-from basis.cli.services.output import print
+from basis.cli.services.output import sprint
 from basis.cli.services.upload import upload_graph_version
 from basis.cli.newcommands._util import _get_graph_path
 
@@ -31,13 +31,13 @@ def upload(
         resp = upload_graph_version(graph_path, organization or cfg.organization_name)
 
     graph_version_id = resp["uid"]
-    print(f"\n[success]Uploaded new graph version with id [b]{graph_version_id}.")
+    sprint(f"\n[success]Uploaded new graph version with id [b]{graph_version_id}.")
 
     if deploy:
         with abort_on_http_error("Deploy failed"):
             deploy_graph_version(graph_version_id, environment or cfg.environment_name)
-        print(f"[success]Graph deployed.")
+        sprint(f"[success]Graph deployed.")
 
-    print(
+    sprint(
         "\n[info]Visit [code]https://www.getbasis.com[/code] to view your graph"
     )  # TODO: use the actual UI endpoint

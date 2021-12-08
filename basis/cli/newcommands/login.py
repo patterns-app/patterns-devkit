@@ -11,7 +11,7 @@ from basis.cli.newapp import app
 from basis.cli.services import auth
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.list import list_organizations, list_environments
-from basis.cli.services.output import print, prompt_str
+from basis.cli.services.output import sprint, prompt_str
 
 _email_help = "The email address of the account"
 _password_help = "The password for the account"
@@ -55,8 +55,10 @@ def login(
         env_name = None
 
     update_local_basis_config(organization_name=org_name, environment_name=env_name)
-    print(f"\n[success]Logged in to Basis organization [b]{org_name}[/b] as [b]{email}")
-    print(f"\n[info]Your login information is stored at {get_basis_config_path()}")
-    print(
+    sprint(
+        f"\n[success]Logged in to Basis organization [b]{org_name}[/b] as [b]{email}"
+    )
+    sprint(f"\n[info]Your login information is stored at {get_basis_config_path()}")
+    sprint(
         f"\n[info]If you want to create a new graph, run [code]basis create graph[/code] get started"
     )
