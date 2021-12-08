@@ -4,7 +4,7 @@ from typer import Option
 
 from basis.cli.config import read_local_basis_config
 from basis.cli.newapp import app
-from basis.cli.newcommands._util import _get_graph_version_id
+from basis.cli.services.graph import get_graph_version_id
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.deploy import deploy_graph_version
 from basis.cli.services.output import sprint
@@ -28,7 +28,7 @@ def deploy(
     '--graph' to deploy the latest uploaded version of a graph.
     """
     cfg = read_local_basis_config()
-    graph_version_id = _get_graph_version_id(cfg, graph, graph_version_id, organization)
+    graph_version_id = get_graph_version_id(cfg, graph, graph_version_id, organization)
 
     with abort_on_http_error("Deploy failed"):
         resp = deploy_graph_version(

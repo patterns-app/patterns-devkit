@@ -11,7 +11,7 @@ from basis.cli.services.output import prompt_path
 from basis.configuration.base import load_yaml
 
 
-def _get_graph_version_id(
+def get_graph_version_id(
     cfg: CliConfig,
     graph: Optional[Path],
     graph_version_id: Optional[str],
@@ -35,7 +35,7 @@ def _get_graph_version_id(
     return resp["uid"]
 
 
-def _get_graph_path(cfg: CliConfig, graph: Optional[Path]):
+def get_graph_path(cfg: CliConfig, graph: Optional[Path]):
     cwd = Path(os.getcwd()).absolute()
     if not graph and not cwd.is_relative_to(cfg.default_graph.parent):
         prompt = "Enter the location of the graph.yml file"
