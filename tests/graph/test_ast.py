@@ -19,3 +19,6 @@ def test_interface_parse():
     assert len(i.parameters) == 2
     assert i.parameters[0] == p("explicit_param", "bool", "param desc", False)
     assert i.parameters[1] == p("plain_param")
+
+    assert i.state is not None
+    assert i.state.name == "state_param"

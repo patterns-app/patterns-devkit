@@ -40,7 +40,9 @@ class _NodeFuncFinder(ast.NodeVisitor):
         self.found = 0
 
     def interface(self):
-        return NodeInterface(inputs=self.i, outputs=self.o, parameters=self.p)
+        return NodeInterface(
+            inputs=self.i, outputs=self.o, parameters=self.p, state=self.s
+        )
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
         name = node.name
