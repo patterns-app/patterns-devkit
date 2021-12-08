@@ -11,7 +11,7 @@ from basis.cli.newapp import app
 from basis.cli.services import auth
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.list import list_organizations, list_environments
-from basis.cli.services.output import print_success, print_info
+from basis.cli.services.output import print, prompt_str
 
 _email_help = "The email address of the account"
 _password_help = "The password for the account"
@@ -24,10 +24,10 @@ def login(
 ):
     """Log in to your Basis account"""
     if not email:
-        email = typer.prompt("Email", default=read_local_basis_config().email)
+        email = prompt_str("Email", default=read_local_basis_config().email)
 
     if not password:
-        password = typer.prompt("Password", hide_input=True)
+        password = prompt_str("Password", password=True)
 
     with abort_on_http_error("Login failed"):
         auth.login(email, password)
@@ -38,9 +38,9 @@ def login(
     if len(organizations) == 1:
         org_name = organizations[0]["name"]
     else:
-        org_name = typer.prompt(
+        org_name = prompt_str(
             "Select an organization",
-            type=Choice([org["name"] for org in organizations]),
+            choices=[org["name"] for org in organizations],
         )
 
     with abort_on_http_error("Fetching environments failed"):
@@ -56,6 +56,6 @@ def login(
         env_name = None
 
     update_local_basis_config(organization_name=org_name, environment_name=env_name)
-    print_success(f"\nLogged in to Basis organization {org_name} as {email}")
-    print_info(f"\nYour login information is stored at {get_basis_config_path()}")
-    print_info(f"\nIf you want to create a new graph, run 'basis create graph' get started")
+    print(f"\n[success]Logged in to Basis organization [b]{org_name}[/b] as [b]{email}")
+    print(f"\n[info]Your login information is stored at {get_basis_config_path()}")
+    print(f"\n[info]If you want to create a new graph, run [code]basis create graph[/code] get started")

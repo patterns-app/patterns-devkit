@@ -11,7 +11,8 @@ from basis.cli.config import (
     write_local_basis_config,
 )
 from basis.cli.newapp import app
-from basis.cli.services.output import abort, print_success, print_info, print_err
+from basis.cli.services.output import abort, prompt_path
+from basis.cli.services.output import print
 from basis.configuration.base import dump_yaml, load_yaml
 
 create = typer.Typer()
@@ -29,7 +30,7 @@ def graph(
     """Add a new node to a graph"""
     if not location:
         prompt = "Enter a location for the graph"
-        location = Path(typer.prompt(prompt, type=click.Path(exists=False)))
+        location = prompt_path(prompt, exists=False)
 
     cfg = read_local_basis_config()
     path = resolve_graph_path(location, exists=False)
@@ -38,8 +39,8 @@ def graph(
     cfg.default_graph = path
     write_local_basis_config(cfg)
 
-    print_success(f"Created graph {name}\n")
-    print_info(f"You can add nodes with 'cd {location}', then 'basis create node'")
+    print(f"\n[success]Created graph [b]{name}")
+    print(f"\n[info]You can add nodes with [code]cd {location}[/code], then [code]basis create node[/code]")
 
 
 _graph_help = "The graph to add this node to"
@@ -57,12 +58,8 @@ def node(
     basis create node --name='My Node' mynode.py
     """
     if not location:
-        location = Path(
-            typer.prompt(
-                "Enter a location for the node (e.g. mynode.sql)",
-                type=click.Path(exists=False),
-            )
-        )
+        message = "Enter a location for the node [prompt.default](e.g. mynode.sql)"
+        location = prompt_path(message, exists=False)
 
     if location.exists():
         abort(f"{location} already exists")
@@ -73,12 +70,10 @@ def node(
     if not location.is_absolute() and not Path(os.getcwd()).resolve().is_relative_to(
         graph_dir
     ):
-        print_err(
-            f"Cannot use a relative node location outside of the graph directory."
-        )
-        print_info(f"Try changing your directory to the graph directory: {graph_dir}")
-        print_info(
-            f"You can change the graph directory for this command with the --graph option, or you can change the "
+        print(f'[error]Cannot use a relative node location outside of the graph directory.')
+        print(f"[info]Try changing your directory to the graph directory [code]({graph_dir})")
+        print(
+            f"[info]You can change the graph directory for this command with the --graph option, or you can change the "
             f"default graph with 'basis config --graph'"
         )
         raise typer.Exit(1)
@@ -107,9 +102,9 @@ def node(
     location.write_text(content)
     graph_path.write_text(yaml)
 
-    print_success(f"Created node {location}")
-    print_info(
-        f"Once you've edited the node and are ready to run the graph, use 'basis upload'"
+    print(f"\n[success]Created node [b]{location}")
+    print(
+        f"\n[info]Once you've edited the node and are ready to run the graph, use [code]basis upload"
     )
 
 

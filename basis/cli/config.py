@@ -44,7 +44,9 @@ def resolve_graph_path(path: Path, exists: bool) -> Path:
     if path.suffix:
         return path.absolute()
     path.mkdir(parents=True)
-    return (path / "graph.yml").absolute()
+    graph_path = (path / "graph.yml").absolute()
+    update_local_basis_config(default_graph=graph_path)
+    return graph_path
 
 
 def get_basis_config_path() -> Path:
