@@ -1,16 +1,14 @@
-import os
 from pathlib import Path
 
-import click
-import typer
 from typer import Option, Argument
 
-from basis.cli.config import read_local_basis_config, resolve_graph_path
+from basis.cli.config import read_local_basis_config
 from basis.cli.newapp import app
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.deploy import deploy_graph_version
-from basis.cli.services.output import print, prompt_path
+from basis.cli.services.output import print
 from basis.cli.services.upload import upload_graph_version
+from basis.cli.newcommands._util import _get_graph_path
 
 _graph_help = "The location of the graph.yml file for the graph to upload"
 _deploy_help = "Whether or not to automatically deploy the graph after upload"
@@ -27,16 +25,10 @@ def upload(
 ):
     """Upload a new version of a graph to Basis"""
     cfg = read_local_basis_config()
-    cwd = Path(os.getcwd()).absolute()
-    if not graph and not cwd.is_relative_to(cfg.default_graph.parent):
-        prompt = "Enter the location of the graph.yml file"
-        location = prompt_path(prompt, exists=True).absolute()
-        location = resolve_graph_path(location, exists=True)
-    else:
-        location = cfg.default_graph
+    graph_path = _get_graph_path(cfg, graph)
 
     with abort_on_http_error("Upload failed"):
-        resp = upload_graph_version(location, organization or cfg.organization_name)
+        resp = upload_graph_version(graph_path, organization or cfg.organization_name)
 
     graph_version_id = resp["uid"]
     print(f"\n[success]Uploaded new graph version with id [b]{graph_version_id}.")

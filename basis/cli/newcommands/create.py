@@ -40,7 +40,9 @@ def graph(
     write_local_basis_config(cfg)
 
     print(f"\n[success]Created graph [b]{name}")
-    print(f"\n[info]You can add nodes with [code]cd {location}[/code], then [code]basis create node[/code]")
+    print(
+        f"\n[info]You can add nodes with [code]cd {location}[/code], then [code]basis create node[/code]"
+    )
 
 
 _graph_help = "The graph to add this node to"
@@ -70,8 +72,12 @@ def node(
     if not location.is_absolute() and not Path(os.getcwd()).resolve().is_relative_to(
         graph_dir
     ):
-        print(f'[error]Cannot use a relative node location outside of the graph directory.')
-        print(f"[info]Try changing your directory to the graph directory [code]({graph_dir})")
+        print(
+            f"[error]Cannot use a relative node location outside of the graph directory."
+        )
+        print(
+            f"[info]Try changing your directory to the graph directory [code]({graph_dir})"
+        )
         print(
             f"[info]You can change the graph directory for this command with the --graph option, or you can change the "
             f"default graph with 'basis config --graph'"

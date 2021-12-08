@@ -4,3 +4,4 @@ from .deploy import deploy
 from .login import login
 from .logout import logout
 from .upload import upload
+from .trigger import trigger

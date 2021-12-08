@@ -39,8 +39,7 @@ def login(
         org_name = organizations[0]["name"]
     else:
         org_name = prompt_str(
-            "Select an organization",
-            choices=[org["name"] for org in organizations],
+            "Select an organization", choices=[org["name"] for org in organizations],
         )
 
     with abort_on_http_error("Fetching environments failed"):
@@ -58,4 +57,6 @@ def login(
     update_local_basis_config(organization_name=org_name, environment_name=env_name)
     print(f"\n[success]Logged in to Basis organization [b]{org_name}[/b] as [b]{email}")
     print(f"\n[info]Your login information is stored at {get_basis_config_path()}")
-    print(f"\n[info]If you want to create a new graph, run [code]basis create graph[/code] get started")
+    print(
+        f"\n[info]If you want to create a new graph, run [code]basis create graph[/code] get started"
+    )

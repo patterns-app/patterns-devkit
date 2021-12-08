@@ -1,14 +1,15 @@
 import contextlib
 import os
 from enum import Enum
+from json import JSONDecodeError
 
 import requests
 from requests import Response, Session, HTTPError
 
 from basis.cli.config import (
     read_local_basis_config,
-    update_local_basis_config,
     CliConfig,
+    write_local_basis_config,
 )
 from basis.cli.services.output import abort
 
@@ -49,7 +50,12 @@ def _refresh_token(token: str) -> CliConfig:
     )
     resp.raise_for_status()
     data = resp.json()
-    return update_local_basis_config(refresh=data["refresh"], token=data["access"])
+    cfg = read_local_basis_config()
+    if "refresh" in data:
+        cfg.refresh = data["refresh"]
+    cfg.token = data["access"]
+
+    return write_local_basis_config(cfg)
 
 
 def get(path: str, params: dict = None, session: Session = None, **kwargs) -> Response:
@@ -69,7 +75,11 @@ def abort_on_http_error(message: str, prefix=": "):
     try:
         yield
     except HTTPError as e:
-        abort(f"{message}{prefix}{e.response.json()['detail']}")
+        try:
+            details = e.response.json()["detail"]
+        except Exception:
+            details = e.response.text
+        abort(f"{message}{prefix}{details}")
 
 
 class Endpoints(str, Enum):
