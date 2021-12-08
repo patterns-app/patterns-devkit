@@ -58,36 +58,12 @@ class BasisJinjaInspectContext:
         )
 
 
-@dataclass
-class BasisJinjaRenderContext:
-    inputs_sql: dict[str, str]
-    params_sql: dict[str, str]
-
-    def render_input(self, name: str, *args, **kwargs):
-        return self.inputs_sql[name]
-
-    def render_parameter(self, name: str, *args, **kwargs):
-        return self.params_sql[name]
-
-
 def _jinja_ctx_from_inspect_ctx(ctx: BasisJinjaInspectContext) -> dict:
     return {
         "InputTable": ctx.input_table,
         "OutputTable": ctx.output_table,
         "Parameter": ctx.parameter,
     }
-
-
-def get_base_jinja_render_ctx(
-    inputs_sql: dict[str, str], params_sql: dict[str, str]
-) -> dict[str, Any]:
-    basis_ctx = BasisJinjaRenderContext(inputs_sql=inputs_sql, params_sql=params_sql)
-    ctx = {
-        "Record": basis_ctx.render_input,
-        "Table": basis_ctx.render_input,
-        "Parameter": basis_ctx.render_parameter,
-    }
-    return ctx
 
 
 def _get_jinja_env() -> SandboxedEnvironment:
@@ -107,15 +83,3 @@ def parse_interface_from_sql(t: str, ctx: dict = None) -> NodeInterface:
     ctx.update(_jinja_ctx_from_inspect_ctx(basis_ctx))
     env.from_string(t).render(ctx)
     return _interface_from_jinja_ctx(basis_ctx)
-
-
-def render_sql(
-    t: str,
-    inputs_sql: dict[str, str],
-    params_sql: dict[str, str],
-    ctx: dict | None = None,
-):
-    env = _get_jinja_env()
-    ctx = ctx or {}
-    ctx.update(get_base_jinja_render_ctx(inputs_sql, params_sql))
-    return env.from_string(t).render(ctx)
