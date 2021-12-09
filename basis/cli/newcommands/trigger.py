@@ -3,7 +3,6 @@ from pathlib import Path
 from typer import Option, Argument
 
 from basis.cli.config import read_local_basis_config
-from basis.cli.newapp import app
 from basis.cli.services.graph import get_graph_version_id, get_graph_path
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.output import abort
@@ -18,7 +17,6 @@ _organization_help = "The name of the Basis organization that the graph specifie
 _node_help = "The path to the node to trigger"
 
 
-@app.command()
 def trigger(
     organization: str = Option("", help=_organization_help),
     environment: str = Option("", help=_environment_help),

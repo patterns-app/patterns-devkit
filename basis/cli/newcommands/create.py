@@ -10,14 +10,11 @@ from basis.cli.config import (
     resolve_graph_path,
     write_local_basis_config,
 )
-from basis.cli.newapp import app
 from basis.cli.services.output import abort, prompt_path
 from basis.cli.services.output import sprint
 from basis.configuration.base import dump_yaml, load_yaml
 
-create = typer.Typer()
-
-app.add_typer(create, name="create", help="Create a graph new or node")
+create = typer.Typer(name="create", help="Create a graph new or node")
 
 _name_help = "The name of the graph. The location will be used as a name by default"
 

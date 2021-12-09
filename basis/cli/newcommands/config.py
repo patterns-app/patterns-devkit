@@ -7,14 +7,12 @@ from basis.cli.config import (
     resolve_graph_path,
     write_local_basis_config,
 )
-from basis.cli.newapp import app
 
 _config_help = "The name of the organization to use by default"
 _environment_help = "The name of the organization to use by default"
 _graph_help = "The path to the graph to use by default"
 
 
-@app.command()
 def config(
     organization: str = Option("", "--organization", "-o", help=_config_help),
     environment: str = Option("", "--environment", "-e", help=_environment_help),

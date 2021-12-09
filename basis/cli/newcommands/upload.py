@@ -3,7 +3,6 @@ from pathlib import Path
 from typer import Option, Argument
 
 from basis.cli.config import read_local_basis_config
-from basis.cli.newapp import app
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.deploy import deploy_graph_version
 from basis.cli.services.graph import get_graph_path
@@ -16,7 +15,6 @@ _organization_help = "The name of the Basis organization to upload to"
 _environment_help = "The name of the Basis environment to use if deploying the graph"
 
 
-@app.command()
 def upload(
     deploy: bool = Option(True, "--deploy/--no-deploy", help=_deploy_help),
     organization: str = Option("", help=_organization_help),

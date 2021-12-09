@@ -3,9 +3,8 @@ from enum import Enum
 
 import typer
 from rich.table import Table
-from typer import Option, Argument
+from typer import Option
 
-from basis.cli.newapp import app
 from basis.cli.services.list import list_graphs, list_environments
 from basis.cli.services.output import sprint
 
@@ -19,7 +18,6 @@ _type_help = "The type of object to list"
 _json_help = "Output the object as JSON Lines"
 
 list_command = typer.Typer(name="list", help="List objects of a given type")
-app.add_typer(list_command)
 
 
 @list_command.command()

@@ -2,7 +2,7 @@ from cleo import Command
 
 from basis.cli.commands.base import BasisCommandBase
 from basis.cli.services.graph_versions import get_latest_graph_version
-from basis.cli.services.run import trigger_node
+from basis.cli.services.trigger import trigger_node
 from basis.cli.config import read_local_basis_config
 
 

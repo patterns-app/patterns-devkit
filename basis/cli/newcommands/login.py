@@ -7,7 +7,6 @@ from basis.cli.config import (
     get_basis_config_path,
     read_local_basis_config,
 )
-from basis.cli.newapp import app
 from basis.cli.services import auth
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.list import list_organizations, list_environments
@@ -17,7 +16,6 @@ _email_help = "The email address of the account"
 _password_help = "The password for the account"
 
 
-@app.command()
 def login(
     email: str = Option("", help=_email_help),
     password: str = Option("", help=_password_help),

@@ -1,7 +1,6 @@
 from cleo import Command
 
 from basis.cli.commands.base import BasisCommandBase
-from basis.cli.services.list import list_objects
 from basis.cli.config import read_local_basis_config
 
 
