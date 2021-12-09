@@ -18,7 +18,7 @@ def test_login(tmp_path: Path):
             json={"results": [{"uid": "org-1-uid", "name": "org-1"}]},
         )
 
-        runner.invoke(app, ['login'], 'foo@bar.com\npass\n')
+        runner.invoke(app, ['login', '--email=a@e.com', '--password=pass'])
 
     assert cfg_pth.is_file()
     config = read_local_basis_config()

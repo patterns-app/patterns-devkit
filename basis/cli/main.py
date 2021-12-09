@@ -1,13 +1,13 @@
 import typer
 
-from .newcommands.config import config
-from .newcommands.create import create
-from .newcommands.deploy import deploy
-from .newcommands.list import list_command
-from .newcommands.login import login
-from .newcommands.logout import logout
-from .newcommands.trigger import trigger
-from .newcommands.upload import upload
+from .commands.config import config
+from .commands.create import create
+from .commands.deploy import deploy
+from .commands.list import list_command
+from .commands.login import login
+from .commands.logout import logout
+from .commands.trigger import trigger
+from .commands.upload import upload
 
 app = typer.Typer(add_completion=False)
 

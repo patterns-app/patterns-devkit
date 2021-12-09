@@ -1,39 +1,36 @@
-from cleo import Command
+from pathlib import Path
 
-from basis.cli.commands.base import BasisCommandBase
-from basis.cli.services.deploy import deploy_graph_version
-from basis.cli.services.graph_versions import get_latest_graph_version
+from typer import Option
+
 from basis.cli.config import read_local_basis_config
+from basis.cli.services.graph import get_graph_version_id
+from basis.cli.services.api import abort_on_http_error
+from basis.cli.services.deploy import deploy_graph_version
+from basis.cli.services.output import sprint
+
+_graph_help = "The location of the graph.yml file of the graph to deploy"
+_graph_version_id_help = "The id of the graph version to deploy"
+_environment_help = "The name of the Basis environment deploy to"
+_organization_help = "The name of the Basis organization that the graph specified with --graph was uploaded to"
 
 
-class DeployCommand(BasisCommandBase, Command):
+def deploy(
+    environment: str = Option("", "-e", "--environment", help=_environment_help),
+    organization: str = Option("", help=_organization_help),
+    graph: Path = Option(None, help=_graph_help),
+    graph_version_id: str = Option(""),
+):
+    """Deploy a previously uploaded graph version
+
+    You can specify either '--graph-version-id' to deploy a specific version, or
+    '--graph' to deploy the latest uploaded version of a graph.
     """
-    Deploy a graph to an environment on getbasis.com
+    cfg = read_local_basis_config()
+    graph_version_id = get_graph_version_id(cfg, graph, graph_version_id, organization)
 
-    deploy
-        {graph : Graph name}
-        {environment : Environment name}
-        {--g|graph-version : Specific graph version (default latest)}
-    """
+    with abort_on_http_error("Deploy failed"):
+        resp = deploy_graph_version(
+            graph_version_id, environment or cfg.environment_name
+        )
 
-    def handle(self):
-        self.ensure_authenticated()
-        graph_name = self.argument("graph")
-        env_name = self.argument("environment")
-        graph_version = self.option("graph-version")
-        assert not graph_version, "Graph version not supported yet"
-        assert isinstance(graph_name, str)
-        assert isinstance(env_name, str)
-        cfg = read_local_basis_config()
-        org_name = cfg.organization_name
-        try:
-            version = get_latest_graph_version(graph_name, org_name)
-        except Exception as e:
-            self.line(f"<error>Couldn't find graph version: {e}</error>")
-            exit(1)
-        try:
-            data = deploy_graph_version(version["uid"], environment_name=env_name)
-        except Exception as e:
-            self.line(f"<error>Couldn't deploy graph: {e}</error>")
-            exit(1)
-        self.line(f"Graph deployed (<info>{data}</info>)")
+    sprint(f"[success]Graph [code]{resp['graph_name']}[/code] deployed.")
