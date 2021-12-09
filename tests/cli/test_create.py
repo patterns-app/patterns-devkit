@@ -13,9 +13,8 @@ runner = typer.testing.CliRunner()
 def test_generate_graph(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent
     name = "testgraph"
-    runner.invoke(app, ['create', 'graph'], f'{dr / name}\n')
+    runner.invoke(app, ["create", "graph"], f"{dr / name}\n")
     assert name in (Path(dr) / name / "graph.yml").read_text()
-
 
 
 # TODO

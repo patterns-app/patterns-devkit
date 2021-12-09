@@ -11,9 +11,7 @@ from .commands.upload import upload
 
 app = typer.Typer(add_completion=False)
 
-for command in (
-    config, create, deploy, list_command, login, logout, trigger, upload
-):
+for command in (config, create, deploy, list_command, login, logout, trigger, upload):
     if isinstance(command, typer.Typer):
         app.add_typer(command)
     else:

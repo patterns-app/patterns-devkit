@@ -364,9 +364,7 @@ def test_err_unconnected_implicit_input(tmp_path: Path):
     )
 
     assert_nodes(
-        manifest,
-        n("source"),
-        n("sink", errors=['Cannot find output named "input"']),
+        manifest, n("source"), n("sink", errors=['Cannot find output named "input"']),
     )
 
 
@@ -388,9 +386,7 @@ def test_err_unconnected_explicit_input(tmp_path: Path):
     )
 
     assert_nodes(
-        manifest,
-        n("source"),
-        n("sink", errors=['Cannot find output named "nosink"']),
+        manifest, n("source"), n("sink", errors=['Cannot find output named "nosink"']),
     )
 
 
@@ -467,11 +463,7 @@ def test_err_unresolved_ports(tmp_path: Path):
     assert_nodes(
         manifest,
         n("node", parent="sub"),
-        n(
-            "sub",
-            node_type=NodeType.Graph,
-            errors=['Cannot find output named "subi"'],
-        ),
+        n("sub", node_type=NodeType.Graph, errors=['Cannot find output named "subi"'],),
     )
 
 

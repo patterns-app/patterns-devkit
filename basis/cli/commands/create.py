@@ -66,7 +66,9 @@ def node(
     cfg = read_local_basis_config()
     graph_path = resolve_graph_path(explicit_graph or cfg.default_graph, exists=True)
     graph_dir = graph_path.parent
-    if not location.is_absolute() and not is_relative_to(Path(os.getcwd()).resolve(), graph_dir):
+    if not location.is_absolute() and not is_relative_to(
+        Path(os.getcwd()).resolve(), graph_dir
+    ):
         sprint(
             f"[error]Cannot use a relative node location outside of the graph directory."
         )

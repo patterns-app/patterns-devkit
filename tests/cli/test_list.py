@@ -19,7 +19,7 @@ def test_list(tmp_path: Path):
             m.get(
                 API_BASE_URL + e, json={"results": [{"name": "name"}]},
             )
-        result = runner.invoke(app, ['list', 'environments', '--json'])
+        result = runner.invoke(app, ["list", "environments", "--json"])
         assert "name" in result.output
-        result = runner.invoke(app, ['list', 'graphs', '--json'])
+        result = runner.invoke(app, ["list", "graphs", "--json"])
         assert "name" in result.output
