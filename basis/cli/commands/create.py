@@ -13,6 +13,7 @@ from basis.cli.services.output import abort, prompt_path
 from basis.cli.services.output import sprint
 from basis.cli.services.paths import is_relative_to
 from basis.configuration.base import dump_yaml, load_yaml
+from basis.configuration.path import NodeId
 
 create = typer.Typer(name="create", help="Create a graph new or node")
 
@@ -26,7 +27,7 @@ def graph(
 ):
     """Add a new node to a graph"""
     if not location:
-        prompt = "Enter a location for the graph"
+        prompt = "Enter a name for the graph [prompt.default](e.g. my_graph)"
         location = prompt_path(prompt, exists=False)
 
     cfg = read_local_basis_config()
@@ -97,7 +98,11 @@ def node(
     if any(n["node_file"] == node_file for n in nodes):
         abort(f"Node file {location} is already defined in the graph configuration")
 
-    nodes.append({"name": name or location.stem, "node_file": node_file})
+    nodes.append({
+        "name": name or location.stem,
+        "node_file": node_file,
+        "id": str(NodeId.random())
+    })
     graph_dict["nodes"] = nodes
     yaml = dump_yaml(graph_dict)
 
