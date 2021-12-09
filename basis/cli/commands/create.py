@@ -27,7 +27,7 @@ def graph(
 ):
     """Add a new node to a graph"""
     if not location:
-        prompt = "Enter a name for the graph [prompt.default](e.g. my_graph)"
+        prompt = "Enter a name for the new graph directory [prompt.default](e.g. my_graph)"
         location = prompt_path(prompt, exists=False)
 
     cfg = read_local_basis_config()
@@ -58,7 +58,7 @@ def node(
     basis create node --name='My Node' mynode.py
     """
     if not location:
-        message = "Enter a location for the node [prompt.default](e.g. mynode.sql)"
+        message = "Enter a for the new node file [prompt.default](e.g. mynode.sql)"
         location = prompt_path(message, exists=False)
 
     if location.exists():
