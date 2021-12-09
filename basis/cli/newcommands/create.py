@@ -1,7 +1,6 @@
 import os
 from pathlib import Path
 
-import click
 import typer
 from typer import Option, Argument
 
@@ -12,6 +11,7 @@ from basis.cli.config import (
 )
 from basis.cli.services.output import abort, prompt_path
 from basis.cli.services.output import sprint
+from basis.cli.services.paths import is_relative_to
 from basis.configuration.base import dump_yaml, load_yaml
 
 create = typer.Typer(name="create", help="Create a graph new or node")
@@ -66,9 +66,7 @@ def node(
     cfg = read_local_basis_config()
     graph_path = resolve_graph_path(explicit_graph or cfg.default_graph, exists=True)
     graph_dir = graph_path.parent
-    if not location.is_absolute() and not Path(os.getcwd()).resolve().is_relative_to(
-        graph_dir
-    ):
+    if not location.is_absolute() and not is_relative_to(Path(os.getcwd()).resolve(), graph_dir):
         sprint(
             f"[error]Cannot use a relative node location outside of the graph directory."
         )
