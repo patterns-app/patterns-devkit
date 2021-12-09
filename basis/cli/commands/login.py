@@ -1,53 +1,62 @@
-from __future__ import annotations
+import typer
+from click import Choice
+from typer import Option
 
-from cleo import Command
+from basis.cli.config import (
+    update_local_basis_config,
+    get_basis_config_path,
+    read_local_basis_config,
+)
+from basis.cli.services import auth
+from basis.cli.services.api import abort_on_http_error
+from basis.cli.services.list import list_organizations, list_environments
+from basis.cli.services.output import sprint, prompt_str
 
-from basis.cli.commands.base import BasisCommandBase
-from basis.cli.config import set_current_organization_name
-from basis.cli.services.auth import list_organizations, login, logout
+_email_help = "The email address of the account"
+_password_help = "The password for the account"
 
 
-class LoginCommand(BasisCommandBase, Command):
-    """
-    Login to getbasis.com account
+def login(
+    email: str = Option("", help=_email_help),
+    password: str = Option("", help=_password_help),
+):
+    """Log in to your Basis account"""
+    if not email:
+        email = prompt_str("Email", default=read_local_basis_config().email)
 
-    login
-        {--e|email=  : getbasis.com email}
-        {--p|password= : getbasis.com password}
-    """
+    if not password:
+        password = prompt_str("Password", password=True)
 
-    def handle(self):
-        # Logout first
-        logout()
-        em = self.option("email")
-        pw = self.option("password")
-        if not em:
-            em = self.ask("Email:")
-        if not pw:
-            pw = self.secret("Password:")
-        assert isinstance(em, str)
-        assert isinstance(pw, str)
-        try:
-            login(email=em, password=pw)
-        except Exception as e:
-            self.line(f"<error>Login failed: {e}</error>")
-            exit(1)
-        self.line("<info>Logged in successfully</info>")
-        try:
-            organizations = list_organizations()
-        except Exception as e:
-            self.line(f"<error>Fetching organizations failed: {e}</error>")
-            exit(1)
-        if not organizations:
-            raise Exception("User has no organizations")
-        org_name = ""
-        if len(organizations) == 1:
-            org = organizations[0]
-            org_name = org["name"]
-            set_current_organization_name(org_name)
-        else:
-            org_name = self.choice(
-                "Select an organization", [org["name"] for org in organizations]
-            )
-            set_current_organization_name(org_name)
-        self.line(f"Using organization <info>{org_name}</info>")
+    with abort_on_http_error("Login failed"):
+        auth.login(email, password)
+
+    with abort_on_http_error("Fetching organizations failed"):
+        organizations = list_organizations()
+
+    if len(organizations) == 1:
+        org_name = organizations[0]["name"]
+    else:
+        org_name = prompt_str(
+            "Select an organization", choices=[org["name"] for org in organizations],
+        )
+
+    with abort_on_http_error("Fetching environments failed"):
+        environments = list_environments()
+
+    if len(environments) == 1:
+        env_name = environments[0]["name"]
+    elif environments:
+        env_name = typer.prompt(
+            "Select an organization", type=Choice([env["name"] for env in environments])
+        )
+    else:
+        env_name = None
+
+    update_local_basis_config(organization_name=org_name, environment_name=env_name)
+    sprint(
+        f"\n[success]Logged in to Basis organization [b]{org_name}[/b] as [b]{email}"
+    )
+    sprint(f"\n[info]Your login information is stored at {get_basis_config_path()}")
+    sprint(
+        f"\n[info]If you want to create a new graph, run [code]basis create graph[/code] get started"
+    )

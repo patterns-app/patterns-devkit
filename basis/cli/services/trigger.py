@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from basis.cli.services.api import Endpoints, get, post
+from basis.cli.services.api import Endpoints, post
 
 
 def trigger_node(

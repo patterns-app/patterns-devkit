@@ -1,61 +1,96 @@
-from __future__ import annotations
-
+import contextlib
 import os
 from enum import Enum
+from json import JSONDecodeError
 
 import requests
-from basis.cli.config import read_local_basis_config, update_basis_config_with_auth
-from requests import Request, Response, Session
+from requests import Response, Session, HTTPError
+
+from basis.cli.config import (
+    read_local_basis_config,
+    CliConfig,
+    write_local_basis_config,
+)
+from basis.cli.services.output import abort
 
 API_BASE_URL = os.environ.get("BASIS_API_URL", "https://api.getbasis.com/")
+AUTH_TOKEN_ENV_VAR = "BASIS_AUTH_TOKEN"
 AUTH_TOKEN_PREFIX = "JWT"
 
 
-def get_api_session() -> Session:
+def _get_api_session() -> Session:
     s = requests.Session()
-    auth_token = get_auth_token()
-    if auth_token:
-        s.headers.update({"Authorization": f"{AUTH_TOKEN_PREFIX} {auth_token}"})
+    auth_token = _get_auth_token()
+    s.headers.update(
+        {
+            "Authorization": f"{AUTH_TOKEN_PREFIX} {auth_token}",
+            "Accept": "application/json",
+        }
+    )
     return s
 
 
-def get_auth_token():
+def _get_auth_token() -> str:
+    override = os.environ.get(AUTH_TOKEN_ENV_VAR)
+    if override:
+        return override
+
     cfg = read_local_basis_config()
-    auth_token = cfg.get("token")
-    if auth_token:
+    if not cfg.token:
+        abort("You must be logged in to use this command. Run 'basis login'.")
+
+    with abort_on_http_error("Failed verifying auth token"):
         resp = requests.post(
-            API_BASE_URL + Endpoints.TOKEN_VERIFY, json={"token": auth_token}
+            API_BASE_URL + Endpoints.TOKEN_VERIFY, json={"token": cfg.token}
         )
-        if resp.status_code == 401:
-            refresh = cfg.get("refresh")
-            if refresh:
-                refresh_token(refresh)
-                cfg = read_local_basis_config()
-                auth_token = cfg.get("token")
-        else:
-            resp.raise_for_status()
-    return auth_token
+    if resp.status_code == 401:
+        if refresh := cfg.refresh:
+            cfg = _refresh_token(refresh)
+    else:
+        resp.raise_for_status()
+    return cfg.token
 
 
-def refresh_token(refresh_token: str):
-    resp = requests.post(
-        API_BASE_URL + Endpoints.TOKEN_REFRESH, json={"refresh": refresh_token}
-    )
+def _refresh_token(token: str) -> CliConfig:
+    with abort_on_http_error("Failed refreshing auth token"):
+        resp = requests.post(
+            API_BASE_URL + Endpoints.TOKEN_REFRESH, json={"refresh": token}
+        )
     resp.raise_for_status()
     data = resp.json()
-    update_basis_config_with_auth(data)
+    cfg = read_local_basis_config()
+    if "refresh" in data:
+        cfg.refresh = data["refresh"]
+    cfg.token = data["access"]
+
+    write_local_basis_config(cfg)
+    return cfg
 
 
 def get(path: str, params: dict = None, session: Session = None, **kwargs) -> Response:
-    session = session or get_api_session()
+    session = session or _get_api_session()
     resp = session.get(API_BASE_URL + path, params=params or {}, **kwargs)
     return resp
 
 
 def post(path: str, json: dict = None, session: Session = None, **kwargs) -> Response:
-    session = session or get_api_session()
+    session = session or _get_api_session()
     resp = session.post(API_BASE_URL + path, json=json or {}, **kwargs)
     return resp
+
+
+@contextlib.contextmanager
+def abort_on_http_error(message: str, prefix=": "):
+    try:
+        yield
+    except HTTPError as e:
+        try:
+            details = e.response.json()["detail"]
+        except Exception:
+            details = e.response.text
+        abort(f"{message}{prefix}{details}")
+    except Exception as e:
+        abort(f"{message}{prefix}{e}")
 
 
 class Endpoints(str, Enum):
@@ -66,7 +101,6 @@ class Endpoints(str, Enum):
     DEPLOYMENTS_TRIGGER_NODE = "api/deployments/triggers/"
     GRAPH_VERSIONS_CREATE = "api/graph_versions/"
     GRAPH_VERSIONS_LIST = "api/graph_versions/"
-    # GRAPH_VERSIONS_DOWNLOAD = "api/graph-versions/download/"
     ENVIRONMENTS_CREATE = "api/environments/"
     ENVIRONMENTS_INFO = "api/environments/info/"
     GRAPHS_INFO = "api/graphs/info/"
@@ -77,6 +111,5 @@ class Endpoints(str, Enum):
     ORGANIZATIONS_LIST = "api/organizations/"
     ENVIRONMENTS_LIST = "api/environments/"
     GRAPHS_LIST = "api/graphs/"
-    NODES_LIST = "api/nodes/"
     NODES_RUN = "api/nodes/"
     EXECUTION_EVENTS = "api/execution_events/"

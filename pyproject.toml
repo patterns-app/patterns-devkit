@@ -9,16 +9,16 @@ packages = [
 version = "0.1.1"
 
 [tool.poetry.dependencies]
-cleo = "^0.8.1"
 common-model = { git = "https://github.com/kvh/common-model.git" }
-cookiecutter = "^1.7.3"
 datacopy = { git = "https://github.com/kvh/dcp.git" }
 jinja2 = "^3.0.0"
-pyarrow = "^5.0.0"
 pydantic = "^1.8.1"
 python = "^3.8"
 requests-mock = "^1.9.3"
 strictyaml = "^1.0.6"
+typer = {extras = ["all"], version = "^0.4.0"}
+platformdirs = "^2.4.0"
+rich = "^10.15.2"
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
@@ -32,7 +32,7 @@ pytest = "^4.6"
 pytest-cov = "^2.8.1"
 
 [tool.poetry.scripts]
-basis = "basis.cli.app:app.run"
+basis = "basis.cli.main:main"
 
 [tool.black]
 exclude = '''
