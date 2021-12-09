@@ -27,7 +27,9 @@ def graph(
 ):
     """Add a new node to a graph"""
     if not location:
-        prompt = "Enter a name for the new graph directory [prompt.default](e.g. my_graph)"
+        prompt = (
+            "Enter a name for the new graph directory [prompt.default](e.g. my_graph)"
+        )
         location = prompt_path(prompt, exists=False)
 
     cfg = read_local_basis_config()

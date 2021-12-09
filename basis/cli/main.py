@@ -8,14 +8,27 @@ from .commands.login import login
 from .commands.logout import logout
 from .commands.trigger import trigger
 from .commands.upload import upload
+from .commands.manifest import manifest
 
 app = typer.Typer(add_completion=False)
 
-for command in (config, create, deploy, list_command, login, logout, trigger, upload):
+for command in (
+    config,
+    create,
+    deploy,
+    list_command,
+    login,
+    logout,
+    trigger,
+    upload,
+):
     if isinstance(command, typer.Typer):
         app.add_typer(command)
     else:
         app.command()(command)
+
+# don't show manifest command in help
+app.command(hidden=True)(manifest)
 
 
 def main():

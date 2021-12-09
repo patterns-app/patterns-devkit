@@ -38,7 +38,17 @@ def get_graph_version_id(
 
 def get_graph_path(cfg: CliConfig, graph: Optional[Path]):
     cwd = Path(os.getcwd()).absolute()
-    if not graph and not is_relative_to(cwd, cfg.default_graph.parent):
+    if graph:
+        if graph.is_dir():
+            for ext in ('.yml', '.yaml',):
+                p = graph / f'graph{ext}'
+                if p.is_file():
+                    return p
+            abort(f'Could not find graph at {graph}')
+        else:
+            return graph
+
+    if not graph and not is_relative_to(cwd, cfg.default_graph.parent) or not cfg.default_graph:
         prompt = "Enter the location of the graph.yml file"
         graph_path = prompt_path(prompt, exists=True).absolute()
         graph_path = resolve_graph_path(graph_path, exists=True)
