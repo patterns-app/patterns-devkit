@@ -21,8 +21,12 @@ AUTH_TOKEN_PREFIX = "JWT"
 def _get_api_session() -> Session:
     s = requests.Session()
     auth_token = _get_auth_token()
-    s.headers.update({"Authorization": f"{AUTH_TOKEN_PREFIX} {auth_token}",
-                      "Accept": "application/json"})
+    s.headers.update(
+        {
+            "Authorization": f"{AUTH_TOKEN_PREFIX} {auth_token}",
+            "Accept": "application/json",
+        }
+    )
     return s
 
 

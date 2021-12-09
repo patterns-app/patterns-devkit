@@ -38,7 +38,7 @@ def trigger(
     with abort_on_http_error("Error triggering node"):
         trigger_node(node_id, graph_version_id, environment or cfg.environment_name)
 
-    sprint(f'Triggered node {node}')
+    sprint(f"Triggered node {node}")
 
 
 def _get_node_id(graph_path: Path, manifest: GraphManifest, node: Path):

@@ -17,7 +17,7 @@ class NodeId(str):
     @classmethod
     def random(cls) -> "NodeId":
         """Generate a new random id"""
-        return cls.from_bytes(b32encode(random.randbytes(5)))
+        return cls.from_bytes(random.randbytes(5))
 
     @classmethod
     def from_bytes(cls, b: bytes) -> "NodeId":

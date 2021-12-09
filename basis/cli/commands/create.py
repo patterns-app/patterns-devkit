@@ -98,11 +98,13 @@ def node(
     if any(n["node_file"] == node_file for n in nodes):
         abort(f"Node file {location} is already defined in the graph configuration")
 
-    nodes.append({
-        "name": name or location.stem,
-        "node_file": node_file,
-        "id": str(NodeId.random())
-    })
+    nodes.append(
+        {
+            "name": name or location.stem,
+            "node_file": node_file,
+            "id": str(NodeId.random()),
+        }
+    )
     graph_dict["nodes"] = nodes
     yaml = dump_yaml(graph_dict)
 
