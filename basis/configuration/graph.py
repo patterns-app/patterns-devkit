@@ -38,7 +38,7 @@ class NodeCfg(FrozenPydanticBase):
     node_file: str = None
 
     name: str = None
-    id: constr(to_lower=True, regex=r"[a-zA-Z34567]{8}") = None
+    id: constr(to_lower=True, regex=r"[a-zA-Z234567]{8}") = None
     description: str = None
     schedule: str = None
     inputs: List[PortMappingCfg] = None

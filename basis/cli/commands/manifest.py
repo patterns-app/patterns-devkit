@@ -5,7 +5,7 @@ from pathlib import Path
 from typer import Option, Argument
 
 from basis.cli.config import read_local_basis_config
-from basis.cli.services.graph import get_graph_path
+from basis.cli.services.graph import find_graph_file
 from basis.cli.services.output import console
 from basis.graph.builder import graph_manifest_from_yaml
 
@@ -20,9 +20,7 @@ def manifest(
     graph: Path = Argument(None, exists=True, help=_graph_help),
 ):
     """Print a graph manifest as JSON"""
-    cfg = read_local_basis_config()
-    graph_path = get_graph_path(cfg, graph)
-
+    graph_path = find_graph_file(graph)
     m = graph_manifest_from_yaml(graph_path, allow_errors=True)
     j = json.dumps(m.dict(exclude_none=True))
     if pretty:

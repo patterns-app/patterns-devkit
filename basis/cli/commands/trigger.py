@@ -3,7 +3,7 @@ from pathlib import Path
 from typer import Option, Argument
 
 from basis.cli.config import read_local_basis_config
-from basis.cli.services.graph import get_graph_version_id, get_graph_path
+from basis.cli.services.graph import get_graph_version_id, find_graph_file
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.output import abort, sprint
 from basis.cli.services.trigger import trigger_node
@@ -26,14 +26,14 @@ def trigger(
 ):
     """Trigger a node on a deployed graph to run immediately"""
     cfg = read_local_basis_config()
-    graph_path = get_graph_path(cfg, graph)
+    graph_path = find_graph_file(graph or node.parent)
 
     manifest = graph_manifest_from_yaml(graph_path)
     node_id = _get_node_id(graph_path, manifest, node)
     if not node_id:
         abort(f"Node {node} is not part of the graph at {graph_path}")
 
-    graph_version_id = get_graph_version_id(cfg, graph, graph_version_id, organization)
+    graph_version_id = get_graph_version_id(cfg, graph_path, graph_version_id, organization)
 
     with abort_on_http_error("Error triggering node"):
         trigger_node(node_id, graph_version_id, environment or cfg.environment_name)
