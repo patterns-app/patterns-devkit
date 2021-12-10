@@ -22,6 +22,7 @@ def trigger(
     environment: str = Option("", help=_environment_help),
     graph: Path = Option(None, exists=True, help=_graph_help),
     graph_version_id: str = Option("", help=_graph_version_id_help),
+    local: bool = Option(False, hidden=True),
     node: Path = Argument(..., exists=True, help=_node_help),
 ):
     """Trigger a node on a deployed graph to run immediately"""
@@ -36,7 +37,7 @@ def trigger(
     graph_version_id = get_graph_version_id(cfg, graph_path, graph_version_id, organization)
 
     with abort_on_http_error("Error triggering node"):
-        trigger_node(node_id, graph_version_id, environment or cfg.environment_name)
+        trigger_node(node_id, graph_version_id, environment or cfg.environment_name, local_execution=local)
 
     sprint(f"Triggered node {node}")
 
