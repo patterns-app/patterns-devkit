@@ -47,7 +47,7 @@ def login(
         env_name = environments[0]["name"]
     elif environments:
         env_name = typer.prompt(
-            "Select an organization", type=Choice([env["name"] for env in environments])
+            "Select an environment", type=Choice([env["name"] for env in environments])
         )
     else:
         env_name = None

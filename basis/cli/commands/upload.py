@@ -5,7 +5,7 @@ from typer import Option, Argument
 from basis.cli.config import read_local_basis_config
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.deploy import deploy_graph_version
-from basis.cli.services.graph import get_graph_path
+from basis.cli.services.graph import find_graph_file
 from basis.cli.services.output import sprint
 from basis.cli.services.upload import upload_graph_version
 
@@ -23,7 +23,7 @@ def upload(
 ):
     """Upload a new version of a graph to Basis"""
     cfg = read_local_basis_config()
-    graph_path = get_graph_path(cfg, graph)
+    graph_path = find_graph_file(graph)
 
     with abort_on_http_error("Upload failed"):
         resp = upload_graph_version(graph_path, organization or cfg.organization_name)

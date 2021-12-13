@@ -16,37 +16,9 @@ class CliConfig(PydanticBase):
     token: str = None
     refresh: str = None
     email: str = None
-    default_graph: Path = None
 
     class Config:
         extra = "ignore"
-
-
-def resolve_graph_path(path: Path, exists: bool) -> Path:
-    if path.is_dir():
-        for ext in (".yml", ".yaml"):
-            f = path / f"graph{ext}"
-            if f.is_file():
-                if exists:
-                    return f.absolute()
-                abort(f"Graph '{f}' already exists")
-        if exists:
-            abort(f"Graph '{f}' does not exist")
-        return (path / "graph.yml").absolute()
-    if path.suffix and path.suffix not in (".yml", ".yaml"):
-        abort(f"Graph '{path}' must be a yaml file")
-    if path.is_file():
-        if not exists:
-            abort(f"Graph '{path}' already exists")
-        return path.absolute()
-    if exists:
-        abort(f"Graph '{path}' does not exist")
-    if path.suffix:
-        return path.absolute()
-    path.mkdir(parents=True)
-    graph_path = (path / "graph.yml").absolute()
-    update_local_basis_config(default_graph=graph_path)
-    return graph_path
 
 
 def get_basis_config_path() -> Path:
@@ -67,7 +39,7 @@ def read_local_basis_config() -> CliConfig:
 def write_local_basis_config(config: CliConfig):
     path = get_basis_config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(config.json())
+    path.write_text(config.json(indent="  "))
 
 
 def update_local_basis_config(**values) -> CliConfig:

@@ -6,7 +6,6 @@ from typer import Option, Argument
 
 from basis.cli.config import (
     read_local_basis_config,
-    resolve_graph_path,
     write_local_basis_config,
 )
 from basis.cli.services.output import abort, prompt_path
@@ -14,6 +13,7 @@ from basis.cli.services.output import sprint
 from basis.cli.services.paths import is_relative_to
 from basis.configuration.base import dump_yaml, load_yaml
 from basis.configuration.path import NodeId
+from basis.cli.services.graph import find_graph_file, resolve_graph_path
 
 create = typer.Typer(name="create", help="Create a graph new or node")
 
@@ -23,18 +23,19 @@ _name_help = "The name of the graph. The location will be used as a name by defa
 @create.command()
 def graph(
     name: str = Option("", "--name", "-n", help=_name_help),
-    location: Path = Argument(None),
+    location: Path = Argument(None, metavar="GRAPH"),
 ):
     """Add a new node to a graph"""
     if not location:
-        prompt = "Enter a name for the graph [prompt.default](e.g. my_graph)"
+        prompt = (
+            "Enter a name for the new graph directory [prompt.default](e.g. my_graph)"
+        )
         location = prompt_path(prompt, exists=False)
 
     cfg = read_local_basis_config()
     path = resolve_graph_path(location, exists=False)
     name = name or location.stem
     path.write_text(dump_yaml({"name": name}))
-    cfg.default_graph = path
     write_local_basis_config(cfg)
 
     sprint(f"\n[success]Created graph [b]{name}")
@@ -58,37 +59,34 @@ def node(
     basis create node --name='My Node' mynode.py
     """
     if not location:
-        message = "Enter a location for the node [prompt.default](e.g. mynode.sql)"
+        message = "Enter a name for the new node file [prompt.default](e.g. mynode.sql)"
         location = prompt_path(message, exists=False)
 
     if location.exists():
         abort(f"{location} already exists")
 
-    cfg = read_local_basis_config()
-    graph_path = resolve_graph_path(explicit_graph or cfg.default_graph, exists=True)
-    graph_dir = graph_path.parent
-    if not location.is_absolute() and not is_relative_to(
-        Path(os.getcwd()).resolve(), graph_dir
-    ):
-        sprint(
-            f"[error]Cannot use a relative node location outside of the graph directory."
-        )
-        sprint(
-            f"[info]Try changing your directory to the graph directory [code]({graph_dir})"
-        )
-        sprint(
-            f"[info]You can change the graph directory for this command with the --graph option, or you can change the "
-            f"default graph with 'basis config --graph'"
-        )
-        raise typer.Exit(1)
-
-    # Create the node file
     if location.suffix == ".py":
         content = _PY_FILE_TEMPLATE.format(location.stem)
     elif location.suffix == ".sql":
         content = _SQL_FILE_TEMPLATE
     else:
         abort("Node file location must end in .py or .sql")
+
+    graph_path = find_graph_file(explicit_graph or location.parent)
+    graph_dir = graph_path.parent
+    if not location.is_absolute() and not is_relative_to(
+        location.absolute(), graph_dir
+    ):
+        sprint(
+            f"\n[error]Cannot use a relative node location outside of a graph directory."
+        )
+        sprint(
+            f"\n[info]Try changing your directory to the graph directory [code]({graph_dir})"
+        )
+        sprint(
+            f"[info]You can change the graph directory for this command with the [code]--graph[/code] option"
+        )
+        raise typer.Exit(1)
 
     # Update the graph yaml
     graph_dict = load_yaml(graph_path)
