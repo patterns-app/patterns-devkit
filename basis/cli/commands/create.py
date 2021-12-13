@@ -59,7 +59,7 @@ def node(
     basis create node --name='My Node' mynode.py
     """
     if not location:
-        message = "Enter name a for the new node file [prompt.default](e.g. mynode.sql)"
+        message = "Enter a name for the new node file [prompt.default](e.g. mynode.sql)"
         location = prompt_path(message, exists=False)
 
     if location.exists():
