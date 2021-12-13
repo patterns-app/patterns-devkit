@@ -67,13 +67,13 @@ def find_graph_file(path: Optional[Path]) -> Path:
     path = path.absolute()
 
     for _ in range(100):
-        for ext in ('yml', 'yaml'):
-            p = path / f'graph.{ext}'
+        for ext in ("yml", "yaml"):
+            p = path / f"graph.{ext}"
             if p.is_file():
                 return p
         if not path or path == path.parent:
             break
         path = path.parent
 
-    resp = prompt_path('Enter the path to the graph yaml file', exists=True)
+    resp = prompt_path("Enter the path to the graph yaml file", exists=True)
     return resolve_graph_path(resp, exists=True)

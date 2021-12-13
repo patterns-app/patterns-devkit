@@ -84,7 +84,11 @@ class _GraphBuilder:
         )
 
     def _err(self, node_or_id: Union[ConfiguredNode, NodeId], message: str):
-        id = node_or_id if isinstance(node_or_id, NodeId) else node_or_id.id
+        id = (
+            node_or_id.id
+            if isinstance(node_or_id, ConfiguredNode)
+            else NodeId(node_or_id)
+        )
         self.errors.append(GraphError(node_id=id, message=message))
 
     def _read_graph_yml(self, path: Path) -> GraphDefinitionCfg:
@@ -228,7 +232,7 @@ class _GraphBuilder:
     def _check_edge(
         self, dst_id: NodeId, name: str, src_t: PortType, dst_t: PortType,
     ):
-        if src_t != dst_t:
+        if src_t == PortType.Table and dst_t == PortType.Stream:
             self._err(
                 dst_id,
                 f"Cannot connect {name}: input is a {src_t}, but output is a {dst_t}",
@@ -308,12 +312,12 @@ class _GraphBuilder:
             vertex.resolved_edges,
         )
         src_t = next(
+            i.port_type for i in vertex.interface.outputs if i.name == vertex_port.port
+        )
+        dst_t = next(
             i.port_type
             for i in node.interface.inputs
             if i.name == local_edge.output.port
-        )
-        dst_t = next(
-            i.port_type for i in vertex.interface.outputs if i.name == vertex_port.port
         )
         self._check_edge(
             local_edge.output.node_id, local_edge.output.port, src_t, dst_t
@@ -335,7 +339,7 @@ class _GraphBuilder:
     ) -> ConfiguredNode:
         node_file_path = node_dir / node.node_file
         node_name = node.name or self._default_node_name(node_file_path)
-        node_id = node.id or NodeId.from_name(node_name, parent)
+        node_id = NodeId(node.id) if node.id else NodeId.from_name(node_name, parent)
         relative_node_path = self._relative_path_str(node_file_path)
         if node_id in self.nodes_by_id:
             raise ValueError(f"Duplicate node id: {node_id}")
