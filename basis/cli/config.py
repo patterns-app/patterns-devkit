@@ -39,7 +39,7 @@ def read_local_basis_config() -> CliConfig:
 def write_local_basis_config(config: CliConfig):
     path = get_basis_config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(config.json())
+    path.write_text(config.json(indent="  "))
 
 
 def update_local_basis_config(**values) -> CliConfig:

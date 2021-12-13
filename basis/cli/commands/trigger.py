@@ -34,12 +34,19 @@ def trigger(
     if not node_id:
         abort(f"Node {node} is not part of the graph at {graph_path}")
 
-    graph_version_id = get_graph_version_id(cfg, graph_path, graph_version_id, organization)
+    graph_version_id = get_graph_version_id(
+        cfg, graph_path, graph_version_id, organization
+    )
 
     with abort_on_http_error("Error triggering node"):
-        trigger_node(node_id, graph_version_id, environment or cfg.environment_name, local_execution=local)
+        trigger_node(
+            node_id,
+            graph_version_id,
+            environment or cfg.environment_name,
+            local_execution=local,
+        )
 
-    sprint(f"Triggered node {node}")
+    sprint(f"[success]Triggered node {node}")
 
 
 def _get_node_id(graph_path: Path, manifest: GraphManifest, node: Path):
