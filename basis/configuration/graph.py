@@ -41,10 +41,15 @@ class NodeCfg(FrozenPydanticBase):
     id: constr(to_lower=True, regex=r"[a-zA-Z234567]{8}") = None
     description: str = None
     schedule: str = None
+    # trigger: NodeTriggerCfg # ("manual", "reactive", "daily", "* * * 1 30")
     inputs: List[PortMappingCfg] = None
     outputs: List[PortMappingCfg] = None
     parameters: Dict[str, Any] = None
 
+class NodeTriggerCfg(FrozenPydanticBase):
+    schedule: str
+    manual: bool
+    reactive: bool
 
 class ExposingCfg(FrozenPydanticBase):
     inputs: List[str] = None
