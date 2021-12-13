@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from basis.cli.services.api import Endpoints, get, post
+from basis.cli.services.api import Endpoints, get
 
 
 def get_execution_logs(

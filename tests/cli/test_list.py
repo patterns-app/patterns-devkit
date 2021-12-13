@@ -1,12 +1,7 @@
 from pathlib import Path
 
-import typer.testing
-
-from basis.cli.main import app
 from basis.cli.services.api import API_BASE_URL, Endpoints
-from tests.cli.base import request_mocker, set_tmp_dir
-
-runner = typer.testing.CliRunner()
+from tests.cli.base import request_mocker, set_tmp_dir, run_cli
 
 
 def test_list(tmp_path: Path):
@@ -19,7 +14,7 @@ def test_list(tmp_path: Path):
             m.get(
                 API_BASE_URL + e, json={"results": [{"name": "name"}]},
             )
-        result = runner.invoke(app, ["list", "environments", "--json"])
+        result = run_cli("list environments --json")
         assert "name" in result.output
-        result = runner.invoke(app, ["list", "graphs", "--json"])
+        result = run_cli("list graphs --json")
         assert "name" in result.output
