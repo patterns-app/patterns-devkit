@@ -1,3 +1,4 @@
+from enum import Enum
 from pathlib import Path
 
 from typer import Option, Argument
@@ -6,7 +7,7 @@ from basis.cli.config import read_local_basis_config
 from basis.cli.services.graph import get_graph_version_id, find_graph_file
 from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.output import abort, sprint
-from basis.cli.services.trigger import trigger_node
+from basis.cli.services.trigger import trigger_node, TypeChoices
 from basis.graph.builder import graph_manifest_from_yaml
 from basis.graph.configured_node import GraphManifest
 
@@ -16,13 +17,12 @@ _environment_help = "The name of the Basis environment that the graph is deploye
 _organization_help = "The name of the Basis organization that the graph specified with --graph was uploaded to"
 _node_help = "The path to the node to trigger"
 
-
 def trigger(
     organization: str = Option("", help=_organization_help),
     environment: str = Option("", help=_environment_help),
     graph: Path = Option(None, exists=True, help=_graph_help),
     graph_version_id: str = Option("", help=_graph_version_id_help),
-    local: bool = Option(False, hidden=True),
+    type: TypeChoices = Option(TypeChoices.PUBSUB, hidden=True),
     node: Path = Argument(..., exists=True, help=_node_help),
 ):
     """Trigger a node on a deployed graph to run immediately"""
@@ -43,7 +43,7 @@ def trigger(
             node_id,
             graph_version_id,
             environment or cfg.environment_name,
-            local_execution=local,
+            execution_type=type,
         )
 
     sprint(f"[success]Triggered node {node}")
