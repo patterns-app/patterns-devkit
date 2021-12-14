@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 
 import ruyaml
 
-from basis.configuration.graph import NodeCfg, PortMappingCfg
+from basis.configuration.graph import NodeCfg
 
 
 class GraphConfigEditor:
@@ -15,9 +15,10 @@ class GraphConfigEditor:
         self._yaml = ruyaml.YAML()
         self._path_to_graph_yml = path_to_graph_yml
         self._yaml.indent(mapping=2, sequence=4, offset=2)
-        # read text manually instead of loading the Path directly to normalize line breaks. Ruyaml opens files in binary
-        # mode (bypassing universal newline support), then proceeds to behave incorrectly in the presence of \r\n,
-        # adding extra line breaks in the output.
+        # read text manually instead of loading the Path directly to normalize line
+        # breaks. Ruyaml opens files in binary mode (bypassing universal newline
+        # support), then proceeds to behave incorrectly in the presence of \r\n, adding
+        # extra line breaks in the output.
         try:
             with self._path_to_graph_yml.open() as f:
                 text = f.read()

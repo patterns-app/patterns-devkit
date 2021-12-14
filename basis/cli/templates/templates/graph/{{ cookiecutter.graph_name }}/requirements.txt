@@ -1,1 +1,0 @@
-basis>={{ cookiecutter.basis_version }}
