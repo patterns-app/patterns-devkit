@@ -1,4 +1,4 @@
-create table {{ "{{" }} OutputTable("my_output_table") {{ "}}" }}
+create table {{ "{{" }} OutputTable("my_output_table") {{ "}}" }} as
 select
     *
 from {{ "{{" }} InputTable("other_node") {{ "}}" }}
