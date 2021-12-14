@@ -6,7 +6,7 @@ from tests.cli.base import request_mocker, set_tmp_dir, run_cli
 
 def test_deploy(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent
-    path = "/".join((dr / "name").parts)
+    path = dr / "name"
 
     with request_mocker() as m:
         for e in [

@@ -98,7 +98,7 @@ def node(
             name=name or location.stem, node_file=node_file, id=str(NodeId.random()),
         )
     except Exception as e:
-        sprint(f"[error]{e}")
+        abort(str(e))
 
     # Write to files last to avoid partial updates
     location.write_text(content)
@@ -108,6 +108,32 @@ def node(
     sprint(
         f"\n[info]Once you've edited the node and are ready to run the graph, "
         f"use [code]basis upload"
+    )
+
+
+_webhook_name_help = "The name of the webhook output stream"
+
+
+@create.command()
+def webhook(
+    explicit_graph: Path = Option(None, "--graph", "-g", exists=True, help=_graph_help),
+    name: str = Argument(..., help=_webhook_name_help),
+):
+    """Add a new webhook node to a graph"""
+    graph_path = find_graph_file(explicit_graph)
+    editor = GraphConfigEditor(graph_path)
+
+    try:
+        editor.add_webhook(name, id=str(NodeId.random()))
+    except Exception as e:
+        abort(str(e))
+
+    editor.write()
+
+    sprint(f"\n[success]Created webhook [b]{name}")
+    sprint(
+        f"\n[info]Once you've deployed the graph, use "
+        f"[code]basis list webhooks[/code] to get the url of the webhook"
     )
 
 
