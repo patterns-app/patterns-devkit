@@ -341,6 +341,8 @@ class _GraphBuilder:
             node_file_path = None
             node_name = node.name or node.webhook
         else:
+            if node.node_file is None:
+                raise ValueError(f"Must specify a node_file or webhook for all nodes")
             node_file_path = node_dir / node.node_file
             node_name = node.name or self._default_node_name(node_file_path)
         node_id = NodeId(node.id) if node.id else NodeId.from_name(node_name, parent)

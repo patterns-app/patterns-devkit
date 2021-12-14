@@ -4,16 +4,18 @@ from enum import Enum
 
 from basis.cli.services.api import Endpoints, post
 
+
 class TypeChoices(str, Enum):
     PUBSUB = "PUBSUB"
     HTTP = "HTTP"
     LOCAL = "LOCAL"
 
+
 def trigger_node(
     node_id: str,
     graph_version_uid: str,
     environment_name: str,
-    execution_type: TypeChoices = TypeChoices.PUBSUB
+    execution_type: TypeChoices = TypeChoices.PUBSUB,
 ) -> list[dict]:
     resp = post(
         Endpoints.DEPLOYMENTS_TRIGGER_NODE,

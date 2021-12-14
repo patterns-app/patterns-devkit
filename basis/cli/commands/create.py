@@ -12,6 +12,7 @@ from basis.cli.services.output import abort, prompt_path
 from basis.cli.services.output import sprint
 from basis.cli.services.paths import is_relative_to
 from basis.configuration.base import dump_yaml, load_yaml
+from basis.configuration.edit import GraphConfigEditor
 from basis.configuration.path import NodeId
 from basis.cli.services.graph import find_graph_file, resolve_graph_path
 
@@ -77,42 +78,36 @@ def node(
     if not location.is_absolute() and not is_relative_to(
         location.absolute(), graph_dir
     ):
+        sprint(f"\n[error]Node location is not in the graph directory.")
         sprint(
-            f"\n[error]Cannot use a relative node location outside of a graph directory."
+            f"\n[info]Try changing your directory to the graph directory "
+            f"[code]({graph_dir})"
         )
         sprint(
-            f"\n[info]Try changing your directory to the graph directory [code]({graph_dir})"
-        )
-        sprint(
-            f"[info]You can change the graph directory for this command with the [code]--graph[/code] option"
+            f"[info]You can change the graph directory for this command with the "
+            f"[code]--graph[/code] option"
         )
         raise typer.Exit(1)
 
     # Update the graph yaml
-    graph_dict = load_yaml(graph_path)
-    nodes = graph_dict.get("nodes", [])
     node_file = "/".join(location.absolute().relative_to(graph_dir).parts)
+    editor = GraphConfigEditor(graph_path)
 
-    if any(n["node_file"] == node_file for n in nodes):
-        abort(f"Node file {location} is already defined in the graph configuration")
-
-    nodes.append(
-        {
-            "name": name or location.stem,
-            "node_file": node_file,
-            "id": str(NodeId.random()),
-        }
-    )
-    graph_dict["nodes"] = nodes
-    yaml = dump_yaml(graph_dict)
+    try:
+        editor.add_node(
+            name=name or location.stem, node_file=node_file, id=str(NodeId.random()),
+        )
+    except Exception as e:
+        sprint(f"[error]{e}")
 
     # Write to files last to avoid partial updates
     location.write_text(content)
-    graph_path.write_text(yaml)
+    editor.write()
 
     sprint(f"\n[success]Created node [b]{location}")
     sprint(
-        f"\n[info]Once you've edited the node and are ready to run the graph, use [code]basis upload"
+        f"\n[info]Once you've edited the node and are ready to run the graph, "
+        f"use [code]basis upload"
     )
 
 
