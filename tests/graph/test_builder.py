@@ -380,6 +380,40 @@ def test_stream_to_table(tmp_path: Path):
     )
 
 
+def test_webhooks(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+                nodes:
+                  - webhook: hook1
+                  - webhook: hook2
+                    id: ab234567
+                    name: myhook
+                    description: my hook
+                  - node_file: sink.py""",
+            "sink.py": "hook2=InputStream",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n("hook1", interface=[ostream("hook1")], node_type=NodeType.Webhook),
+        n(
+            "myhook",
+            interface=[ostream("hook2")],
+            id="ab234567",
+            description="my hook",
+            node_type=NodeType.Webhook,
+        ),
+        n(
+            "sink",
+            interface=[istream("hook2")],
+            local_edges=["myhook:hook2 -> sink:hook2"],
+        ),
+    )
+
+
 def test_err_unconnected_implicit_input(tmp_path: Path):
     manifest = setup_manifest(
         tmp_path,
