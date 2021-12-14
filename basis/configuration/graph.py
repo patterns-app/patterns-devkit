@@ -39,7 +39,6 @@ class NodeCfg(FrozenPydanticBase):
     # File node only
     node_file: str = None
     schedule: str = None
-    # trigger: NodeTriggerCfg # ("manual", "reactive", "daily", "* * * 1 30")
     inputs: List[PortMappingCfg] = None
     outputs: List[PortMappingCfg] = None
     parameters: Dict[str, Any] = None
@@ -68,12 +67,6 @@ class NodeCfg(FrozenPydanticBase):
                         f"Cannot specify both 'webhook' and '{k}' in a single entry"
                     )
         return v
-
-
-# class NodeTriggerCfg(FrozenPydanticBase):
-#     schedule: str
-#     manual: bool
-#     reactive: bool
 
 
 class ExposingCfg(FrozenPydanticBase):
