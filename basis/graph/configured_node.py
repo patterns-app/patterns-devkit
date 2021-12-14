@@ -30,6 +30,7 @@ class ParameterType(str, Enum):
 class NodeType(str, Enum):
     Node = "node"
     Graph = "graph"
+    Webhook = "webhook"
 
 
 class PortType(str, Enum):

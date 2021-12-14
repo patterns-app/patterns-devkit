@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
+import pydantic
 from pydantic import constr
 
 from basis.configuration.base import FrozenPydanticBase
@@ -35,15 +36,37 @@ class PortMappingCfg:
 
 
 class NodeCfg(FrozenPydanticBase):
+    # File node only
     node_file: str = None
-
-    name: str = None
-    id: constr(to_lower=True, regex=r"[a-zA-Z234567]{8}") = None
-    description: str = None
     schedule: str = None
     inputs: List[PortMappingCfg] = None
     outputs: List[PortMappingCfg] = None
     parameters: Dict[str, Any] = None
+
+    # Webhook only
+    webhook: str = None
+
+    # Available to both
+    name: str = None
+    id: constr(to_lower=True, regex=r"[a-zA-Z234567]{8}") = None
+    description: str = None
+
+    @pydantic.validator("webhook")
+    def webhook_validator(cls, v, values):
+        if v is not None:
+            for k in (
+                "node_file",
+                "name",
+                "schedule",
+                "inputs",
+                "outputs",
+                "parameters",
+            ):
+                if values.get(k, None) is not None:
+                    raise ValueError(
+                        "Cannot specify both 'webhook' and 'k' in a single entry"
+                    )
+        return v
 
 
 class ExposingCfg(FrozenPydanticBase):
