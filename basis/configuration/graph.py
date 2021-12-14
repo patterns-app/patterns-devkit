@@ -64,7 +64,7 @@ class NodeCfg(FrozenPydanticBase):
             ):
                 if values.get(k, None) is not None:
                     raise ValueError(
-                        "Cannot specify both 'webhook' and 'k' in a single entry"
+                        f"Cannot specify both 'webhook' and '{k}' in a single entry"
                     )
         return v
 
