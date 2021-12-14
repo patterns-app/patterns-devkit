@@ -337,25 +337,35 @@ class _GraphBuilder:
         parent: Optional[NodeId],
         mapping: _Mapping,
     ) -> ConfiguredNode:
-        node_file_path = node_dir / node.node_file
-        node_name = node.name or self._default_node_name(node_file_path)
+        if node.webhook:
+            node_file_path = None
+            node_name = node.name or node.webhook
+        else:
+            node_file_path = node_dir / node.node_file
+            node_name = node.name or self._default_node_name(node_file_path)
         node_id = NodeId(node.id) if node.id else NodeId.from_name(node_name, parent)
-        relative_node_path = self._relative_path_str(node_file_path)
         if node_id in self.nodes_by_id:
             raise ValueError(f"Duplicate node id: {node_id}")
-        try:
-            interface = self._parse_node_interface(node_file_path, node_id)
-            parse_err = False
-        except NodeParseException as e:
-            interface = _Interface(
-                node=NodeInterface(inputs=[], outputs=[], parameters=[], state=None),
-                node_type=NodeType.Node,
-                local_edges=[],
+        if node.webhook:
+            relative_node_path = None
+            ni = NodeInterface(
+                inputs=[],
+                outputs=[
+                    OutputDefinition(port_type=PortType.Stream, name=node.webhook)
+                ],
+                parameters=[],
             )
-            parse_err = True
-            self._err(
-                node_id, f"Error parsing file {relative_node_path}: {e.__cause__}"
-            )
+            interface = _Interface(ni, NodeType.Webhook, [])
+        else:
+            relative_node_path = self._relative_path_str(node_file_path)
+            try:
+                interface = self._parse_node_interface(node_file_path, node_id)
+            except NodeParseException as e:
+                ni = NodeInterface(inputs=[], outputs=[], parameters=[])
+                interface = _Interface(ni, NodeType.Node, [])
+                self._err(
+                    node_id, f"Error parsing file {relative_node_path}: {e.__cause__}"
+                )
 
         configured_node = ConfiguredNode(
             name=node_name,
