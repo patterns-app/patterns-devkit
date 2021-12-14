@@ -91,6 +91,7 @@ def abort_on_http_error(message: str, prefix=": "):
         abort(f"{message}{prefix}{details}")
     except Exception as e:
         import traceback
+
         traceback.print_exc()
         abort(f"{message}{prefix}{e}")
 

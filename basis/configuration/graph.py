@@ -46,10 +46,12 @@ class NodeCfg(FrozenPydanticBase):
     outputs: List[PortMappingCfg] = None
     parameters: Dict[str, Any] = None
 
-class NodeTriggerCfg(FrozenPydanticBase):
-    schedule: str
-    manual: bool
-    reactive: bool
+
+# class NodeTriggerCfg(FrozenPydanticBase):
+#     schedule: str
+#     manual: bool
+#     reactive: bool
+
 
 class ExposingCfg(FrozenPydanticBase):
     inputs: List[str] = None
