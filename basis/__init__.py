@@ -7,6 +7,7 @@ from .node.node import (
     InputStream,
     OutputStream,
     Parameter,
+    State,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "InputStream",
     "OutputStream",
     "Parameter",
+    "State",
 ]
