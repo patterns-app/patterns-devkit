@@ -1,17 +1,15 @@
-import contextlib
 import os
 from enum import Enum
-from json import JSONDecodeError
 
 import requests
-from requests import Response, Session, HTTPError
+from requests import Response, Session
 
 from basis.cli.config import (
     read_local_basis_config,
     CliConfig,
     write_local_basis_config,
 )
-from basis.cli.services.output import abort
+from basis.cli.services.output import abort, abort_on_error
 
 API_BASE_URL = os.environ.get("BASIS_API_URL", "https://api.getbasis.com/")
 AUTH_TOKEN_ENV_VAR = "BASIS_AUTH_TOKEN"
@@ -39,7 +37,7 @@ def _get_auth_token() -> str:
     if not cfg.token:
         abort("You must be logged in to use this command. Run 'basis login'.")
 
-    with abort_on_http_error("Failed verifying auth token"):
+    with abort_on_error("Failed verifying auth token"):
         resp = requests.post(
             API_BASE_URL + Endpoints.TOKEN_VERIFY, json={"token": cfg.token}
         )
@@ -52,7 +50,7 @@ def _get_auth_token() -> str:
 
 
 def _refresh_token(token: str) -> CliConfig:
-    with abort_on_http_error("Failed refreshing auth token"):
+    with abort_on_error("Failed refreshing auth token"):
         resp = requests.post(
             API_BASE_URL + Endpoints.TOKEN_REFRESH, json={"refresh": token}
         )
@@ -77,20 +75,6 @@ def post(path: str, json: dict = None, session: Session = None, **kwargs) -> Res
     session = session or _get_api_session()
     resp = session.post(API_BASE_URL + path, json=json or {}, **kwargs)
     return resp
-
-
-@contextlib.contextmanager
-def abort_on_http_error(message: str, prefix=": "):
-    try:
-        yield
-    except HTTPError as e:
-        try:
-            details = e.response.json()["detail"]
-        except Exception:
-            details = e.response.text
-        abort(f"{message}{prefix}{details}")
-    except Exception as e:
-        abort(f"{message}{prefix}{e}")
 
 
 class Endpoints(str, Enum):

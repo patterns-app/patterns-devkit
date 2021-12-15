@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from basis.cli.services.api import Endpoints, get, post
+from basis.cli.services.api import Endpoints, post
 
 
 def create_environment(environment_name: str, organization_name: str) -> list[dict]:

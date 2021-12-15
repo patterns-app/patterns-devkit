@@ -9,7 +9,11 @@ from basis.configuration.graph import NodeCfg
 
 
 class GraphConfigEditor:
-    """Edit a graph.yml file, preserving comments"""
+    """Edit a graph.yml file, preserving comments
+
+    Constructing an instance of this class will raise an exception if the yaml file
+    doesn't exist or can't be parsed.
+    """
 
     def __init__(self, path_to_graph_yml: Path):
         self._yaml = ruyaml.YAML()
@@ -19,12 +23,9 @@ class GraphConfigEditor:
         # breaks. Ruyaml opens files in binary mode (bypassing universal newline
         # support), then proceeds to behave incorrectly in the presence of \r\n, adding
         # extra line breaks in the output.
-        try:
-            with self._path_to_graph_yml.open() as f:
-                text = f.read()
-            self._cfg = self._yaml.load(text)
-        except Exception:
-            raise RuntimeError(f"Could not read graph config from {path_to_graph_yml}")
+        with self._path_to_graph_yml.open() as f:
+            text = f.read()
+        self._cfg = self._yaml.load(text)
         # ruyaml doesn't provide a way to preserve indentation,
         # so pick a value that matches the first list item we see
         if m := re.search(r"^( *)-", text, re.MULTILINE):

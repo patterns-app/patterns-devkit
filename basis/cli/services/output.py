@@ -1,8 +1,10 @@
+import contextlib
 import typing
 from pathlib import Path
 
 import rich.prompt
 import typer
+from requests import HTTPError
 from rich.console import Console
 from rich.theme import Theme
 
@@ -60,3 +62,18 @@ def abort(message: str) -> typing.NoReturn:
     """Print an error message and raise an Exit exception"""
     sprint(f"[error]{message}")
     raise typer.Exit(1)
+
+
+@contextlib.contextmanager
+def abort_on_error(message: str, prefix=": "):
+    """Catch any exceptions that occur and call `abort` with their message"""
+    try:
+        yield
+    except HTTPError as e:
+        try:
+            details = e.response.json()["detail"]
+        except Exception:
+            details = e.response.text
+        abort(f"{message}{prefix}{details}")
+    except Exception as e:
+        abort(f"{message}{prefix}{e}")

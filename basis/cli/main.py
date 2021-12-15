@@ -6,9 +6,9 @@ from .commands.deploy import deploy
 from .commands.list import list_command
 from .commands.login import login
 from .commands.logout import logout
+from .commands.manifest import manifest
 from .commands.trigger import trigger
 from .commands.upload import upload
-from .commands.manifest import manifest
 
 app = typer.Typer(add_completion=False)
 
