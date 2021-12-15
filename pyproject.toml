@@ -12,14 +12,13 @@ version = "0.1.1"
 common-model = { git = "https://github.com/kvh/common-model.git" }
 datacopy = { git = "https://github.com/kvh/dcp.git" }
 jinja2 = "^3.0.0"
+platformdirs = "^2.4.0"
 pydantic = "^1.8.1"
 python = "^3.8"
 requests-mock = "^1.9.3"
-strictyaml = "^1.0.6"
-typer = {extras = ["all"], version = "^0.4.0"}
-platformdirs = "^2.4.0"
 rich = "^10.15.2"
 ruyaml = "^0.91.0"
+typer = {extras = ["all"], version = "^0.4.0"}
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
@@ -29,8 +28,7 @@ flake8 = "^4.0.1"
 isort = "^4.3.21"
 mypy = "^0.910"
 pre-commit = "^2.1.1"
-pytest = "^4.6"
-pytest-cov = "^2.8.1"
+pytest = "^6.2.5"
 
 [tool.poetry.scripts]
 basis = "basis.cli.main:main"
