@@ -6,19 +6,26 @@ from typing import Any, Dict, List
 
 import pydantic
 from pydantic import constr
-
+from pydantic.validators import str_validator
 from basis.configuration.base import FrozenPydanticBase
 
 
-@dataclass(frozen=True)
-class PortMappingCfg:
-    src: str
-    dst: str
+class PortMappingCfg(str):
+    """A map of port name to port name, represented by a string like 'src -> dst'"""
 
-    _regex = re.compile(r"^(\S+)\s*->\s*(\S+)$")
+    _regex = re.compile(r"^(\S+) *-> *(\S+)$")
+
+    @property
+    def src(self):
+        return self._regex.fullmatch(self).group(1)
+
+    @property
+    def dst(self):
+        return self._regex.fullmatch(self).group(2)
 
     @classmethod
     def __get_validators__(cls):
+        yield str_validator
         yield cls.validate
 
     @classmethod
@@ -32,7 +39,7 @@ class PortMappingCfg:
     def validate(cls, v):
         if not (m := cls._regex.fullmatch(v)):
             raise ValueError("invalid alias format")
-        return cls(*m.groups())
+        return cls(v)
 
 
 class NodeCfg(FrozenPydanticBase):

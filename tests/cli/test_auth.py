@@ -1,13 +1,8 @@
 from pathlib import Path
 
-import typer.testing
-
 from basis.cli.config import read_local_basis_config
-from basis.cli.main import app
 from basis.cli.services.api import API_BASE_URL, Endpoints
-from tests.cli.base import request_mocker, set_tmp_dir
-
-runner = typer.testing.CliRunner()
+from tests.cli.base import request_mocker, set_tmp_dir, run_cli
 
 
 def test_login(tmp_path: Path):
@@ -18,7 +13,7 @@ def test_login(tmp_path: Path):
             json={"results": [{"uid": "org-1-uid", "name": "org-1"}]},
         )
 
-        runner.invoke(app, ["login", "--email=a@e.com", "--password=pass"])
+        run_cli("login --email=a@e.com --password=pass")
 
     assert cfg_pth.is_file()
     config = read_local_basis_config()

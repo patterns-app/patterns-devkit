@@ -17,6 +17,7 @@ _environment_help = "The name of the Basis environment that the graph is deploye
 _organization_help = "The name of the Basis organization that the graph specified with --graph was uploaded to"
 _node_help = "The path to the node to trigger"
 
+
 def trigger(
     organization: str = Option("", help=_organization_help),
     environment: str = Option("", help=_environment_help),

@@ -1,35 +1,43 @@
 from pathlib import Path
 
-import typer.testing
-
-from basis.cli.config import read_local_basis_config
-from basis.cli.main import app
-from basis.cli.services.api import API_BASE_URL, Endpoints
-from tests.cli.base import request_mocker, set_tmp_dir
-
-runner = typer.testing.CliRunner()
+from tests.cli.base import set_tmp_dir, run_cli
 
 
-def test_generate_graph(tmp_path: Path):
+def test_create_graph(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent
     name = "testgraph"
-    runner.invoke(app, ["create", "graph"], f"{dr / name}\n")
-    assert name in (Path(dr) / name / "graph.yml").read_text()
+    run_cli("create graph", f"{dr / name}\n")
+    assert name in (dr / name / "graph.yml").read_text()
 
 
-# TODO
-# def test_generate_graph_with_name(tmp_path: Path):
-#     dr = set_tmp_dir(tmp_path).parent
-#     name = "testgraph"
-#     path = dr / "pth" / "projname"
-#     runner.invoke(app, ['create', 'graph', f'--name={name}', f"'{path}'"])
-#     assert name in (Path(dr) / path / "graph.yml").read_text()
+def test_create_graph_explicit(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent
+    name = "testgraph"
+    path = dr / "pth" / "projname"
+    run_cli(f"create graph --name={name} '{path}'")
+    assert name in (dr / path / "graph.yml").read_text()
 
-# def test_generate_node():
-#     dr = set_tmp_dir()
-#     command_tester = get_test_command("generate")
-#     name = f"test_{random.randint(0, 10000)}.py".lower()
-#     pth = "proj/app1/" + name
-#     inputs = "\n".join(["\n", "python"]) + "\n"
-#     command_tester.execute(f"node {pth}", inputs=inputs)
-#     assert os.path.exists(Path(dr) / pth)
+
+def test_create_node(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent / "graph"
+    name = "mynode.py"
+    run_cli("create graph", f"{dr}\n")
+    path = dr / name
+    run_cli(f"create node --graph='{dr}'", f"{path}\n")
+    assert name in (dr / "graph.yml").read_text()
+
+
+def test_create_node_explicit(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent / "graph"
+    name = "mynode.py"
+    run_cli("create graph", f"{dr}\n")
+    path = dr / name
+    run_cli(f"create node --graph='{dr}' '{path}'")
+    assert name in (dr / "graph.yml").read_text()
+
+
+def test_create_webhook(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent / "graph"
+    run_cli("create graph", f"{dr}\n")
+    run_cli(f"create webhook --graph={dr} hook")
+    assert f"webhook: hook" in (dr / "graph.yml").read_text()
