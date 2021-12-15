@@ -11,4 +11,3 @@ def passthrough_node(
     state_param=State,
 ):
     pass
-

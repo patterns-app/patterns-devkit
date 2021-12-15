@@ -3,7 +3,6 @@ from pathlib import Path
 
 import platformdirs
 
-from basis.cli.services.output import abort
 from basis.configuration.base import PydanticBase
 
 BASIS_CONFIG_ENV_VAR = "BASIS_CONFIG"

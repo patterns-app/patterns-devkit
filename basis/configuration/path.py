@@ -18,7 +18,7 @@ class NodeId(str):
     def random(cls) -> "NodeId":
         """Generate a new random id"""
         # random.randbytes was added in 3.9
-        b = b''.join(bytes(random.randint(0, 255)) for _ in range(5))
+        b = b"".join(bytes(random.randint(0, 255)) for _ in range(5))
         return cls.from_bytes(b)
 
     @classmethod

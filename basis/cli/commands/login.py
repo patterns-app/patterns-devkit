@@ -8,9 +8,8 @@ from basis.cli.config import (
     read_local_basis_config,
 )
 from basis.cli.services import auth
-from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.list import list_organizations, list_environments
-from basis.cli.services.output import sprint, prompt_str
+from basis.cli.services.output import sprint, prompt_str, abort_on_error
 
 _email_help = "The email address of the account"
 _password_help = "The password for the account"
@@ -27,10 +26,10 @@ def login(
     if not password:
         password = prompt_str("Password", password=True)
 
-    with abort_on_http_error("Login failed"):
+    with abort_on_error("Login failed"):
         auth.login(email, password)
 
-    with abort_on_http_error("Fetching organizations failed"):
+    with abort_on_error("Fetching organizations failed"):
         organizations = list_organizations()
 
     if len(organizations) == 1:
@@ -40,7 +39,7 @@ def login(
             "Select an organization", choices=[org["name"] for org in organizations],
         )
 
-    with abort_on_http_error("Fetching environments failed"):
+    with abort_on_error("Fetching environments failed"):
         environments = list_environments()
 
     if len(environments) == 1:

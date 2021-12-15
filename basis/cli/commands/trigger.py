@@ -1,12 +1,10 @@
-from enum import Enum
 from pathlib import Path
 
 from typer import Option, Argument
 
 from basis.cli.config import read_local_basis_config
 from basis.cli.services.graph import get_graph_version_id, find_graph_file
-from basis.cli.services.api import abort_on_http_error
-from basis.cli.services.output import abort, sprint
+from basis.cli.services.output import abort, sprint, abort_on_error
 from basis.cli.services.trigger import trigger_node, TypeChoices
 from basis.graph.builder import graph_manifest_from_yaml
 from basis.graph.configured_node import GraphManifest
@@ -39,7 +37,7 @@ def trigger(
         cfg, graph_path, graph_version_id, organization
     )
 
-    with abort_on_http_error("Error triggering node"):
+    with abort_on_error("Error triggering node"):
         trigger_node(
             node_id,
             graph_version_id,

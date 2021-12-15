@@ -3,9 +3,8 @@ from pathlib import Path
 from typing import Optional
 
 from basis.cli.config import CliConfig
-from basis.cli.services.api import abort_on_http_error
 from basis.cli.services.graph_versions import get_latest_graph_version
-from basis.cli.services.output import abort
+from basis.cli.services.output import abort, abort_on_error
 from basis.cli.services.output import prompt_path
 from basis.configuration.base import load_yaml
 
@@ -24,7 +23,7 @@ def get_graph_version_id(
         abort("You must specify either --graph or --graph-version-id")
     yaml = load_yaml(graph_path)
     graph_name = yaml.get("name", graph_path.parent.name)
-    with abort_on_http_error("Retrieving graph version failed"):
+    with abort_on_error("Retrieving graph version failed"):
         resp = get_latest_graph_version(
             graph_name, organization or cfg.organization_name
         )

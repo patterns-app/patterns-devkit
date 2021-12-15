@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from basis.cli.services.api import Endpoints, get, post
+from basis.cli.services.api import Endpoints, post
 
 
 def deploy_graph_version(graph_version_uid: str, environment_name: str) -> dict:

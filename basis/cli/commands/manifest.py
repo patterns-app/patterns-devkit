@@ -4,7 +4,6 @@ from pathlib import Path
 
 from typer import Option, Argument
 
-from basis.cli.config import read_local_basis_config
 from basis.cli.services.graph import find_graph_file
 from basis.cli.services.output import console
 from basis.graph.builder import graph_manifest_from_yaml

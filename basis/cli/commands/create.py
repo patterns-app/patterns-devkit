@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import typer
@@ -8,13 +7,13 @@ from basis.cli.config import (
     read_local_basis_config,
     write_local_basis_config,
 )
-from basis.cli.services.output import abort, prompt_path
+from basis.cli.services.graph import find_graph_file, resolve_graph_path
+from basis.cli.services.output import abort, prompt_path, abort_on_error
 from basis.cli.services.output import sprint
 from basis.cli.services.paths import is_relative_to
-from basis.configuration.base import dump_yaml, load_yaml
+from basis.configuration.base import dump_yaml
 from basis.configuration.edit import GraphConfigEditor
 from basis.configuration.path import NodeId
-from basis.cli.services.graph import find_graph_file, resolve_graph_path
 
 create = typer.Typer(name="create", help="Create a graph new or node")
 
@@ -91,14 +90,11 @@ def node(
 
     # Update the graph yaml
     node_file = "/".join(location.absolute().relative_to(graph_dir).parts)
-    editor = GraphConfigEditor(graph_path)
-
-    try:
+    with abort_on_error("Adding node failed"):
+        editor = GraphConfigEditor(graph_path)
         editor.add_node(
             name=name or location.stem, node_file=node_file, id=str(NodeId.random()),
         )
-    except Exception as e:
-        abort(str(e))
 
     # Write to files last to avoid partial updates
     location.write_text(content)
@@ -121,14 +117,11 @@ def webhook(
 ):
     """Add a new webhook node to a graph"""
     graph_path = find_graph_file(explicit_graph)
-    editor = GraphConfigEditor(graph_path)
 
-    try:
+    with abort_on_error("Adding webhook failed"):
+        editor = GraphConfigEditor(graph_path)
         editor.add_webhook(name, id=str(NodeId.random()))
-    except Exception as e:
-        abort(str(e))
-
-    editor.write()
+        editor.write()
 
     sprint(f"\n[success]Created webhook [b]{name}")
     sprint(
