@@ -21,7 +21,7 @@ def upload_graph_version(graph_yaml_path: Path, organization_name: str) -> dict:
                 {"manifest": json.dumps(manifest.dict(exclude_none=True))}
             ),
         },
-        files={"file": zipf,},
+        files={"file": zipf},
     )
     resp.raise_for_status()
     data = resp.json()
