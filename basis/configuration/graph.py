@@ -67,7 +67,7 @@ class NodeCfg(FrozenPydanticBase):
 
     @pydantic.validator("chart_input")
     def chart_validator(cls, v, values):
-        return cls._check_mutual_exclusion("chart", v, values)
+        return cls._check_mutual_exclusion("chart_input", v, values)
 
     @classmethod
     def _check_mutual_exclusion(cls, field, v, values):
