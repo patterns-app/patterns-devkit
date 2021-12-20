@@ -85,6 +85,4 @@ class ExposingCfg(FrozenPydanticBase):
 class GraphDefinitionCfg(FrozenPydanticBase):
     name: str = None
     exposes: ExposingCfg = None
-    description: str = None
-    schedule: str = None
     nodes: List[NodeCfg] = None
