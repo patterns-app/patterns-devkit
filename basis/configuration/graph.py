@@ -53,26 +53,39 @@ class NodeCfg(FrozenPydanticBase):
     # Webhook only
     webhook: str = None
 
-    # Available to both
+    # Chart only
+    chart_input: str = None
+
+    # Available to all
     name: str = None
     id: constr(to_lower=True, regex=r"[a-zA-Z234567]{8}") = None
     description: str = None
 
     @pydantic.validator("webhook")
     def webhook_validator(cls, v, values):
-        if v is not None:
-            for k in (
-                "node_file",
-                "name",
-                "schedule",
-                "inputs",
-                "outputs",
-                "parameters",
-            ):
-                if values.get(k, None) is not None:
-                    raise ValueError(
-                        f"Cannot specify both 'webhook' and '{k}' in a single entry"
-                    )
+        return cls._check_mutual_exclusion("webhook", v, values)
+
+    @pydantic.validator("webhook")
+    def chart_validator(cls, v, values):
+        return cls._check_mutual_exclusion("chart", v, values)
+
+    @classmethod
+    def _check_mutual_exclusion(cls, field, v, values):
+        if v is None:
+            return v
+        fields = (
+            "node_file",
+            "name",
+            "schedule",
+            "inputs",
+            "outputs",
+            "parameters",
+        )
+        for k in fields:
+            if values.get(k, None) is not None:
+                raise ValueError(
+                    f"Cannot specify both '{field}' and '{k}' in a single node"
+                )
         return v
 
 

@@ -119,7 +119,11 @@ def assert_nodes(
     errors = []
     for assertion in expected:
         parent_id = ids_by_path[assertion.parent_node_id]
-        node = nodes_by_name_and_parent[assertion.name, parent_id]
+        k = (assertion.name, parent_id)
+        assert (
+            k in nodes_by_name_and_parent
+        ), f"no node {assertion.name} in {list(nodes_by_name_and_parent.keys())}"
+        node = nodes_by_name_and_parent[k]
         errors.extend(GraphError(node_id=node.id, message=e) for e in assertion.errors)
 
     ac = _unordered(manifest.errors)

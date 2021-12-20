@@ -4,6 +4,7 @@ from datetime import date, datetime
 from typing import Callable
 
 import requests
+
 try:
     from ratelimit import limits, sleep_and_retry
 except ImportError:

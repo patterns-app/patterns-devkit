@@ -414,6 +414,56 @@ def test_webhooks(tmp_path: Path):
     )
 
 
+def test_chart(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+                   nodes:
+                     - node_file: node.py
+                     - node_file: chart1.json
+                       chart_input: node_out
+                       id: ab234567
+                       name: mychart
+                       description: my chart
+                     - node_file: chart2.json
+                       chart_input: node_out
+                     """,
+            "node.py": "node_out=OutputTable",
+            "chart1.json": "{}",  # chart file content doesn't matter
+            "chart2.json": "{}",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n(
+            "node",
+            interface=[otable("node_out")],
+            local_edges=[
+                "node:node_out -> mychart:node_out",
+                "node:node_out -> chart2:node_out",
+            ],
+        ),
+        n(
+            "mychart",
+            interface=[itable("node_out")],
+            id="ab234567",
+            description="my chart",
+            file_path="chart1.json",
+            node_type=NodeType.Chart,
+            local_edges=["node:node_out -> mychart:node_out"],
+        ),
+        n(
+            "chart2",
+            interface=[itable("node_out")],
+            file_path="chart2.json",
+            node_type=NodeType.Chart,
+            local_edges=["node:node_out -> chart2:node_out"],
+        ),
+    )
+
+
 def test_err_unconnected_implicit_input(tmp_path: Path):
     manifest = setup_manifest(
         tmp_path,
