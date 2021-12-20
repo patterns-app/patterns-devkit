@@ -73,7 +73,7 @@ class NodeCfg(FrozenPydanticBase):
     def _check_mutual_exclusion(cls, field, v, values, extras=()):
         if v is None:
             return v
-        fields = ["name", "schedule", "inputs", "outputs", "parameters",] + list(extras)
+        fields = ["schedule", "inputs", "outputs", "parameters"] + list(extras)
         for k in fields:
             if values.get(k, None) is not None:
                 raise ValueError(
