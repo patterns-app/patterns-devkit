@@ -65,7 +65,7 @@ class NodeCfg(FrozenPydanticBase):
     def webhook_validator(cls, v, values):
         return cls._check_mutual_exclusion("webhook", v, values)
 
-    @pydantic.validator("webhook")
+    @pydantic.validator("chart_input")
     def chart_validator(cls, v, values):
         return cls._check_mutual_exclusion("chart", v, values)
 
