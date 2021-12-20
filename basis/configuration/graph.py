@@ -63,24 +63,17 @@ class NodeCfg(FrozenPydanticBase):
 
     @pydantic.validator("webhook")
     def webhook_validator(cls, v, values):
-        return cls._check_mutual_exclusion("webhook", v, values)
+        return cls._check_mutual_exclusion("webhook", v, values, ["node_file"])
 
     @pydantic.validator("chart_input")
     def chart_validator(cls, v, values):
         return cls._check_mutual_exclusion("chart_input", v, values)
 
     @classmethod
-    def _check_mutual_exclusion(cls, field, v, values):
+    def _check_mutual_exclusion(cls, field, v, values, extras=()):
         if v is None:
             return v
-        fields = (
-            "node_file",
-            "name",
-            "schedule",
-            "inputs",
-            "outputs",
-            "parameters",
-        )
+        fields = ["name", "schedule", "inputs", "outputs", "parameters",] + list(extras)
         for k in fields:
             if values.get(k, None) is not None:
                 raise ValueError(

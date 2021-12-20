@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
 from basis.configuration.path import NodeId
 from basis.graph.builder import graph_manifest_from_yaml, GraphManifest, GraphError
 from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
@@ -645,3 +647,32 @@ def test_err_invalid_node_file(tmp_path: Path):
         ),
         n("badsql", errors=["Error parsing file badsql.sql: 'Err' is undefined"]),
     )
+
+
+def test_err_invalid_webhook_entry(tmp_path: Path):
+    with pytest.raises(ValidationError):
+        setup_manifest(
+            tmp_path,
+            {
+                "graph.yml": """
+                    nodes:
+                      - node_file: node.py
+                        webhook: err
+                """,
+            },
+        )
+
+
+def test_err_invalid_chart_entry(tmp_path: Path):
+    with pytest.raises(ValidationError):
+        setup_manifest(
+            tmp_path,
+            {
+                "graph.yml": """
+                    nodes:
+                      - node_file: chart.json
+                        chart_input: input
+                        schedule: error
+                """,
+            },
+        )
