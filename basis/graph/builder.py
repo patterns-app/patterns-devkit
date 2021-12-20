@@ -354,7 +354,7 @@ class _GraphBuilder:
             raise ValueError(f"Must specify 'node_file' or 'webhook' for all nodes")
 
         if interface.node_id in self.nodes_by_id:
-            raise ValueError(f"Duplicate node id: {node_id}")
+            raise ValueError(f"Duplicate node id: {interface.node_id}")
 
         configured_node = ConfiguredNode(
             name=interface.node_name,
