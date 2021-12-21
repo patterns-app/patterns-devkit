@@ -1,5 +1,3 @@
-import typer
-from click import Choice
 from typer import Option
 
 from basis.cli.config import (
@@ -8,9 +6,7 @@ from basis.cli.config import (
     read_local_basis_config,
 )
 from basis.cli.services import auth
-from basis.cli.services.environments import list_environments
 from basis.cli.services.lookup import IdLookup
-from basis.cli.services.organizations import list_organizations
 from basis.cli.services.output import sprint, prompt_str, abort_on_error
 
 _email_help = "The email address of the account"
@@ -31,7 +27,7 @@ def login(
     with abort_on_error("Login failed"):
         auth.login(email, password)
 
-    ids = IdLookup()
+    ids = IdLookup(ignore_local_cfg=True)
     with abort_on_error("Fetching account failed"):
         update_local_basis_config(
             organization_id=ids.organization_id, environment_id=ids.environment_id

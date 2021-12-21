@@ -8,7 +8,7 @@ from basis.cli.config import (
     update_local_basis_config,
 )
 from basis.cli.services.environments import get_environment_by_name, list_environments
-from basis.cli.services.graph import resolve_graph_path, find_graph_file
+from basis.cli.services.graph import find_graph_file
 from basis.cli.services.graph_versions import (
     get_graph_by_name,
     get_active_graph_version,
@@ -31,6 +31,7 @@ class IdLookup:
     explicit_graph_path: Path = None
     node_file_path: Path = None
     explicit_graph_version_id: str = None
+    ignore_local_cfg: bool = False
 
     @cached_property
     def organization_id(self) -> str:
@@ -119,4 +120,6 @@ class IdLookup:
 
     @cached_property
     def cfg(self) -> CliConfig:
+        if self.ignore_local_cfg:
+            return CliConfig()
         return read_local_basis_config()
