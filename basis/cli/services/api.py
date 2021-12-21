@@ -124,6 +124,7 @@ class Endpoints:
     ENVIRONMENTS_CREATE = "api/environments/"
     ORGANIZATIONS_LIST = "api/organizations/"
     EXECUTION_EVENTS = "api/nodes/execution_events/"
+    OUTPUT_DATA = "api/nodes/output_block_data/latest/"
 
     @classmethod
     def organization_by_name(cls, name: str) -> str:

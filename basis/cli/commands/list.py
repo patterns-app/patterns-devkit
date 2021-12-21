@@ -7,7 +7,7 @@ from rich.table import Table
 from typer import Option, Argument
 
 from basis.cli.services.environments import list_environments
-from basis.cli.services.list import list_graphs, list_execution_events
+from basis.cli.services.list import list_graphs, list_execution_events, list_output_data
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import sprint, abort_on_error, abort
 
@@ -77,8 +77,36 @@ def logs(
     _print_objects(events, print_json)
 
 
+_port_help = "The name of the output port"
+
+
+@list_command.command()
+def output(
+    print_json: bool = Option(False, "--json", help=_json_help),
+    organization: str = Option("", help=_organization_help),
+    environment: str = Option("", help=_environment_help),
+    node: Path = Argument(..., exists=True, help=_node_help),
+    port: str = Argument(..., help=_port_help),
+):
+    """List data sent to an output port of a from the most recent run of a node"""
+    if bool(organization) != bool(environment):
+        abort("Must specify both --organization and --environment, or neither")
+
+    ids = IdLookup(
+        environment_name=environment,
+        organization_name=organization,
+        node_file_path=node,
+    )
+
+    with abort_on_error("Could not get node data"):
+        data = list_output_data(ids.environment_id, ids.graph_id, ids.node_id, port)
+    _print_objects(data, print_json)
+
+
 def _print_objects(objects: list, print_json: bool):
     if not objects:
+        if not print_json:
+            sprint("[info]No data found")
         return
 
     if print_json:

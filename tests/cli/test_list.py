@@ -37,3 +37,22 @@ def test_list_logs(tmp_path: Path):
         )
         result = run_cli(f"list logs {node} --json")
     assert "name" in result.output
+
+
+def test_list_data(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent
+    path = dr / "name"
+    node = path / "node.py"
+    run_cli(f"create graph {path}")
+    run_cli(f"create node {node}")
+    with request_mocker() as m:
+        m.get(
+            API_BASE_URL + Endpoints.graph_by_name("test-org-uid", "name"),
+            json={"uid": "1"},
+        )
+        m.get(
+            API_BASE_URL + Endpoints.OUTPUT_DATA,
+            json={"results": [{"name": "name"}], "next": None},
+        )
+        result = run_cli(f"list output {node} port --json")
+    assert "name" in result.output
