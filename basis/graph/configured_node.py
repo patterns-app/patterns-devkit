@@ -31,6 +31,7 @@ class NodeType(str, Enum):
     Node = "node"
     Graph = "graph"
     Webhook = "webhook"
+    Chart = "chart"
 
 
 class PortType(str, Enum):
@@ -44,6 +45,7 @@ class InputDefinition(FrozenPydanticBase):
     # for python files: the name of the node function parameter
     # for sql: the name of the table used
     # for graphs: the exposed port name
+    # for charts: the chart_input port name
     name: str
 
     description: str = None

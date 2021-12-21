@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
 from basis.configuration.path import NodeId
 from basis.graph.builder import graph_manifest_from_yaml, GraphManifest, GraphError
 from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
@@ -414,6 +416,56 @@ def test_webhooks(tmp_path: Path):
     )
 
 
+def test_chart(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+                   nodes:
+                     - node_file: node.py
+                     - node_file: chart1.json
+                       chart_input: node_out
+                       id: ab234567
+                       name: mychart
+                       description: my chart
+                     - node_file: chart2.json
+                       chart_input: node_out
+                     """,
+            "node.py": "node_out=OutputTable",
+            "chart1.json": "{}",  # chart file content doesn't matter
+            "chart2.json": "{}",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n(
+            "node",
+            interface=[otable("node_out")],
+            local_edges=[
+                "node:node_out -> mychart:node_out",
+                "node:node_out -> chart2:node_out",
+            ],
+        ),
+        n(
+            "mychart",
+            interface=[itable("node_out")],
+            id="ab234567",
+            description="my chart",
+            file_path="chart1.json",
+            node_type=NodeType.Chart,
+            local_edges=["node:node_out -> mychart:node_out"],
+        ),
+        n(
+            "chart2",
+            interface=[itable("node_out")],
+            file_path="chart2.json",
+            node_type=NodeType.Chart,
+            local_edges=["node:node_out -> chart2:node_out"],
+        ),
+    )
+
+
 def test_err_unconnected_implicit_input(tmp_path: Path):
     manifest = setup_manifest(
         tmp_path,
@@ -595,3 +647,32 @@ def test_err_invalid_node_file(tmp_path: Path):
         ),
         n("badsql", errors=["Error parsing file badsql.sql: 'Err' is undefined"]),
     )
+
+
+def test_err_invalid_webhook_entry(tmp_path: Path):
+    with pytest.raises(ValidationError):
+        setup_manifest(
+            tmp_path,
+            {
+                "graph.yml": """
+                    nodes:
+                      - node_file: node.py
+                        webhook: err
+                """,
+            },
+        )
+
+
+def test_err_invalid_chart_entry(tmp_path: Path):
+    with pytest.raises(ValidationError):
+        setup_manifest(
+            tmp_path,
+            {
+                "graph.yml": """
+                    nodes:
+                      - node_file: chart.json
+                        chart_input: input
+                        schedule: error
+                """,
+            },
+        )

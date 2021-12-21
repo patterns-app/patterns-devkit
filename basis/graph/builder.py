@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Tuple, Dict, Set, Optional, Union
@@ -55,6 +56,9 @@ class _Interface:
     node_type: NodeType
     # empty for non-graph nodes
     local_edges: List[GraphEdge]
+    node_name: str = None
+    node_id: NodeId = None
+    relative_node_path: Path = None
 
 
 # graph parse result
@@ -330,6 +334,11 @@ class _GraphBuilder:
         # For py and sql files, use the file name
         return path.stem
 
+    def _make_node_id(
+        self, node_id: Optional[str], node_name: str, parent: Optional[NodeId]
+    ) -> NodeId:
+        return NodeId(node_id) if node_id else NodeId.from_name(node_name, parent)
+
     def _parse_node_entry(
         self,
         node: NodeCfg,
@@ -338,45 +347,23 @@ class _GraphBuilder:
         mapping: _Mapping,
     ) -> ConfiguredNode:
         if node.webhook:
-            node_file_path = None
-            node_name = node.name or node.webhook
+            interface = self._parse_webhook_node_entry(node, parent)
+        elif node.node_file:
+            interface = self._parse_file_node_entry(node, node_dir, parent)
         else:
-            if node.node_file is None:
-                raise ValueError(f"Must specify a node_file or webhook for all nodes")
-            node_file_path = node_dir / node.node_file
-            node_name = node.name or self._default_node_name(node_file_path)
-        node_id = NodeId(node.id) if node.id else NodeId.from_name(node_name, parent)
-        if node_id in self.nodes_by_id:
-            raise ValueError(f"Duplicate node id: {node_id}")
-        if node.webhook:
-            relative_node_path = None
-            ni = NodeInterface(
-                inputs=[],
-                outputs=[
-                    OutputDefinition(port_type=PortType.Stream, name=node.webhook)
-                ],
-                parameters=[],
-            )
-            interface = _Interface(ni, NodeType.Webhook, [])
-        else:
-            relative_node_path = self._relative_path_str(node_file_path)
-            try:
-                interface = self._parse_node_interface(node_file_path, node_id)
-            except NodeParseException as e:
-                ni = NodeInterface(inputs=[], outputs=[], parameters=[])
-                interface = _Interface(ni, NodeType.Node, [])
-                self._err(
-                    node_id, f"Error parsing file {relative_node_path}: {e.__cause__}"
-                )
+            raise ValueError(f"Must specify 'node_file' or 'webhook' for all nodes")
+
+        if interface.node_id in self.nodes_by_id:
+            raise ValueError(f"Duplicate node id: {interface.node_id}")
 
         configured_node = ConfiguredNode(
-            name=node_name,
+            name=interface.node_name,
             node_type=interface.node_type,
-            id=node_id,
+            id=interface.node_id,
             interface=interface.node,
             description=node.description,
             parent_node_id=parent,
-            file_path_to_node_script_relative_to_root=relative_node_path,
+            file_path_to_node_script_relative_to_root=interface.relative_node_path,
             parameter_values=node.parameters or {},
             schedule=node.schedule,
             local_edges=interface.local_edges,
@@ -386,11 +373,48 @@ class _GraphBuilder:
         self._track_outputs(
             configured_node, interface.node.outputs, node.outputs or [], mapping
         )
-        self._track_inputs(node_id, interface.node.inputs, node.inputs, mapping)
+        self._track_inputs(
+            interface.node_id, interface.node.inputs, node.inputs, mapping
+        )
         return configured_node
 
+    def _parse_webhook_node_entry(
+        self, node: NodeCfg, parent: Optional[NodeId]
+    ) -> _Interface:
+        assert node.webhook
+
+        outputs = [OutputDefinition(port_type=PortType.Stream, name=node.webhook)]
+        ni = NodeInterface(inputs=[], outputs=outputs, parameters=[])
+        node_name = node.name or node.webhook
+        node_id = self._make_node_id(node.id, node_name, parent)
+        return _Interface(ni, NodeType.Webhook, [], node_name, node_id, None)
+
+    def _parse_file_node_entry(
+        self, node: NodeCfg, node_dir: Path, parent: Optional[NodeId],
+    ) -> _Interface:
+        assert node.node_file
+
+        node_file_path = node_dir / node.node_file
+        node_name = node.name or self._default_node_name(node_file_path)
+        node_id = self._make_node_id(node.id, node_name, parent)
+        relative_node_path = self._relative_path_str(node_file_path)
+        try:
+            interface = self._parse_node_interface(node, node_file_path, node_id)
+        except NodeParseException as e:
+            ni = NodeInterface(inputs=[], outputs=[], parameters=[])
+            interface = _Interface(ni, NodeType.Node, [])
+            self._err(
+                node_id, f"Error parsing file {relative_node_path}: {e.__cause__}"
+            )
+        return dataclasses.replace(
+            interface,
+            node_name=node_name,
+            node_id=node_id,
+            relative_node_path=relative_node_path,
+        )
+
     def _parse_node_interface(
-        self, node_file_path: Path, parent: Optional[NodeId]
+        self, node: NodeCfg, node_file_path: Path, parent: Optional[NodeId]
     ) -> _Interface:
         if not node_file_path.exists():
             raise ValueError(f"File {node_file_path} does not exist")
@@ -402,6 +426,8 @@ class _GraphBuilder:
             interface = self._parse_sql_file(node_file_path)
         elif ext in (".yml", ".yaml"):
             interface = self._parse_subgraph_yaml(node_file_path, parent)
+        elif node.chart_input:
+            interface = self._parse_chart_node_entry(node)
         else:
             raise ValueError(f"Invalid node file type {node_file_path}")
         return interface
@@ -424,3 +450,12 @@ class _GraphBuilder:
     def _parse_subgraph_yaml(self, file: Path, parent: Optional[NodeId]) -> _Interface:
         parse = self._parse_graph_cfg(file, parent)
         return _Interface(parse.interface, NodeType.Graph, parse.local_edges)
+
+    def _parse_chart_node_entry(self, node: NodeCfg):
+        assert node.chart_input
+
+        input_def = InputDefinition(
+            port_type=PortType.Table, name=node.chart_input, required=True
+        )
+        ni = NodeInterface(inputs=[input_def], outputs=[], parameters=[])
+        return _Interface(ni, NodeType.Chart, [])
