@@ -1,20 +1,11 @@
 from __future__ import annotations
 
-from basis.cli.services.api import Endpoints, get
-from basis.cli.services.output import abort
+from basis.cli.services.api import Endpoints, get_json
 
 
-def list_graph_versions(graph_name: str, organization_name: str) -> list[dict]:
-    resp = get(
-        Endpoints.GRAPH_VERSIONS_LIST,
-        params={"organization_name": organization_name, "graph_name": graph_name},
-    )
-    resp.raise_for_status()
-    return resp.json().get("results", [])
+def get_graph_by_name(organization_uid: str, name: str) -> dict:
+    return get_json(Endpoints.graph_by_name(organization_uid, name))
 
 
-def get_latest_graph_version(graph_name: str, organization_name: str) -> dict:
-    versions = list_graph_versions(graph_name, organization_name)
-    if not versions:
-        abort("No graph versions exist")
-    return versions[0]
+def get_active_graph_version(graph_uid: str) -> dict:
+    return get_json(Endpoints.graphs_latest(graph_uid))["active_graph_version"]
