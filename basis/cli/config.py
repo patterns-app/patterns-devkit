@@ -1,5 +1,7 @@
+import json
 import os
 from pathlib import Path
+from typing import Optional, Dict
 
 import platformdirs
 
@@ -10,8 +12,8 @@ BASIS_CONFIG_NAME = "config.json"
 
 
 class CliConfig(PydanticBase):
-    organization_name: str = None
-    environment_name: str = None
+    organization_id: str = None
+    environment_id: str = None
     token: str = None
     refresh: str = None
     email: str = None
@@ -41,8 +43,28 @@ def write_local_basis_config(config: CliConfig):
     path.write_text(config.json(indent="  "))
 
 
-def update_local_basis_config(**values) -> CliConfig:
+_UNCHANGED = object()
+
+
+def update_local_basis_config(
+    organization_id: Optional[str] = _UNCHANGED,
+    environment_id: Optional[str] = _UNCHANGED,
+    token: Optional[str] = _UNCHANGED,
+    refresh: Optional[str] = _UNCHANGED,
+    email: Optional[str] = _UNCHANGED,
+) -> CliConfig:
     cfg = read_local_basis_config()
-    copy = cfg.copy(update=values)
+    update = {}
+    if organization_id != _UNCHANGED:
+        update["organization_id"] = organization_id
+    if environment_id != _UNCHANGED:
+        update["environment_id"] = environment_id
+    if token != _UNCHANGED:
+        update["token"] = token
+    if refresh != _UNCHANGED:
+        update["refresh"] = refresh
+    if email != _UNCHANGED:
+        update["email"] = email
+    copy = cfg.copy(update=update)
     write_local_basis_config(copy)
     return copy

@@ -10,15 +10,21 @@ def test_deploy(tmp_path: Path):
 
     with request_mocker() as m:
         for e in [
-            Endpoints.GRAPH_VERSIONS_CREATE,
+            Endpoints.graph_version_create("test-org-uid"),
             Endpoints.DEPLOYMENTS_DEPLOY,
         ]:
             m.post(
-                API_BASE_URL + e, json={"uid": 1, "graph_name": "name"},
+                API_BASE_URL + e,
+                json={"uid": "1", "ui_url": "url.com", "graph_name": "g"},
             )
-        m.get(
-            API_BASE_URL + Endpoints.GRAPH_VERSIONS_LIST, json={"results": [{"uid": 1}]}
-        )
+        for e in [
+            Endpoints.graph_by_name("test-org-uid", "name"),
+            Endpoints.graphs_latest("1"),
+        ]:
+            m.get(
+                API_BASE_URL + e,
+                json={"uid": "1", "active_graph_version": {"uid": "1"}},
+            )
 
         run_cli(f"create graph {path}")
 

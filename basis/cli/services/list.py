@@ -1,26 +1,38 @@
 from __future__ import annotations
 
+from itertools import chain
 from typing import List
 
-from basis.cli.services.api import Endpoints, get
+from basis.cli.services.api import Endpoints, get_json
+from basis.cli.services.pagination import paginated
 
 
-def list_graphs() -> List[dict]:
-    resp = get(Endpoints.GRAPHS_LIST)
-    resp.raise_for_status()
-    data = resp.json()
-    return data.get("results", [])
+def list_graphs(organization_uid: str) -> List[dict]:
+    return list(chain.from_iterable(paginated_graphs(organization_uid)))
 
 
-def list_organizations() -> List[dict]:
-    resp = get(Endpoints.ORGANIZATIONS_LIST)
-    resp.raise_for_status()
-    data = resp.json()
-    return data.get("results", [])
+@paginated
+def paginated_graphs(organization_uid: str):
+    return get_json(Endpoints.graphs_list(organization_uid))
 
 
-def list_environments() -> List[dict]:
-    resp = get(Endpoints.ENVIRONMENTS_LIST)
-    resp.raise_for_status()
-    data = resp.json()
-    return data.get("results", [])
+def list_execution_events(
+    environment_uid: str, graph_uid: str, node_id: str
+) -> List[dict]:
+    return list(
+        chain.from_iterable(
+            paginated_execution_events(environment_uid, graph_uid, node_id)
+        )
+    )
+
+
+@paginated
+def paginated_execution_events(environment_uid: str, graph_uid: str, node_id: str):
+    return get_json(
+        Endpoints.EXECUTION_EVENTS,
+        params={
+            "environment_uid": environment_uid,
+            "graph_uid": graph_uid,
+            "node_id": node_id,
+        },
+    )

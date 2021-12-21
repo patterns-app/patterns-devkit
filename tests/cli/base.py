@@ -27,7 +27,11 @@ def set_tmp_dir(tmp_dir: Path, create_basis_config: bool = True) -> Path:
     cfg_pth = Path(tmp_dir) / ".basis-config.json"
     os.environ[BASIS_CONFIG_ENV_VAR] = str(cfg_pth)
     if create_basis_config:
-        update_local_basis_config(token="test-token", organization_name="test-org-uid")
+        update_local_basis_config(
+            token="test-token",
+            organization_id="test-org-uid",
+            environment_id="test-env-id",
+        )
     return cfg_pth
 
 

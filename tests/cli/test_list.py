@@ -8,13 +8,32 @@ def test_list(tmp_path: Path):
     set_tmp_dir(tmp_path)
     with request_mocker() as m:
         for e in [
-            Endpoints.ENVIRONMENTS_LIST,
-            Endpoints.GRAPHS_LIST,
+            Endpoints.environments_list("test-org-uid"),
+            Endpoints.graphs_list("test-org-uid"),
         ]:
             m.get(
-                API_BASE_URL + e, json={"results": [{"name": "name"}]},
+                API_BASE_URL + e, json={"results": [{"name": "name"}], "next": None},
             )
         result = run_cli("list environments --json")
         assert "name" in result.output
         result = run_cli("list graphs --json")
         assert "name" in result.output
+
+
+def test_list_logs(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent
+    path = dr / "name"
+    node = path / "node.py"
+    run_cli(f"create graph {path}")
+    run_cli(f"create node {node}")
+    with request_mocker() as m:
+        m.get(
+            API_BASE_URL + Endpoints.graph_by_name("test-org-uid", "name"),
+            json={"uid": "1"},
+        )
+        m.get(
+            API_BASE_URL + Endpoints.EXECUTION_EVENTS,
+            json={"results": [{"name": "name"}], "next": None},
+        )
+        result = run_cli(f"list logs {node} --json")
+    assert "name" in result.output

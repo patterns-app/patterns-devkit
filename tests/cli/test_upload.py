@@ -11,15 +11,16 @@ def test_upload(tmp_path: Path):
 
     with request_mocker() as m:
         for e in [
-            Endpoints.GRAPH_VERSIONS_CREATE,
+            Endpoints.graph_version_create("test-org-uid"),
             Endpoints.DEPLOYMENTS_DEPLOY,
         ]:
             m.post(
-                API_BASE_URL + e, json={"uid": 1},
+                API_BASE_URL + e, json={"uid": "1", "ui_url": "url.com"},
             )
         result = run_cli(f"upload {path}")
         assert "Uploaded new graph" in result.output
         assert "Graph deployed" in result.output
+        assert "url.com" in result.output
 
         result = run_cli(f"upload --no-deploy {path}")
         assert "Uploaded new graph" in result.output

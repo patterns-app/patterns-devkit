@@ -8,7 +8,9 @@ from basis.cli.config import (
     read_local_basis_config,
 )
 from basis.cli.services import auth
-from basis.cli.services.list import list_organizations, list_environments
+from basis.cli.services.environments import list_environments
+from basis.cli.services.lookup import IdLookup
+from basis.cli.services.organizations import list_organizations
 from basis.cli.services.output import sprint, prompt_str, abort_on_error
 
 _email_help = "The email address of the account"
@@ -29,33 +31,17 @@ def login(
     with abort_on_error("Login failed"):
         auth.login(email, password)
 
-    with abort_on_error("Fetching organizations failed"):
-        organizations = list_organizations()
-
-    if len(organizations) == 1:
-        org_name = organizations[0]["name"]
-    else:
-        org_name = prompt_str(
-            "Select an organization", choices=[org["name"] for org in organizations],
+    ids = IdLookup()
+    with abort_on_error("Fetching account failed"):
+        update_local_basis_config(
+            organization_id=ids.organization_id, environment_id=ids.environment_id
         )
-
-    with abort_on_error("Fetching environments failed"):
-        environments = list_environments()
-
-    if len(environments) == 1:
-        env_name = environments[0]["name"]
-    elif environments:
-        env_name = typer.prompt(
-            "Select an environment", type=Choice([env["name"] for env in environments])
-        )
-    else:
-        env_name = None
-
-    update_local_basis_config(organization_name=org_name, environment_name=env_name)
     sprint(
-        f"\n[success]Logged in to Basis organization [b]{org_name}[/b] as [b]{email}"
+        f"\n[success]Logged in to Basis organization [b]{ids.organization_name}[/b] "
+        f"as [b]{email}"
     )
     sprint(f"\n[info]Your login information is stored at {get_basis_config_path()}")
     sprint(
-        f"\n[info]If you want to create a new graph, run [code]basis create graph[/code] get started"
+        f"\n[info]If you want to create a new graph, run "
+        f"[code]basis create graph[/code] get started"
     )

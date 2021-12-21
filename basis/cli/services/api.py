@@ -1,5 +1,5 @@
 import os
-from enum import Enum
+from typing import Any
 
 import requests
 from requests import Response, Session
@@ -50,11 +50,13 @@ def _get_auth_token() -> str:
 
 
 def _refresh_token(token: str) -> CliConfig:
-    with abort_on_error("Failed refreshing auth token"):
+    with abort_on_error(
+        "Not logged in", suffix="\n[info]You can log in with [code]basis login"
+    ):
         resp = requests.post(
             API_BASE_URL + Endpoints.TOKEN_REFRESH, json={"refresh": token}
         )
-    resp.raise_for_status()
+        resp.raise_for_status()
     data = resp.json()
     cfg = read_local_basis_config()
     if "refresh" in data:
@@ -65,35 +67,96 @@ def _refresh_token(token: str) -> CliConfig:
     return cfg
 
 
-def get(path: str, params: dict = None, session: Session = None, **kwargs) -> Response:
+def get_json(
+    path: str,
+    params: dict = None,
+    session: Session = None,
+    base_url: str = API_BASE_URL,
+    **kwargs,
+) -> Any:
+    resp = get(path, params, session, base_url, **kwargs)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get(
+    path: str,
+    params: dict = None,
+    session: Session = None,
+    base_url: str = API_BASE_URL,
+    **kwargs,
+) -> Response:
     session = session or _get_api_session()
-    resp = session.get(API_BASE_URL + path, params=params or {}, **kwargs)
+    resp = session.get(base_url + path, params=params or {}, **kwargs)
     return resp
 
 
-def post(path: str, json: dict = None, session: Session = None, **kwargs) -> Response:
+def post_for_json(
+    path: str,
+    json: dict = None,
+    session: Session = None,
+    base_url: str = API_BASE_URL,
+    **kwargs,
+) -> Any:
+    resp = post(path, json, session, base_url, **kwargs)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def post(
+    path: str,
+    json: dict = None,
+    session: Session = None,
+    base_url: str = API_BASE_URL,
+    **kwargs,
+) -> Response:
     session = session or _get_api_session()
-    resp = session.post(API_BASE_URL + path, json=json or {}, **kwargs)
+    resp = session.post(base_url + path, json=json or {}, **kwargs)
     return resp
 
 
-class Endpoints(str, Enum):
+class Endpoints:
     TOKEN_CREATE = "auth/jwt/create/"
     TOKEN_VERIFY = "auth/jwt/verify/"
     TOKEN_REFRESH = "auth/jwt/refresh/"
     DEPLOYMENTS_DEPLOY = "api/deployments/"
     DEPLOYMENTS_TRIGGER_NODE = "api/deployments/triggers/"
-    GRAPH_VERSIONS_CREATE = "api/graph_versions/"
-    GRAPH_VERSIONS_LIST = "api/graph_versions/"
     ENVIRONMENTS_CREATE = "api/environments/"
-    ENVIRONMENTS_INFO = "api/environments/info/"
-    GRAPHS_INFO = "api/graphs/info/"
-    NODES_INFO = "api/nodes/info/"
-    ENVIRONMENTS_LOGS = "api/environments/logs/"
-    GRAPHS_LOGS = "api/graphs/logs/"
-    NODES_LOGS = "api/nodes/logs/"
     ORGANIZATIONS_LIST = "api/organizations/"
-    ENVIRONMENTS_LIST = "api/environments/"
-    GRAPHS_LIST = "api/graphs/"
-    NODES_RUN = "api/nodes/"
-    EXECUTION_EVENTS = "api/execution_events/"
+    EXECUTION_EVENTS = "api/nodes/execution_events/"
+
+    @classmethod
+    def organization_by_name(cls, name: str) -> str:
+        return f"api/organizations/name/{name}/"
+
+    @classmethod
+    def organization_by_id(cls, organization_uid: str) -> str:
+        return f"api/organizations/{organization_uid}/"
+
+    @classmethod
+    def graphs_list(cls, organization_uid: str) -> str:
+        return f"api/organizations/{organization_uid}/graphs/"
+
+    @classmethod
+    def graphs_latest(cls, graph_uid: str) -> str:
+        return f"api/graphs/{graph_uid}/latest/"
+
+    @classmethod
+    def graph_by_name(cls, organization_uid: str, name: str) -> str:
+        return f"api/organizations/{organization_uid}/graphs/name/{name}/"
+
+    @classmethod
+    def graph_version_create(cls, organization_uid: str) -> str:
+        return f"api/organizations/{organization_uid}/graph_versions/"
+
+    @classmethod
+    def environments_list(cls, organization_uid: str) -> str:
+        return f"api/organizations/{organization_uid}/environments/"
+
+    @classmethod
+    def environment_by_name(cls, organization_uid: str, name: str) -> str:
+        return f"api/organizations/{organization_uid}/environments/name/{name}/"
+
+    @classmethod
+    def environment_by_id(cls, environment_uid: str) -> str:
+        return f"api/environments/{environment_uid}/"

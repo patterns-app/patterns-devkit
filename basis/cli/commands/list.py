@@ -1,12 +1,15 @@
 import json
 from enum import Enum
+from pathlib import Path
 
 import typer
 from rich.table import Table
-from typer import Option
+from typer import Option, Argument
 
-from basis.cli.services.list import list_graphs, list_environments
-from basis.cli.services.output import sprint
+from basis.cli.services.environments import list_environments
+from basis.cli.services.list import list_graphs, list_execution_events
+from basis.cli.services.lookup import IdLookup
+from basis.cli.services.output import sprint, abort_on_error, abort
 
 
 class Listable(str, Enum):
@@ -16,20 +19,62 @@ class Listable(str, Enum):
 
 _type_help = "The type of object to list"
 _json_help = "Output the object as JSON Lines"
+_organization_help = "The name of the Basis organization to use"
+_environment_help = "The name of the Basis environment to use"
+
+_organization_option = Option("", "--organization", "-o", help=_organization_help)
+_environment_option = Option("", "--environment", "-e", help=_environment_help)
 
 list_command = typer.Typer(name="list", help="List objects of a given type")
 
 
 @list_command.command()
-def graphs(print_json: bool = Option(False, "--json", help=_json_help)):
+def graphs(
+    organization: str = Option("", help=_organization_help),
+    print_json: bool = Option(False, "--json", help=_json_help),
+):
     """List graphs"""
-    _print_objects(list_graphs(), print_json)
+    ids = IdLookup(organization_name=organization)
+    with abort_on_error("Error listing graphs"):
+        gs = list_graphs(ids.organization_id)
+    _print_objects(gs, print_json)
 
 
 @list_command.command()
-def environments(print_json: bool = Option(False, "--json", help=_json_help)):
+def environments(
+    organization: str = Option("", "--organization", "-o", help=_organization_help),
+    print_json: bool = Option(False, "--json", help=_json_help),
+):
     """List environments"""
-    _print_objects(list_environments(), print_json)
+    ids = IdLookup(organization_name=organization)
+    with abort_on_error("Error listing environments"):
+        es = list_environments(ids.organization_id)
+    _print_objects(es, print_json)
+
+
+_node_help = "The path to the node to get logs for"
+
+
+@list_command.command()
+def logs(
+    print_json: bool = Option(False, "--json", help=_json_help),
+    organization: str = Option("", help=_organization_help),
+    environment: str = Option("", help=_environment_help),
+    node: Path = Argument(..., exists=True, help=_node_help),
+):
+    """List execution logs for a node"""
+    if bool(organization) != bool(environment):
+        abort("Must specify both --organization and --environment, or neither")
+
+    ids = IdLookup(
+        environment_name=environment,
+        organization_name=organization,
+        node_file_path=node,
+    )
+
+    with abort_on_error("Could not list logs"):
+        events = list_execution_events(ids.environment_id, ids.graph_id, ids.node_id)
+    _print_objects(events, print_json)
 
 
 def _print_objects(objects: list, print_json: bool):
