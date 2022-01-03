@@ -1,5 +1,5 @@
 [tool.poetry]
-authors = ["Ken Van Haren <kvh@getbasis.com>"]
+authors = ["AJ Alt <aj@getbasis.com>", "Ken Van Haren <kvh@getbasis.com>"]
 description = "Data pipelines from re-usable components"
 license = "BSD-3-Clause"
 name = "basis-devkit"
