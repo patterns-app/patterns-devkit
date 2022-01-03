@@ -94,11 +94,12 @@ class _ParameterMeta(type, _NodeInterfaceEntry):
 
 
 class _ConnectionMeta(type, _NodeInterfaceEntry):
-    def __new__(mcs, description: str = None):
+    def __new__(mcs, domain: str, description: str = None):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
-    def __init__(cls, description: str = None):
+    def __init__(cls, domain: str, description: str = None):
+        cls.domain = domain
         cls.description = description
 
 

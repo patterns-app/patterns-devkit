@@ -72,7 +72,11 @@ def _get_jinja_env() -> SandboxedEnvironment:
 
 def _interface_from_jinja_ctx(ctx: BasisJinjaInspectContext) -> NodeInterface:
     return NodeInterface(
-        inputs=ctx.inputs, outputs=ctx.outputs, parameters=ctx.parameters, state=None
+        inputs=ctx.inputs,
+        outputs=ctx.outputs,
+        parameters=ctx.parameters,
+        connections=[],
+        state=None,
     )
 
 

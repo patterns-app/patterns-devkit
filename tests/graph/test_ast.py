@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from basis.utils.ast_parser import read_interface_from_py_node_file
-from tests.graph.utils import istream, ostream, p
+from tests.graph.utils import istream, ostream, p, c
 
 
 def test_interface_parse():
@@ -22,6 +22,6 @@ def test_interface_parse():
 
     assert i.state is not None
     assert i.state.name == "state_param"
-    
+
     assert len(i.connections) == 1
-    assert i.connections[0] == "state_param"
+    assert i.connections[0] == c("conn_param", "example.com", "conn desc")

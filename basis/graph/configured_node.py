@@ -69,11 +69,12 @@ class ParameterDefinition(FrozenPydanticBase):
 
 class StateDefinition(FrozenPydanticBase):
     name: str
-    
-    
+
+
 class ConnectionDefinition(FrozenPydanticBase):
-    url: str
-    description: str
+    name: str
+    domain: str
+    description: str = None
 
 
 class NodeInterface(FrozenPydanticBase):

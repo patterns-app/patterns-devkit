@@ -10,7 +10,8 @@ from basis.graph.configured_node import (
     OutputDefinition,
     ParameterDefinition,
     PortType,
-    StateDefinition, ConnectionDefinition,
+    StateDefinition,
+    ConnectionDefinition,
 )
 
 
@@ -42,7 +43,11 @@ class _NodeFuncFinder(ast.NodeVisitor):
 
     def interface(self):
         return NodeInterface(
-            inputs=self.i, outputs=self.o, parameters=self.p, state=self.s
+            inputs=self.i,
+            outputs=self.o,
+            parameters=self.p,
+            connections=self.c,
+            state=self.s,
         )
 
     def visit_FunctionDef(self, node: ast.FunctionDef):
@@ -123,6 +128,14 @@ class _NodeFuncFinder(ast.NodeVisitor):
             )
         elif call.name == "State":
             self.s = StateDefinition(name=name)
+        elif call.name == "Connection":
+            self.c.append(
+                ConnectionDefinition(
+                    name=name,
+                    domain=get("domain", str),
+                    description=get("description", str),
+                )
+            )
         else:
             raise RuntimeError("error in file parsing")  # unreachable
         if call.kwargs:

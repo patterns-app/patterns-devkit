@@ -19,6 +19,7 @@ from basis.graph.configured_node import (
     GraphManifest,
     GraphError,
     StateDefinition,
+    ConnectionDefinition,
 )
 
 
@@ -171,6 +172,7 @@ def n(
             inputs=[i for i in interface if isinstance(i, InputDefinition)],
             outputs=[i for i in interface if isinstance(i, OutputDefinition)],
             parameters=[i for i in interface if isinstance(i, ParameterDefinition)],
+            connections=[i for i in interface if isinstance(i, ConnectionDefinition)],
             state=next((i for i in interface if isinstance(i, StateDefinition)), None),
         ),
         description=description,
@@ -184,7 +186,10 @@ def n(
 
 
 def p(
-    name: str, parameter_type: str = None, description: str = None, default: Any = None,
+    name: str,
+    parameter_type: str = None,
+    description: str = None,
+    default: Any = None,
 ) -> ParameterDefinition:
     return ParameterDefinition(
         name=name,
@@ -194,8 +199,22 @@ def p(
     )
 
 
+def c(
+    name: str,
+    domain: str,
+    description: str = None,
+) -> ConnectionDefinition:
+    return ConnectionDefinition(
+        name=name,
+        domain=domain,
+        description=description,
+    )
+
+
 def ostream(
-    name: str, description: str = None, schema: Union[str, Schema] = None,
+    name: str,
+    description: str = None,
+    schema: Union[str, Schema] = None,
 ) -> OutputDefinition:
     return OutputDefinition(
         port_type=PortType.Stream,
@@ -236,7 +255,9 @@ def itable(
 
 
 def otable(
-    name: str, description: str = None, schema: Union[str, Schema] = None,
+    name: str,
+    description: str = None,
+    schema: Union[str, Schema] = None,
 ) -> OutputDefinition:
     return OutputDefinition(
         port_type=PortType.Table,

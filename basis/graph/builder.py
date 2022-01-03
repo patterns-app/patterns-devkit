@@ -169,7 +169,9 @@ class _GraphBuilder:
             for i in exposed_inputs
             if i in input_defs_by_name  # may be missing in broken graphs
         ]
-        return NodeInterface(inputs=inputs, outputs=outputs, parameters=[], state=None)
+        return NodeInterface(
+            inputs=inputs, outputs=outputs, parameters=[], connections=[], state=None
+        )
 
     # set local edges connected to nodes' inputs
     def _set_local_input_edges(
@@ -234,7 +236,11 @@ class _GraphBuilder:
             edges.append(edge)
 
     def _check_edge(
-        self, dst_id: NodeId, name: str, src_t: PortType, dst_t: PortType,
+        self,
+        dst_id: NodeId,
+        name: str,
+        src_t: PortType,
+        dst_t: PortType,
     ):
         if src_t == PortType.Table and dst_t == PortType.Stream:
             self._err(
@@ -298,7 +304,8 @@ class _GraphBuilder:
 
         while vertex.node_type == NodeType.Graph:
             vertex_port = next(
-                (e.input for e in vertex.local_edges if e.output == vertex_port), None,
+                (e.input for e in vertex.local_edges if e.output == vertex_port),
+                None,
             )
             if not vertex_port:
                 self._err(
@@ -384,13 +391,16 @@ class _GraphBuilder:
         assert node.webhook
 
         outputs = [OutputDefinition(port_type=PortType.Stream, name=node.webhook)]
-        ni = NodeInterface(inputs=[], outputs=outputs, parameters=[])
+        ni = NodeInterface(inputs=[], outputs=outputs, parameters=[], connections=[])
         node_name = node.name or node.webhook
         node_id = self._make_node_id(node.id, node_name, parent)
         return _Interface(ni, NodeType.Webhook, [], node_name, node_id, None)
 
     def _parse_file_node_entry(
-        self, node: NodeCfg, node_dir: Path, parent: Optional[NodeId],
+        self,
+        node: NodeCfg,
+        node_dir: Path,
+        parent: Optional[NodeId],
     ) -> _Interface:
         assert node.node_file
 
@@ -401,7 +411,7 @@ class _GraphBuilder:
         try:
             interface = self._parse_node_interface(node, node_file_path, node_id)
         except NodeParseException as e:
-            ni = NodeInterface(inputs=[], outputs=[], parameters=[])
+            ni = NodeInterface(inputs=[], outputs=[], parameters=[], connections=[])
             interface = _Interface(ni, NodeType.Node, [])
             self._err(
                 node_id, f"Error parsing file {relative_node_path}: {e.__cause__}"
@@ -457,5 +467,7 @@ class _GraphBuilder:
         input_def = InputDefinition(
             port_type=PortType.Table, name=node.chart_input, required=True
         )
-        ni = NodeInterface(inputs=[input_def], outputs=[], parameters=[])
+        ni = NodeInterface(
+            inputs=[input_def], outputs=[], parameters=[], connections=[]
+        )
         return _Interface(ni, NodeType.Chart, [])

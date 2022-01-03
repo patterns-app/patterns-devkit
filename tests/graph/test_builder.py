@@ -6,6 +6,7 @@ from basis.configuration.path import NodeId
 from basis.graph.builder import graph_manifest_from_yaml, GraphManifest, GraphError
 from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
 from tests.graph.utils import (
+c,
     p,
     ostream,
     istream,
@@ -42,6 +43,7 @@ def test_flat_graph():
                 ostream("passthrough_stream", "out desc", "TestSchema2"),
                 p("explicit_param", "bool", "param desc", False),
                 p("plain_param"),
+                c("conn_param", "example.com", "conn desc"),
                 s("state_param"),
             ],
             file_path="passthrough.py",
