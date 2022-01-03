@@ -78,6 +78,7 @@ class _NodeFuncFinder(ast.NodeVisitor):
             "OutputStream",
             "Parameter",
             "State",
+            "Connection",
         ):
             raise ValueError(
                 f"node function parameter {name} must specify an input, output, or parameter, not {call.name}"

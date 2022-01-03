@@ -12,6 +12,7 @@ from basis.node._methods import (
     InputStreamMethods,
     OutputStreamMethods,
     StateMethods,
+    ConnectionMethods,
 )
 
 
@@ -55,13 +56,17 @@ class _InputMeta(type, _NodeInterfaceEntry):
 
 class _OutputMeta(type, _NodeInterfaceEntry):
     def __new__(
-        mcs, description: str = None, schema: Union[str, Schema] = None,
+        mcs,
+        description: str = None,
+        schema: Union[str, Schema] = None,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
     def __init__(
-        cls, description: str = None, schema: Union[str, Schema] = None,
+        cls,
+        description: str = None,
+        schema: Union[str, Schema] = None,
     ):
         cls.description = description
         cls.schema = schema
@@ -69,17 +74,32 @@ class _OutputMeta(type, _NodeInterfaceEntry):
 
 class _ParameterMeta(type, _NodeInterfaceEntry):
     def __new__(
-        mcs, description: str = None, type: str = None, default: Any = None,
+        mcs,
+        description: str = None,
+        type: str = None,
+        default: Any = None,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
     def __init__(
-        cls, description: str = None, type: str = None, default: Any = None,
+        cls,
+        description: str = None,
+        type: str = None,
+        default: Any = None,
     ):
         cls.description = description
         cls.type = type
         cls.default = default
+
+
+class _ConnectionMeta(type, _NodeInterfaceEntry):
+    def __new__(mcs, description: str = None):
+        return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
+
+    # noinspection PyMissingConstructor
+    def __init__(cls, description: str = None):
+        cls.description = description
 
 
 class InputTable(_InputMeta, InputTableMethods):
@@ -102,7 +122,11 @@ class Parameter(_ParameterMeta, ParameterMethods):
     pass
 
 
-class State(_ParameterMeta, StateMethods):
+class State(_OutputMeta, StateMethods):
+    pass
+
+
+class Connection(_ConnectionMeta, ConnectionMethods):
     pass
 
 

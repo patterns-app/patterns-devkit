@@ -3,6 +3,8 @@ from __future__ import annotations
 from pandas import DataFrame
 from typing import Iterator, Any
 
+from requests import Response
+
 
 class InputTableMethods:
     @classmethod
@@ -67,3 +69,17 @@ class StateMethods:
 
 class ParameterMethods:
     pass
+
+
+class ConnectionMethods:
+    @classmethod
+    def get(cls, url: str, params: dict | None = None) -> Response:
+        ...
+
+    @classmethod
+    def post(cls, url: str, data: dict | None = None) -> Response:
+        ...
+
+    @classmethod
+    def configure(cls, param: str, value: Any):
+        ...
