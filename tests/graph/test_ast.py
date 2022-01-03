@@ -22,3 +22,6 @@ def test_interface_parse():
 
     assert i.state is not None
     assert i.state.name == "state_param"
+    
+    assert len(i.connections) == 1
+    assert i.connections[0] == "state_param"

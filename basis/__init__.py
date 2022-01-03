@@ -8,6 +8,7 @@ from .node.node import (
     OutputStream,
     Parameter,
     State,
+    Connection,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "OutputStream",
     "Parameter",
     "State",
+    "Connection",
 ]

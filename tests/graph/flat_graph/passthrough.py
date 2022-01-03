@@ -9,5 +9,6 @@ def passthrough_node(
     explicit_param=Parameter(description="param desc", type="bool", default=False),
     plain_param=Parameter,
     state_param=State,
+    conn_param=Connection("squareup.com"),
 ):
     pass

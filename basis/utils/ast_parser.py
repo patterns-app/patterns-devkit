@@ -10,7 +10,7 @@ from basis.graph.configured_node import (
     OutputDefinition,
     ParameterDefinition,
     PortType,
-    StateDefinition,
+    StateDefinition, ConnectionDefinition,
 )
 
 
@@ -36,6 +36,7 @@ class _NodeFuncFinder(ast.NodeVisitor):
         self.i: List[InputDefinition] = []
         self.o: List[OutputDefinition] = []
         self.p: List[ParameterDefinition] = []
+        self.c: List[ConnectionDefinition] = []
         self.s: Optional[StateDefinition] = None
         self.found = 0
 
