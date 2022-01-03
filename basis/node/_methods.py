@@ -3,7 +3,7 @@ from __future__ import annotations
 from pandas import DataFrame
 from typing import Iterator, Any
 
-from requests import Response
+from requests import Response, Session
 
 
 class InputTableMethods:
@@ -72,6 +72,10 @@ class ParameterMethods:
 
 
 class ConnectionMethods:
+    @classmethod
+    def get_session(cls) -> Session:
+        ...
+    
     @classmethod
     def get(cls, url: str, params: dict | None = None) -> Response:
         ...

@@ -6,7 +6,7 @@ from basis.configuration.path import NodeId
 from basis.graph.builder import graph_manifest_from_yaml, GraphManifest, GraphError
 from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
 from tests.graph.utils import (
-c,
+    c,
     p,
     ostream,
     istream,
@@ -482,7 +482,9 @@ def test_err_unconnected_implicit_input(tmp_path: Path):
     )
 
     assert_nodes(
-        manifest, n("source"), n("sink", errors=['Cannot find output named "input"']),
+        manifest,
+        n("source"),
+        n("sink", errors=['Cannot find output named "input"']),
     )
 
 
@@ -504,7 +506,9 @@ def test_err_unconnected_explicit_input(tmp_path: Path):
     )
 
     assert_nodes(
-        manifest, n("source"), n("sink", errors=['Cannot find output named "nosink"']),
+        manifest,
+        n("source"),
+        n("sink", errors=['Cannot find output named "nosink"']),
     )
 
 
