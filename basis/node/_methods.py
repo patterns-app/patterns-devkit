@@ -75,15 +75,15 @@ class ConnectionMethods:
     @classmethod
     def get_session(cls) -> Session:
         ...
-    
+
     @classmethod
-    def get(cls, url: str, params: dict | None = None) -> Response:
+    def get(cls, url: str, params: dict | None = None, **kwargs) -> Response:
         ...
 
     @classmethod
-    def post(cls, url: str, data: dict | None = None) -> Response:
+    def post(cls, url: str, data: dict | None = None, **kwargs) -> Response:
         ...
 
     @classmethod
-    def configure(cls, param: str, value: Any):
+    def configure(cls, **kwargs):
         ...
