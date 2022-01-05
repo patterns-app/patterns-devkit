@@ -35,7 +35,7 @@ def graph(
     cfg = read_local_basis_config()
     path = resolve_graph_path(location, exists=False)
     name = name or location.stem
-    path.write_text(dump_yaml({"name": name}))
+    GraphConfigEditor(path, read=False).set_name(name).write()
     write_local_basis_config(cfg)
 
     sprint(f"\n[success]Created graph [b]{name}")
