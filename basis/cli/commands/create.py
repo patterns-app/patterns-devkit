@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import typer
@@ -66,7 +67,10 @@ def node(
         abort(f"{location} already exists")
 
     if location.suffix == ".py":
-        content = _PY_FILE_TEMPLATE.format(location.stem)
+        fun_name = re.sub(r'[^a-zA-Z0-9_]', '_', location.stem)
+        if re.match(r'\d', fun_name):
+            fun_name = f'node_{fun_name}'
+        content = _PY_FILE_TEMPLATE.format(fun_name)
     elif location.suffix == ".sql":
         content = _SQL_FILE_TEMPLATE
     else:
