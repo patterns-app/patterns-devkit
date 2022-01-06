@@ -63,9 +63,6 @@ def logs(
     node: Path = Argument(..., exists=True, help=_node_help),
 ):
     """List execution logs for a node"""
-    if bool(organization) != bool(environment):
-        abort("Must specify both --organization and --environment, or neither")
-
     ids = IdLookup(
         environment_name=environment,
         organization_name=organization,

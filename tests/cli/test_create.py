@@ -34,7 +34,7 @@ def test_create_node_explicit(tmp_path: Path):
     path = dr / name
     run_cli(f"create node --graph='{dr}' '{path}'")
     assert name in (dr / "graph.yml").read_text()
-    assert 'def mynode' in path.read_text()
+    assert "def mynode" in path.read_text()
 
 
 def test_create_node_invalid_py_name(tmp_path: Path):
@@ -44,7 +44,7 @@ def test_create_node_invalid_py_name(tmp_path: Path):
     path = dr / name
     run_cli(f"create node --graph='{dr}'", f"{path}\n")
     assert name in (dr / "graph.yml").read_text()
-    assert 'def node_0_foo' in path.read_text()
+    assert "def node_0_foo" in path.read_text()
 
 
 def test_create_webhook(tmp_path: Path):

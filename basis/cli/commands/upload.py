@@ -21,7 +21,8 @@ def upload(
     graph: Path = Argument(None, exists=True, help=_graph_help),
 ):
     """Upload a new version of a graph to Basis"""
-    graph_path = find_graph_file(graph)
+    with abort_on_error("Error uploading graph"):
+        graph_path = find_graph_file(graph)
     ids = IdLookup(
         environment_name=environment,
         organization_name=organization,

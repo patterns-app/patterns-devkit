@@ -529,6 +529,35 @@ def test_err_table_to_stream(tmp_path: Path):
     )
 
 
+def test_err_invalid_yml_name(tmp_path: Path):
+    path = tmp_path / "invalid.yml"
+    (path).write_text("")
+    with pytest.raises(ValueError):
+        graph_manifest_from_yaml(path)
+
+
+def test_err_invalid_yml_ext(tmp_path: Path):
+    path = tmp_path / "graph.yaml"
+    (path).write_text("")
+    with pytest.raises(ValueError):
+        graph_manifest_from_yaml(path)
+
+
+def test_err_invalid_nested_yml_name(tmp_path: Path):
+    path = tmp_path / "invalid.yml"
+    (path).write_text("")
+    with pytest.raises(ValueError):
+        setup_manifest(
+            tmp_path,
+            {
+                "graph.yml": """
+                    nodes:
+                      - node_file: sub/invalid.yml""",
+                "sub/invalid.yml": "",
+            },
+        )
+
+
 def test_err_duplicate_outputs(tmp_path: Path):
     manifest = setup_manifest(
         tmp_path,

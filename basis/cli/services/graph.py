@@ -6,29 +6,33 @@ from basis.cli.services.output import abort
 from basis.cli.services.output import prompt_path
 
 
-def resolve_graph_path(path: Path, exists: bool) -> Path:
+def resolve_graph_path(
+    path: Path, exists: bool, create_parents_if_necessary: bool = True
+) -> Path:
     """Resolve an explicitly given graph location to a yaml"""
     if path.is_dir():
-        for ext in (".yml", ".yaml"):
-            f = path / f"graph{ext}"
-            if f.is_file():
-                if exists:
-                    return f.absolute()
-                abort(f"Graph '{f}' already exists")
+        f = path / "graph.yml"
+        if f.is_file():
+            if exists:
+                return f.absolute()
+            raise ValueError(f"File '{f}' already exists")
         if exists:
-            abort(f"Graph '{f}' does not exist")
-        return (path / "graph.yml").absolute()
-    if path.suffix and path.suffix not in (".yml", ".yaml"):
-        abort(f"Graph '{path}' must be a yaml file")
+            raise ValueError(f"File '{f}' does not exist")
+        return f.absolute()
+    if path.suffix and path.name != "graph.yml":
+        raise ValueError(f"Invalid graph file name: {path.name}")
     if path.is_file():
         if not exists:
-            abort(f"Graph '{path}' already exists")
+            raise ValueError(f"Graph '{path}' already exists")
         return path.absolute()
     if exists:
-        abort(f"Graph '{path}' does not exist")
+        raise ValueError(f"Graph '{path}' does not exist")
     if path.suffix:
+        if create_parents_if_necessary:
+            path.parent.mkdir(parents=True)
         return path.absolute()
-    path.mkdir(parents=True)
+    if create_parents_if_necessary:
+        path.mkdir(parents=True)
     graph_path = (path / "graph.yml").absolute()
     return graph_path
 
@@ -42,10 +46,9 @@ def find_graph_file(path: Optional[Path]) -> Path:
     path = path.absolute()
 
     for _ in range(100):
-        for ext in ("yml", "yaml"):
-            p = path / f"graph.{ext}"
-            if p.is_file():
-                return p
+        p = path / "graph.yml"
+        if p.is_file():
+            return p
         if not path or path == path.parent:
             break
         path = path.parent
