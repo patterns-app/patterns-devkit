@@ -96,6 +96,8 @@ class _GraphBuilder:
         self.errors.append(GraphError(node_id=id, message=message))
 
     def _read_graph_yml(self, path: Path) -> GraphDefinitionCfg:
+        if path.name != "graph.yml":
+            raise ValueError(f"Invalid graph file name: {path.name}")
         try:
             text = path.read_text()
         except Exception:

@@ -32,16 +32,15 @@ def graph(
             "Enter a name for the new graph directory [prompt.default](e.g. my_graph)"
         )
         location = prompt_path(prompt, exists=False)
-
-    cfg = read_local_basis_config()
-    path = resolve_graph_path(location, exists=False)
+    with abort_on_error("Error creating graph"):
+        path = resolve_graph_path(location, exists=False)
     name = name or location.stem
     GraphConfigEditor(path, read=False).set_name(name).write()
-    write_local_basis_config(cfg)
 
     sprint(f"\n[success]Created graph [b]{name}")
     sprint(
-        f"\n[info]You can add nodes with [code]cd {location}[/code], then [code]basis create node[/code]"
+        f"\n[info]You can add nodes with [code]cd {location}[/code],"
+        f" then [code]basis create node[/code]"
     )
 
 
@@ -67,16 +66,17 @@ def node(
         abort(f"{location} already exists")
 
     if location.suffix == ".py":
-        fun_name = re.sub(r'[^a-zA-Z0-9_]', '_', location.stem)
-        if re.match(r'\d', fun_name):
-            fun_name = f'node_{fun_name}'
+        fun_name = re.sub(r"[^a-zA-Z0-9_]", "_", location.stem)
+        if re.match(r"\d", fun_name):
+            fun_name = f"node_{fun_name}"
         content = _PY_FILE_TEMPLATE.format(fun_name)
     elif location.suffix == ".sql":
         content = _SQL_FILE_TEMPLATE
     else:
         abort("Node file location must end in .py or .sql")
 
-    graph_path = find_graph_file(explicit_graph or location.parent)
+    with abort_on_error("Error creating node"):
+        graph_path = find_graph_file(explicit_graph or location.parent)
     graph_dir = graph_path.parent
     if not location.is_absolute() and not is_relative_to(
         location.absolute(), graph_dir
@@ -120,7 +120,8 @@ def webhook(
     name: str = Argument(..., help=_webhook_name_help),
 ):
     """Add a new webhook node to a graph"""
-    graph_path = find_graph_file(explicit_graph)
+    with abort_on_error("Error creating webhook"):
+        graph_path = find_graph_file(explicit_graph)
 
     with abort_on_error("Adding webhook failed"):
         editor = GraphConfigEditor(graph_path)
