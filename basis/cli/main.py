@@ -9,6 +9,7 @@ from .commands.logout import logout
 from .commands.manifest import manifest
 from .commands.trigger import trigger
 from .commands.upload import upload
+from .commands.pull import pull, clone
 
 app = typer.Typer(add_completion=False)
 
@@ -21,6 +22,8 @@ for command in (
     logout,
     trigger,
     upload,
+    pull,
+    clone,
 ):
     if isinstance(command, typer.Typer):
         app.add_typer(command)

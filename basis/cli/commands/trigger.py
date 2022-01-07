@@ -17,8 +17,8 @@ _node_help = "The path to the node to trigger"
 
 
 def trigger(
-    organization: str = Option("", "-e", "--environment", help=_organization_help),
-    environment: str = Option("", help=_environment_help),
+    organization: str = Option("", "-o", "--organization", help=_organization_help),
+    environment: str = Option("", "-e", "--environment", help=_environment_help),
     graph: Path = Option(None, exists=True, help=_graph_help),
     graph_version_id: str = Option("", help=_graph_version_id_help),
     type: TypeChoices = Option(TypeChoices.pubsub, hidden=True),

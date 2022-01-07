@@ -143,8 +143,20 @@ class Endpoints:
         return f"api/graphs/{graph_uid}/latest/"
 
     @classmethod
+    def graph_version_download(cls, graph_version_uid: str) -> str:
+        return f"api/graph_versions/{graph_version_uid}/zip"
+
+    @classmethod
     def graph_by_name(cls, organization_uid: str, name: str) -> str:
         return f"api/organizations/{organization_uid}/graphs/name/{name}/"
+
+    @classmethod
+    def graph_by_id(cls, graph_uid: str) -> str:
+        return f"api/graphs/{graph_uid}/"
+
+    @classmethod
+    def graph_version_by_id(cls, graph_version_uid: str) -> str:
+        return f"api/graph_versions/{graph_version_uid}/"
 
     @classmethod
     def graph_version_create(cls, organization_uid: str) -> str:

@@ -12,6 +12,7 @@ from basis.cli.services.graph import find_graph_file
 from basis.cli.services.graph_versions import (
     get_graph_by_name,
     get_active_graph_version,
+    get_graph_version_by_id,
 )
 from basis.cli.services.organizations import (
     get_organization_by_name,
@@ -32,6 +33,7 @@ class IdLookup:
     node_file_path: Path = None
     explicit_graph_version_id: str = None
     ignore_local_cfg: bool = False
+    explicit_graph_name: str = None
 
     @cached_property
     def organization_id(self) -> str:
@@ -75,9 +77,7 @@ class IdLookup:
 
     @cached_property
     def graph_id(self) -> str:
-        yaml = load_yaml(self.graph_file_path)
-        graph_name = yaml.get("name", self.graph_file_path.parent.name)
-        return get_graph_by_name(self.organization_id, graph_name)["uid"]
+        return get_graph_by_name(self.organization_id, self.graph_name)["uid"]
 
     @cached_property
     def graph_version_id(self):
@@ -123,3 +123,15 @@ class IdLookup:
         if self.ignore_local_cfg:
             return CliConfig()
         return read_local_basis_config()
+
+    @cached_property
+    def graph_name(self) -> str:
+        if self.explicit_graph_name:
+            return self.explicit_graph_name
+        if self.explicit_graph_path or self.node_file_path:
+            yaml = load_yaml(self.graph_file_path)
+            return yaml.get("name", self.graph_file_path.parent.name)
+        if self.explicit_graph_version_id:
+            vid = self.explicit_graph_version_id
+            return get_graph_version_by_id(vid)["graph"]["name"]
+        raise ValueError("Cannot find graph name")

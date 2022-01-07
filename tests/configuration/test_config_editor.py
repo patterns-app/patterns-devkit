@@ -175,6 +175,6 @@ class _EditorTester(GraphConfigEditor):
     def assert_dump(self, s: str):
         s = textwrap.dedent(s).strip()
         dump = self.dump().strip()
-        if '<id>' in s:
-            dump = re.sub(r'id: \w+', 'id: <id>', dump)
+        if "<id>" in s:
+            dump = re.sub(r"id: \w+", "id: <id>", dump)
         assert dump == s

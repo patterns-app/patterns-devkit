@@ -79,10 +79,13 @@ def test_full_clone(tmp_path: Path):
 def test_add_subgraph(tmp_path: Path):
     do_add_zip_test(
         tmp_path,
-        before={"graph.yml": """
+        before={
+            "graph.yml": """
             nodes:
               - node_file: s.sql
-            """, "s.sql": "foo"},
+            """,
+            "s.sql": "foo",
+        },
         zip={
             "graph.yml": 'nodes: [{"node_file": "sub/graph.yml"}]',
             "sub/graph.yml": 'nodes: [{"node_file": "s.sql"}]',
@@ -117,7 +120,7 @@ def do_add_zip_test(
         setup_manifest(tmp_path, before)
     editor = GraphDirectoryEditor(tmp_path, overwrite=overwrite)
     with create_zip(zip) as z:
-        editor.add_node_from_zip(Path(src), Path(dst), z)
+        editor.add_node_from_zip(src, dst, z)
     if after:
         assert_files(tmp_path, after)
 

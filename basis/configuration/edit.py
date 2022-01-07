@@ -208,7 +208,10 @@ class GraphDirectoryEditor:
         return graph_manifest_from_yaml(self.yml_path, allow_errors=allow_errors)
 
     def add_node_from_zip(
-        self, src_path: Path, dst_path: Path, zf: Union[ZipFile, Path],
+        self,
+        src_path: Union[Path, str],
+        dst_path: [Path, str],
+        zf: Union[ZipFile, Path],
     ) -> GraphDirectoryEditor:
         """Copy the node or subgraph located at src_path in zipfile to dst_path
 
@@ -216,6 +219,8 @@ class GraphDirectoryEditor:
         :param dst_path: Path relative to the output graph directory
         :param zf: A ZipFile open in read mode, or a path to a zip file to open
         """
+        src_path = Path(src_path)
+        dst_path = Path(dst_path)
         if isinstance(zf, ZipFile):
             self._add(src_path, dst_path, zf)
         else:
@@ -240,7 +245,7 @@ class GraphDirectoryEditor:
                     self._extract_file(info, Path(new_name), zf)
         else:
             self._extract_file(zf.getinfo(_zip_name(src_path)), dst_path, zf)
-        if self._cfg:
+        if self._cfg and str(dst_path) != "graph.yml":
             try:
                 self._cfg.add_node(_zip_name(dst_path)).write()
             except ValueError:
