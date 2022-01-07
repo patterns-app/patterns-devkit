@@ -1,13 +1,23 @@
+from __future__ import annotations
+
+import io
 import re
+from dataclasses import dataclass
+from functools import cached_property
 from io import StringIO
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union, Iterable
+from zipfile import ZipFile, ZipInfo
 
 import ruyaml
 
+import zipfile
+
+from basis.cli.helpers import compress_directory
+from basis.cli.services.graph import resolve_graph_path
 from basis.configuration.graph import NodeCfg, ExposingCfg, GraphDefinitionCfg
 from basis.configuration.path import NodeId
-from basis.graph.builder import graph_manifest_from_yaml, _GraphBuilder, _ParsedGraph
+from basis.graph.builder import _GraphBuilder, graph_manifest_from_yaml
 from basis.graph.configured_node import GraphManifest
 
 
@@ -83,7 +93,7 @@ class GraphConfigEditor:
             p = Path(self.get_name() or "graph") / "graph.yml"
         return MemBuilder(p).build()
 
-    def set_name(self, name: str) -> "GraphConfigEditor":
+    def set_name(self, name: str) -> GraphConfigEditor:
         self._cfg["name"] = name
         return self
 
@@ -95,14 +105,14 @@ class GraphConfigEditor:
             return ExposingCfg(**self._cfg["exposes"])
         return None
 
-    def set_exposing_cfg(self, exposing: Optional[ExposingCfg]) -> "GraphConfigEditor":
+    def set_exposing_cfg(self, exposing: Optional[ExposingCfg]) -> GraphConfigEditor:
         if exposing is None:
             del self._cfg["exposes"]
         else:
             self._cfg["exposes"] = exposing.dict(exclude_none=True)
         return self
 
-    def add_node_cfg(self, node: NodeCfg) -> "GraphConfigEditor":
+    def add_node_cfg(self, node: NodeCfg) -> GraphConfigEditor:
         d = node.dict(exclude_none=True)
 
         for k in ("node_file", "id", "webhook"):
@@ -136,9 +146,9 @@ class GraphConfigEditor:
         outputs: List[str] = None,
         parameters: Dict[str, Any] = None,
         name: str = None,
-        id: str = None,
+        id: Optional[str] = NodeId.random(),
         description: str = None,
-    ) -> "GraphConfigEditor":
+    ) -> GraphConfigEditor:
         self.add_node_cfg(
             NodeCfg(
                 node_file=node_file,
@@ -147,16 +157,121 @@ class GraphConfigEditor:
                 outputs=outputs,
                 parameters=parameters,
                 name=name,
-                id=id,
+                id=str(id) if id else id,
                 description=description,
             )
         )
         return self
 
     def add_webhook(
-        self, webhook: str, name: str = None, id: str = None, description: str = None
-    ) -> "GraphConfigEditor":
+        self,
+        webhook: str,
+        name: str = None,
+        id: Optional[str] = NodeId.random(),
+        description: str = None,
+    ) -> GraphConfigEditor:
         self.add_node_cfg(
-            NodeCfg(webhook=webhook, name=name, id=id, description=description)
+            NodeCfg(
+                webhook=webhook,
+                name=name,
+                id=str(id) if id else id,
+                description=description,
+            )
         )
         return self
+
+
+class GraphDirectoryEditor:
+    def __init__(self, graph_path: Path, overwrite: bool = False):
+        """
+        :param graph_path: The path to a graph.yml file, or a directory containing one
+        :param overwrite: If False, raise an exception in add_node_from_zip if a node
+            exists and differs from the extracted content.
+        """
+        try:
+            self.yml_path = resolve_graph_path(graph_path, exists=True)
+        except ValueError:
+            self.yml_path = resolve_graph_path(graph_path, exists=False)
+        self.dir = self.yml_path.parent
+        self.overwrite = overwrite
+        if self.yml_path.is_file():
+            self._cfg = GraphConfigEditor(self.yml_path)
+        else:
+            self._cfg = None
+
+    def compress_directory(self) -> io.BytesIO:
+        """Return an in-memory zip file containing the compressed graph directory"""
+        return compress_directory(self.dir)
+
+    def build_manifest(self, allow_errors: bool = False) -> GraphManifest:
+        """Build a graph manifest from the graph directory"""
+        return graph_manifest_from_yaml(self.yml_path, allow_errors=allow_errors)
+
+    def add_node_from_zip(
+        self, src_path: Path, dst_path: Path, zf: Union[ZipFile, Path],
+    ) -> GraphDirectoryEditor:
+        """Copy the node or subgraph located at src_path in zipfile to dst_path
+
+        :param src_path: Path relative to the root of zipfile
+        :param dst_path: Path relative to the output graph directory
+        :param zf: A ZipFile open in read mode, or a path to a zip file to open
+        """
+        if isinstance(zf, ZipFile):
+            self._add(src_path, dst_path, zf)
+        else:
+            with ZipFile(zf, "r") as f:
+                self._add(src_path, dst_path, f)
+        return self
+
+    def _add(self, src_path: Path, dst_path: Path, zf: ZipFile):
+        if src_path.name == "graph.yml":
+
+            def dirname(p):
+                if len(p.parts) <= 1:
+                    return ""
+                return _zip_name(p.parent) + "/"
+
+            src_dir = dirname(src_path)
+            dst_dir = dirname(dst_path)
+
+            for info in zf.infolist():
+                if info.filename.startswith(src_dir) and not info.is_dir():
+                    new_name = dst_dir + info.filename[len(src_dir) :]
+                    self._extract_file(info, Path(new_name), zf)
+        else:
+            self._extract_file(zf.getinfo(_zip_name(src_path)), dst_path, zf)
+        if self._cfg:
+            try:
+                self._cfg.add_node(_zip_name(dst_path)).write()
+            except ValueError:
+                pass  # node already exists, leave it unchanged
+
+    def _extract_file(self, member: ZipInfo, dst_path: Path, zf: ZipFile):
+        full_dst_path = self.dir / dst_path
+        if full_dst_path.is_dir():
+            raise ValueError(
+                f"Cannot extract {dst_path}: a directory by that name exists"
+            )
+        if self.overwrite or not full_dst_path.is_file():
+            member.filename = _zip_name(dst_path)
+            zf.extract(member, self.dir)
+        else:
+            with zf.open(member, "r") as f:
+                new_content = io.TextIOWrapper(f).read()
+            old_content = full_dst_path.read_text()
+            if new_content != old_content:
+                raise FileOverwriteError(
+                    full_dst_path,
+                    f"Cannot extract {dst_path}: would overwrite existing file",
+                )
+            full_dst_path.write_text(new_content)
+
+
+class FileOverwriteError(Exception):
+    def __init__(self, file_path: Path, message: str) -> None:
+        super().__init__(message)
+        self.file_path = file_path
+
+
+def _zip_name(p: Path):
+    return "/".join(p.parts)

@@ -125,7 +125,7 @@ def webhook(
 
     with abort_on_error("Adding webhook failed"):
         editor = GraphConfigEditor(graph_path)
-        editor.add_webhook(name, id=str(NodeId.random()))
+        editor.add_webhook(name, id=NodeId.random())
         editor.write()
 
     sprint(f"\n[success]Created webhook [b]{name}")

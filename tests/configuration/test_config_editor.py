@@ -1,3 +1,4 @@
+import re
 import textwrap
 from pathlib import Path
 
@@ -46,6 +47,7 @@ def test_add_node_to_existing_nodes(tmp_path: Path):
     nodes:
       - webhook: out # eol comment
       - node_file: node.py
+        id: <id>
     """
     get_editor(tmp_path, before).add_node("node.py").assert_dump(after)
 
@@ -58,6 +60,7 @@ def test_add_node_to_empty_graph(tmp_path: Path):
     name: graph
     nodes:
       - node_file: node.py
+        id: <id>
     """
     get_editor(tmp_path, before).add_node("node.py").assert_dump(after)
 
@@ -116,7 +119,7 @@ def test_add_node_with_all_fields(tmp_path: Path):
 def test_parsing():
     b = GraphConfigEditor(None, read=False)
     b.set_name("test")
-    b.add_webhook("hook")
+    b.add_webhook("hook", id=None)
     manifest = b.parse_to_manifest()
 
     assert manifest.graph_name == "test"
@@ -171,4 +174,7 @@ def get_editor(tmp_path: Path, s: str) -> "_EditorTester":
 class _EditorTester(GraphConfigEditor):
     def assert_dump(self, s: str):
         s = textwrap.dedent(s).strip()
-        assert self.dump().strip() == s
+        dump = self.dump().strip()
+        if '<id>' in s:
+            dump = re.sub(r'id: \w+', 'id: <id>', dump)
+        assert dump == s
