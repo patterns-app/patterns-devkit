@@ -7,16 +7,18 @@ from basis.cli.config import (
     CliConfig,
     update_local_basis_config,
 )
-from basis.cli.services.environments import get_environment_by_name, list_environments
+from basis.cli.services.environments import get_environment_by_name, \
+    paginated_environments
 from basis.cli.services.graph import find_graph_file
 from basis.cli.services.graph_versions import (
     get_graph_by_name,
     get_active_graph_version,
     get_graph_version_by_id,
 )
+from basis.cli.services.list import paginated_execution_events
 from basis.cli.services.organizations import (
     get_organization_by_name,
-    list_organizations,
+    paginated_organizations,
 )
 from basis.cli.services.output import prompt_str
 from basis.configuration.base import load_yaml
@@ -41,7 +43,7 @@ class IdLookup:
             return get_organization_by_name(self.organization_name)["uid"]
         if self.cfg.organization_id:
             return self.cfg.organization_id
-        organizations = list_organizations()
+        organizations = paginated_organizations().list()
         orgs_by_name = {org["name"]: org for org in organizations}
         if len(organizations) == 1:
             org = organizations[0]
@@ -62,7 +64,7 @@ class IdLookup:
         if self.cfg.environment_id:
             return self.cfg.environment_id
 
-        environments = list_environments(self.organization_id)
+        environments = paginated_environments(self.organization_id).list()
         envs_by_name = {env["name"]: env for env in environments}
 
         if len(environments) == 1:

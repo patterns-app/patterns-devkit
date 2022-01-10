@@ -1,17 +1,32 @@
+import functools
+import itertools
 from typing import Callable, Iterable, List
 
 from basis.cli.services.api import get_json
 
 
-def paginated(fn: Callable[..., dict]) -> Callable[..., Iterable[List[dict]]]:
-    """Decorator that yields pages from a paginated endpoint"""
+class PaginatedCall:
+    def __init__(self, initial_request: Callable[[], dict]):
+        self._initial_request = initial_request
 
-    def f(*args, **kwargs) -> Iterable[List[dict]]:
-        data = fn(*args, **kwargs)
+    def pages(self) -> Iterable[List[dict]]:
+        """Iterate over pages returned from the endpoint"""
+        data = self._initial_request()
         yield data["results"]
         while data["next"]:
             data = get_json(data["next"], base_url="")
             if data["results"]:
                 yield data["results"]
+
+    def list(self) -> List[dict]:
+        """Return a flat list of all objects returned from the endpoint"""
+        return list(itertools.chain.from_iterable(self.pages()))
+
+
+def paginated(fn: Callable[..., dict]) -> Callable[..., PaginatedCall]:
+    """Decorator that yields pages from a paginated endpoint"""
+
+    def f(*args, **kwargs):
+        return PaginatedCall(functools.partial(fn, *args, **kwargs))
 
     return f

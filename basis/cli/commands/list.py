@@ -6,8 +6,12 @@ import typer
 from rich.table import Table
 from typer import Option, Argument
 
-from basis.cli.services.environments import list_environments
-from basis.cli.services.list import list_graphs, list_execution_events, list_output_data
+from basis.cli.services.environments import paginated_environments
+from basis.cli.services.list import (
+    paginated_output_data,
+    paginated_execution_events,
+    paginated_graphs,
+)
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import sprint, abort_on_error, abort
 
@@ -36,7 +40,7 @@ def graphs(
     """List graphs"""
     ids = IdLookup(organization_name=organization)
     with abort_on_error("Error listing graphs"):
-        gs = list_graphs(ids.organization_id)
+        gs = paginated_graphs(ids.organization_id).list()
     _print_objects(gs, print_json)
 
 
@@ -48,7 +52,7 @@ def environments(
     """List environments"""
     ids = IdLookup(organization_name=organization)
     with abort_on_error("Error listing environments"):
-        es = list_environments(ids.organization_id)
+        es = paginated_environments(ids.organization_id).list()
     _print_objects(es, print_json)
 
 
@@ -70,7 +74,9 @@ def logs(
     )
 
     with abort_on_error("Could not list logs"):
-        events = list_execution_events(ids.environment_id, ids.graph_id, ids.node_id)
+        events = paginated_execution_events(
+            ids.environment_id, ids.graph_id, ids.node_id
+        ).list()
     _print_objects(events, print_json)
 
 
@@ -96,7 +102,9 @@ def output(
     )
 
     with abort_on_error("Could not get node data"):
-        data = list_output_data(ids.environment_id, ids.graph_id, ids.node_id, port)
+        data = paginated_output_data(
+            ids.environment_id, ids.graph_id, ids.node_id, port
+        ).list()
     _print_objects(data, print_json)
 
 
