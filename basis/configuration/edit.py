@@ -167,9 +167,11 @@ class GraphConfigEditor:
         self,
         webhook: str,
         name: str = None,
-        id: Optional[str] = NodeId.random(),
+        id: Optional[str] = None,
         description: str = None,
     ) -> GraphConfigEditor:
+        if id is None:
+            id = NodeId.random()
         self.add_node_cfg(
             NodeCfg(
                 webhook=webhook,
