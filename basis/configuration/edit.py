@@ -20,6 +20,8 @@ from basis.configuration.path import NodeId
 from basis.graph.builder import _GraphBuilder, graph_manifest_from_yaml
 from basis.graph.configured_node import GraphManifest
 
+MISSING = object()
+
 
 class GraphConfigEditor:
     """Edit a graph.yml file, preserving comments
@@ -167,10 +169,10 @@ class GraphConfigEditor:
         self,
         webhook: str,
         name: str = None,
-        id: Optional[str] = None,
+        id: Optional[str] = MISSING,
         description: str = None,
     ) -> GraphConfigEditor:
-        if id is None:
+        if id is MISSING:
             id = NodeId.random()
         self.add_node_cfg(
             NodeCfg(
