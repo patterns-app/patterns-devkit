@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import dataclasses
 from dataclasses import dataclass
+from itertools import chain
 from pathlib import Path
 from typing import List, Tuple, Dict, Set, Optional, Union
-from itertools import chain
+
 from basis.configuration.base import load_yaml
 from basis.configuration.graph import GraphDefinitionCfg, NodeCfg, PortMappingCfg
 from basis.configuration.path import GraphEdge, NodeId, PortId

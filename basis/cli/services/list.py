@@ -34,3 +34,13 @@ def paginated_output_data(
             "output_port_name": output_port_name,
         },
     )
+
+
+@paginated
+def paginated_webhook_urls(
+    environment_uid: str, graph_uid: str,
+):
+    return get_json(
+        Endpoints.WEBHOOK_KEYS,
+        params={"environment_uid": environment_uid, "graph_uid": graph_uid,},
+    )

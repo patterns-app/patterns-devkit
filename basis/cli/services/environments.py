@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-from itertools import chain
-from typing import List
-
 from basis.cli.services.api import Endpoints, get_json
 from basis.cli.services.pagination import paginated
 

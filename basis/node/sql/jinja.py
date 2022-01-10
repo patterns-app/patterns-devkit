@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
-from basis.configuration.base import PydanticBase
 from jinja2.sandbox import SandboxedEnvironment
 
 from basis.graph.configured_node import (
@@ -15,7 +13,6 @@ from basis.graph.configured_node import (
     PortType,
     ParameterType,
 )
-from basis.node.node import InputTable, Parameter
 
 
 @dataclass

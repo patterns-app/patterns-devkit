@@ -3,7 +3,6 @@ from pathlib import Path
 from typer import Option, Argument
 
 from basis.cli.services.deploy import deploy_graph_version
-from basis.cli.services.graph import find_graph_file
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import sprint, abort_on_error
 from basis.cli.services.upload import upload_graph_version
@@ -21,16 +20,14 @@ def upload(
     graph: Path = Argument(None, exists=True, help=_graph_help),
 ):
     """Upload a new version of a graph to Basis"""
-    with abort_on_error("Error uploading graph"):
-        graph_path = find_graph_file(graph)
     ids = IdLookup(
         environment_name=environment,
         organization_name=organization,
-        explicit_graph_path=graph_path,
+        explicit_graph_path=graph,
     )
 
     with abort_on_error("Upload failed"):
-        resp = upload_graph_version(graph_path, ids.organization_id)
+        resp = upload_graph_version(ids.graph_file_path, ids.organization_id)
     graph_version_id = resp["uid"]
     ui_url = resp["ui_url"]
     sprint(f"\n[success]Uploaded new graph version with id [b]{graph_version_id}.")

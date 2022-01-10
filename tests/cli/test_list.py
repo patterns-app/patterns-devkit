@@ -56,3 +56,24 @@ def test_list_data(tmp_path: Path):
         )
         result = run_cli(f"list output {node} port --json")
     assert "name" in result.output
+
+
+def test_list_webhooks(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent
+    path = dr / "name"
+    name1 = "undeployed_webhook"
+    name2 = "deployed_webhook"
+    run_cli(f"create graph {path}")
+    run_cli(f"create webhook --graph='{path}' {name1}")
+    with request_mocker() as m:
+        m.get(
+            API_BASE_URL + Endpoints.graph_by_name("test-org-uid", "name"),
+            json={"uid": "1"},
+        )
+        m.get(
+            API_BASE_URL + Endpoints.WEBHOOK_KEYS,
+            json={"results": [{"name": name2}], "next": None},
+        )
+        result = run_cli(f"list webhooks --json {path}")
+    assert name1 in result.output
+    assert name2 in result.output
