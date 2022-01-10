@@ -1,29 +1,47 @@
-# import base64
-# import os
-# import shutil
-# from pathlib import Path
-#
-# import requests_mock
-# from basis.cli.helpers import compress_directory
-# from basis.cli.services.api import API_BASE_URL
-# from tests.cli.base import IS_CI, get_test_command, set_tmp_dir
-#
-#
-# def test_clone():
-#     dr = set_tmp_dir(create_basis_config=True)
-#     proj_path = Path(dr) / "proj"
-#     # Create graph
-#     get_test_command("generate").execute(f"graph {proj_path}", inputs="\n")
-#     zipf = compress_directory(proj_path)
-#     shutil.rmtree(proj_path)
-#     assert not os.path.exists(proj_path / "graph.yml")
-#     assert zipf
-#     # TODO
-#     # b64_zipf = base64.b64encode(zipf.read())
-#     # command_tester = get_test_command("clone")
-#     # with requests_mock.Mocker() as m:
-#     #     m.post(
-#     #         API_BASE_URL + "graph-versions/download", json={"zip": b64_zipf.decode()},
-#     #     )
-#     #     command_tester.execute("mock_name")
-#     # assert os.path.exists(proj_path / "graph.yml")
+import io
+import os
+from pathlib import Path
+from zipfile import ZipFile
+
+from basis.cli.services.api import API_BASE_URL, Endpoints
+from tests.cli.base import request_mocker, set_tmp_dir, run_cli
+
+
+def test_clone(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent
+    path = dr / "name"
+    content = "nodes: []"
+
+    with request_mocker() as m:
+        b = io.BytesIO()
+        with ZipFile(b, "w") as zf:
+            zf.writestr("graph.yml", content)
+        m.get(
+            API_BASE_URL + Endpoints.graph_version_download("uid"),
+            content=b.getvalue(),
+        )
+
+        result = run_cli(f"clone --graph-version-id=uid {path}")
+        assert "Cloned graph" in result.output
+        assert (path / "graph.yml").read_text() == content
+
+
+def test_pull(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent
+    path = dr / "name"
+    content = "nodes: []"
+    path.mkdir()
+    (path / "graph.yml").write_text("")
+
+    with request_mocker() as m:
+        b = io.BytesIO()
+        with ZipFile(b, "w") as zf:
+            zf.writestr("graph.yml", content)
+        m.get(
+            API_BASE_URL + Endpoints.graph_version_download("uid"),
+            content=b.getvalue(),
+        )
+
+        result = run_cli(f"pull --graph-version-id=uid -f {path}")
+        assert "Pulled graph" in result.output
+        assert (path / "graph.yml").read_text() == content
