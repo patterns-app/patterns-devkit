@@ -4,8 +4,10 @@ from typing import Callable, Iterator
 
 
 class TestInputTable:
-    def __init__(self, records: list[dict] = None):
+    def __init__(self, records: list[dict] = None, **kwargs):
         self.records = records
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     def as_dataframe(self):
         import pandas
@@ -23,8 +25,10 @@ class TestInputTable:
 
 
 class TestInputStream:
-    def __init__(self, records: list[dict] = None):
+    def __init__(self, records: list[dict] = None, **kwargs):
         self.records = records
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     def records(self) -> Iterator[dict]:
         return self.records
@@ -34,16 +38,20 @@ class TestInputStream:
 
 
 class TestOutputTable:
-    def __init__(self):
-        self.table = None
+    def __init__(self, **kwargs):
+        self.records = None
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
-    def create_table(self, table):
-        self.table = table
+    def create_table(self, records):
+        self.records = records
 
 
 class TestOutputStream:
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.records = []
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     def append_record(self, record):
         self.records.append(record)
@@ -53,8 +61,10 @@ class TestOutputStream:
 
 
 class TestState:
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.state = {}
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     def get_state_value(self, k):
         return self.state.get(k)
