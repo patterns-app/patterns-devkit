@@ -4,15 +4,11 @@ from pathlib import Path
 import typer
 from typer import Option, Argument
 
-from basis.cli.config import (
-    read_local_basis_config,
-    write_local_basis_config,
-)
-from basis.cli.services.graph import find_graph_file, resolve_graph_path
+from basis.cli.services.graph import resolve_graph_path
+from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import abort, prompt_path, abort_on_error
 from basis.cli.services.output import sprint
 from basis.cli.services.paths import is_relative_to
-from basis.configuration.base import dump_yaml
 from basis.configuration.edit import GraphConfigEditor
 from basis.configuration.path import NodeId
 
@@ -75,9 +71,8 @@ def node(
     else:
         abort("Node file location must end in .py or .sql")
 
-    with abort_on_error("Error creating node"):
-        graph_path = find_graph_file(explicit_graph or location.parent)
-    graph_dir = graph_path.parent
+    ids = IdLookup(explicit_graph_path=explicit_graph or location.parent)
+    graph_dir = ids.graph_file_path.parent
     if not location.is_absolute() and not is_relative_to(
         location.absolute(), graph_dir
     ):
@@ -95,7 +90,7 @@ def node(
     # Update the graph yaml
     node_file = "/".join(location.absolute().relative_to(graph_dir).parts)
     with abort_on_error("Adding node failed"):
-        editor = GraphConfigEditor(graph_path)
+        editor = GraphConfigEditor(ids.graph_file_path)
         editor.add_node(
             name=name or location.stem, node_file=node_file, id=str(NodeId.random()),
         )
@@ -120,11 +115,10 @@ def webhook(
     name: str = Argument(..., help=_webhook_name_help),
 ):
     """Add a new webhook node to a graph"""
-    with abort_on_error("Error creating webhook"):
-        graph_path = find_graph_file(explicit_graph)
+    ids = IdLookup(explicit_graph_path=explicit_graph)
 
     with abort_on_error("Adding webhook failed"):
-        editor = GraphConfigEditor(graph_path)
+        editor = GraphConfigEditor(ids.graph_file_path)
         editor.add_webhook(name, id=NodeId.random())
         editor.write()
 

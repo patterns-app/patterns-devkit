@@ -125,6 +125,7 @@ class Endpoints:
     ORGANIZATIONS_LIST = "api/organizations/"
     EXECUTION_EVENTS = "api/nodes/execution_events/"
     OUTPUT_DATA = "api/nodes/output_block_data/latest/"
+    WEBHOOKS = "api/webhooks/"
 
     @classmethod
     def organization_by_name(cls, name: str) -> str:

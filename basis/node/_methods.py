@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from pandas import DataFrame
 from typing import Iterator, Any
+
+from pandas import DataFrame
 
 
 class InputTableMethods:

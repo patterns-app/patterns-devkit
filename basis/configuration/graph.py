@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from typing import Any, Dict, List
 
 import pydantic
 from pydantic import constr
 from pydantic.validators import str_validator
+
 from basis.configuration.base import FrozenPydanticBase
 
 

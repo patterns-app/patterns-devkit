@@ -1,6 +1,6 @@
 from __future__ import annotations
-from collections import defaultdict
-from typing import Callable, Iterator
+
+from typing import Iterator
 
 
 class TestInputTable:
