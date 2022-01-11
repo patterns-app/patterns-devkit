@@ -148,9 +148,11 @@ class GraphConfigEditor:
         outputs: List[str] = None,
         parameters: Dict[str, Any] = None,
         name: str = None,
-        id: Optional[str] = NodeId.random(),
+        id: Optional[str] = MISSING,
         description: str = None,
     ) -> GraphConfigEditor:
+        if id is MISSING:
+            id = NodeId.random()
         self.add_node_cfg(
             NodeCfg(
                 node_file=node_file,
