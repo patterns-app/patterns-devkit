@@ -71,7 +71,7 @@ def test_list_webhooks(tmp_path: Path):
             json={"uid": "1"},
         )
         m.get(
-            API_BASE_URL + Endpoints.WEBHOOK_KEYS,
+            API_BASE_URL + Endpoints.WEBHOOKS,
             json={"results": [{"name": name2}], "next": None},
         )
         result = run_cli(f"list webhooks --json {path}")

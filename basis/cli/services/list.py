@@ -41,6 +41,6 @@ def paginated_webhook_urls(
     environment_uid: str, graph_uid: str,
 ):
     return get_json(
-        Endpoints.WEBHOOK_KEYS,
+        Endpoints.WEBHOOKS,
         params={"environment_uid": environment_uid, "graph_uid": graph_uid,},
     )
