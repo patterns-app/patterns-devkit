@@ -7,11 +7,11 @@ from .commands.list import list_command
 from .commands.login import login
 from .commands.logout import logout
 from .commands.manifest import manifest
+from .commands.pull import pull, clone
 from .commands.trigger import trigger
 from .commands.upload import upload
-from .commands.pull import pull, clone
 
-app = typer.Typer(add_completion=False)
+app = typer.Typer(name="basis", add_completion=False)
 
 for command in (
     config,

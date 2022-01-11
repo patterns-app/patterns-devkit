@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeVar
+from typing import TypeVar
 
 import pydantic
 import yaml

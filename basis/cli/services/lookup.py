@@ -7,7 +7,10 @@ from basis.cli.config import (
     CliConfig,
     update_local_basis_config,
 )
-from basis.cli.services.environments import get_environment_by_name, list_environments
+from basis.cli.services.environments import (
+    get_environment_by_name,
+    paginated_environments,
+)
 from basis.cli.services.graph import find_graph_file
 from basis.cli.services.graph_versions import (
     get_graph_by_name,
@@ -16,11 +19,12 @@ from basis.cli.services.graph_versions import (
 )
 from basis.cli.services.organizations import (
     get_organization_by_name,
-    list_organizations,
+    paginated_organizations,
 )
 from basis.cli.services.output import prompt_str
 from basis.configuration.base import load_yaml
 from basis.graph.builder import graph_manifest_from_yaml
+from basis.graph.configured_node import GraphManifest
 
 
 @dataclass
@@ -41,7 +45,7 @@ class IdLookup:
             return get_organization_by_name(self.organization_name)["uid"]
         if self.cfg.organization_id:
             return self.cfg.organization_id
-        organizations = list_organizations()
+        organizations = paginated_organizations().list()
         orgs_by_name = {org["name"]: org for org in organizations}
         if len(organizations) == 1:
             org = organizations[0]
@@ -62,7 +66,7 @@ class IdLookup:
         if self.cfg.environment_id:
             return self.cfg.environment_id
 
-        environments = list_environments(self.organization_id)
+        environments = paginated_environments(self.organization_id).list()
         envs_by_name = {env["name"]: env for env in environments}
 
         if len(environments) == 1:
@@ -91,7 +95,6 @@ class IdLookup:
         node = self.node_file_path
         if not graph or not node:
             raise ValueError("Must specify a node")
-        manifest = graph_manifest_from_yaml(graph)
         err_msg = f"Node {node} is not part of the graph at {graph}"
 
         try:
@@ -101,7 +104,7 @@ class IdLookup:
         node_id = next(
             (
                 n.id
-                for n in manifest.nodes
+                for n in self.manifest.nodes
                 if Path(n.file_path_to_node_script_relative_to_root) == node_path
             ),
             None,
@@ -112,11 +115,10 @@ class IdLookup:
 
     @cached_property
     def graph_file_path(self) -> Path:
-        if self.explicit_graph_path or self.node_file_path:
-            return find_graph_file(
-                self.explicit_graph_path or self.node_file_path.parent
-            )
-        raise ValueError("Cannot find graph file")
+        p = self.explicit_graph_path
+        if self.node_file_path and not p:
+            p = self.node_file_path.parent
+        return find_graph_file(p)
 
     @cached_property
     def cfg(self) -> CliConfig:
@@ -126,12 +128,19 @@ class IdLookup:
 
     @cached_property
     def graph_name(self) -> str:
+        def from_yaml():
+            yaml = load_yaml(self.graph_file_path)
+            return yaml.get("name", self.graph_file_path.parent.name)
+
         if self.explicit_graph_name:
             return self.explicit_graph_name
         if self.explicit_graph_path or self.node_file_path:
-            yaml = load_yaml(self.graph_file_path)
-            return yaml.get("name", self.graph_file_path.parent.name)
+            return from_yaml()
         if self.explicit_graph_version_id:
             vid = self.explicit_graph_version_id
             return get_graph_version_by_id(vid)["graph"]["name"]
-        raise ValueError("Cannot find graph name")
+        return from_yaml()
+
+    @cached_property
+    def manifest(self) -> GraphManifest:
+        return graph_manifest_from_yaml(self.graph_file_path)

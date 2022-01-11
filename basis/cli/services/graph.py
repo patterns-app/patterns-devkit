@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 from typing import Optional
 
-from basis.cli.services.output import abort
 from basis.cli.services.output import prompt_path
 
 

@@ -1,15 +1,13 @@
-from zipfile import ZipFile
 import io
 from pathlib import Path
+from zipfile import ZipFile
 
 import typer
 from typer import Option, Argument
 
-from basis.cli.services.graph import resolve_graph_path, find_graph_file
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import sprint, abort_on_error, abort
 from basis.cli.services.pull import download_graph_zip
-from basis.cli.services.trigger import trigger_node, TypeChoices
 from basis.configuration.edit import GraphDirectoryEditor, FileOverwriteError
 
 _graph_help = "The name of a graph in your Basis organization [default: directory name]"
@@ -61,15 +59,14 @@ def pull(
     graph: Path = Argument(None, exists=True, help=_pull_graph_help),
 ):
     """Update the code for the current graph"""
-    graph_path = find_graph_file(graph)
     ids = IdLookup(
         organization_name=organization,
         explicit_graph_version_id=graph_version_id,
-        explicit_graph_path=graph_path,
+        explicit_graph_path=graph,
     )
     with abort_on_error("Error downloading graph"):
         b = io.BytesIO(download_graph_zip(ids.graph_version_id))
-        editor = GraphDirectoryEditor(graph_path, overwrite=force)
+        editor = GraphDirectoryEditor(ids.graph_file_path, overwrite=force)
 
     with abort_on_error("Error downloading graph"):
         try:
