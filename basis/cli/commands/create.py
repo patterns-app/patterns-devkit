@@ -46,7 +46,6 @@ _name_help = "The name of the node. The location will be used as a name by defau
 
 @create.command()
 def node(
-    explicit_graph: Path = Option(None, "--graph", "-g", exists=True, help=_graph_help),
     name: str = Option("", "--name", "-n", help=_name_help),
     location: Path = Argument(None),
 ):
@@ -71,7 +70,7 @@ def node(
     else:
         abort("Node file location must end in .py or .sql")
 
-    ids = IdLookup(explicit_graph_path=explicit_graph or location.parent)
+    ids = IdLookup(node_file_path=location)
     graph_dir = ids.graph_file_path.parent
     if not location.is_absolute() and not is_relative_to(
         location.absolute(), graph_dir

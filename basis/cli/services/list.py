@@ -42,5 +42,23 @@ def paginated_webhook_urls(
 ):
     return get_json(
         Endpoints.WEBHOOKS,
-        params={"environment_uid": environment_uid, "graph_uid": graph_uid,},
+        params={"environment_uid": environment_uid, "graph_uid": graph_uid},
     )
+
+
+@paginated
+def paginated_graph_components_user():
+    """Components from this user's organization"""
+    return get_json(Endpoints.COMPONENTS_USER)
+
+
+@paginated
+def paginated_graph_components_admin():
+    """Components from the system"""
+    return get_json(Endpoints.COMPONENTS_ADMIN)
+
+
+@paginated
+def paginated_graph_components_regular():
+    """Components not from the system (a superset of user components)"""
+    return get_json(Endpoints.COMPONENTS_REGULAR)
