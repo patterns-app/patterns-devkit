@@ -1,7 +1,7 @@
 import textwrap
 from pathlib import Path
 from dataclasses import dataclass, asdict
-from typing import Any, Union, List, Dict, Collection, Set
+from typing import Any, Union, List, Dict, Collection, Set, Tuple
 from basis.graph.builder import graph_manifest_from_yaml, GraphManifest
 
 from commonmodel import Schema
@@ -19,6 +19,7 @@ from basis.graph.configured_node import (
     GraphManifest,
     GraphError,
     StateDefinition,
+    ResolvedParameterValue,
 )
 
 
@@ -46,6 +47,7 @@ class NodeAssertion:
     schedule: Union[str, _IgnoreType]
     local_edges: Union[List[str], _IgnoreType]
     resolved_edges: Union[List[str], _IgnoreType]
+    resolved_parameter_values: Union[Dict[str, Tuple[Any, str]], _IgnoreType, None]
     errors: List[str]
 
 
@@ -82,10 +84,32 @@ def _assert_node(
             actual = _unordered(actual)
         elif k == "parent_node_id" and v is not None:
             actual = paths_by_id[actual]
+        elif k == "resolved_parameter_values":
+            if v is None:
+                if assertion.parameter_values == IGNORE:
+                    continue
+                v = {
+                    kk: ResolvedParameterValue(value=vv, source=node.id)
+                    for kk, vv in assertion.parameter_values.items()
+                }
+            else:
+                v = {
+                    kk: ResolvedParameterValue(value=vv[0], source=ids_by_path[vv[1]])
+                    for kk, vv in v.items()
+                }
 
-        assert (
-            actual == v
-        ), f"{k}: expected: {_tostr(v, paths_by_id)} but was: {_tostr(actual, paths_by_id)}"
+        def check(k, ex, ac):
+            assert ac == ex, (
+                f"{assertion.name}: {k}:\n  expected: {_tostr(ex, paths_by_id)}"
+                + f"\n   but was: {_tostr(ac, paths_by_id)}"
+            )
+
+        if k == "interface":
+            check("interface inputs", v.inputs, actual.inputs)
+            check("interface outputs", v.outputs, actual.outputs)
+            check("interface parameters", v.parameters, actual.parameters)
+        else:
+            check(k, v, actual)
 
 
 def _tostr(it, paths_by_id: dict) -> str:
@@ -158,6 +182,7 @@ def n(
     schedule: Union[str, None, _IgnoreType] = None,
     local_edges: Union[List[str], _IgnoreType] = IGNORE,
     resolved_edges: Union[List[str], None, _IgnoreType] = None,
+    resolved_params: Union[Dict[str, Tuple[Any, str]], _IgnoreType] = None,
     errors: List[str] = [],
 ) -> NodeAssertion:
     return NodeAssertion(
@@ -176,6 +201,7 @@ def n(
         description=description,
         file_path_to_node_script_relative_to_root=file_path,
         parameter_values=parameter_values,
+        resolved_parameter_values=resolved_params,
         schedule=schedule,
         local_edges=local_edges,
         resolved_edges=local_edges if resolved_edges is None else resolved_edges,

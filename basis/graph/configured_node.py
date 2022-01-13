@@ -78,6 +78,11 @@ class NodeInterface(FrozenPydanticBase):
     state: StateDefinition = None
 
 
+class ResolvedParameterValue(FrozenPydanticBase):
+    value: Any
+    source: NodeId
+
+
 class ConfiguredNode(FrozenPydanticBase):
     name: str
     node_type: NodeType
@@ -88,6 +93,7 @@ class ConfiguredNode(FrozenPydanticBase):
     parent_node_id: NodeId = None
     file_path_to_node_script_relative_to_root: str = None
     parameter_values: Dict[str, Any]
+    resolved_parameter_values: Dict[str, ResolvedParameterValue]
     schedule: str = None
     # edges as declared in the node, may point to graph nodes, will not point to nodes in sub- or super-graphs.
     local_edges: List[GraphEdge]

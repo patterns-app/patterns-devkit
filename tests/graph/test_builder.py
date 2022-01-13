@@ -466,6 +466,96 @@ def test_chart(tmp_path: Path):
     )
 
 
+def test_graph_parameters(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+                nodes:
+                  - node_file: sub/graph.yml
+                    parameters:
+                      p1: override""",
+            "sub/graph.yml": """
+                exposes:
+                  outputs:
+                    - from_graph
+                  parameters:
+                    - p1
+                    - p2
+                nodes:
+                  - node_file: node.py
+                    parameters:
+                      p1: v1
+                      p2: v2""",
+            "sub/node.py": """
+                p1=Parameter(type="text", description="d", default="def"), 
+                p2=Parameter, 
+                from_graph=OutputStream""",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n(
+            "sub",
+            node_type=NodeType.Graph,
+            parameter_values={"p1": "override"},
+            interface=[ostream("from_graph"), p("p1", "text", "d", "def"), p("p2")],
+        ),
+        n(
+            "node",
+            parent="sub",
+            parameter_values={"p1": "v1", "p2": "v2"},
+            resolved_params={"p1": ("override", "sub"), "p2": ("v2", "sub.node")},
+            interface=[ostream("from_graph"), p("p1", "text", "d", "def"), p("p2")],
+        ),
+    )
+
+
+def test_graph_parameters_unexposed(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+                nodes:
+                  - node_file: sub/graph.yml
+                    parameters:
+                      p1: override
+                      p2: override2""",
+            "sub/graph.yml": """
+                exposes:
+                  outputs:
+                    - from_graph
+                  parameters:
+                    - p1
+                nodes:
+                  - node_file: node.py
+                    parameters:
+                      p1: v1
+                      p2: v2""",
+            "sub/node.py": "p1=Parameter, p2=Parameter, from_graph=OutputStream",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n(
+            "sub",
+            node_type=NodeType.Graph,
+            parameter_values={"p1": "override", "p2": "override2"},
+            interface=[ostream("from_graph"), p("p1")],
+            errors=['No exposed parameter named "p2"'],
+        ),
+        n(
+            "node",
+            parent="sub",
+            parameter_values={"p1": "v1", "p2": "v2"},
+            resolved_params={"p1": ("override", "sub"), "p2": ("v2", "sub.node")},
+            interface=[ostream("from_graph"), p("p1"), p("p2")],
+        ),
+    )
+
+
 def test_err_unconnected_implicit_input(tmp_path: Path):
     manifest = setup_manifest(
         tmp_path,

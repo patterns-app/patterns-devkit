@@ -19,6 +19,8 @@ from basis.graph.configured_node import (
     PortType,
     GraphError,
     InputDefinition,
+    ResolvedParameterValue,
+    ParameterDefinition,
 )
 from basis.node.sql.jinja import parse_interface_from_sql
 from basis.utils.ast_parser import read_interface_from_py_node_file
@@ -33,9 +35,8 @@ def graph_manifest_from_yaml(
     return manifest
 
 
-class NodeParseException(RuntimeError):
-    def __init__(self, *args, **kwargs):  # real signature unknown
-        super().__init__(*args, **kwargs)
+class NodeParseException(Exception):
+    pass
 
 
 # per-graph node port name mapping and exposed edges
@@ -45,6 +46,8 @@ class _Mapping:
     outputs: Dict[str, Tuple[ConfiguredNode, OutputDefinition]]
     # dict of node id -> port name mapping from yaml
     inputs: Dict[NodeId, Dict[str, str]]
+    # dict of parameter name -> definitions with that name
+    parameters: Dict[str, List[ParameterDefinition]]
     # dicts of exposed port name -> list of edges connecting to that port
     local_edges_by_exposed_input: Dict[str, List[GraphEdge]]
     local_edges_by_exposed_output: Dict[str, List[GraphEdge]]
@@ -59,7 +62,7 @@ class _Interface:
     local_edges: List[GraphEdge]
     node_name: str = None
     node_id: NodeId = None
-    relative_node_path: Path = None
+    relative_node_path: str = None
 
 
 # graph parse result
@@ -81,6 +84,7 @@ class _GraphBuilder:
     def build(self) -> GraphManifest:
         parse = self._parse_graph_cfg(self.root_graph_location, None)
         self._resolve_edges()
+        self._resolve_parameter_values()
         return GraphManifest(
             graph_name=parse.name or self.root_dir.name,
             manifest_version=CURRENT_MANIFEST_SCHEMA_VERSION,
@@ -88,10 +92,12 @@ class _GraphBuilder:
             errors=self.errors,
         )
 
-    def _err(self, node_or_id: Union[ConfiguredNode, NodeId], message: str):
+    def _err(self, node_or_id: Union[ConfiguredNode, NodeId, None], message: str):
         id = (
             node_or_id.id
             if isinstance(node_or_id, ConfiguredNode)
+            else None
+            if node_or_id is None
             else NodeId(node_or_id)
         )
         self.errors.append(GraphError(node_id=id, message=message))
@@ -121,8 +127,17 @@ class _GraphBuilder:
         exposed_outputs = (
             config.exposes.outputs if config.exposes and config.exposes.outputs else []
         )
+        exposed_params = (
+            config.exposes.parameters
+            if config.exposes and config.exposes.parameters
+            else []
+        )
         mapping = _Mapping(
-            {}, {}, {i: [] for i in exposed_inputs}, {i: [] for i in exposed_outputs}
+            outputs={},
+            inputs={},
+            parameters={},
+            local_edges_by_exposed_input={i: [] for i in exposed_inputs},
+            local_edges_by_exposed_output={i: [] for i in exposed_outputs},
         )
 
         # step 1: parse all the interfaces
@@ -138,7 +153,7 @@ class _GraphBuilder:
         self.nodes_by_id.update({node.id: node for node in nodes})
 
         interface = self._build_graph_interface(
-            nodes, mapping, exposed_inputs, exposed_outputs
+            nodes, mapping, exposed_inputs, exposed_outputs, exposed_params
         )
         local_edges = list(
             chain(
@@ -157,6 +172,7 @@ class _GraphBuilder:
         mapping: _Mapping,
         exposed_inputs: List[str],
         exposed_outputs: List[str],
+        exposed_params: List[str],
     ) -> NodeInterface:
         input_defs_by_name = {
             mapping.inputs[n.id][i.name]: i for n in nodes for i in n.interface.inputs
@@ -172,7 +188,15 @@ class _GraphBuilder:
             for i in exposed_inputs
             if i in input_defs_by_name  # may be missing in broken graphs
         ]
-        return NodeInterface(inputs=inputs, outputs=outputs, parameters=[], state=None)
+        parameters = [
+            mapping.parameters[p][0]
+            for p in exposed_params
+            if p in mapping.parameters
+            and mapping.parameters[p]  # may be missing in broken graphs
+        ]
+        return NodeInterface(
+            inputs=inputs, outputs=outputs, parameters=parameters, state=None
+        )
 
     # set local edges connected to nodes' inputs
     def _set_local_input_edges(
@@ -274,6 +298,12 @@ class _GraphBuilder:
             else:
                 mapping.outputs[name] = (node, o)
 
+    def _track_parameters(
+        self, parameters: List[ParameterDefinition], mapping: _Mapping
+    ):
+        for p in parameters:
+            mapping.parameters[p.name] = mapping.parameters.get(p.name, []) + [p]
+
     def _track_inputs(
         self,
         node_id: NodeId,
@@ -330,6 +360,38 @@ class _GraphBuilder:
             local_edge.output.node_id, local_edge.output.port, src_t, dst_t
         )
 
+    def _resolve_parameter_values(self):
+        for node in self.nodes_by_id.values():
+            if not node.parameter_values:
+                continue
+            d = {
+                k: ResolvedParameterValue(value=v, source=node.id)
+                for (k, v) in node.parameter_values.items()
+            }
+
+            # check for setting unexposed values
+            if node.node_type == NodeType.Graph:
+                exposed = {p.name for p in node.interface.parameters}
+                for k in d:
+                    if k not in exposed:
+                        self._err(node.id, f'No exposed parameter named "{k}"')
+
+            # walk up the tree, overriding values with any set in parents
+            parent_id = node.parent_node_id
+            while parent_id:
+                parent = self.nodes_by_id[parent_id]
+                exposed = {p.name for p in parent.interface.parameters}
+                for k in d:
+                    if k not in exposed:
+                        break
+                    if k in parent.parameter_values:
+                        d[k] = ResolvedParameterValue(
+                            value=parent.parameter_values[k], source=parent_id
+                        )
+
+                parent_id = parent.parent_node_id
+            node.resolved_parameter_values.update(d)
+
     def _default_node_name(self, path: Path) -> str:
         # For 'graph.yml' files, use the directory name
         if path.suffix in (".yml", ".yaml"):
@@ -371,6 +433,7 @@ class _GraphBuilder:
             schedule=node.schedule,
             local_edges=interface.local_edges,
             resolved_edges=[],  # we'll fill these in once we have all the nodes parsed
+            resolved_parameter_values={},
         )
 
         self._track_outputs(
@@ -379,6 +442,7 @@ class _GraphBuilder:
         self._track_inputs(
             interface.node_id, interface.node.inputs, node.inputs, mapping
         )
+        self._track_parameters(interface.node.parameters, mapping)
         return configured_node
 
     def _parse_webhook_node_entry(
