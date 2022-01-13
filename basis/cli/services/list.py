@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Iterable
+
 from basis.cli.services.api import Endpoints, get_json
 from basis.cli.services.pagination import paginated
 
@@ -44,6 +46,12 @@ def paginated_webhook_urls(
         Endpoints.WEBHOOKS,
         params={"environment_uid": environment_uid, "graph_uid": graph_uid},
     )
+
+
+def graph_components_all() -> Iterable[dict]:
+    """Iterate over all available graph components"""
+    yield from paginated_graph_components_admin()
+    yield from paginated_graph_components_regular()
 
 
 @paginated

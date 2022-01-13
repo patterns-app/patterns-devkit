@@ -23,8 +23,8 @@ _component_desc_help = (
 
 def upload(
     deploy: bool = Option(True, "--deploy/--no-deploy", help=_deploy_help),
-    organization: str = Option("", help=_organization_help),
-    environment: str = Option("", help=_environment_help),
+    organization: str = Option("", "-o", "--organization", help=_organization_help),
+    environment: str = Option("", "-e", "--environment", help=_environment_help),
     component_path: Path = Option(
         None, exists=True, dir_okay=False, help=_component_path_help
     ),
@@ -52,22 +52,20 @@ def upload(
     with abort_on_error("Upload failed"):
         resp = upload_graph_version(ids.graph_file_path, ids.organization_id)
     graph_version_id = resp["uid"]
-    graph_name = resp["graph"]["name"]
     ui_url = resp["ui_url"]
-    sprint(f"\n[success]Uploaded new graph version with id [b]{graph_version_id}.")
+    sprint(f"\n[success]Uploaded new graph version with id [b]{graph_version_id}")
 
     if deploy:
         with abort_on_error("Deploy failed"):
             deploy_graph_version(graph_version_id, ids.environment_id)
-        sprint(f"[success]Graph deployed.")
+        sprint(f"[success]Graph deployed")
 
     if component_path:
         with abort_on_error("Error creating component"):
-            name = component_name or (
-                graph_name if component_path.stem == "graph" else component_path.stem
-            )
+            if not component_name:
+                abort("Must specify --component-name when uploading components")
             resp = create_graph_component(
-                name, rel_path, graph_version_id, component_description,
+                component_name, rel_path, graph_version_id, component_description
             )
             resp_name = resp["name"]
             resp_id = resp["uid"]

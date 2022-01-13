@@ -1,15 +1,20 @@
+import io
 import re
 from pathlib import Path
+from zipfile import ZipFile
 
 import typer
 from typer import Option, Argument
 
 from basis.cli.services.graph import resolve_graph_path
+from basis.cli.services.list import graph_components_all
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import abort, prompt_path, abort_on_error
 from basis.cli.services.output import sprint
 from basis.cli.services.paths import is_relative_to
+from basis.cli.services.pull import download_graph_zip
 from basis.configuration.edit import GraphConfigEditor
+from basis.configuration.edit import GraphDirectoryEditor
 from basis.configuration.path import NodeId
 
 create = typer.Typer(name="create", help="Create a graph new or node")
@@ -42,11 +47,13 @@ def graph(
 
 _graph_help = "The graph to add this node to"
 _name_help = "The name of the node. The location will be used as a name by default"
+_component_help = "The name of component to use to create this node"
 
 
 @create.command()
 def node(
     name: str = Option("", "--name", "-n", help=_name_help),
+    component: str = Option("", "-c", "--component", help=_component_help),
     location: Path = Argument(None),
 ):
     """Add a new node to a graph
@@ -58,17 +65,7 @@ def node(
         location = prompt_path(message, exists=False)
 
     if location.exists():
-        abort(f"{location} already exists")
-
-    if location.suffix == ".py":
-        fun_name = re.sub(r"[^a-zA-Z0-9_]", "_", location.stem)
-        if re.match(r"\d", fun_name):
-            fun_name = f"node_{fun_name}"
-        content = _PY_FILE_TEMPLATE.format(fun_name)
-    elif location.suffix == ".sql":
-        content = _SQL_FILE_TEMPLATE
-    else:
-        abort("Node file location must end in .py or .sql")
+        abort(f"Cannot create node: {location} already exists")
 
     ids = IdLookup(node_file_path=location)
     graph_dir = ids.graph_file_path.parent
@@ -94,8 +91,49 @@ def node(
             name=name or location.stem, node_file=node_file, id=str(NodeId.random()),
         )
 
-    # Write to files last to avoid partial updates
-    location.write_text(content)
+    # Write to disk last to avoid partial updates
+    if component:
+        with abort_on_error("Adding component failed"):
+            search = (r for r in graph_components_all() if r["name"] == component)
+            component_resp = next(search, None)
+            if not component_resp:
+                sprint(f"[error]No component named {component}")
+                sprint(
+                    f"[info]Run [b]basis list components[/b] "
+                    f"for a list of available components"
+                )
+                raise typer.Exit(1)
+
+            zip_src_path = component_resp["file_path"]
+            if zip_src_path.endswith("graph.yml") and location.name != "graph.yml":
+                sprint(f"[error]Component {component} is a subgraph")
+                norm = re.sub(r"\W", "_", component)
+                suggestion = f"{norm}/graph.yml"
+                sprint(
+                    f"\n[info]For subgraph components, you need to pass the "
+                    f"location of the graph.yml file to create"
+                )
+                sprint(
+                    f"[info]Try [code]basis create node "
+                    f"--component='{component}' {suggestion}"
+                )
+                raise typer.Exit(1)
+
+            b = io.BytesIO(download_graph_zip(component_resp["graph_version_uid"]))
+            dir_editor = GraphDirectoryEditor(ids.graph_file_path, overwrite=False)
+            with ZipFile(b, "r") as zf:
+                dir_editor.add_node_from_zip(zip_src_path, location, zf)
+    else:
+        if location.suffix == ".py":
+            fun_name = re.sub(r"[^a-zA-Z0-9_]", "_", location.stem)
+            if re.match(r"\d", fun_name):
+                fun_name = f"node_{fun_name}"
+            content = _PY_FILE_TEMPLATE.format(fun_name)
+        elif location.suffix == ".sql":
+            content = _SQL_FILE_TEMPLATE
+        else:
+            abort("Node file location must end in .py or .sql")
+        location.write_text(content)
     editor.write()
 
     sprint(f"\n[success]Created node [b]{location}")

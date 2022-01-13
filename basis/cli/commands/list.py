@@ -12,8 +12,8 @@ from basis.cli.services.list import (
     paginated_output_data,
     paginated_execution_events,
     paginated_graphs,
-    paginated_webhook_urls, paginated_graph_components_regular,
-    paginated_graph_components_admin,
+    paginated_webhook_urls,
+    graph_components_all,
 )
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import sprint, abort_on_error
@@ -44,7 +44,7 @@ def graphs(
     """List graphs"""
     ids = IdLookup(organization_name=organization)
     with abort_on_error("Error listing graphs"):
-        gs = paginated_graphs(ids.organization_id).list()
+        gs = list(paginated_graphs(ids.organization_id))
     _print_objects(gs, print_json)
 
 
@@ -56,7 +56,7 @@ def environments(
     """List environments"""
     ids = IdLookup(organization_name=organization)
     with abort_on_error("Error listing environments"):
-        es = paginated_environments(ids.organization_id).list()
+        es = list(paginated_environments(ids.organization_id))
     _print_objects(es, print_json)
 
 
@@ -66,8 +66,8 @@ _node_help = "The path to the node to get logs for"
 @list_command.command()
 def logs(
     print_json: bool = Option(False, "--json", help=_json_help),
-    organization: str = Option("", help=_organization_help),
-    environment: str = Option("", help=_environment_help),
+    organization: str = Option("", "-o", "--organization", help=_organization_help),
+    environment: str = Option("", "-e", "--environment", help=_environment_help),
     node: Path = Argument(..., exists=True, help=_node_help),
 ):
     """List execution logs for a node"""
@@ -78,9 +78,9 @@ def logs(
     )
 
     with abort_on_error("Could not list logs"):
-        events = paginated_execution_events(
-            ids.environment_id, ids.graph_id, ids.node_id
-        ).list()
+        events = list(
+            paginated_execution_events(ids.environment_id, ids.graph_id, ids.node_id)
+        )
     _print_objects(events, print_json)
 
 
@@ -90,8 +90,8 @@ _port_help = "The name of the output port"
 @list_command.command()
 def output(
     print_json: bool = Option(False, "--json", help=_json_help),
-    organization: str = Option("", "--organization", "-o", help=_organization_help),
-    environment: str = Option("", "--environment", "-e", help=_environment_help),
+    organization: str = Option("", "-o", "--organization", help=_organization_help),
+    environment: str = Option("", "-e", "--environment", help=_environment_help),
     node: Path = Argument(..., exists=True, help=_node_help),
     port: str = Argument(..., help=_port_help),
 ):
@@ -103,9 +103,9 @@ def output(
     )
 
     with abort_on_error("Could not get node data"):
-        data = paginated_output_data(
-            ids.environment_id, ids.graph_id, ids.node_id, port
-        ).list()
+        data = list(
+            paginated_output_data(ids.environment_id, ids.graph_id, ids.node_id, port)
+        )
     _print_objects(data, print_json)
 
 
@@ -115,8 +115,8 @@ _graph_help = "The location of the graph.yml file of the graph to list"
 @list_command.command()
 def webhooks(
     print_json: bool = Option(False, "--json", help=_json_help),
-    organization: str = Option("", "--organization", "-o", help=_organization_help),
-    environment: str = Option("", "--environment", "-e", help=_environment_help),
+    organization: str = Option("", "-o", "--organization", help=_organization_help),
+    environment: str = Option("", "-e", "--environment", help=_environment_help),
     graph: Path = Argument(None, exists=True, help=_graph_help),
 ):
     """List webhook urls for a graph"""
@@ -126,7 +126,7 @@ def webhooks(
         explicit_graph_path=graph,
     )
     with abort_on_error("Could not get webhook data"):
-        data = paginated_webhook_urls(ids.environment_id, ids.graph_id).list()
+        data = list(paginated_webhook_urls(ids.environment_id, ids.graph_id))
 
     # Add node names to output
     node_names_by_id = {n.id: n.name for n in ids.manifest.nodes}
@@ -143,13 +143,10 @@ def webhooks(
 
 
 @list_command.command()
-def components(
-    print_json: bool = Option(False, "--json", help=_json_help),
-):
+def components(print_json: bool = Option(False, "--json", help=_json_help),):
     """List available graph components that you can add to your graphs"""
     with abort_on_error("Could not get components"):
-        data = paginated_graph_components_admin().list()
-        data += paginated_graph_components_regular().list()
+        data = list(graph_components_all())
 
     _print_objects(data, print_json)
 

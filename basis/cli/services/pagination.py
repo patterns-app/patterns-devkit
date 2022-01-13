@@ -18,9 +18,9 @@ class PaginatedCall:
             if data["results"]:
                 yield data["results"]
 
-    def list(self) -> List[dict]:
-        """Return a flat list of all objects returned from the endpoint"""
-        return list(itertools.chain.from_iterable(self.pages()))
+    def __iter__(self) -> Iterable[dict]:
+        """Iterate over all objects returned from the endpoint"""
+        return itertools.chain.from_iterable(self.pages())
 
 
 def paginated(fn: Callable[..., dict]) -> Callable[..., PaginatedCall]:

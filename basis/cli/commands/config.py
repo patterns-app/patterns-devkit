@@ -10,8 +10,8 @@ _environment_help = "The name of the organization to use by default"
 
 
 def config(
-    organization: str = Option("", "--organization", "-o", help=_config_help),
-    environment: str = Option("", "--environment", "-e", help=_environment_help),
+    organization: str = Option("", "-o", "--organization", help=_config_help),
+    environment: str = Option("", "-e", "--environment", help=_environment_help),
 ):
     """Change the default values used by other commands"""
     cfg = read_local_basis_config()
