@@ -6,11 +6,13 @@ name = "basis-devkit"
 packages = [
   {include = "basis"},
 ]
-version = "0.1.1"
+version = "0.1.2"
 
 [tool.poetry.dependencies]
-common-model = { git = "https://github.com/kvh/common-model.git" }
-datacopy = { git = "https://github.com/kvh/dcp.git" }
+# common-model = { git = "https://github.com/kvh/common-model.git" }
+# datacopy = { git = "https://github.com/kvh/dcp.git" }
+common-model = "^0.2.2"
+datacopy = "^0.1.15"
 jinja2 = "^3.0.0"
 platformdirs = "^2.4.0"
 pydantic = "^1.8.1"
