@@ -20,11 +20,11 @@ class _Command(Group):
         super().__init__(name="basis", no_args_is_help=True)
 
     def add_typer_fn(self, fn, **kw):
-        if isinstance(command, typer.Typer):
+        if isinstance(fn, typer.Typer):
             self.add_command(typer.main.get_command(fn))
         else:
             tmp = typer.Typer()
-            tmp.command(**kw)(command)
+            tmp.command(**kw)(fn)
             self.add_command(typer.main.get_command(tmp))
 
     # override help output to include nested subcommands
