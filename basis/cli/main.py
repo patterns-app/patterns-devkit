@@ -11,7 +11,7 @@ from .commands.pull import pull, clone
 from .commands.trigger import trigger
 from .commands.upload import upload
 
-app = typer.Typer(name="basis", add_completion=False)
+app = typer.Typer(name="basis", add_completion=False, no_args_is_help=True)
 
 for command in (
     config,
