@@ -212,7 +212,7 @@ class GraphDirectoryEditor:
     def add_node_from_zip(
         self,
         src_path: Union[Path, str],
-        dst_path: [Path, str],
+        dst_path: Union[Path, str],
         zf: Union[ZipFile, Path],
     ) -> GraphDirectoryEditor:
         """Copy the node or subgraph located at src_path in zipfile to dst_path

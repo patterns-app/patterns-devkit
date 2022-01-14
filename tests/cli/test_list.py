@@ -10,6 +10,8 @@ def test_list(tmp_path: Path):
         for e in [
             Endpoints.environments_list("test-org-uid"),
             Endpoints.graphs_list("test-org-uid"),
+            Endpoints.COMPONENTS_REGULAR,
+            Endpoints.COMPONENTS_ADMIN,
         ]:
             m.get(
                 API_BASE_URL + e, json={"results": [{"name": "name"}], "next": None},
@@ -17,6 +19,8 @@ def test_list(tmp_path: Path):
         result = run_cli("list environments --json")
         assert "name" in result.output
         result = run_cli("list graphs --json")
+        assert "name" in result.output
+        result = run_cli("list components --json")
         assert "name" in result.output
 
 
