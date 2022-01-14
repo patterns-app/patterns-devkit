@@ -7,17 +7,16 @@ from pathlib import Path
 
 import click
 import requests_mock
-import typer.testing
 from click.testing import Result
 
 from basis.cli.config import BASIS_CONFIG_ENV_VAR, update_local_basis_config
-from basis.cli.services.api import API_BASE_URL, Endpoints
 from basis.cli.main import app
+from basis.cli.services.api import API_BASE_URL, Endpoints
 
 
 def run_cli(argv: str, input: str = None, **kwargs) -> click.testing.Result:
     args = shlex.split(argv.replace("\\", "/"))
-    runner = typer.testing.CliRunner()
+    runner = click.testing.CliRunner()
     result = runner.invoke(app, args, input, catch_exceptions=False, **kwargs)
     print(result.output)
     return result
