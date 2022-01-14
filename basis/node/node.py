@@ -1,9 +1,7 @@
 import abc
 import inspect
 from dataclasses import dataclass
-from typing import Callable, List, Union, Any
-
-from commonmodel import Schema
+from typing import Callable, List, Any
 
 from basis.node._methods import (
     InputTableMethods,
@@ -36,7 +34,7 @@ class _InputMeta(type, _NodeInterfaceEntry):
     def __new__(
         mcs,
         description: str = None,
-        schema: Union[str, Schema] = None,
+        schema: str = None,
         required: bool = True,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
@@ -45,7 +43,7 @@ class _InputMeta(type, _NodeInterfaceEntry):
     def __init__(
         cls,
         description: str = None,
-        schema: Union[str, Schema] = None,
+        schema: str = None,
         required: bool = True,
     ):
         cls.description = description
@@ -55,13 +53,13 @@ class _InputMeta(type, _NodeInterfaceEntry):
 
 class _OutputMeta(type, _NodeInterfaceEntry):
     def __new__(
-        mcs, description: str = None, schema: Union[str, Schema] = None,
+        mcs, description: str = None, schema: str = None,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
     def __init__(
-        cls, description: str = None, schema: Union[str, Schema] = None,
+        cls, description: str = None, schema: str = None,
     ):
         cls.description = description
         cls.schema = schema

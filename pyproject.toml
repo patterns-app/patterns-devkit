@@ -9,7 +9,6 @@ packages = [
 version = "0.1.2"
 
 [tool.poetry.dependencies]
-common-model = "^0.2.2"
 pandas = "^1"
 jinja2 = "^3.0.0"
 platformdirs = "^2.4.0"
@@ -22,7 +21,6 @@ typer = {extras = ["all"], version = "^0.4.0"}
 
 [tool.poetry.dev-dependencies]
 black = "^19.10b0"
-# common-model = {path = "../common-model/python", develop = true}
 flake8 = "^4.0.1"
 isort = "^4.3.21"
 mypy = "^0.910"
