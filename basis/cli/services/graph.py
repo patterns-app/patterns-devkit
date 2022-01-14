@@ -36,7 +36,7 @@ def resolve_graph_path(
     return graph_path
 
 
-def find_graph_file(path: Optional[Path]) -> Path:
+def find_graph_file(path: Optional[Path], prompt: bool = True) -> Path:
     """Walk up a directory tree looking for a graph"""
     if path and path.is_file():
         return resolve_graph_path(path, exists=True)
@@ -52,5 +52,8 @@ def find_graph_file(path: Optional[Path]) -> Path:
             break
         path = path.parent
 
-    resp = prompt_path("Enter the path to the graph yaml file", exists=True)
-    return resolve_graph_path(resp, exists=True)
+    if prompt:
+        resp = prompt_path("Enter the path to the graph yaml file", exists=True)
+        return resolve_graph_path(resp, exists=True)
+    else:
+        raise ValueError(f"Cannot find graph.yml{f' at {path}' if path else ''}")

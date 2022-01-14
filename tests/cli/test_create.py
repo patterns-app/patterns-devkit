@@ -23,7 +23,7 @@ def test_create_node(tmp_path: Path):
     name = "mynode.py"
     run_cli("create graph", f"{dr}\n")
     path = dr / name
-    run_cli(f"create node --graph='{dr}'", f"{path}\n")
+    run_cli(f"create node", f"{path}\n")
     assert name in (dr / "graph.yml").read_text()
 
 
@@ -32,7 +32,7 @@ def test_create_node_explicit(tmp_path: Path):
     name = "mynode.py"
     run_cli("create graph", f"{dr}\n")
     path = dr / name
-    run_cli(f"create node --graph='{dr}' '{path}'")
+    run_cli(f"create node '{path}'")
     assert name in (dr / "graph.yml").read_text()
     assert "def mynode" in path.read_text()
 
@@ -42,7 +42,7 @@ def test_create_node_invalid_py_name(tmp_path: Path):
     name = "0-foo.py"
     run_cli("create graph", f"{dr}\n")
     path = dr / name
-    run_cli(f"create node --graph='{dr}'", f"{path}\n")
+    run_cli(f"create node", f"{path}\n")
     assert name in (dr / "graph.yml").read_text()
     assert "def node_0_foo" in path.read_text()
 

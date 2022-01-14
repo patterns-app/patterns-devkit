@@ -11,7 +11,7 @@ from basis.cli.services.environments import (
     get_environment_by_name,
     paginated_environments,
 )
-from basis.cli.services.graph import find_graph_file
+from basis.cli.services.graph import find_graph_file, resolve_graph_path
 from basis.cli.services.graph_versions import (
     get_graph_by_name,
     get_active_graph_version,
@@ -45,7 +45,7 @@ class IdLookup:
             return get_organization_by_name(self.organization_name)["uid"]
         if self.cfg.organization_id:
             return self.cfg.organization_id
-        organizations = paginated_organizations().list()
+        organizations = list(paginated_organizations())
         orgs_by_name = {org["name"]: org for org in organizations}
         if len(organizations) == 1:
             org = organizations[0]
@@ -66,7 +66,7 @@ class IdLookup:
         if self.cfg.environment_id:
             return self.cfg.environment_id
 
-        environments = paginated_environments(self.organization_id).list()
+        environments = list(paginated_environments(self.organization_id))
         envs_by_name = {env["name"]: env for env in environments}
 
         if len(environments) == 1:
@@ -115,10 +115,11 @@ class IdLookup:
 
     @cached_property
     def graph_file_path(self) -> Path:
-        p = self.explicit_graph_path
-        if self.node_file_path and not p:
-            p = self.node_file_path.parent
-        return find_graph_file(p)
+        if self.explicit_graph_path:
+            return resolve_graph_path(self.explicit_graph_path, exists=True)
+        if self.node_file_path:
+            return find_graph_file(self.node_file_path.parent, prompt=False)
+        return find_graph_file(path=None, prompt=True)
 
     @cached_property
     def cfg(self) -> CliConfig:

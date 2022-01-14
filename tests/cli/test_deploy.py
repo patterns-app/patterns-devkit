@@ -15,7 +15,7 @@ def test_deploy(tmp_path: Path):
         ]:
             m.post(
                 API_BASE_URL + e,
-                json={"uid": "1", "ui_url": "url.com", "graph_name": "g"},
+                json={"uid": "1", "ui_url": "url.com", "graph": {"name": "g"}},
             )
         for e in [
             Endpoints.graph_by_name("test-org-uid", "name"),
