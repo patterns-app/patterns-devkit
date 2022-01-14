@@ -76,6 +76,8 @@ def abort_on_error(message: str, prefix=": ", suffix=""):
             details = e.response.json()["detail"]
         except Exception:
             details = e.response.text
+        if not details:
+            details = f"HTTP {e.response.status_code}"
         abort(f"{message}{prefix}{details}{suffix}")
     except (typer.Exit, typer.Abort) as e:
         raise e

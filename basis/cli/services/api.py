@@ -11,7 +11,9 @@ from basis.cli.config import (
 )
 from basis.cli.services.output import abort, abort_on_error
 
-API_BASE_URL = os.environ.get("BASIS_API_URL", "https://api-production.getbasis.com/")
+API_BASE_URL = (
+    os.environ.get("BASIS_API_URL", "https://api-production.getbasis.com/").rstrip("/") + "/"
+)
 AUTH_TOKEN_ENV_VAR = "BASIS_AUTH_TOKEN"
 AUTH_TOKEN_PREFIX = "JWT"
 

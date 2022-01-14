@@ -61,7 +61,10 @@ def node(
     basis create node --name='My Node' mynode.py
     """
     if not location:
-        message = "Enter a name for the new node file [prompt.default](e.g. mynode.sql)"
+        sprint("[info]Nodes can be python files like [code]ingest.py")
+        sprint("[info]Nodes can be sql files like [code]aggregate.sql")
+        sprint("[info]You also can add a subgraph like [code]processor/graph.yml")
+        message = "Enter a name for the new node file"
         location = prompt_path(message, exists=False)
 
     if location.exists():
@@ -69,26 +72,16 @@ def node(
 
     ids = IdLookup(node_file_path=location)
     graph_dir = ids.graph_file_path.parent
-    if not location.is_absolute() and not is_relative_to(
-        location.absolute(), graph_dir
-    ):
-        sprint(f"\n[error]Node location is not in the graph directory.")
-        sprint(
-            f"\n[info]Try changing your directory to the graph directory "
-            f"[code]({graph_dir})"
-        )
-        sprint(
-            f"[info]You can change the graph directory for this command with the "
-            f"[code]--graph[/code] option"
-        )
-        raise typer.Exit(1)
 
     # Update the graph yaml
     node_file = "/".join(location.absolute().relative_to(graph_dir).parts)
+    node_name = name or (
+        location.parent.name if location.name == "graph.yml" else location.stem
+    )
     with abort_on_error("Adding node failed"):
         editor = GraphConfigEditor(ids.graph_file_path)
         editor.add_node(
-            name=name or location.stem, node_file=node_file, id=str(NodeId.random()),
+            name=node_name, node_file=node_file, id=str(NodeId.random()),
         )
 
     # Write to disk last to avoid partial updates
@@ -128,12 +121,14 @@ def node(
             fun_name = re.sub(r"[^a-zA-Z0-9_]", "_", location.stem)
             if re.match(r"\d", fun_name):
                 fun_name = f"node_{fun_name}"
-            content = _PY_FILE_TEMPLATE.format(fun_name)
+            location.write_text(_PY_FILE_TEMPLATE.format(fun_name))
         elif location.suffix == ".sql":
-            content = _SQL_FILE_TEMPLATE
+            location.write_text(_SQL_FILE_TEMPLATE)
+        elif location.name == "graph.yml":
+            location.parent.mkdir(exist_ok=True, parents=True)
+            GraphConfigEditor(location, read=False).set_name(node_name).write()
         else:
-            abort("Node file location must end in .py or .sql")
-        location.write_text(content)
+            abort("Node file must be graph.yml or end in .py or .sql")
     editor.write()
 
     sprint(f"\n[success]Created node [b]{location}")
