@@ -4,8 +4,6 @@ from dataclasses import dataclass, asdict
 from typing import Any, Union, List, Dict, Collection, Set, Tuple
 from basis.graph.builder import graph_manifest_from_yaml, GraphManifest
 
-from commonmodel import Schema
-
 from basis.configuration.path import GraphEdge, NodeId, PortId
 from basis.graph.configured_node import (
     ParameterDefinition,
@@ -221,27 +219,27 @@ def p(
 
 
 def ostream(
-    name: str, description: str = None, schema: Union[str, Schema] = None,
+    name: str, description: str = None, schema: str = None,
 ) -> OutputDefinition:
     return OutputDefinition(
         port_type=PortType.Stream,
         name=name,
         description=description,
-        schema_or_name=schema,
+        schema_name=schema,
     )
 
 
 def istream(
     name: str,
     description: str = None,
-    schema: Union[str, Schema] = None,
+    schema: str = None,
     required: bool = True,
 ) -> InputDefinition:
     return InputDefinition(
         port_type=PortType.Stream,
         name=name,
         description=description,
-        schema_or_name=schema,
+        schema_name=schema,
         required=required,
     )
 
@@ -249,26 +247,26 @@ def istream(
 def itable(
     name: str,
     description: str = None,
-    schema: Union[str, Schema] = None,
+    schema: str = None,
     required: bool = True,
 ) -> InputDefinition:
     return InputDefinition(
         port_type=PortType.Table,
         name=name,
         description=description,
-        schema_or_name=schema,
+        schema_name=schema,
         required=required,
     )
 
 
 def otable(
-    name: str, description: str = None, schema: Union[str, Schema] = None,
+    name: str, description: str = None, schema: str = None,
 ) -> OutputDefinition:
     return OutputDefinition(
         port_type=PortType.Table,
         name=name,
         description=description,
-        schema_or_name=schema,
+        schema_name=schema,
     )
 
 

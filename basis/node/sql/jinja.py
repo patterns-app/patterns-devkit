@@ -27,7 +27,7 @@ class BasisJinjaInspectContext:
                 name=name,
                 port_type=PortType.Table,
                 description=description,
-                schema_or_name=schema,
+                schema_name=schema,
                 required=True,
             )
         )
@@ -38,7 +38,7 @@ class BasisJinjaInspectContext:
                 name=name,
                 port_type=PortType.Table,
                 description=description,
-                schema_or_name=schema,
+                schema_name=schema,
             )
         )
 

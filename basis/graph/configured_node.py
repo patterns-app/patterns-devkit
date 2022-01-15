@@ -3,8 +3,6 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, Iterator, List, Union, Optional
 
-from commonmodel import Schema
-
 from basis.configuration.base import FrozenPydanticBase
 from basis.configuration.path import GraphEdge, NodeId
 
@@ -49,7 +47,7 @@ class InputDefinition(FrozenPydanticBase):
     name: str
 
     description: str = None
-    schema_or_name: Union[str, Schema] = None
+    schema_name: str = None
     required: bool
 
 
@@ -57,7 +55,7 @@ class OutputDefinition(FrozenPydanticBase):
     port_type: PortType
     name: str
     description: str = None
-    schema_or_name: Union[str, Schema] = None
+    schema_name: str = None
 
 
 class ParameterDefinition(FrozenPydanticBase):

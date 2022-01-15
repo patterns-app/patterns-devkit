@@ -97,7 +97,7 @@ class _NodeFuncFinder(ast.NodeVisitor):
                     port_type=port_type,
                     name=name,
                     description=get("description", str),
-                    schema_or_name=get("schema", str),
+                    schema_name=get("schema", str),
                     required=get("required", bool, True),
                 )
             )
@@ -107,7 +107,7 @@ class _NodeFuncFinder(ast.NodeVisitor):
                     port_type=port_type,
                     name=name,
                     description=get("description", str),
-                    schema_or_name=get("schema", str),
+                    schema_name=get("schema", str),
                 )
             )
         elif call.name == "Parameter":
