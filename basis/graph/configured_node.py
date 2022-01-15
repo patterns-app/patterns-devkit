@@ -47,7 +47,7 @@ class InputDefinition(FrozenPydanticBase):
     name: str
 
     description: str = None
-    schema_or_name: str = None
+    schema_name: str = None
     required: bool
 
 
@@ -55,7 +55,7 @@ class OutputDefinition(FrozenPydanticBase):
     port_type: PortType
     name: str
     description: str = None
-    schema_or_name: str = None
+    schema_name: str = None
 
 
 class ParameterDefinition(FrozenPydanticBase):

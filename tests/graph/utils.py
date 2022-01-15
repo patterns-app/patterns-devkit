@@ -225,7 +225,7 @@ def ostream(
         port_type=PortType.Stream,
         name=name,
         description=description,
-        schema_or_name=schema,
+        schema_name=schema,
     )
 
 
@@ -239,7 +239,7 @@ def istream(
         port_type=PortType.Stream,
         name=name,
         description=description,
-        schema_or_name=schema,
+        schema_name=schema,
         required=required,
     )
 
@@ -254,7 +254,7 @@ def itable(
         port_type=PortType.Table,
         name=name,
         description=description,
-        schema_or_name=schema,
+        schema_name=schema,
         required=required,
     )
 
@@ -266,7 +266,7 @@ def otable(
         port_type=PortType.Table,
         name=name,
         description=description,
-        schema_or_name=schema,
+        schema_name=schema,
     )
 
 
