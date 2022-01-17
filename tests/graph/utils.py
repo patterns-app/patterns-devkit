@@ -87,19 +87,23 @@ def _assert_node(
                 if assertion.parameter_values == IGNORE:
                     continue
                 v = {
-                    kk: ResolvedParameterValue(value=vv, source=node.id)
+                    kk: f"<ResolvedParam value={vv}, source={paths_by_id[node.id]}>"
                     for kk, vv in assertion.parameter_values.items()
                 }
             else:
                 v = {
-                    kk: ResolvedParameterValue(value=vv[0], source=ids_by_path[vv[1]])
+                    kk: f"<ResolvedParam value={vv[0]}, source={vv[1]}>"
                     for kk, vv in v.items()
                 }
+            actual = {
+                k: f"<ResolvedParam value={v.value}, source={paths_by_id[v.source]}>"
+                for k, v in actual.items()
+            }
 
         def check(k, ex, ac):
             assert ac == ex, (
                 f"{assertion.name}: {k}:\n  expected: {_tostr(ex, paths_by_id)}"
-                + f"\n   but was: {_tostr(ac, paths_by_id)}"
+                + f"\n  but was:  {_tostr(ac, paths_by_id)}"
             )
 
         if k == "interface":
@@ -230,10 +234,7 @@ def ostream(
 
 
 def istream(
-    name: str,
-    description: str = None,
-    schema: str = None,
-    required: bool = True,
+    name: str, description: str = None, schema: str = None, required: bool = True,
 ) -> InputDefinition:
     return InputDefinition(
         port_type=PortType.Stream,
@@ -245,10 +246,7 @@ def istream(
 
 
 def itable(
-    name: str,
-    description: str = None,
-    schema: str = None,
-    required: bool = True,
+    name: str, description: str = None, schema: str = None, required: bool = True,
 ) -> InputDefinition:
     return InputDefinition(
         port_type=PortType.Table,
@@ -259,9 +257,7 @@ def itable(
     )
 
 
-def otable(
-    name: str, description: str = None, schema: str = None,
-) -> OutputDefinition:
+def otable(name: str, description: str = None, schema: str = None,) -> OutputDefinition:
     return OutputDefinition(
         port_type=PortType.Table,
         name=name,
