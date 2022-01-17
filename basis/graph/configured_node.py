@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, Iterator, List, Union, Optional
 
 from basis.configuration.base import FrozenPydanticBase
@@ -135,6 +136,18 @@ class GraphManifest(FrozenPydanticBase):
         for node in self.nodes:
             if node.name == name:
                 yield node
+
+    def get_node_with_file_path(
+        self, file_path_to_node_script_relative_to_root: Union[str, Path]
+    ) -> ConfiguredNode:
+        path = "/".join(Path(file_path_to_node_script_relative_to_root).parts)
+        for node in self.nodes:
+            if node.file_path_to_node_script_relative_to_root == path:
+                return node
+        raise ValueError(
+            f"No node in manifest with file_path: "
+            f"{file_path_to_node_script_relative_to_root}"
+        )
 
     def get_single_node_by_name(self, name: str) -> ConfiguredNode:
         nodes = list(self.get_nodes_by_name(name))
