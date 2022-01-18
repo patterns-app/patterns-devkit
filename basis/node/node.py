@@ -32,19 +32,13 @@ def _mixin_attrs():
 # class will recursively produce more classes and never an actual instance, but that fine for how we're using them.
 class _InputMeta(type, _NodeInterfaceEntry):
     def __new__(
-        mcs,
-        description: str = None,
-        schema: str = None,
-        required: bool = True,
+        mcs, description: str = None, schema: str = None, required: bool = True,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
     def __init__(
-        cls,
-        description: str = None,
-        schema: str = None,
-        required: bool = True,
+        cls, description: str = None, schema: str = None, required: bool = True,
     ):
         cls.description = description
         cls.schema = schema

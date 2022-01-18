@@ -325,6 +325,44 @@ def test_exposing_implicit_ports(tmp_path: Path):
     )
 
 
+def test_omit_exposing(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+                nodes:
+                  - node_file: source.py
+                  - node_file: sink.py
+                  - node_file: sub/graph.yml
+                    parameters:
+                        param: foo""",
+            "sub/graph.yml": """
+                nodes:
+                  - node_file: node.py""",
+            "source.py": "to_graph=OutputStream",
+            "sink.py": "from_graph=InputStream",
+            "sub/node.py": "to_graph=InputStream, from_graph=OutputStream, param=Parameter",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n("source", resolved_edges=["source:to_graph -> sub.node:to_graph"]),
+        n("sink", resolved_edges=["sub.node:from_graph -> sink:from_graph"]),
+        n(
+            "node",
+            parent="sub",
+            resolved_edges=[
+                "source:to_graph -> sub.node:to_graph",
+                "sub.node:from_graph -> sink:from_graph",
+            ],
+            parameter_values={},
+            resolved_params={"param": ("foo", "sub")},
+        ),
+        n("sub", node_type=NodeType.Graph, parameter_values={"param": "foo"}),
+    )
+
+
 def test_unconnected_outputs(tmp_path: Path):
     manifest = setup_manifest(
         tmp_path,

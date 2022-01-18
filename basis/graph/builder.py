@@ -48,9 +48,6 @@ class _Mapping:
     inputs: Dict[NodeId, Dict[str, str]]
     # dict of parameter name -> definitions with that name
     parameters: Dict[str, List[ParameterDefinition]]
-    # dicts of exposed port name -> list of edges connecting to that port
-    local_edges_by_exposed_input: Dict[str, List[GraphEdge]]
-    local_edges_by_exposed_output: Dict[str, List[GraphEdge]]
 
 
 # node parse result
@@ -60,9 +57,9 @@ class _Interface:
     node_type: NodeType
     # empty for non-graph nodes
     local_edges: List[GraphEdge]
-    node_name: str = None
-    node_id: NodeId = None
-    relative_node_path: str = None
+    node_name: Optional[str] = None
+    node_id: Optional[NodeId] = None
+    relative_node_path: Optional[str] = None
 
 
 # graph parse result
@@ -121,24 +118,7 @@ class _GraphBuilder:
     ) -> _ParsedGraph:
         config = self._read_graph_yml(node_yaml_path)
         node_dir = node_yaml_path.parent
-        exposed_inputs = (
-            config.exposes.inputs if config.exposes and config.exposes.inputs else []
-        )
-        exposed_outputs = (
-            config.exposes.outputs if config.exposes and config.exposes.outputs else []
-        )
-        exposed_params = (
-            config.exposes.parameters
-            if config.exposes and config.exposes.parameters
-            else []
-        )
-        mapping = _Mapping(
-            outputs={},
-            inputs={},
-            parameters={},
-            local_edges_by_exposed_input={i: [] for i in exposed_inputs},
-            local_edges_by_exposed_output={i: [] for i in exposed_outputs},
-        )
+        mapping = _Mapping({}, {}, {})
 
         # step 1: parse all the interfaces
         nodes = [
@@ -147,22 +127,27 @@ class _GraphBuilder:
         ]
 
         # step 2: set local edges
-        self._set_local_input_edges(parent, nodes, mapping)
-        self._set_local_exposed_output_edges(parent, mapping)
+        def get_exposed(attr: str) -> Optional[List[str]]:
+            if config.exposes is None:
+                return None
+            return getattr(config.exposes, attr, [])
+
+        exposed_inputs = get_exposed("inputs")
+        exposed_outputs = get_exposed("outputs")
+        exposed_params = get_exposed("parameters")
+
+        local_edges = self._set_local_input_edges(
+            parent, nodes, mapping, exposed_inputs
+        )
+        local_edges += self._set_local_exposed_output_edges(
+            parent, mapping, exposed_outputs
+        )
 
         self.nodes_by_id.update({node.id: node for node in nodes})
 
         interface = self._build_graph_interface(
             nodes, mapping, exposed_inputs, exposed_outputs, exposed_params
         )
-        local_edges = list(
-            chain(
-                chain.from_iterable(mapping.local_edges_by_exposed_input.values()),
-                chain.from_iterable(mapping.local_edges_by_exposed_output.values()),
-            )
-        )
-        self._check_for_unconnected_exposed_inputs(parent, mapping)
-
         return _ParsedGraph(config.name, interface, local_edges)
 
     # create a NodeInterface from a graph node's exposed ports
@@ -170,9 +155,9 @@ class _GraphBuilder:
         self,
         nodes: List[ConfiguredNode],
         mapping: _Mapping,
-        exposed_inputs: List[str],
-        exposed_outputs: List[str],
-        exposed_params: List[str],
+        exposed_inputs: Optional[List[str]],
+        exposed_outputs: Optional[List[str]],
+        exposed_params: Optional[List[str]],
     ) -> NodeInterface:
         input_defs_by_name = {
             mapping.inputs[n.id][i.name]: i for n in nodes for i in n.interface.inputs
@@ -180,17 +165,18 @@ class _GraphBuilder:
         # Copy the graph port definitions from the originating node, changing the name to the exposed name
         outputs = [
             mapping.outputs[o][1].copy(update={"name": o})
-            for o in exposed_outputs
+            for o in exposed_outputs or mapping.outputs.keys()
             if o in mapping.outputs  # may be missing in broken graphs
         ]
         inputs = [
             input_defs_by_name[i].copy(update={"name": i})
             for i in exposed_inputs
+            or [v for d in mapping.inputs.values() for v in d.values()]
             if i in input_defs_by_name  # may be missing in broken graphs
         ]
         parameters = [
             mapping.parameters[p][0]
-            for p in exposed_params
+            for p in exposed_params or mapping.parameters.keys()
             if p in mapping.parameters
             and mapping.parameters[p]  # may be missing in broken graphs
         ]
@@ -200,8 +186,14 @@ class _GraphBuilder:
 
     # set local edges connected to nodes' inputs
     def _set_local_input_edges(
-        self, graph_id: Optional[NodeId], nodes: List[ConfiguredNode], mapping: _Mapping
-    ):
+        self,
+        graph_id: Optional[NodeId],
+        nodes: List[ConfiguredNode],
+        mapping: _Mapping,
+        exposed_inputs: Optional[List[str]],  # None when all inputs are exposed
+    ) -> List[GraphEdge]:
+        edges = []
+        connected_exposed_inputs = set()
         for node in nodes:
             for i in node.interface.inputs:
                 name = mapping.inputs[node.id][i.name]
@@ -215,33 +207,44 @@ class _GraphBuilder:
                         node.local_edges,
                         src.local_edges,
                     )
-                elif name in mapping.local_edges_by_exposed_input:
+                elif (exposed_inputs is None and graph_id is not None) or (
+                    exposed_inputs and name in exposed_inputs
+                ):
+                    connected_exposed_inputs.add(name)
                     self._set_edge(
-                        graph_id,
-                        name,
-                        node.id,
-                        i.name,
-                        node.local_edges,
-                        mapping.local_edges_by_exposed_input[name],
+                        graph_id, name, node.id, i.name, node.local_edges, edges,
                     )
                 elif i.required:
                     self._err(node, f'Cannot find output named "{name}"')
                     self.broken_ports.add(PortId(node_id=node.id, port=i.name))
 
+        for name in exposed_inputs or []:
+            if name not in connected_exposed_inputs:
+                self._err(graph_id, f'Exposed input does not exist: "{name}"')
+        return edges
+
     # set local edges on any nodes connected to exposed outputs
     def _set_local_exposed_output_edges(
-        self, graph_id: Optional[NodeId], mapping: _Mapping
-    ):
-        for (name, edges) in mapping.local_edges_by_exposed_output.items():
+        self,
+        graph_id: Optional[NodeId],
+        mapping: _Mapping,
+        exposed_outputs: Optional[List[str]],  # None when all outputs are exposed
+    ) -> List[GraphEdge]:
+        if graph_id is None:
+            if exposed_outputs:
+                raise ValueError("Cannot expose outputs on root graph")
+            else:
+                return []
+        if exposed_outputs is None:
+            exposed_outputs = mapping.outputs
+        edges = []
+        for name in exposed_outputs:
             if name in mapping.outputs:
-                assert graph_id is not None
                 (src, o) = mapping.outputs[name]
                 self._set_edge(src.id, o.name, graph_id, name, edges, src.local_edges)
             elif graph_id is not None:
                 self._err(graph_id, f'Exposed output does not exist: "{name}"')
-            else:
-                # we'll have to revisit this if we want to support manifests for components
-                raise ValueError("Cannot expose outputs on root graph")
+        return edges
 
     def _set_edge(
         self,
@@ -268,13 +271,6 @@ class _GraphBuilder:
                 dst_id,
                 f"Cannot connect {name}: input is a {src_t}, but output is a {dst_t}",
             )
-
-    def _check_for_unconnected_exposed_inputs(
-        self, graph_id: Optional[NodeId], mapping: _Mapping
-    ):
-        for name, edges in mapping.local_edges_by_exposed_input.items():
-            if not edges:
-                self._err(graph_id, f'Exposed input does not exist: "{name}"')
 
     # record all the output name mappings in this node's config
     def _track_outputs(
@@ -362,12 +358,11 @@ class _GraphBuilder:
 
     def _resolve_parameter_values(self):
         for node in self.nodes_by_id.values():
-            if not node.parameter_values:
-                continue
             d = {
                 k: ResolvedParameterValue(value=v, source=node.id)
                 for (k, v) in node.parameter_values.items()
             }
+            parameters = {*d.keys(), *(p.name for p in node.interface.parameters)}
 
             # check for setting unexposed values
             if node.node_type == NodeType.Graph:
@@ -381,10 +376,8 @@ class _GraphBuilder:
             while parent_id:
                 parent = self.nodes_by_id[parent_id]
                 exposed = {p.name for p in parent.interface.parameters}
-                for k in d:
-                    if k not in exposed:
-                        break
-                    if k in parent.parameter_values:
+                for k in parameters:
+                    if k in exposed and k in parent.parameter_values:
                         d[k] = ResolvedParameterValue(
                             value=parent.parameter_values[k], source=parent_id
                         )
