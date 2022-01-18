@@ -390,36 +390,6 @@ def test_unconnected_outputs(tmp_path: Path):
     )
 
 
-def test_stream_to_table(tmp_path: Path):
-    manifest = setup_manifest(
-        tmp_path,
-        {
-            "graph.yml": """
-                nodes:
-                  - node_file: source.py
-                  - node_file: node.py
-                    inputs:
-                      - source_stream -> stream_as_table""",
-            "source.py": "source_stream=OutputStream",
-            "node.py": "stream_as_table=InputTable, node_out=OutputTable",
-        },
-    )
-
-    assert_nodes(
-        manifest,
-        n(
-            "source",
-            interface=[ostream("source_stream")],
-            local_edges=["source:source_stream -> node:stream_as_table"],
-        ),
-        n(
-            "node",
-            interface=[itable("stream_as_table"), otable("node_out")],
-            local_edges=["source:source_stream -> node:stream_as_table"],
-        ),
-    )
-
-
 def test_webhooks(tmp_path: Path):
     manifest = setup_manifest(
         tmp_path,
@@ -634,6 +604,29 @@ def test_err_unconnected_explicit_input(tmp_path: Path):
     )
 
 
+def test_err_stream_to_table(tmp_path: Path):
+    manifest = setup_manifest(
+        tmp_path,
+        {
+            "graph.yml": """
+            nodes:
+              - node_file: source.py
+              - node_file: sink.py""",
+            "source.py": "erport=OutputStream",
+            "sink.py": "erport=InputTable",
+        },
+    )
+
+    assert_nodes(
+        manifest,
+        n("source"),
+        n(
+            "sink",
+            errors=["Cannot connect erport: input is a table, but output is a stream"],
+        ),
+    )
+
+
 def test_err_table_to_stream(tmp_path: Path):
     manifest = setup_manifest(
         tmp_path,
@@ -652,7 +645,7 @@ def test_err_table_to_stream(tmp_path: Path):
         n("source"),
         n(
             "sink",
-            errors=["Cannot connect erport: input is a table, but output is a stream"],
+            errors=["Cannot connect erport: input is a stream, but output is a table"],
         ),
     )
 
