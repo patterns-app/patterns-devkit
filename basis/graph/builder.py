@@ -266,10 +266,10 @@ class _GraphBuilder:
     def _check_edge(
         self, dst_id: NodeId, name: str, src_t: PortType, dst_t: PortType,
     ):
-        if src_t == PortType.Table and dst_t == PortType.Stream:
+        if src_t != dst_t:
             self._err(
                 dst_id,
-                f"Cannot connect {name}: input is a {src_t}, but output is a {dst_t}",
+                f"Cannot connect {name}: input is a {dst_t}, but output is a {src_t}",
             )
 
     # record all the output name mappings in this node's config
