@@ -21,9 +21,10 @@ class _Command(Group):
 
     def add_typer_fn(self, fn, **kw):
         if isinstance(fn, typer.Typer):
+            fn._add_completion = False
             self.add_command(typer.main.get_command(fn))
         else:
-            tmp = typer.Typer()
+            tmp = typer.Typer(add_completion=False)
             tmp.command(**kw)(fn)
             self.add_command(typer.main.get_command(tmp))
 
