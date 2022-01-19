@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
+import functools
 from dataclasses import dataclass
 from itertools import chain
 from pathlib import Path
@@ -312,13 +313,23 @@ class _GraphBuilder:
         mapping.inputs[node_id] = names
 
     def _resolve_edges(self):
+        inputs_by_node_and_output = {}
+        for n in self.nodes_by_id.values():
+            if n.node_type == NodeType.Graph:
+                for e in n.local_edges:
+                    inputs_by_node_and_output[(n.id, e.output)] = e.input
         for node in self.nodes_by_id.values():
             if node.node_type == NodeType.Graph:
                 continue
             for local_edge in node.local_input_edges():
-                self._resolve_edge(local_edge, node)
+                self._resolve_edge(local_edge, node, inputs_by_node_and_output)
 
-    def _resolve_edge(self, local_edge: GraphEdge, node: ConfiguredNode):
+    def _resolve_edge(
+        self,
+        local_edge: GraphEdge,
+        node: ConfiguredNode,
+        inputs_by_node_and_output: Dict[Tuple[NodeId, PortId], PortId],
+    ):
         vertex_port = local_edge.input
         vertex = self.nodes_by_id[vertex_port.node_id]
 
@@ -326,9 +337,7 @@ class _GraphBuilder:
             return  # already reported an error for this edge
 
         while vertex.node_type == NodeType.Graph:
-            vertex_port = next(
-                (e.input for e in vertex.local_edges if e.output == vertex_port), None,
-            )
+            vertex_port = inputs_by_node_and_output.get((vertex.id, vertex_port))
             if not vertex_port:
                 self._err(
                     node, f"Could not resolve edge for port {local_edge.input.port}"
@@ -357,33 +366,36 @@ class _GraphBuilder:
         )
 
     def _resolve_parameter_values(self):
-        for node in self.nodes_by_id.values():
+        @functools.lru_cache(maxsize=None)
+        def get_param_values(node_id: NodeId) -> Dict[str, ResolvedParameterValue]:
+            node = self.nodes_by_id[node_id]
+            exposed = {p.name for p in node.interface.parameters}
             d = {
-                k: ResolvedParameterValue(value=v, source=node.id)
+                k: ResolvedParameterValue(value=v, source=node_id)
                 for (k, v) in node.parameter_values.items()
             }
-            parameters = {*d.keys(), *(p.name for p in node.interface.parameters)}
 
             # check for setting unexposed values
-            if node.node_type == NodeType.Graph:
-                exposed = {p.name for p in node.interface.parameters}
-                for k in d:
-                    if k not in exposed:
-                        self._err(node.id, f'No exposed parameter named "{k}"')
+            for k in node.parameter_values.keys():
+                if k not in exposed:
+                    self._err(
+                        node_id,
+                        f'No exposed parameter named "{k}" on node "{node.name}"',
+                    )
 
             # walk up the tree, overriding values with any set in parents
             parent_id = node.parent_node_id
-            while parent_id:
-                parent = self.nodes_by_id[parent_id]
-                exposed = {p.name for p in parent.interface.parameters}
+            if parent_id:
+                parent_values = get_param_values(parent_id)
+                parameters = {*d.keys(), *(p.name for p in node.interface.parameters)}
                 for k in parameters:
-                    if k in exposed and k in parent.parameter_values:
-                        d[k] = ResolvedParameterValue(
-                            value=parent.parameter_values[k], source=parent_id
-                        )
-
-                parent_id = parent.parent_node_id
+                    if k in parent_values and k in exposed:
+                        d[k] = parent_values[k]
             node.resolved_parameter_values.update(d)
+            return {k: v for k, v in d.items() if k in exposed}
+
+        for n in self.nodes_by_id.values():
+            get_param_values(n.id)
 
     def _default_node_name(self, path: Path) -> str:
         # For 'graph.yml' files, use the directory name
