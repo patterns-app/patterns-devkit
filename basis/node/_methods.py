@@ -7,44 +7,56 @@ from pandas import DataFrame
 
 class InputTableMethods:
     @classmethod
-    def as_dataframe(cls) -> DataFrame:
+    def as_dataframe(cls, chunksize: int | None = None) -> DataFrame:
         ...
 
     @classmethod
-    def as_records(cls) -> list[dict]:
+    def as_records(cls, chunksize: int | None = None) -> list[dict]:
         ...
 
     @classmethod
-    def sql(cls, sql: str) -> InputTableMethods:
+    def execute_sql(cls, sql: str, **params) -> InputTableMethods:
         ...
 
     @classmethod
-    def chunks(cls, chunk_size: int) -> InputTableMethods:
+    def use_snapshot(cls, snapshot_name: str) -> InputTableMethods:
         ...
 
 
 class OutputTableMethods:
     @classmethod
-    def create_table(cls, data: list[dict] | DataFrame):
+    def write_records(cls, records: list[dict] | DataFrame, replace: bool = False):
+        ...
+
+    @classmethod
+    def create_snapshot(cls, snapshot_name: str):
+        ...
+
+    @classmethod
+    def execute_sql(cls, sql: str, **params):
         ...
 
 
 class InputStreamMethods:
     @classmethod
-    def records(cls) -> Iterator[dict]:
+    def consume_records(cls, with_metadata: bool = False) -> Iterator[dict]:
         ...
 
     def __iter__(self) -> Iterator[dict]:
         ...
 
-
-class OutputStreamMethods:
     @classmethod
-    def append_record(cls, record: dict):
+    def checkpoint(cls):
         ...
 
     @classmethod
-    def append_records(cls, records: list[dict]):
+    def rollback(cls, records_to_rollback: int = 1):
+        ...
+
+
+class OutputStreamMethods:
+    @classmethod
+    def stream_record(cls, record: dict):
         ...
 
 
