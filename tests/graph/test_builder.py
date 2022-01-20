@@ -347,15 +347,11 @@ def test_omit_exposing(tmp_path: Path):
 
     assert_nodes(
         manifest,
-        n("source", resolved_edges=["source:to_graph -> sub.node:to_graph"]),
-        n("sink", resolved_edges=["sub.node:from_graph -> sink:from_graph"]),
+        n("source"),
+        n("sink"),
         n(
             "node",
             parent="sub",
-            resolved_edges=[
-                "source:to_graph -> sub.node:to_graph",
-                "sub.node:from_graph -> sink:from_graph",
-            ],
             parameter_values={},
             resolved_params={"param": ("foo", "sub")},
         ),
@@ -552,7 +548,7 @@ def test_graph_parameters_unexposed(tmp_path: Path):
             node_type=NodeType.Graph,
             parameter_values={"p1": "override", "p2": "override2"},
             interface=[ostream("from_graph"), p("p1")],
-            errors=['No exposed parameter named "p2"'],
+            errors=['No exposed parameter named "p2" on node "sub"'],
         ),
         n(
             "node",
