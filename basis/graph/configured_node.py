@@ -58,6 +58,12 @@ class OutputDefinition(FrozenPydanticBase):
     description: str = None
     schema_name: str = None
 
+    # legacy name, will be removed in next manifest version
+    schema_or_name: str = None
+
+    def get_schema_name(self) -> Optional[str]:
+        return self.schema_name or self.schema_or_name
+
 
 class ParameterDefinition(FrozenPydanticBase):
     name: str
