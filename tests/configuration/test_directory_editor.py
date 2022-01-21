@@ -107,6 +107,36 @@ def test_add_subgraph(tmp_path: Path):
     )
 
 
+def test_add_single_file(tmp_path: Path):
+    before = {
+        "graph.yml": """
+        nodes:
+          - node_file: s.sql
+        """,
+        "s.sql": "foo",
+    }
+    after = {
+        "graph.yml": """
+         nodes:
+           - node_file: s.sql
+           - node_file: new.sql
+             id: <id>
+         """,
+        "s.sql": "foo",
+        "new.sql": "bar",
+    }
+    setup_manifest(tmp_path, before)
+    editor = GraphDirectoryEditor(tmp_path, overwrite=False)
+    content = "bar"
+    editor.add_node_from_file("new.sql", io.BytesIO(content.encode()))
+    assert_files(tmp_path, after)
+    manifest = editor.build_manifest()
+    assert {n.file_path_to_node_script_relative_to_root for n in manifest.nodes} == {
+        "s.sql",
+        "new.sql",
+    }
+
+
 def do_add_zip_test(
     tmp_path: Path,
     before: Dict[str, str],
