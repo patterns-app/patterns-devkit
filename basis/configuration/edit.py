@@ -4,7 +4,7 @@ import io
 import re
 from io import StringIO
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, IO
 from zipfile import ZipFile, ZipInfo
 
 import ruyaml
@@ -207,7 +207,19 @@ class GraphDirectoryEditor:
 
     def build_manifest(self, allow_errors: bool = False) -> GraphManifest:
         """Build a graph manifest from the graph directory"""
+        if self._cfg:
+            self._cfg.write()
         return graph_manifest_from_yaml(self.yml_path, allow_errors=allow_errors)
+
+    def add_node_from_file(self, dst_path: Union[Path, str], file: IO[bytes]):
+        """Write the content of a file to dst_path
+
+       :param dst_path: Path relative to the output graph directory
+       :param file: A file-like object open in read mode
+       """
+        dst_path = Path(dst_path)
+        self._write_file(dst_path, file)
+        self._add_cfg_node(dst_path)
 
     def add_node_from_zip(
         self,
@@ -247,11 +259,15 @@ class GraphDirectoryEditor:
                     self._extract_file(info, Path(new_name), zf)
         else:
             self._extract_file(zf.getinfo(_zip_name(src_path)), dst_path, zf)
-        if self._cfg and str(dst_path) != "graph.yml":
-            try:
-                self._cfg.add_node(_zip_name(dst_path)).write()
-            except ValueError:
-                pass  # node already exists, leave it unchanged
+        self._add_cfg_node(dst_path)
+
+    def _add_cfg_node(self, dst_path: Path):
+        if not self._cfg or str(dst_path) == "graph.yml":
+            return
+        try:
+            self._cfg.add_node(_zip_name(dst_path)).write()
+        except ValueError:
+            pass  # node already exists, leave it unchanged
 
     def _extract_file(self, member: ZipInfo, dst_path: Path, zf: ZipFile):
         full_dst_path = self.dir / dst_path
@@ -264,14 +280,24 @@ class GraphDirectoryEditor:
             zf.extract(member, self.dir)
         else:
             with zf.open(member, "r") as f:
-                new_content = io.TextIOWrapper(f).read()
-            old_content = full_dst_path.read_text()
-            if new_content != old_content:
-                raise FileOverwriteError(
-                    full_dst_path,
-                    f"Cannot extract {dst_path}: would overwrite existing file",
-                )
-            full_dst_path.write_text(new_content)
+                self._write_file(dst_path, f)
+
+    def _write_file(self, dst_path: Path, file: IO[bytes]):
+        full_dst_path = self.dir / dst_path
+        new_content = io.TextIOWrapper(file).read()
+
+        if not self.overwrite:
+            try:
+                old_content = full_dst_path.read_text()
+            except FileNotFoundError:
+                pass
+            else:
+                if new_content != old_content:
+                    raise FileOverwriteError(
+                        full_dst_path,
+                        f"Cannot extract {dst_path}: would overwrite existing file",
+                    )
+        full_dst_path.write_text(new_content)
 
 
 class FileOverwriteError(Exception):
