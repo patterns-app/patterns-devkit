@@ -152,7 +152,7 @@ class Endpoints:
 
     @classmethod
     def graph_version_download(cls, graph_version_uid: str) -> str:
-        return f"api/graph_versions/{graph_version_uid}/zip"
+        return f"api/graph_versions/{graph_version_uid}/zip/"
 
     @classmethod
     def graph_by_name(cls, organization_uid: str, name: str) -> str:
