@@ -171,14 +171,14 @@ class _GraphBuilder:
         inputs = [
             input_defs_by_name[i].copy(update={"name": i})
             for i in exposed_inputs
-                     or [v for d in mapping.inputs.values() for v in d.values()]
+            or [v for d in mapping.inputs.values() for v in d.values()]
             if i in input_defs_by_name  # may be missing in broken graphs
         ]
         parameters = [
             mapping.parameters[p][0]
             for p in exposed_params or mapping.parameters.keys()
             if p in mapping.parameters
-                     and mapping.parameters[p]  # may be missing in broken graphs
+            and mapping.parameters[p]  # may be missing in broken graphs
         ]
         return NodeInterface(
             inputs=inputs, outputs=outputs, parameters=parameters, state=None
@@ -196,11 +196,7 @@ class _GraphBuilder:
         connected_exposed_inputs = set()
         for node in nodes:
             for i in node.interface.inputs:
-                try:
-                    inputs = mapping.inputs[node.id]
-                    name = inputs[i.name]
-                except Exception as e:
-                    raise e
+                name = mapping.inputs[node.id][i.name]
                 if name in mapping.outputs:
                     (src, o) = mapping.outputs[name]
                     self._set_edge(
