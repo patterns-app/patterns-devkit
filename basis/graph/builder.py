@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 import functools
 from dataclasses import dataclass
-from itertools import chain
 from pathlib import Path
 from typing import List, Tuple, Dict, Set, Optional, Union
 
@@ -122,10 +121,11 @@ class _GraphBuilder:
         mapping = _Mapping({}, {}, {})
 
         # step 1: parse all the interfaces
-        nodes = [
-            self._parse_node_entry(node, node_dir, parent, mapping)
-            for node in (config.nodes or [])
-        ]
+        nodes: List[ConfiguredNode] = []
+        for node in config.nodes or []:
+            parsed = self._parse_node_entry(node, node_dir, parent, mapping)
+            nodes.append(parsed)
+            self.nodes_by_id[parsed.id] = parsed
 
         # step 2: set local edges
         def get_exposed(attr: str) -> Optional[List[str]]:
@@ -144,8 +144,6 @@ class _GraphBuilder:
             parent, mapping, exposed_outputs
         )
 
-        self.nodes_by_id.update({node.id: node for node in nodes})
-
         interface = self._build_graph_interface(
             nodes, mapping, exposed_inputs, exposed_outputs, exposed_params
         )
@@ -163,7 +161,8 @@ class _GraphBuilder:
         input_defs_by_name = {
             mapping.inputs[n.id][i.name]: i for n in nodes for i in n.interface.inputs
         }
-        # Copy the graph port definitions from the originating node, changing the name to the exposed name
+        # Copy the graph port definitions from the originating node, changing the name
+        # to the exposed name
         outputs = [
             mapping.outputs[o][1].copy(update={"name": o})
             for o in exposed_outputs or mapping.outputs.keys()
@@ -172,14 +171,14 @@ class _GraphBuilder:
         inputs = [
             input_defs_by_name[i].copy(update={"name": i})
             for i in exposed_inputs
-            or [v for d in mapping.inputs.values() for v in d.values()]
+                     or [v for d in mapping.inputs.values() for v in d.values()]
             if i in input_defs_by_name  # may be missing in broken graphs
         ]
         parameters = [
             mapping.parameters[p][0]
             for p in exposed_params or mapping.parameters.keys()
             if p in mapping.parameters
-            and mapping.parameters[p]  # may be missing in broken graphs
+                     and mapping.parameters[p]  # may be missing in broken graphs
         ]
         return NodeInterface(
             inputs=inputs, outputs=outputs, parameters=parameters, state=None
@@ -197,7 +196,11 @@ class _GraphBuilder:
         connected_exposed_inputs = set()
         for node in nodes:
             for i in node.interface.inputs:
-                name = mapping.inputs[node.id][i.name]
+                try:
+                    inputs = mapping.inputs[node.id]
+                    name = inputs[i.name]
+                except Exception as e:
+                    raise e
                 if name in mapping.outputs:
                     (src, o) = mapping.outputs[name]
                     self._set_edge(
@@ -424,7 +427,17 @@ class _GraphBuilder:
             raise ValueError(f"Must specify 'node_file' or 'webhook' for all nodes")
 
         if interface.node_id in self.nodes_by_id:
-            raise ValueError(f"Duplicate node id: {interface.node_id}")
+            existing = self.nodes_by_id[interface.node_id]
+            existing_path = existing.file_path_to_node_script_relative_to_root
+            if existing.name == interface.node_name:
+                s = f"name '{existing.name}'"
+            else:
+                s = f"id '{existing.id}'"
+
+            raise ValueError(
+                f"Duplicate node {s} for nodes {existing_path} "
+                f"and {interface.relative_node_path}"
+            )
 
         configured_node = ConfiguredNode(
             name=interface.node_name,
