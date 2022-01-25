@@ -46,12 +46,27 @@ class TestOutputTable:
     def create_table(self, records):
         self.records = records
 
+    def write_records(self, records, replace=False):
+        if replace:
+            self.create_table(records)
+        else:
+            if self.records is None:
+                self.records = []
+            self.records.extend(records)
+
+    def write_dataframe(self, dataframe, replace=False):
+        records = dataframe.to_dict("records")
+        self.write_records(records, replace=replace)
+
 
 class TestOutputStream:
     def __init__(self, **kwargs):
         self.records = []
         for k, v in kwargs.items():
             setattr(self, k, v)
+
+    def stream_record(self, record):
+        self.records.append(record)
 
     def append_record(self, record):
         self.records.append(record)
