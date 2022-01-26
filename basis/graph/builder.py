@@ -266,11 +266,15 @@ class _GraphBuilder:
     def _check_edge(
         self, dst_id: NodeId, name: str, src_t: PortType, dst_t: PortType,
     ):
-        if src_t != dst_t:
-            self._err(
-                dst_id,
-                f"Cannot connect {name}: input is a {dst_t}, but output is a {src_t}",
-            )
+        if src_t == dst_t:
+            return
+        node_name = self.nodes_by_id[dst_id].name
+        self._err(
+            dst_id,
+            f"Cannot connect {name} to {node_name}: "
+            f"{node_name} expects an Input{dst_t.title()}, "
+            f"but {name} is an Output{src_t.title()}",
+        )
 
     # record all the output name mappings in this node's config
     def _track_outputs(
