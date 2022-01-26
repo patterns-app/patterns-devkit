@@ -225,7 +225,7 @@ class GraphDirectoryEditor:
         self,
         src_path: Union[Path, str],
         dst_path: Union[Path, str],
-        zf: Union[ZipFile, Path],
+        zf: Union[ZipFile, Path, IO[bytes]],
     ) -> GraphDirectoryEditor:
         """Copy the node or subgraph located at src_path in zipfile to dst_path
 

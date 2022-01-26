@@ -2,8 +2,9 @@ from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
+
 from basis.configuration.path import NodeId
-from basis.graph.builder import graph_manifest_from_yaml, GraphManifest, GraphError
+from basis.graph.builder import graph_manifest_from_yaml, GraphError
 from basis.graph.configured_node import CURRENT_MANIFEST_SCHEMA_VERSION, NodeType
 from tests.graph.utils import (
     p,
@@ -820,5 +821,23 @@ def test_err_invalid_chart_entry(tmp_path: Path):
                         chart_input: input
                         schedule: error
                 """,
+            },
+        )
+
+
+def test_err_duplicate_name(tmp_path: Path):
+    with pytest.raises(ValueError):
+        setup_manifest(
+            tmp_path,
+            {
+                "graph.yml": """
+                    nodes:
+                      - node_file: a.py
+                        name: dupe
+                      - node_file: b.py
+                        name: dupe
+                """,
+                "a.py": "t=OutputTable",
+                "b.py": "t=InputTable",
             },
         )

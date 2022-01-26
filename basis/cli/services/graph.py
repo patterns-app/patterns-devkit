@@ -44,13 +44,19 @@ def find_graph_file(path: Optional[Path], prompt: bool = True) -> Path:
         path = Path(os.getcwd())
     path = path.absolute()
 
+    found = None
+
     for _ in range(100):
-        p = path / "graph.yml"
-        if p.is_file():
-            return p
         if not path or path == path.parent:
             break
+        p = path / "graph.yml"
+        if p.is_file():
+            found = p
+        elif found:
+            break
         path = path.parent
+    if found:
+        return found
 
     if prompt:
         resp = prompt_path("Enter the path to the graph yaml file", exists=True)
