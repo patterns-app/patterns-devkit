@@ -47,14 +47,18 @@ def prompt_path(
     return p
 
 
-def prompt_str(
-    message: str,
-    default: str = None,
-    password: bool = False,
-    choices: typing.List[str] = None,
+def prompt_str(message: str, default: str = None, password: bool = False,) -> str:
+    return rich.prompt.Prompt.ask(message, default=default, password=password)
+
+
+def prompt_choices(
+    choice_message: str, prompt_message: str, choices: typing.Iterable[str],
 ) -> str:
+    sprint(f"[info]{choice_message}:")
+    for c in choices:
+        sprint(f"    [info]{c}")
     return rich.prompt.Prompt.ask(
-        message, default=default, password=password, choices=choices
+        prompt_message, choices=list(choices), show_choices=False,
     )
 
 
@@ -87,5 +91,7 @@ def abort_on_error(message: str, prefix=": ", suffix=""):
         abort(f"{message}{prefix}{details}{suffix}")
     except (typer.Exit, typer.Abort) as e:
         raise e
+    except KeyError as e:
+        abort(f"{message}{prefix}KeyError: {e}{suffix}")
     except Exception as e:
         abort(f"{message}{prefix}{e}{suffix}")

@@ -21,7 +21,7 @@ from basis.cli.services.organizations import (
     get_organization_by_name,
     paginated_organizations,
 )
-from basis.cli.services.output import prompt_str
+from basis.cli.services.output import prompt_str, sprint, prompt_choices
 from basis.configuration.base import load_yaml
 from basis.graph.builder import graph_manifest_from_yaml
 from basis.graph.configured_node import GraphManifest
@@ -51,8 +51,10 @@ class IdLookup:
             org = organizations[0]
             update_local_basis_config(organization_id=org["uid"])
         else:
-            org_name = prompt_str(
-                "Select an organization", choices=list(orgs_by_name.keys())
+            org_name = prompt_choices(
+                "Available organizations",
+                "Select an organization",
+                choices=orgs_by_name.keys(),
             )
             org = orgs_by_name[org_name]
         self.organization_name = org["name"]
@@ -74,8 +76,10 @@ class IdLookup:
             update_local_basis_config(environment_id=uid)
             return uid
 
-        env_name = prompt_str(
-            "Select an environment", choices=list(envs_by_name.keys())
+        env_name = prompt_choices(
+            "Available environments",
+            "Select an environment",
+            choices=envs_by_name.keys(),
         )
         return envs_by_name[env_name]["uid"]
 
