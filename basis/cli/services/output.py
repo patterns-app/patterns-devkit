@@ -8,6 +8,9 @@ from requests import HTTPError
 from rich.console import Console
 from rich.theme import Theme
 
+"""Set to True to raise exceptions from cli commands rather than printing the message"""
+DEBUG = False
+
 console = Console(
     theme=(
         Theme(
@@ -69,6 +72,9 @@ def abort(message: str) -> typing.NoReturn:
 @contextlib.contextmanager
 def abort_on_error(message: str, prefix=": ", suffix=""):
     """Catch any exceptions that occur and call `abort` with their message"""
+    if DEBUG:
+        yield
+        return
     try:
         yield
     except HTTPError as e:
