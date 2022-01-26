@@ -1,5 +1,6 @@
 from typing import List, Optional
 
+import click
 import typer
 from click import Group, Context, HelpFormatter, MultiCommand, Command
 
@@ -13,11 +14,19 @@ from .commands.manifest import manifest
 from .commands.pull import pull, clone
 from .commands.trigger import trigger
 from .commands.upload import upload
+from ..cli.services import output
 
 
 class _Command(Group):
     def __init__(self):
-        super().__init__(name="basis", no_args_is_help=True)
+        def debug_cb(ctx, p, v):
+            if v:
+                output.DEBUG = True
+
+        debug_opt = click.Option(
+            ["--stacktrace"], hidden=True, is_flag=True, callback=debug_cb
+        )
+        super().__init__(name="basis", no_args_is_help=True, params=[debug_opt])
 
     def add_typer_fn(self, fn, **kw):
         if isinstance(fn, typer.Typer):
