@@ -619,7 +619,10 @@ def test_err_stream_to_table(tmp_path: Path):
         n("source"),
         n(
             "sink",
-            errors=["Cannot connect erport: input is a table, but output is a stream"],
+            errors=[
+                "Cannot connect erport to sink: sink expects an InputTable, "
+                "but erport is an OutputStream"
+            ],
         ),
     )
 
@@ -642,7 +645,10 @@ def test_err_table_to_stream(tmp_path: Path):
         n("source"),
         n(
             "sink",
-            errors=["Cannot connect erport: input is a stream, but output is a table"],
+            errors=[
+                "Cannot connect erport to sink: sink expects an InputStream, "
+                "but erport is an OutputTable"
+            ],
         ),
     )
 
