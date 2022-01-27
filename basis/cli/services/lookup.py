@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from basis.cli.config import (
     read_local_basis_config,
     CliConfig,
@@ -23,6 +25,7 @@ from basis.cli.services.organizations import (
 )
 from basis.cli.services.output import prompt_str, sprint, prompt_choices
 from basis.configuration.base import load_yaml
+from basis.configuration.graph import GraphDefinitionCfg
 from basis.graph.builder import graph_manifest_from_yaml
 from basis.graph.configured_node import GraphManifest
 
@@ -102,19 +105,16 @@ class IdLookup:
         err_msg = f"Node {node} is not part of the graph at {graph}"
 
         try:
-            node_path = node.absolute().relative_to(graph.parent)
+            gp = find_graph_file(node, prompt=False, nearest=True)
+            node_path = node.absolute().relative_to(gp.parent)
         except Exception as e:
             raise Exception(err_msg) from e
-        node_id = next(
-            (
-                n.id
-                for n in self.manifest.nodes
-                if Path(n.file_path_to_node_script_relative_to_root) == node_path
-            ),
-            None,
-        )
-        if node_id:
-            return node_id
+        cfg = GraphDefinitionCfg(**(load_yaml(gp) or {}))
+        for node in cfg.nodes:
+            if node.node_file == node_path:
+                if node.id:
+                    return node.id
+                raise Exception("Node is not deployed")
         raise Exception(err_msg)
 
     @cached_property
@@ -145,7 +145,3 @@ class IdLookup:
             vid = self.explicit_graph_version_id
             return get_graph_version_by_id(vid)["graph"]["name"]
         return from_yaml()
-
-    @cached_property
-    def manifest(self) -> GraphManifest:
-        return graph_manifest_from_yaml(self.graph_file_path)
