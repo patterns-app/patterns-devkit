@@ -58,7 +58,7 @@ class NodeCfg(FrozenPydanticBase):
 
     # Available to all
     name: str = None
-    id: constr(to_lower=True, regex=r"[a-zA-Z234567]{8}") = None
+    id: constr(to_lower=True, regex=r"[a-zA-Z0-9]+") = None
     description: str = None
 
     @pydantic.validator("webhook")

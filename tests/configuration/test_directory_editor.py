@@ -137,6 +137,42 @@ def test_add_single_file(tmp_path: Path):
     }
 
 
+def test_add_missing_node_ids(tmp_path: Path):
+    before = {
+        "graph.yml": """
+        nodes:
+          - node_file: s.sql
+          - node_file: sub/graph.yml
+        """,
+        "s.sql": "foo",
+        "sub/graph.yml": """
+        nodes:
+          - node_file: s.sql
+        """,
+        "sub/s.sql": "foo",
+    }
+    after = {
+        "graph.yml": """
+        nodes:
+          - node_file: s.sql
+            id: <id>
+          - node_file: sub/graph.yml
+            id: <id>
+        """,
+        "s.sql": "foo",
+        "sub/graph.yml": """
+        nodes:
+          - node_file: s.sql
+            id: <id>
+        """,
+        "sub/s.sql": "foo",
+    }
+    setup_manifest(tmp_path, before)
+    editor = GraphDirectoryEditor(tmp_path, overwrite=True)
+    editor.add_missing_node_ids()
+    assert_files(tmp_path, after)
+
+
 def do_add_zip_test(
     tmp_path: Path,
     before: Dict[str, str],

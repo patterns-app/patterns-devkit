@@ -10,7 +10,6 @@ from .commands.deploy import deploy
 from .commands.list import list_command
 from .commands.login import login
 from .commands.logout import logout
-from .commands.manifest import manifest
 from .commands.pull import pull, clone
 from .commands.trigger import trigger
 from .commands.upload import upload
@@ -83,9 +82,6 @@ for command in (
     clone,
 ):
     app.add_typer_fn(command)
-
-# don't show manifest command in help
-app.add_typer_fn(manifest, hidden=True)
 
 
 def main():

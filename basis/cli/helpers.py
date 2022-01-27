@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+import secrets
+import string
 import subprocess
 import zipfile
 from io import BytesIO
@@ -44,3 +46,10 @@ def compress_directory(path: Path) -> BytesIO:
     io.seek(0)
     io.name = "graph_manifest.zip"
     return io
+
+
+_alphabet = string.digits + string.ascii_lowercase
+
+
+def random_node_id() -> str:
+    return "".join(secrets.choice(_alphabet) for _ in range(8))

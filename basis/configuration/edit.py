@@ -1,19 +1,20 @@
 from __future__ import annotations
 
+import functools
 import io
 import re
 from io import StringIO
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union, IO
+from typing import List, Dict, Any, Optional, Union, IO, Iterator, Callable
 from zipfile import ZipFile, ZipInfo
 
 import ruyaml
 
-from basis.cli.helpers import compress_directory
+from basis.cli.helpers import compress_directory, random_node_id
 from basis.cli.services.graph import resolve_graph_path
 from basis.configuration.graph import NodeCfg, ExposingCfg, GraphDefinitionCfg
 from basis.configuration.path import NodeId
-from basis.graph.builder import _GraphBuilder, graph_manifest_from_yaml
+from basis.graph.builder import graph_manifest_from_yaml
 from basis.graph.configured_node import GraphManifest
 
 MISSING = object()
@@ -72,25 +73,6 @@ class GraphConfigEditor:
         """Parse the data to a GraphDefinitionCfg without writing it to disk"""
         return GraphDefinitionCfg(**self._cfg)
 
-    def parse_to_manifest(self) -> GraphManifest:
-        """Parse the data to a GraphManifest without writing it to disk"""
-        parse_to_cfg = self.parse_to_cfg
-        path_to_graph_yml = self._path_to_graph_yml
-
-        class MemBuilder(_GraphBuilder):
-            def _read_graph_yml(self, path: Path) -> GraphDefinitionCfg:
-                if path_to_graph_yml and path != path_to_graph_yml:
-                    return super()._read_graph_yml(path)
-                if path != self.root_graph_location:
-                    raise NotImplementedError("Cannot construct subgraphs in-memory")
-                return parse_to_cfg()
-
-        if path_to_graph_yml:
-            p = path_to_graph_yml
-        else:
-            p = Path(self.get_name() or "graph") / "graph.yml"
-        return MemBuilder(p).build()
-
     def set_name(self, name: str) -> GraphConfigEditor:
         self._cfg["name"] = name
         return self
@@ -134,6 +116,25 @@ class GraphConfigEditor:
         if "nodes" not in self._cfg:
             self._cfg["nodes"] = []
         self._cfg["nodes"].append(d)
+        return self
+
+    def remove_node_with_id(
+        self, node_id: str, default_id: Callable[[dict], str] = lambda _: {}
+    ) -> GraphConfigEditor:
+        """Remove node entry with a given id value
+
+        Raise a KeyError if no such nodes exist
+        You can pass a default_id function that returns ids for node entries that don't
+        have them defined.
+        """
+        for i, node in enumerate(self._nodes()):
+            id = node["id"] if "id" in node else default_id(node)
+            if id == node_id:
+                del self._cfg["nodes"][i]
+                break
+        else:
+            raise KeyError(node_id)
+
         return self
 
     def add_node(
@@ -182,6 +183,23 @@ class GraphConfigEditor:
         )
         return self
 
+    def add_missing_node_ids(self) -> GraphConfigEditor:
+        """Add a random id to any node entry that doesn't specify one"""
+        for node in self._nodes():
+            if "id" not in node:
+                node["id"] = random_node_id()
+        return self
+
+    def _nodes(self) -> Iterator[dict]:
+        nodes = self._cfg.get("nodes")
+        if not isinstance(nodes, list):
+            return
+
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            yield node
+
 
 class GraphDirectoryEditor:
     def __init__(self, graph_path: Path, overwrite: bool = False):
@@ -197,9 +215,16 @@ class GraphDirectoryEditor:
         self.dir = self.yml_path.parent
         self.overwrite = overwrite
         if self.yml_path.is_file():
-            self._cfg = GraphConfigEditor(self.yml_path)
+            self._cfg = self._editor(self.yml_path)
         else:
             self._cfg = None
+
+    def graph_name(self) -> str:
+        """Return the name of the graph"""
+        name = None
+        if self._cfg:
+            name = self._cfg.get_name()
+        return name or self.yml_path.parent.name
 
     def compress_directory(self) -> io.BytesIO:
         """Return an in-memory zip file containing the compressed graph directory"""
@@ -242,6 +267,16 @@ class GraphDirectoryEditor:
                 self._add(src_path, dst_path, f)
         return self
 
+    def add_missing_node_ids(self) -> GraphDirectoryEditor:
+        """Add a random id to any node entry that doesn't specify one
+
+        This will update all graph.yml files in the directory
+        """
+        for editor in self._graph_editors():
+            editor.add_missing_node_ids()
+            editor.write()
+        return self
+
     def _add(self, src_path: Path, dst_path: Path, zf: ZipFile):
         if src_path.name == "graph.yml":
 
@@ -255,7 +290,7 @@ class GraphDirectoryEditor:
 
             for info in zf.infolist():
                 if info.filename.startswith(src_dir) and not info.is_dir():
-                    new_name = dst_dir + info.filename[len(src_dir) :]
+                    new_name = dst_dir + info.filename[len(src_dir):]
                     self._extract_file(info, Path(new_name), zf)
         else:
             self._extract_file(zf.getinfo(_zip_name(src_path)), dst_path, zf)
@@ -298,6 +333,14 @@ class GraphDirectoryEditor:
                         f"Cannot extract {dst_path}: would overwrite existing file",
                     )
         full_dst_path.write_text(new_content)
+
+    def _graph_editors(self) -> Iterator[GraphConfigEditor]:
+        for p in self.dir.rglob('graph.yml'):
+            yield self._editor(p)
+
+    @functools.lru_cache(maxsize=None)
+    def _editor(self, yaml_path: Path) -> GraphConfigEditor:
+        return GraphConfigEditor(yaml_path)
 
 
 class FileOverwriteError(Exception):
