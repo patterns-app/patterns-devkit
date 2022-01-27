@@ -17,7 +17,6 @@ from basis.cli.services.list import (
 )
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import sprint, abort_on_error
-from basis.graph.configured_node import NodeType
 
 
 class Listable(str, Enum):

@@ -1,11 +1,11 @@
 from pathlib import Path
 
 from basis.cli.services.lookup import IdLookup
-from tests.graph.utils import setup_manifest
+from tests.configuration.utils import setup_graph_files
 
 
 def test_find_graph_from_node(tmp_path: Path):
-    setup_manifest(
+    setup_graph_files(
         tmp_path,
         {
             "graph.yml": """

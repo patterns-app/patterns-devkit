@@ -13,9 +13,6 @@ import ruyaml
 from basis.cli.helpers import compress_directory, random_node_id
 from basis.cli.services.graph import resolve_graph_path
 from basis.configuration.graph import NodeCfg, ExposingCfg, GraphDefinitionCfg
-from basis.configuration.path import NodeId
-from basis.graph.builder import graph_manifest_from_yaml
-from basis.graph.configured_node import GraphManifest
 
 MISSING = object()
 
@@ -149,7 +146,7 @@ class GraphConfigEditor:
         description: str = None,
     ) -> GraphConfigEditor:
         if id is MISSING:
-            id = NodeId.random()
+            id = random_node_id()
         self.add_node_cfg(
             NodeCfg(
                 node_file=node_file,
@@ -172,7 +169,7 @@ class GraphConfigEditor:
         description: str = None,
     ) -> GraphConfigEditor:
         if id is MISSING:
-            id = NodeId.random()
+            id = random_node_id()
         self.add_node_cfg(
             NodeCfg(
                 webhook=webhook,
@@ -217,7 +214,7 @@ class GraphDirectoryEditor:
         if self.yml_path.is_file():
             self._cfg = self._editor(self.yml_path)
         else:
-            self._cfg = None
+            self._cfg: Optional[GraphConfigEditor] = None
 
     def graph_name(self) -> str:
         """Return the name of the graph"""
@@ -229,12 +226,6 @@ class GraphDirectoryEditor:
     def compress_directory(self) -> io.BytesIO:
         """Return an in-memory zip file containing the compressed graph directory"""
         return compress_directory(self.dir)
-
-    def build_manifest(self, allow_errors: bool = False) -> GraphManifest:
-        """Build a graph manifest from the graph directory"""
-        if self._cfg:
-            self._cfg.write()
-        return graph_manifest_from_yaml(self.yml_path, allow_errors=allow_errors)
 
     def add_node_from_file(self, dst_path: Union[Path, str], file: IO[bytes]):
         """Write the content of a file to dst_path
@@ -290,7 +281,7 @@ class GraphDirectoryEditor:
 
             for info in zf.infolist():
                 if info.filename.startswith(src_dir) and not info.is_dir():
-                    new_name = dst_dir + info.filename[len(src_dir):]
+                    new_name = dst_dir + info.filename[len(src_dir) :]
                     self._extract_file(info, Path(new_name), zf)
         else:
             self._extract_file(zf.getinfo(_zip_name(src_path)), dst_path, zf)
@@ -335,7 +326,7 @@ class GraphDirectoryEditor:
         full_dst_path.write_text(new_content)
 
     def _graph_editors(self) -> Iterator[GraphConfigEditor]:
-        for p in self.dir.rglob('graph.yml'):
+        for p in self.dir.rglob("graph.yml"):
             yield self._editor(p)
 
     @functools.lru_cache(maxsize=None)

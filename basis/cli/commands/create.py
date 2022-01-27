@@ -6,16 +6,15 @@ from zipfile import ZipFile
 import typer
 from typer import Option, Argument
 
+from basis.cli.helpers import random_node_id
 from basis.cli.services.graph import resolve_graph_path
 from basis.cli.services.list import graph_components_all
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import abort, prompt_path, abort_on_error
 from basis.cli.services.output import sprint
-from basis.cli.services.paths import is_relative_to
 from basis.cli.services.pull import download_graph_zip
 from basis.configuration.edit import GraphConfigEditor
 from basis.configuration.edit import GraphDirectoryEditor
-from basis.configuration.path import NodeId
 
 create = typer.Typer(name="create", help="Create a graph new or node")
 
@@ -81,7 +80,7 @@ def node(
     with abort_on_error("Adding node failed"):
         editor = GraphConfigEditor(ids.graph_file_path)
         editor.add_node(
-            name=node_name, node_file=node_file, id=str(NodeId.random()),
+            name=node_name, node_file=node_file, id=str(random_node_id()),
         )
 
     # Write to disk last to avoid partial updates
@@ -151,7 +150,7 @@ def webhook(
 
     with abort_on_error("Adding webhook failed"):
         editor = GraphConfigEditor(ids.graph_file_path)
-        editor.add_webhook(name, id=NodeId.random())
+        editor.add_webhook(name, id=random_node_id())
         editor.write()
 
     sprint(f"\n[success]Created webhook [b]{name}")

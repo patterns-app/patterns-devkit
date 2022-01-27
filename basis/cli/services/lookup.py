@@ -2,8 +2,6 @@ from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 
-from pydantic import ValidationError
-
 from basis.cli.config import (
     read_local_basis_config,
     CliConfig,
@@ -23,11 +21,9 @@ from basis.cli.services.organizations import (
     get_organization_by_name,
     paginated_organizations,
 )
-from basis.cli.services.output import prompt_str, sprint, prompt_choices
+from basis.cli.services.output import prompt_choices
 from basis.configuration.base import load_yaml
 from basis.configuration.graph import GraphDefinitionCfg
-from basis.graph.builder import graph_manifest_from_yaml
-from basis.graph.configured_node import GraphManifest
 
 
 @dataclass
