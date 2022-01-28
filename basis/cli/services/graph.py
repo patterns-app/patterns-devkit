@@ -36,8 +36,16 @@ def resolve_graph_path(
     return graph_path
 
 
-def find_graph_file(path: Optional[Path], prompt: bool = True) -> Path:
-    """Walk up a directory tree looking for a graph"""
+def find_graph_file(
+    path: Optional[Path], prompt: bool = True, nearest: bool = False
+) -> Path:
+    """Walk up a directory tree looking for a graph
+
+    :param path: The location to start the search
+    :param prompt: If True, ask the user to enter a path if it can't be found
+    :param nearest: If False, keep walking up until there's not graph.yml in the parent
+                    directory. If True, stop as soon as one if found.
+    """
     if path and path.is_file():
         return resolve_graph_path(path, exists=True)
     if not path:
@@ -52,6 +60,8 @@ def find_graph_file(path: Optional[Path], prompt: bool = True) -> Path:
         p = path / "graph.yml"
         if p.is_file():
             found = p
+            if nearest:
+                break
         elif found:
             break
         path = path.parent

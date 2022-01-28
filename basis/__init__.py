@@ -1,5 +1,3 @@
-__version__ = "0.1.0"
-
 from .node.node import (
     node,
     InputTable,

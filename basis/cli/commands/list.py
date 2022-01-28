@@ -17,7 +17,6 @@ from basis.cli.services.list import (
 )
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import sprint, abort_on_error
-from basis.graph.configured_node import NodeType
 
 
 class Listable(str, Enum):
@@ -127,17 +126,6 @@ def webhooks(
     )
     with abort_on_error("Could not get webhook data"):
         data = list(paginated_webhook_urls(ids.environment_id, ids.graph_id))
-
-    # Add node names to output
-    node_names_by_id = {n.id: n.name for n in ids.manifest.nodes}
-    for d in data:
-        d["name"] = node_names_by_id.get(d.get("node_id"), "")
-
-    # URLs only exist for deployed webhooks, so add rows for undeployed nodes
-    data_node_ids = {d.get("node_id") for d in data}
-    for node in ids.manifest.nodes:
-        if node.node_type == NodeType.Webhook and str(node.id) not in data_node_ids:
-            data.append({"name": node.name, "node_id": node.id, "webhook_url": ""})
 
     _print_objects(data, print_json, headers=["name", "node_id", "webhook_url"])
 

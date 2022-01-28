@@ -8,7 +8,6 @@ from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import sprint, abort_on_error, abort
 from basis.cli.services.upload import upload_graph_version
 from basis.configuration.edit import GraphConfigEditor
-from basis.graph.configured_node import NodeType
 
 _graph_help = "The location of the graph.yml file for the graph to upload"
 _deploy_help = "Whether or not to automatically deploy the graph after upload"
@@ -43,13 +42,9 @@ def upload(
     # validate component path before upload
     if component_path:
         with abort_on_error("Error creating component"):
-            relative_node_path = component_path.absolute().relative_to(
-                ids.graph_file_path.parent
-            )
-            node = ids.manifest.get_node_with_file_path(relative_node_path)
             if (
-                node.node_type == NodeType.Graph
-                and GraphConfigEditor(component_path).parse_to_cfg().exposes is None
+                component_path.name == "graph.yml"
+                and not GraphConfigEditor(component_path).parse_to_cfg().exposes
             ):
                 abort(
                     "Must declare exposed inputs and outputs for subgraph components\n"
@@ -71,6 +66,9 @@ def upload(
         with abort_on_error("Error creating component"):
             if not component_name:
                 abort("Must specify --component-name when uploading components")
+            relative_node_path = component_path.absolute().relative_to(
+                ids.graph_file_path.parent
+            )
             rel_path = "/".join(relative_node_path.parts)
             resp = create_graph_component(
                 component_name, rel_path, graph_version_id, component_description

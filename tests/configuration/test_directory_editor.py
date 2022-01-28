@@ -8,7 +8,7 @@ from typing import Dict
 import pytest
 
 from basis.configuration.edit import GraphDirectoryEditor, FileOverwriteError
-from tests.graph.utils import setup_manifest
+from tests.configuration.utils import setup_graph_files
 
 
 def test_add_new_node(tmp_path: Path):
@@ -125,16 +125,47 @@ def test_add_single_file(tmp_path: Path):
         "s.sql": "foo",
         "new.sql": "bar",
     }
-    setup_manifest(tmp_path, before)
+    setup_graph_files(tmp_path, before)
     editor = GraphDirectoryEditor(tmp_path, overwrite=False)
     content = "bar"
     editor.add_node_from_file("new.sql", io.BytesIO(content.encode()))
     assert_files(tmp_path, after)
-    manifest = editor.build_manifest()
-    assert {n.file_path_to_node_script_relative_to_root for n in manifest.nodes} == {
-        "s.sql",
-        "new.sql",
+
+
+def test_add_missing_node_ids(tmp_path: Path):
+    before = {
+        "graph.yml": """
+        nodes:
+          - node_file: s.sql
+          - node_file: sub/graph.yml
+        """,
+        "s.sql": "foo",
+        "sub/graph.yml": """
+        nodes:
+          - node_file: s.sql
+        """,
+        "sub/s.sql": "foo",
     }
+    after = {
+        "graph.yml": """
+        nodes:
+          - node_file: s.sql
+            id: <id>
+          - node_file: sub/graph.yml
+            id: <id>
+        """,
+        "s.sql": "foo",
+        "sub/graph.yml": """
+        nodes:
+          - node_file: s.sql
+            id: <id>
+        """,
+        "sub/s.sql": "foo",
+    }
+    setup_graph_files(tmp_path, before)
+    editor = GraphDirectoryEditor(tmp_path, overwrite=True)
+    editor.add_missing_node_ids()
+    assert_files(tmp_path, after)
 
 
 def do_add_zip_test(
@@ -147,7 +178,7 @@ def do_add_zip_test(
     overwrite: bool = False,
 ):
     if before:
-        setup_manifest(tmp_path, before)
+        setup_graph_files(tmp_path, before)
     editor = GraphDirectoryEditor(tmp_path, overwrite=overwrite)
     with create_zip(zip) as z:
         editor.add_node_from_zip(src, dst, z)

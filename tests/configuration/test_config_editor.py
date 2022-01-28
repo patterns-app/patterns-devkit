@@ -3,15 +3,6 @@ import textwrap
 from pathlib import Path
 
 from basis.configuration.edit import GraphConfigEditor
-from basis.configuration.graph import ExposingCfg, GraphDefinitionCfg, NodeCfg
-from basis.configuration.path import NodeId
-from basis.graph.configured_node import (
-    GraphManifest,
-    CURRENT_MANIFEST_SCHEMA_VERSION,
-    ConfiguredNode,
-    NodeType,
-)
-from tests.graph.utils import setup_manifest
 
 
 def test_round_trip(tmp_path: Path):
@@ -116,52 +107,50 @@ def test_add_node_with_all_fields(tmp_path: Path):
     ).assert_dump(after)
 
 
-def test_parsing():
-    b = GraphConfigEditor(None, read=False)
-    b.set_name("test")
-    b.add_webhook("hook", id=None)
-    manifest = b.parse_to_manifest()
+def test_remove_nodes(tmp_path: Path):
+    before = """
+    nodes:
+      - node_file: a.py
+        name: a1
+      - node_file: b.py
+        name: b
+      - node_file: a.py
+        name: a2
+    """
+    after = """
+    nodes:
+      - node_file: a.py
+        name: a1
+      - node_file: b.py
+        name: b
+    """
+    get_editor(tmp_path, before).remove_node_with_id(
+        "a2", lambda n: n["name"]
+    ).assert_dump(after)
 
-    assert manifest.graph_name == "test"
-    assert manifest.errors == []
-    assert len(manifest.nodes) == 1
-    assert manifest.nodes[0].name == "hook"
-    assert manifest.nodes[0].node_type == NodeType.Webhook
 
-    exposes = ExposingCfg(outputs=["hook"])
-    b.set_exposing_cfg(exposes)
-    cfg = b.parse_to_cfg()
-    assert cfg == GraphDefinitionCfg(
-        name="test", exposes=exposes, nodes=[NodeCfg(webhook="hook")]
-    )
-
-
-def test_parsing_with_subgraph(tmp_path: Path):
-    setup_manifest(
-        tmp_path,
-        {
-            "graph.yml": """
-                name: foo
-                nodes:
-                  - node_file: sub/graph.yml
-            """,
-            "sub/graph.yml": """
-                exposes:
-                  outputs:
-                    - sub_out
-                nodes:
-                  - webhook: sub_out
-            """,
-        },
-    )
-    path = tmp_path / "graph.yml"
-    before = path.read_text()
-    b = GraphConfigEditor(path)
-    b.set_name("bar")
-    m = b.parse_to_manifest()
-    assert m.graph_name == "bar"
-    assert len(m.nodes) == 2
-    assert path.read_text() == before
+def test_add_missing_node_ids(tmp_path: Path):
+    before = """
+    nodes:
+      - node_file: a.py
+        name: a
+      - node_file: b.py
+        id: foo
+      - node_file: c.py
+    """
+    after = """
+    nodes:
+      - node_file: a.py
+        name: a
+        id: <id>
+      - node_file: b.py
+        id: <id>
+      - node_file: c.py
+        id: <id>
+    """
+    editor = get_editor(tmp_path, before).add_missing_node_ids()
+    dump = editor.assert_dump(after)
+    assert "id: foo" in dump
 
 
 def get_editor(tmp_path: Path, s: str) -> "_EditorTester":
@@ -172,9 +161,10 @@ def get_editor(tmp_path: Path, s: str) -> "_EditorTester":
 
 
 class _EditorTester(GraphConfigEditor):
-    def assert_dump(self, s: str):
+    def assert_dump(self, s: str) -> str:
         s = textwrap.dedent(s).strip()
         dump = self.dump().strip()
         if "<id>" in s:
             dump = re.sub(r"id: \w+", "id: <id>", dump)
         assert dump == s
+        return self.dump().strip()

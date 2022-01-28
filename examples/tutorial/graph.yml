@@ -1,7 +1,0 @@
-name: tutorial
-nodes:
-- node_file: transactions.py
-- id: dskoetzz
-  name: staging_transactions
-  node_file: staging_transactions.sql
-- node_file: monthly_revenue.sql

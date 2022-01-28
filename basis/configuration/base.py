@@ -28,12 +28,6 @@ class ImproperlyConfigured(Exception):
 F = TypeVar("F", bound=FrozenPydanticBase)
 
 
-def update(o: F, **kwargs) -> F:
-    d = o.dict()
-    d.update(**kwargs)
-    return type(o)(**d)
-
-
 def load_yaml(yml: str | Path) -> dict:
     if isinstance(yml, Path):
         yml = str(yml)
