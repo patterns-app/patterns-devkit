@@ -32,13 +32,19 @@ def _mixin_attrs():
 # class will recursively produce more classes and never an actual instance, but that fine for how we're using them.
 class _InputMeta(type, _NodeInterfaceEntry):
     def __new__(
-        mcs, description: str = None, schema: str = None, required: bool = True,
+        mcs,
+        description: str = None,
+        schema: str = None,
+        required: bool = True,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
     def __init__(
-        cls, description: str = None, schema: str = None, required: bool = True,
+        cls,
+        description: str = None,
+        schema: str = None,
+        required: bool = True,
     ):
         cls.description = description
         cls.schema = schema
@@ -47,13 +53,17 @@ class _InputMeta(type, _NodeInterfaceEntry):
 
 class _OutputMeta(type, _NodeInterfaceEntry):
     def __new__(
-        mcs, description: str = None, schema: str = None,
+        mcs,
+        description: str = None,
+        schema: str = None,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
     def __init__(
-        cls, description: str = None, schema: str = None,
+        cls,
+        description: str = None,
+        schema: str = None,
     ):
         cls.description = description
         cls.schema = schema
@@ -61,13 +71,19 @@ class _OutputMeta(type, _NodeInterfaceEntry):
 
 class _ParameterMeta(type, _NodeInterfaceEntry):
     def __new__(
-        mcs, description: str = None, type: str = None, default: Any = None,
+        mcs,
+        description: str = None,
+        type: str = None,
+        default: Any = None,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
     def __init__(
-        cls, description: str = None, type: str = None, default: Any = None,
+        cls,
+        description: str = None,
+        type: str = None,
+        default: Any = None,
     ):
         cls.description = description
         cls.type = type
@@ -110,8 +126,16 @@ def node(function: Callable):
     sig = inspect.signature(function)
 
     args = []
-    for (name, param) in sig.parameters.items():
+    params = list(sig.parameters.items())
+    if not params:
+        raise TypeError(f"Node must declare an input or output")
+    for (name, param) in params:
         value = param.default
+        if param.kind == param.VAR_KEYWORD:
+            # This is an escape hatch for dynamic/configurable port names, currently required
+            # for the special webhook node type (**kwargs: OutputStream).
+            # Not problematic if user happens to specify their own **kwargs, it has no effect.
+            continue
         if value is inspect.Parameter.empty:
             raise TypeError(f"{name} must have a type (e.g. {name}=InputTable)")
 
