@@ -25,9 +25,6 @@ class ImproperlyConfigured(Exception):
     pass
 
 
-F = TypeVar("F", bound=FrozenPydanticBase)
-
-
 def load_yaml(yml: str | Path) -> dict:
     if isinstance(yml, Path):
         yml = str(yml)

@@ -43,7 +43,7 @@ def find_graph_file(
 
     :param path: The location to start the search
     :param prompt: If True, ask the user to enter a path if it can't be found
-    :param nearest: If False, keep walking up until there's not graph.yml in the parent
+    :param nearest: If False, keep walking up until there's no graph.yml in the parent
                     directory. If True, stop as soon as one if found.
     """
     if path and path.is_file():

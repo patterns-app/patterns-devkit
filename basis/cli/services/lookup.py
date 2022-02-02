@@ -101,13 +101,12 @@ class IdLookup:
         err_msg = f"Node {node} is not part of the graph at {graph}"
 
         try:
-            gp = find_graph_file(node, prompt=False, nearest=True)
-            node_path = node.absolute().relative_to(gp.parent)
+            node_path = node.absolute().relative_to(graph.parent)
         except Exception as e:
             raise Exception(err_msg) from e
-        cfg = GraphDefinitionCfg(**(load_yaml(gp) or {}))
+        cfg = GraphDefinitionCfg(**(load_yaml(graph) or {}))
         for node in cfg.nodes:
-            if node.node_file == node_path:
+            if node.node_file == node_path.as_posix():
                 if node.id:
                     return node.id
                 raise Exception("Node is not deployed")
