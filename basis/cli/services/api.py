@@ -18,6 +18,7 @@ API_BASE_URL = (
 AUTH_TOKEN_ENV_VAR = "BASIS_AUTH_TOKEN"
 AUTH_TOKEN_PREFIX = "JWT"
 
+PUBLIC_API_BASE_URL = "api/v0"
 
 def _get_api_session() -> Session:
     s = requests.Session()
@@ -122,62 +123,62 @@ class Endpoints:
     TOKEN_CREATE = "auth/jwt/create/"
     TOKEN_VERIFY = "auth/jwt/verify/"
     TOKEN_REFRESH = "auth/jwt/refresh/"
-    DEPLOYMENTS_DEPLOY = "api/deployments/"
-    DEPLOYMENTS_TRIGGER_NODE = "api/deployments/triggers/"
-    ENVIRONMENTS_CREATE = "api/environments/"
-    ORGANIZATIONS_LIST = "api/organizations/"
-    EXECUTION_EVENTS = "api/nodes/execution_events/"
-    OUTPUT_DATA = "api/nodes/output_block_data/latest/"
-    WEBHOOKS = "api/webhooks/"
-    COMPONENTS_USER = "api/marketplace/components/user/"
-    COMPONENTS_ADMIN = "api/marketplace/components/admin/"
-    COMPONENTS_REGULAR = "api/marketplace/components/regular/"
-    COMPONENTS_CREATE = "api/marketplace/components/"
+    DEPLOYMENTS_DEPLOY = f"{PUBLIC_API_BASE_URL}/deployments/"
+    DEPLOYMENTS_TRIGGER_NODE = f"{PUBLIC_API_BASE_URL}/deployments/triggers/"
+    ENVIRONMENTS_CREATE = f"{PUBLIC_API_BASE_URL}/environments/"
+    ORGANIZATIONS_LIST = f"{PUBLIC_API_BASE_URL}/organizations/"
+    EXECUTION_EVENTS = f"{PUBLIC_API_BASE_URL}/nodes/execution_events/"
+    OUTPUT_DATA = f"{PUBLIC_API_BASE_URL}/nodes/output_block_data/latest/"
+    WEBHOOKS = f"{PUBLIC_API_BASE_URL}/webhooks/"
+    COMPONENTS_USER = f"{PUBLIC_API_BASE_URL}/marketplace/components/user/"
+    COMPONENTS_ADMIN = f"{PUBLIC_API_BASE_URL}/marketplace/components/admin/"
+    COMPONENTS_REGULAR = f"{PUBLIC_API_BASE_URL}/marketplace/components/regular/"
+    COMPONENTS_CREATE = f"{PUBLIC_API_BASE_URL}/marketplace/components/"
 
     @classmethod
     def organization_by_name(cls, name: str) -> str:
-        return f"api/organizations/name/{name}/"
+        return f"{PUBLIC_API_BASE_URL}/organizations/name/{name}/"
 
     @classmethod
     def organization_by_id(cls, organization_uid: str) -> str:
-        return f"api/organizations/{organization_uid}/"
+        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/"
 
     @classmethod
     def graphs_list(cls, organization_uid: str) -> str:
-        return f"api/organizations/{organization_uid}/graphs/"
+        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/graphs/"
 
     @classmethod
     def graphs_latest(cls, graph_uid: str) -> str:
-        return f"api/graphs/{graph_uid}/latest/"
+        return f"{PUBLIC_API_BASE_URL}/graphs/{graph_uid}/latest/"
 
     @classmethod
     def graph_version_download(cls, graph_version_uid: str) -> str:
-        return f"api/graph_versions/{graph_version_uid}/zip/"
+        return f"{PUBLIC_API_BASE_URL}/graph_versions/{graph_version_uid}/zip/"
 
     @classmethod
     def graph_by_name(cls, organization_uid: str, name: str) -> str:
-        return f"api/organizations/{organization_uid}/graphs/name/{name}/"
+        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/graphs/name/{name}/"
 
     @classmethod
     def graph_by_id(cls, graph_uid: str) -> str:
-        return f"api/graphs/{graph_uid}/"
+        return f"{PUBLIC_API_BASE_URL}/graphs/{graph_uid}/"
 
     @classmethod
     def graph_version_by_id(cls, graph_version_uid: str) -> str:
-        return f"api/graph_versions/{graph_version_uid}/"
+        return f"{PUBLIC_API_BASE_URL}/graph_versions/{graph_version_uid}/"
 
     @classmethod
     def graph_version_create(cls, organization_uid: str) -> str:
-        return f"api/organizations/{organization_uid}/graph_versions/"
+        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/graph_versions/"
 
     @classmethod
     def environments_list(cls, organization_uid: str) -> str:
-        return f"api/organizations/{organization_uid}/environments/"
+        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/environments/"
 
     @classmethod
     def environment_by_name(cls, organization_uid: str, name: str) -> str:
-        return f"api/organizations/{organization_uid}/environments/name/{name}/"
+        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/environments/name/{name}/"
 
     @classmethod
     def environment_by_id(cls, environment_uid: str) -> str:
-        return f"api/environments/{environment_uid}/"
+        return f"{PUBLIC_API_BASE_URL}/environments/{environment_uid}/"
