@@ -7,6 +7,7 @@ from basis.cli.services.graph_components import create_graph_component
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import sprint, abort_on_error, abort
 from basis.cli.services.upload import upload_graph_version
+from basis.configuration.base import load_yaml
 from basis.configuration.edit import GraphConfigEditor
 
 _graph_help = "The location of the graph.yml file for the graph to upload"
@@ -42,9 +43,8 @@ def upload(
     # validate component path before upload
     if component_path:
         with abort_on_error("Error creating component"):
-            if (
-                component_path.name == "graph.yml"
-                and not GraphConfigEditor(component_path).parse_to_cfg().exposes
+            if component_path.name == "graph.yml" and not load_yaml(component_path).get(
+                "exposes"
             ):
                 abort(
                     "Must declare exposed inputs and outputs for subgraph components\n"
