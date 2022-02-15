@@ -69,11 +69,9 @@ def node(
     if location.exists():
         abort(f"Cannot create node: {location} already exists")
 
-    ids = IdLookup(node_file_path=location)
-    graph_dir = ids.graph_file_path.parent
-
+    ids = IdLookup(node_file_path=location, find_nearest_graph=True)
     # Update the graph yaml
-    node_file = "/".join(location.absolute().relative_to(graph_dir).parts)
+    node_file = "/".join(location.absolute().relative_to(ids.graph_directory).parts)
     node_name = name or (
         location.parent.name if location.name == "graph.yml" else location.stem
     )
