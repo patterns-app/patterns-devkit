@@ -43,11 +43,11 @@ class GraphConfigEditor:
                 text = f.read()
             self._cfg = self._yaml.load(text) or {}
             # ruyaml doesn't provide a way to preserve indentation,
-            # so pick a value that matches the first list item we see
-            if m := re.search(r"^( *)-", text, re.MULTILINE):
-                indent = len(m.group(1)) + 2
-            else:
-                indent = 4
+            # so pick a value that matches the least-indented list item we see.
+            indent = min(
+                (len(m.group(1)) for m in re.finditer(r"^( *)-", text, re.MULTILINE)),
+                default=2,
+            ) + 2  # ruyaml's indent number includes the length  of "- " for some reason
         else:
             self._cfg = {}
             indent = 4
@@ -281,7 +281,7 @@ class GraphDirectoryEditor:
 
             for info in zf.infolist():
                 if info.filename.startswith(src_dir) and not info.is_dir():
-                    new_name = dst_dir + info.filename[len(src_dir) :]
+                    new_name = dst_dir + info.filename[len(src_dir):]
                     self._extract_file(info, Path(new_name), zf)
         else:
             self._extract_file(zf.getinfo(_zip_name(src_path)), dst_path, zf)

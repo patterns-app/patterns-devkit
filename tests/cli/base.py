@@ -15,7 +15,7 @@ from basis.cli.services.api import API_BASE_URL, Endpoints
 
 
 def run_cli(argv: str, input: str = None, **kwargs) -> click.testing.Result:
-    args = shlex.split(argv.replace("\\", "/"))
+    args = ["--stacktrace"] + shlex.split(argv.replace("\\", "/"))
     runner = click.testing.CliRunner()
     result = runner.invoke(app, args, input, catch_exceptions=False, **kwargs)
     print(result.output)
