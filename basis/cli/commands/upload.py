@@ -67,7 +67,7 @@ def upload(
             if not component_name:
                 abort("Must specify --component-name when uploading components")
             relative_node_path = component_path.absolute().relative_to(
-                ids.graph_file_path.parent
+                ids.graph_directory
             )
             rel_path = "/".join(relative_node_path.parts)
             resp = create_graph_component(

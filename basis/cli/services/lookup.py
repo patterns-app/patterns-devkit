@@ -37,6 +37,7 @@ class IdLookup:
     explicit_graph_version_id: str = None
     ignore_local_cfg: bool = False
     explicit_graph_name: str = None
+    find_nearest_graph: bool = False
 
     @cached_property
     def organization_id(self) -> str:
@@ -117,8 +118,16 @@ class IdLookup:
         if self.explicit_graph_path:
             return resolve_graph_path(self.explicit_graph_path, exists=True)
         if self.node_file_path:
-            return find_graph_file(self.node_file_path.parent, prompt=False)
-        return find_graph_file(path=None, prompt=True)
+            return find_graph_file(
+                self.node_file_path.parent,
+                prompt=False,
+                nearest=self.find_nearest_graph,
+            )
+        return find_graph_file(path=None, prompt=True, nearest=self.find_nearest_graph)
+
+    @cached_property
+    def graph_directory(self) -> Path:
+        return self.graph_file_path.parent
 
     @cached_property
     def cfg(self) -> CliConfig:

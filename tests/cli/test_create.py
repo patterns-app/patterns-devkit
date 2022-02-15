@@ -36,6 +36,10 @@ def test_create_subgraph(tmp_path: Path):
     assert name in (dr / "graph.yml").read_text()
     assert "sub" in path.read_text()
 
+    name = (dr / "sub/p.py").as_posix()
+    run_cli(f"create node", f"{name}\n")
+    assert "node_file: p.py" in (dr / "sub/graph.yml").read_text()
+
 
 def test_create_node_explicit(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent / "graph"

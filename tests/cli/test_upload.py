@@ -6,8 +6,26 @@ from tests.cli.base import request_mocker, set_tmp_dir, run_cli
 
 def test_upload(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent
-    path = "/".join((dr / "name").parts)
-    run_cli(f"create graph {path}")
+    path = dr / "name"
+    path.mkdir()
+    graph_file = path / "graph.yml"
+    text_before = """
+name: name
+exposes:
+  outputs:
+    - output
+nodes:
+  - node_file: p.py
+""".lstrip()
+    graph_file.write_text(text_before)
+    (path / "p.py").write_text(
+        """
+from basis import *
+@node
+def node_fn(output=OutputTable):
+    pass
+"""
+    )
 
     with request_mocker() as m:
         for e in [
@@ -26,6 +44,10 @@ def test_upload(tmp_path: Path):
         result = run_cli(f"upload --no-deploy {path}")
         assert "Uploaded new graph" in result.output
         assert "Graph deployed" not in result.output
+
+    text_after = graph_file.read_text()
+    assert text_after[: len(text_before)] == text_before
+    assert "id: " in text_after
 
 
 def test_upload_component(tmp_path: Path):

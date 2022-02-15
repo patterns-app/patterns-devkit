@@ -43,11 +43,12 @@ class GraphConfigEditor:
                 text = f.read()
             self._cfg = self._yaml.load(text) or {}
             # ruyaml doesn't provide a way to preserve indentation,
-            # so pick a value that matches the first list item we see
-            if m := re.search(r"^( *)-", text, re.MULTILINE):
-                indent = len(m.group(1)) + 2
-            else:
-                indent = 4
+            # so pick a value that matches the least-indented list item we see.
+            matches = (
+                len(m.group(1)) for m in re.finditer(r"^( *)-", text, re.MULTILINE)
+            )
+            # ruyaml's indent number includes the length  of "- " for some reason
+            indent = min(matches, default=2) + 2
         else:
             self._cfg = {}
             indent = 4
