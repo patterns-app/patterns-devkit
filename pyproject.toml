@@ -6,7 +6,7 @@ name = "basis-devkit"
 packages = [
   {include = "basis"},
 ]
-version = "0.1.4"
+version = "0.1.5"
 
 [tool.poetry.dependencies]
 pandas = "^1"
