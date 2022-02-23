@@ -110,7 +110,7 @@ class IdLookup:
             if node.node_file == node_path.as_posix():
                 if node.id:
                     return node.id
-                raise Exception("Node is not deployed")
+                raise Exception("Node does not have an id. Run `basis upload` first.")
         raise Exception(err_msg)
 
     @cached_property
@@ -130,6 +130,10 @@ class IdLookup:
         return self.graph_file_path.parent
 
     @cached_property
+    def root_graph_file(self) -> Path:
+        return find_graph_file(self.graph_directory, nearest=False)
+
+    @cached_property
     def cfg(self) -> CliConfig:
         if self.ignore_local_cfg:
             return CliConfig()
@@ -138,8 +142,8 @@ class IdLookup:
     @cached_property
     def graph_name(self) -> str:
         def from_yaml():
-            yaml = load_yaml(self.graph_file_path)
-            return yaml.get("name", self.graph_file_path.parent.name)
+            yaml = load_yaml(self.root_graph_file)
+            return yaml.get("name", self.root_graph_file.parent.name)
 
         if self.explicit_graph_name:
             return self.explicit_graph_name
