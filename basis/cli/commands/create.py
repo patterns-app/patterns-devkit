@@ -8,7 +8,7 @@ from typer import Option, Argument
 
 from basis.cli.helpers import random_node_id
 from basis.cli.services.graph import resolve_graph_path
-from basis.cli.services.list import graph_components_all
+from basis.cli.services.list import paginated_graph_components
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import abort, prompt_path, abort_on_error
 from basis.cli.services.output import sprint
@@ -45,13 +45,13 @@ def graph(
 
 
 _graph_help = "The graph to add this node to"
-_name_help = "The name of the node. The location will be used as a name by default"
+_title_help = "The title of the node. The location will be used as a title by default"
 _component_help = "The name of component to use to create this node"
 
 
 @create.command()
 def node(
-    name: str = Option("", "--name", "-n", help=_name_help),
+    title: str = Option("", "--title", "-n", help=_name_help),
     component: str = Option("", "-c", "--component", help=_component_help),
     location: Path = Argument(None),
 ):
@@ -59,6 +59,17 @@ def node(
 
     basis create node --name='My Node' mynode.py
     """
+    if component and location:
+        abort("Specify either a component or a node location, not both")
+
+    if component:
+        ids = IdLookup(find_nearest_graph=True)
+        GraphConfigEditor(ids.graph_file_path).add_component_uses(
+            component_key=component
+        ).write()
+        sprint(f"[success]Added component {component} to graph")
+        return
+
     if not location:
         sprint("[info]Nodes can be python files like [code]ingest.py")
         sprint("[info]Nodes can be sql files like [code]aggregate.sql")
@@ -72,60 +83,28 @@ def node(
     ids = IdLookup(node_file_path=location, find_nearest_graph=True)
     # Update the graph yaml
     node_file = "/".join(location.absolute().relative_to(ids.graph_directory).parts)
-    node_name = name or (
+    node_title = title or (
         location.parent.name if location.name == "graph.yml" else location.stem
     )
     with abort_on_error("Adding node failed"):
         editor = GraphConfigEditor(ids.graph_file_path)
         editor.add_node(
-            title=node_name, node_file=node_file, id=str(random_node_id()),
+            title=node_title, node_file=node_file, id=str(random_node_id()),
         )
 
     # Write to disk last to avoid partial updates
-    if component:
-        with abort_on_error("Adding component failed"):
-            search = (r for r in graph_components_all() if r["name"] == component)
-            component_resp = next(search, None)
-            if not component_resp:
-                sprint(f"[error]No component named {component}")
-                sprint(
-                    f"[info]Run [b]basis list components[/b] "
-                    f"for a list of available components"
-                )
-                raise typer.Exit(1)
-
-            zip_src_path = component_resp["file_path"]
-            if zip_src_path.endswith("graph.yml") and location.name != "graph.yml":
-                sprint(f"[error]Component {component} is a subgraph")
-                norm = re.sub(r"\W", "_", component)
-                suggestion = f"{norm}/graph.yml"
-                sprint(
-                    f"\n[info]For subgraph components, you need to pass the "
-                    f"location of the graph.yml file to create"
-                )
-                sprint(
-                    f"[info]Try [code]basis create node "
-                    f"--component='{component}' {suggestion}"
-                )
-                raise typer.Exit(1)
-
-            b = io.BytesIO(download_graph_zip(component_resp["graph_version_uid"]))
-            dir_editor = GraphDirectoryEditor(ids.graph_file_path, overwrite=False)
-            with ZipFile(b, "r") as zf:
-                dir_editor.add_node_from_zip(zip_src_path, location, zf)
+    if location.suffix == ".py":
+        fun_name = re.sub(r"[^a-zA-Z0-9_]", "_", location.stem)
+        if re.match(r"\d", fun_name):
+            fun_name = f"node_{fun_name}"
+        location.write_text(_PY_FILE_TEMPLATE.format(fun_name))
+    elif location.suffix == ".sql":
+        location.write_text(_SQL_FILE_TEMPLATE)
+    elif location.name == "graph.yml":
+        location.parent.mkdir(exist_ok=True, parents=True)
+        GraphConfigEditor(location, read=False).set_name(node_title).write()
     else:
-        if location.suffix == ".py":
-            fun_name = re.sub(r"[^a-zA-Z0-9_]", "_", location.stem)
-            if re.match(r"\d", fun_name):
-                fun_name = f"node_{fun_name}"
-            location.write_text(_PY_FILE_TEMPLATE.format(fun_name))
-        elif location.suffix == ".sql":
-            location.write_text(_SQL_FILE_TEMPLATE)
-        elif location.name == "graph.yml":
-            location.parent.mkdir(exist_ok=True, parents=True)
-            GraphConfigEditor(location, read=False).set_name(node_name).write()
-        else:
-            abort("Node file must be graph.yml or end in .py or .sql")
+        abort("Node file must be graph.yml or end in .py or .sql")
     editor.write()
 
     sprint(f"\n[success]Created node [b]{location}")

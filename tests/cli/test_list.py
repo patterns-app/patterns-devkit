@@ -10,8 +10,6 @@ def test_list(tmp_path: Path):
         for e in [
             Endpoints.environments_list("test-org-uid"),
             Endpoints.graphs_list("test-org-uid"),
-            Endpoints.COMPONENTS_REGULAR,
-            Endpoints.COMPONENTS_ADMIN,
         ]:
             m.get(
                 API_BASE_URL + e, json={"results": [{"name": "name"}], "next": None},
@@ -19,8 +17,6 @@ def test_list(tmp_path: Path):
         result = run_cli("list environments --json")
         assert "name" in result.output
         result = run_cli("list graphs --json")
-        assert "name" in result.output
-        result = run_cli("list components --json")
         assert "name" in result.output
 
 
@@ -79,3 +75,26 @@ def test_list_webhooks(tmp_path: Path):
         )
         result = run_cli(f"list webhooks --json {path}")
     assert name in result.output
+
+
+def test_list_components(tmp_path: Path):
+    set_tmp_dir(tmp_path)
+    with request_mocker() as m:
+        m.get(
+            API_BASE_URL + Endpoints.COMPONENTS_LIST,
+            json={
+                "results": [
+                    {
+                        "uid": "uid1",
+                        "latest_version": {
+                            "uid": "uid2",
+                            "version_names": ["gvuid"],
+                            "graph_version_uid": "gvuid",
+                        },
+                    }
+                ],
+                "next": None,
+            },
+        )
+        result = run_cli("list components --json")
+        assert "uid1" in result.output
