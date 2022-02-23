@@ -31,6 +31,7 @@ def trigger(
         explicit_graph_path=graph,
         node_file_path=node,
         explicit_graph_version_id=graph_version_id,
+        find_nearest_graph=True,
     )
     with abort_on_error("Error triggering node"):
         trigger_node(
