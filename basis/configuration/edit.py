@@ -12,7 +12,6 @@ import ruyaml
 
 from basis.cli.helpers import compress_directory, random_node_id
 from basis.cli.services.graph import resolve_graph_path
-from basis.configuration.graph import NodeCfg, ExposingCfg, GraphDefinitionCfg
 
 MISSING = object()
 
@@ -67,32 +66,15 @@ class GraphConfigEditor:
         self._yaml.dump(self._cfg, s)
         return s.getvalue()
 
-    def parse_to_cfg(self) -> GraphDefinitionCfg:
-        """Parse the data to a GraphDefinitionCfg without writing it to disk"""
-        return GraphDefinitionCfg(**self._cfg)
-
     def set_name(self, name: str) -> GraphConfigEditor:
-        self._cfg["name"] = name
+        self._cfg["title"] = name
         return self
 
     def get_name(self) -> Optional[str]:
-        return self._cfg.get("name")
+        return self._cfg.get("title")
 
-    def get_exposing_cfg(self) -> Optional[ExposingCfg]:
-        if "exposes" in self._cfg:
-            return ExposingCfg(**self._cfg["exposes"])
-        return None
-
-    def set_exposing_cfg(self, exposing: Optional[ExposingCfg]) -> GraphConfigEditor:
-        if exposing is None:
-            del self._cfg["exposes"]
-        else:
-            self._cfg["exposes"] = exposing.dict(exclude_none=True)
-        return self
-
-    def add_node_cfg(self, node: NodeCfg) -> GraphConfigEditor:
-        d = node.dict(exclude_none=True)
-
+    def add_node_dict(self, node: dict) -> GraphConfigEditor:
+        d = {k: v for (k, v) in node.items() if v is not None}
         for k in ("node_file", "id", "webhook"):
             if (
                 k in d
@@ -142,42 +124,75 @@ class GraphConfigEditor:
         inputs: List[str] = None,
         outputs: List[str] = None,
         parameters: Dict[str, Any] = None,
-        name: str = None,
+        title: str = None,
         id: Optional[str] = MISSING,
         description: str = None,
+        description_file: str = None,
     ) -> GraphConfigEditor:
         if id is MISSING:
             id = random_node_id()
-        self.add_node_cfg(
-            NodeCfg(
-                node_file=node_file,
-                schedule=schedule,
-                inputs=inputs,
-                outputs=outputs,
-                parameters=parameters,
-                name=name,
-                id=str(id) if id else id,
-                description=description,
-            )
+        self.add_node_dict(
+            {
+                "node_file": node_file,
+                "schedule": schedule,
+                "inputs": inputs,
+                "outputs": outputs,
+                "parameters": parameters,
+                "title": title,
+                "id": str(id) if id else id,
+                "description": description,
+                "description_file": description_file,
+            }
         )
         return self
 
     def add_webhook(
         self,
         webhook: str,
-        name: str = None,
+        title: str = None,
         id: Optional[str] = MISSING,
         description: str = None,
+        description_file: str = None,
     ) -> GraphConfigEditor:
         if id is MISSING:
             id = random_node_id()
-        self.add_node_cfg(
-            NodeCfg(
-                webhook=webhook,
-                name=name,
-                id=str(id) if id else id,
-                description=description,
-            )
+        self.add_node_dict(
+            {
+                "webhook": webhook,
+                "title": title,
+                "id": str(id) if id else id,
+                "description": description,
+                "description_file": description_file,
+            }
+        )
+        return self
+
+    def add_component_uses(
+        self,
+        component_key: str,
+        schedule: str = None,
+        inputs: List[str] = None,
+        outputs: List[str] = None,
+        parameters: Dict[str, Any] = None,
+        title: str = None,
+        id: Optional[str] = MISSING,
+        description: str = None,
+        description_file: str = None,
+    ) -> GraphConfigEditor:
+        if id is MISSING:
+            id = random_node_id()
+        self.add_node_dict(
+            {
+                "uses": component_key,
+                "schedule": schedule,
+                "inputs": inputs,
+                "outputs": outputs,
+                "parameters": parameters,
+                "title": title,
+                "id": str(id) if id else id,
+                "description": description,
+                "description_file": description_file,
+            }
         )
         return self
 

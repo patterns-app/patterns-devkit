@@ -7,7 +7,7 @@ from basis.configuration.edit import GraphConfigEditor
 
 def test_round_trip(tmp_path: Path):
     s = """
-    name: graph
+    title: graph
     nodes:
       - webhook: out # eol comment
       # node 1
@@ -45,10 +45,10 @@ def test_add_node_to_existing_nodes(tmp_path: Path):
 
 def test_add_node_to_empty_graph(tmp_path: Path):
     before = """
-    name: graph
+    title: graph
     """
     after = """
-    name: graph
+    title: graph
     nodes:
       - node_file: node.py
         id: <id>
@@ -58,13 +58,13 @@ def test_add_node_to_empty_graph(tmp_path: Path):
 
 def test_add_webhook_with_all_fields(tmp_path: Path):
     before = """
-    name: graph
+    title: graph
     """
     after = """
-    name: graph
+    title: graph
     nodes:
       - webhook: hook
-        name: n
+        title: n
         id: ab234567
         description: desc
     """
@@ -75,12 +75,12 @@ def test_add_webhook_with_all_fields(tmp_path: Path):
 
 def test_add_node_with_all_fields(tmp_path: Path):
     before = """
-    name: graph
+    title: graph
     nodes:
       - webhook: hook
     """
     after = """
-    name: graph
+    title: graph
     nodes:
       - webhook: hook
       - node_file: node.py
@@ -91,7 +91,7 @@ def test_add_node_with_all_fields(tmp_path: Path):
           - node_out -> my_table
         parameters:
           limit: 2
-        name: my node
+        title: my node
         id: ab234567
         description: desc
     """
@@ -101,7 +101,41 @@ def test_add_node_with_all_fields(tmp_path: Path):
         inputs=["hook -> node_in"],
         outputs=["node_out -> my_table"],
         parameters={"limit": 2},
-        name="my node",
+        title="my node",
+        id="ab234567",
+        description="desc",
+    ).assert_dump(after)
+
+
+def test_add_component_with_all_fields(tmp_path: Path):
+    before = """
+      title: graph
+      nodes:
+        - webhook: hook
+      """
+    after = """
+      title: graph
+      nodes:
+        - webhook: hook
+        - uses: org/component@v1
+          schedule: daily
+          inputs:
+            - hook -> node_in
+          outputs:
+            - node_out -> my_table
+          parameters:
+            limit: 2
+          title: my node
+          id: ab234567
+          description: desc
+      """
+    get_editor(tmp_path, before).add_component_uses(
+        "org/component@v1",
+        schedule="daily",
+        inputs=["hook -> node_in"],
+        outputs=["node_out -> my_table"],
+        parameters={"limit": 2},
+        title="my node",
         id="ab234567",
         description="desc",
     ).assert_dump(after)
@@ -111,21 +145,21 @@ def test_remove_nodes(tmp_path: Path):
     before = """
     nodes:
       - node_file: a.py
-        name: a1
+        title: a1
       - node_file: b.py
-        name: b
+        title: b
       - node_file: a.py
-        name: a2
+        title: a2
     """
     after = """
     nodes:
       - node_file: a.py
-        name: a1
+        title: a1
       - node_file: b.py
-        name: b
+        title: b
     """
     get_editor(tmp_path, before).remove_node_with_id(
-        "a2", lambda n: n["name"]
+        "a2", lambda n: n["title"]
     ).assert_dump(after)
 
 
@@ -133,7 +167,7 @@ def test_add_missing_node_ids(tmp_path: Path):
     before = """
     nodes:
       - node_file: a.py
-        name: a
+        title: a
       - node_file: b.py
         id: foo
       - node_file: c.py
@@ -141,7 +175,7 @@ def test_add_missing_node_ids(tmp_path: Path):
     after = """
     nodes:
       - node_file: a.py
-        name: a
+        title: a
         id: <id>
       - node_file: b.py
         id: <id>

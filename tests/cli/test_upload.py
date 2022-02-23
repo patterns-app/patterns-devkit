@@ -66,35 +66,15 @@ def test_upload_component(tmp_path: Path):
                 json={"uid": "1", "ui_url": "url.com", "graph": {"name": "g"}},
             )
         m.post(
-            API_BASE_URL + Endpoints.COMPONENTS_CREATE, json={"uid": "1", "name": "c"}
+            API_BASE_URL + Endpoints.COMPONENTS_CREATE,
+            json={
+                "uid": "2",
+                "version_names": ["v1", "v1.1"],
+                "component": {"uid": "3", "slug": "c"},
+                "organization": {"uid": "4", "slug": "o"},
+            },
         )
-        result = run_cli(
-            f"upload --component-path={path}/node.py --component-name=c {path}"
-        )
+        result = run_cli(f"upload --publish-component {path}")
         assert "Uploaded new graph" in result.output
         assert "Graph deployed" in result.output
         assert "Published graph component" in result.output
-
-
-def test_err_upload_subgraph_component_without_exposing(tmp_path: Path):
-    dr = set_tmp_dir(tmp_path).parent
-    path = "/".join((dr / "name").parts)
-    run_cli(f"create graph {path}")
-    run_cli(f"create node {path}/sub/graph.yml")
-    run_cli(f"create node {path}/sub/node.py")
-    (dr / "name/sub/node.py").write_text(
-        """
-from basis import *
-@node
-def node_fn(output=OutputTable):
-    pass
-    """
-    )
-
-    with request_mocker():
-        result = run_cli(
-            f"upload --component-path={path}/sub/graph.yml --component-name=c {path}"
-        )
-    assert result.exit_code == 1
-    assert "Uploaded new graph" not in result.output
-    assert "Must declare exposed inputs and outputs" in result.output

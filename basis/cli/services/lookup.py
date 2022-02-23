@@ -23,7 +23,6 @@ from basis.cli.services.organizations import (
 )
 from basis.cli.services.output import prompt_choices
 from basis.configuration.base import load_yaml
-from basis.configuration.graph import GraphDefinitionCfg
 
 
 @dataclass
@@ -105,11 +104,12 @@ class IdLookup:
             node_path = node.absolute().relative_to(graph.parent)
         except Exception as e:
             raise Exception(err_msg) from e
-        cfg = GraphDefinitionCfg(**(load_yaml(graph) or {}))
-        for node in cfg.nodes:
-            if node.node_file == node_path.as_posix():
-                if node.id:
-                    return node.id
+        cfg = load_yaml(graph) or {}
+        for node in cfg.get('nodes', []):
+            if node.get('node_file') == node_path.as_posix():
+                id = node.get('id')
+                if id:
+                    return id
                 raise Exception("Node does not have an id. Run `basis upload` first.")
         raise Exception(err_msg)
 

@@ -13,7 +13,7 @@ from basis.cli.services.list import (
     paginated_execution_events,
     paginated_graphs,
     paginated_webhook_urls,
-    graph_components_all,
+    paginated_graph_components,
 )
 from basis.cli.services.lookup import IdLookup
 from basis.cli.services.output import sprint, abort_on_error
@@ -134,7 +134,17 @@ def webhooks(
 def components(print_json: bool = Option(False, "--json", help=_json_help),):
     """List available graph components that you can add to your graphs"""
     with abort_on_error("Could not get components"):
-        data = list(graph_components_all())
+        data = list(paginated_graph_components())
+
+    # flatten the latest_version dict
+    for row in data:
+        version = row.pop("latest_version", {})
+        for k, v in version.items():
+            if isinstance(v, dict) and "slug" in v:
+                v = v["slug"]
+            if k not in row:
+                row[k] = v
+        row["version_names"].remove(row["graph_version_uid"])
 
     _print_objects(data, print_json)
 

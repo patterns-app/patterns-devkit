@@ -130,10 +130,8 @@ class Endpoints:
     EXECUTION_EVENTS = f"{PUBLIC_API_BASE_URL}/nodes/execution_events/"
     OUTPUT_DATA = f"{PUBLIC_API_BASE_URL}/nodes/output_block_data/latest/"
     WEBHOOKS = f"{PUBLIC_API_BASE_URL}/webhooks/"
-    COMPONENTS_USER = f"{PUBLIC_API_BASE_URL}/marketplace/components/user/"
-    COMPONENTS_ADMIN = f"{PUBLIC_API_BASE_URL}/marketplace/components/admin/"
-    COMPONENTS_REGULAR = f"{PUBLIC_API_BASE_URL}/marketplace/components/regular/"
-    COMPONENTS_CREATE = f"{PUBLIC_API_BASE_URL}/marketplace/components/"
+    COMPONENTS_LIST = f"{PUBLIC_API_BASE_URL}/marketplace/components/"
+    COMPONENTS_CREATE = f"{PUBLIC_API_BASE_URL}/marketplace/components/versions/"
 
     @classmethod
     def organization_by_name(cls, name: str) -> str:

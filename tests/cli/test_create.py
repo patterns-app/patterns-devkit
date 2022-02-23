@@ -66,3 +66,10 @@ def test_create_webhook(tmp_path: Path):
     run_cli("create graph", f"{dr}\n")
     run_cli(f"create webhook --graph={dr} hook")
     assert f"webhook: hook" in (dr / "graph.yml").read_text()
+
+
+def test_create_component(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent / "graph"
+    run_cli("create graph", f"{dr}\n")
+    run_cli(f"create node --component=foo/bar@v1", f"{dr}\n")
+    assert f"uses: foo/bar@v1" in (dr / "graph.yml").read_text()
