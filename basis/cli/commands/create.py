@@ -78,7 +78,7 @@ def node(
     with abort_on_error("Adding node failed"):
         editor = GraphConfigEditor(ids.graph_file_path)
         editor.add_node(
-            name=node_name, node_file=node_file, id=str(random_node_id()),
+            title=node_name, node_file=node_file, id=str(random_node_id()),
         )
 
     # Write to disk last to avoid partial updates

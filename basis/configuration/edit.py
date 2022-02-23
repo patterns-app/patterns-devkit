@@ -67,11 +67,11 @@ class GraphConfigEditor:
         return s.getvalue()
 
     def set_name(self, name: str) -> GraphConfigEditor:
-        self._cfg["name"] = name
+        self._cfg["title"] = name
         return self
 
     def get_name(self) -> Optional[str]:
-        return self._cfg.get("name")
+        return self._cfg.get("title")
 
     def add_node_dict(self, node: dict) -> GraphConfigEditor:
         d = {k: v for (k, v) in node.items() if v is not None}
@@ -124,9 +124,10 @@ class GraphConfigEditor:
         inputs: List[str] = None,
         outputs: List[str] = None,
         parameters: Dict[str, Any] = None,
-        name: str = None,
+        title: str = None,
         id: Optional[str] = MISSING,
         description: str = None,
+        description_file: str = None,
     ) -> GraphConfigEditor:
         if id is MISSING:
             id = random_node_id()
@@ -137,9 +138,10 @@ class GraphConfigEditor:
                 "inputs": inputs,
                 "outputs": outputs,
                 "parameters": parameters,
-                "name": name,
+                "title": title,
                 "id": str(id) if id else id,
                 "description": description,
+                "description_file": description_file,
             }
         )
         return self
@@ -147,18 +149,49 @@ class GraphConfigEditor:
     def add_webhook(
         self,
         webhook: str,
-        name: str = None,
+        title: str = None,
         id: Optional[str] = MISSING,
         description: str = None,
+        description_file: str = None,
     ) -> GraphConfigEditor:
         if id is MISSING:
             id = random_node_id()
         self.add_node_dict(
             {
                 "webhook": webhook,
-                "name": name,
+                "title": title,
                 "id": str(id) if id else id,
                 "description": description,
+                "description_file": description_file,
+            }
+        )
+        return self
+
+    def add_component_uses(
+        self,
+        component_key: str,
+        schedule: str = None,
+        inputs: List[str] = None,
+        outputs: List[str] = None,
+        parameters: Dict[str, Any] = None,
+        title: str = None,
+        id: Optional[str] = MISSING,
+        description: str = None,
+        description_file: str = None,
+    ) -> GraphConfigEditor:
+        if id is MISSING:
+            id = random_node_id()
+        self.add_node_dict(
+            {
+                "uses": component_key,
+                "schedule": schedule,
+                "inputs": inputs,
+                "outputs": outputs,
+                "parameters": parameters,
+                "title": title,
+                "id": str(id) if id else id,
+                "description": description,
+                "description_file": description_file,
             }
         )
         return self
