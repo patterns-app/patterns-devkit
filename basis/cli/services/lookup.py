@@ -105,9 +105,9 @@ class IdLookup:
         except Exception as e:
             raise Exception(err_msg) from e
         cfg = load_yaml(graph) or {}
-        for node in cfg.get('nodes', []):
-            if node.get('node_file') == node_path.as_posix():
-                id = node.get('id')
+        for node in cfg.get("nodes", []):
+            if node.get("node_file") == node_path.as_posix():
+                id = node.get("id")
                 if id:
                     return id
                 raise Exception("Node does not have an id. Run `basis upload` first.")

@@ -20,6 +20,7 @@ AUTH_TOKEN_PREFIX = "JWT"
 
 PUBLIC_API_BASE_URL = "api/v0"
 
+
 def _get_api_session() -> Session:
     s = requests.Session()
     auth_token = _get_auth_token()
