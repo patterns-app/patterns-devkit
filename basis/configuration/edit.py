@@ -70,7 +70,7 @@ class GraphConfigEditor:
         self._cfg["title"] = name
         return self
 
-    def get_name(self) -> Optional[str]:
+    def get_title(self) -> Optional[str]:
         return self._cfg.get("title")
 
     def add_node_dict(self, node: dict) -> GraphConfigEditor:
@@ -232,12 +232,16 @@ class GraphDirectoryEditor:
         else:
             self._cfg: Optional[GraphConfigEditor] = None
 
-    def graph_name(self) -> str:
-        """Return the name of the graph"""
-        name = None
+    def graph_title(self) -> Optional[str]:
+        """Return the title of the graph"""
         if self._cfg:
-            name = self._cfg.get_name()
-        return name or self.yml_path.parent.name
+            return self._cfg.get_title()
+        return None
+
+    def graph_slug(self) -> str:
+        """Return the graph name slug based on the graph directory name"""
+        name = self.yml_path.parent.name
+        return re.sub(r'[^a-zA-Z0-9]', '-', name)
 
     def compress_directory(self) -> io.BytesIO:
         """Return an in-memory zip file containing the compressed graph directory"""
