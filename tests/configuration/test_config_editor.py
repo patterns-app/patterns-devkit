@@ -8,34 +8,34 @@ from basis.configuration.edit import GraphConfigEditor
 def test_round_trip(tmp_path: Path):
     s = """
     title: graph
-    nodes:
+    functions:
       - webhook: out # eol comment
       # node 1
       - node_file: node_1.py
         inputs:
-          - out -> in
+          in: out
     """
     get_editor(tmp_path, s).assert_dump(s)
 
 
 def test_round_trip_no_indent(tmp_path: Path):
     s = """
-    nodes:
+    functions:
     - webhook: out # eol comment
     - node_file: node_1.py
       inputs:
-      - out -> in
+       in: out
     """
     get_editor(tmp_path, s).assert_dump(s)
 
 
 def test_add_node_to_existing_nodes(tmp_path: Path):
     before = """
-    nodes:
+    functions:
       - webhook: out # eol comment
     """
     after = """
-    nodes:
+    functions:
       - webhook: out # eol comment
       - node_file: node.py
         id: <id>
@@ -49,7 +49,7 @@ def test_add_node_to_empty_graph(tmp_path: Path):
     """
     after = """
     title: graph
-    nodes:
+    functions:
       - node_file: node.py
         id: <id>
     """
@@ -62,7 +62,7 @@ def test_add_webhook_with_all_fields(tmp_path: Path):
     """
     after = """
     title: graph
-    nodes:
+    functions:
       - webhook: hook
         title: n
         id: ab234567
@@ -73,22 +73,39 @@ def test_add_webhook_with_all_fields(tmp_path: Path):
     ).assert_dump(after)
 
 
+def test_add_store_with_all_fields(tmp_path: Path):
+    before = """
+    title: graph
+    """
+    after = """
+    title: graph
+    stores:
+      - stream: st
+        title: n
+        id: ab234567
+        schema: sc
+    """
+    get_editor(tmp_path, before).add_store(
+        "st", False, "n", "ab234567", "sc"
+    ).assert_dump(after)
+
+
 def test_add_node_with_all_fields(tmp_path: Path):
     before = """
     title: graph
-    nodes:
+    functions:
       - webhook: hook
     """
     after = """
     title: graph
-    nodes:
+    functions:
       - webhook: hook
       - node_file: node.py
         schedule: daily
         inputs:
-          - hook -> node_in
+          node_in: hook
         outputs:
-          - node_out -> my_table
+          node_out: my_table
         parameters:
           limit: 2
         title: my node
@@ -98,8 +115,8 @@ def test_add_node_with_all_fields(tmp_path: Path):
     get_editor(tmp_path, before).add_node(
         "node.py",
         schedule="daily",
-        inputs=["hook -> node_in"],
-        outputs=["node_out -> my_table"],
+        inputs={"node_in": "hook"},
+        outputs={"node_out": "my_table"},
         parameters={"limit": 2},
         title="my node",
         id="ab234567",
@@ -110,19 +127,19 @@ def test_add_node_with_all_fields(tmp_path: Path):
 def test_add_component_with_all_fields(tmp_path: Path):
     before = """
       title: graph
-      nodes:
+      functions:
         - webhook: hook
       """
     after = """
       title: graph
-      nodes:
+      functions:
         - webhook: hook
         - uses: org/component@v1
           schedule: daily
           inputs:
-            - hook -> node_in
+            node_in: hook
           outputs:
-            - node_out -> my_table
+            node_out: my_table
           parameters:
             limit: 2
           title: my node
@@ -132,8 +149,8 @@ def test_add_component_with_all_fields(tmp_path: Path):
     get_editor(tmp_path, before).add_component_uses(
         "org/component@v1",
         schedule="daily",
-        inputs=["hook -> node_in"],
-        outputs=["node_out -> my_table"],
+        inputs={"node_in": "hook"},
+        outputs={"node_out": "my_table"},
         parameters={"limit": 2},
         title="my node",
         id="ab234567",
@@ -143,7 +160,7 @@ def test_add_component_with_all_fields(tmp_path: Path):
 
 def test_remove_nodes(tmp_path: Path):
     before = """
-    nodes:
+    functions:
       - node_file: a.py
         title: a1
       - node_file: b.py
@@ -152,7 +169,7 @@ def test_remove_nodes(tmp_path: Path):
         title: a2
     """
     after = """
-    nodes:
+    functions:
       - node_file: a.py
         title: a1
       - node_file: b.py
@@ -165,7 +182,7 @@ def test_remove_nodes(tmp_path: Path):
 
 def test_add_missing_node_ids(tmp_path: Path):
     before = """
-    nodes:
+    functions:
       - node_file: a.py
         title: a
       - node_file: b.py
@@ -173,7 +190,7 @@ def test_add_missing_node_ids(tmp_path: Path):
       - node_file: c.py
     """
     after = """
-    nodes:
+    functions:
       - node_file: a.py
         title: a
         id: <id>
