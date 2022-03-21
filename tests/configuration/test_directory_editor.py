@@ -14,13 +14,13 @@ from tests.configuration.utils import setup_graph_files
 def test_add_new_node(tmp_path: Path):
     do_add_zip_test(
         tmp_path,
-        before={"graph.yml": "nodes: []"},
-        zip={"graph.yml": 'nodes: [{"node_file": "node.py"}]', "node.py": "foo"},
+        before={"graph.yml": "functions: []"},
+        zip={"graph.yml": 'functions: [{"node_file": "node.py"}]', "node.py": "foo"},
         src="node.py",
         dst="new.py",
         after={
             "graph.yml": """
-        nodes:
+        functions:
           - node_file: new.py
             id: <id>
         """,
@@ -32,11 +32,11 @@ def test_add_new_node(tmp_path: Path):
 def test_add_unchanged_node(tmp_path: Path):
     do_add_zip_test(
         tmp_path,
-        before={"graph.yml": 'nodes: [{"node_file": "old.sql"}]', "old.sql": "foo"},
-        zip={"graph.yml": 'nodes: [{"d/node_file": "node.sql"}]', "d/node.sql": "foo"},
+        before={"graph.yml": 'functions: [{"node_file": "old.sql"}]', "old.sql": "foo"},
+        zip={"graph.yml": 'functions: [{"d/node_file": "node.sql"}]', "d/node.sql": "foo"},
         src="d/node.sql",
         dst="old.sql",
-        after={"graph.yml": 'nodes: [{"node_file": "old.sql"}]', "old.sql": "foo"},
+        after={"graph.yml": 'functions: [{"node_file": "old.sql"}]', "old.sql": "foo"},
     )
 
 
@@ -44,8 +44,8 @@ def test_err_add_changed_node(tmp_path: Path):
     with pytest.raises(FileOverwriteError) as exc_info:
         do_add_zip_test(
             tmp_path,
-            before={"graph.yml": 'nodes: [{"node_file": "old.sql"}]', "old.sql": "foo"},
-            zip={"graph.yml": 'nodes: [{"node_file": "node.sql"}]', "node.sql": "bar"},
+            before={"graph.yml": 'functions: [{"node_file": "old.sql"}]', "old.sql": "foo"},
+            zip={"graph.yml": 'functions: [{"node_file": "node.sql"}]', "node.sql": "bar"},
             src="node.sql",
             dst="old.sql",
         )
@@ -55,11 +55,11 @@ def test_err_add_changed_node(tmp_path: Path):
 def test_overwrite_node(tmp_path: Path):
     do_add_zip_test(
         tmp_path,
-        before={"graph.yml": 'nodes: [{"node_file": "old.sql"}]', "old.sql": "foo"},
-        zip={"graph.yml": 'nodes: [{"node_file": "node.sql"}]', "node.sql": "bar"},
+        before={"graph.yml": 'functions: [{"node_file": "old.sql"}]', "old.sql": "foo"},
+        zip={"graph.yml": 'functions: [{"node_file": "node.sql"}]', "node.sql": "bar"},
         src="node.sql",
         dst="old.sql",
-        after={"graph.yml": 'nodes: [{"node_file": "old.sql"}]', "old.sql": "bar"},
+        after={"graph.yml": 'functions: [{"node_file": "old.sql"}]', "old.sql": "bar"},
         overwrite=True,
     )
 
@@ -68,10 +68,10 @@ def test_full_clone(tmp_path: Path):
     do_add_zip_test(
         tmp_path,
         before={},
-        zip={"graph.yml": 'nodes: [{"node_file": "node.sql"}]', "node.sql": "bar"},
+        zip={"graph.yml": 'functions: [{"node_file": "node.sql"}]', "node.sql": "bar"},
         src="graph.yml",
         dst="graph.yml",
-        after={"graph.yml": 'nodes: [{"node_file": "node.sql"}]', "node.sql": "bar"},
+        after={"graph.yml": 'functions: [{"node_file": "node.sql"}]', "node.sql": "bar"},
         overwrite=True,
     )
 
@@ -81,27 +81,27 @@ def test_add_subgraph(tmp_path: Path):
         tmp_path,
         before={
             "graph.yml": """
-            nodes:
+            functions:
               - node_file: s.sql
             """,
             "s.sql": "foo",
         },
         zip={
-            "graph.yml": 'nodes: [{"node_file": "sub/graph.yml"}]',
-            "sub/graph.yml": 'nodes: [{"node_file": "s.sql"}]',
+            "graph.yml": 'functions: [{"node_file": "sub/graph.yml"}]',
+            "sub/graph.yml": 'functions: [{"node_file": "s.sql"}]',
             "sub/s.sql": "bar",
         },
         src="sub/graph.yml",
         dst="new/graph.yml",
         after={
             "graph.yml": """
-            nodes:
+            functions:
               - node_file: s.sql
               - node_file: new/graph.yml
                 id: <id>
             """,
             "s.sql": "foo",
-            "new/graph.yml": 'nodes: [{"node_file": "s.sql"}]',
+            "new/graph.yml": 'functions: [{"node_file": "s.sql"}]',
             "new/s.sql": "bar",
         },
     )
@@ -110,14 +110,14 @@ def test_add_subgraph(tmp_path: Path):
 def test_add_single_file(tmp_path: Path):
     before = {
         "graph.yml": """
-        nodes:
+        functions:
           - node_file: s.sql
         """,
         "s.sql": "foo",
     }
     after = {
         "graph.yml": """
-         nodes:
+         functions:
            - node_file: s.sql
            - node_file: new.sql
              id: <id>
@@ -135,20 +135,20 @@ def test_add_single_file(tmp_path: Path):
 def test_add_missing_node_ids(tmp_path: Path):
     before = {
         "graph.yml": """
-        nodes:
+        functions:
           - node_file: s.sql
           - node_file: sub/graph.yml
         """,
         "s.sql": "foo",
         "sub/graph.yml": """
-        nodes:
+        functions:
           - node_file: s.sql
         """,
         "sub/s.sql": "foo",
     }
     after = {
         "graph.yml": """
-        nodes:
+        functions:
           - node_file: s.sql
             id: <id>
           - node_file: sub/graph.yml
@@ -156,7 +156,7 @@ def test_add_missing_node_ids(tmp_path: Path):
         """,
         "s.sql": "foo",
         "sub/graph.yml": """
-        nodes:
+        functions:
           - node_file: s.sql
             id: <id>
         """,

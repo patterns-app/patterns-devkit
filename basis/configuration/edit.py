@@ -73,29 +73,21 @@ class GraphConfigEditor:
     def get_title(self) -> Optional[str]:
         return self._cfg.get("title")
 
-    def add_node_dict(self, node: dict) -> GraphConfigEditor:
+    def add_function_node_dict(self, node: dict) -> GraphConfigEditor:
         d = {k: v for (k, v) in node.items() if v is not None}
         for k in ("node_file", "id", "webhook"):
             if (
                 k in d
                 and d[k]
-                and any(it.get(k) == d[k] for it in self._cfg.get("nodes", []))
+                and any(it.get(k) == d[k] for it in self._cfg.get("functions", []))
             ):
                 raise ValueError(
                     f"{k} '{d[k]}' already defined in the graph configuration"
                 )
 
-        # ruyaml refuses to dump anything that isn't a built-in type, even subclasses of
-        # them, so we have to map all the inputs and outputs to strings
-        for k in ("inputs", "outputs"):
-            p = d.get(k, None)
-            if p is None:
-                continue
-            d[k] = [str(v) for v in p]
-
-        if "nodes" not in self._cfg:
-            self._cfg["nodes"] = []
-        self._cfg["nodes"].append(d)
+        if "functions" not in self._cfg:
+            self._cfg["functions"] = []
+        self._cfg["functions"].append(d)
         return self
 
     def remove_node_with_id(
@@ -107,10 +99,10 @@ class GraphConfigEditor:
         You can pass a default_id function that returns ids for node entries that don't
         have them defined.
         """
-        for i, node in enumerate(self._nodes()):
+        for i, node in enumerate(self.function_nodes()):
             id = node["id"] if "id" in node else default_id(node)
             if id == node_id:
-                del self._cfg["nodes"][i]
+                del self._cfg["functions"][i]
                 break
         else:
             raise KeyError(node_id)
@@ -121,8 +113,8 @@ class GraphConfigEditor:
         self,
         node_file: str,
         schedule: str = None,
-        inputs: List[str] = None,
-        outputs: List[str] = None,
+        inputs: Dict[str, str] = None,
+        outputs: Dict[str, str] = None,
         parameters: Dict[str, Any] = None,
         title: str = None,
         id: Optional[str] = MISSING,
@@ -131,7 +123,7 @@ class GraphConfigEditor:
     ) -> GraphConfigEditor:
         if id is MISSING:
             id = random_node_id()
-        self.add_node_dict(
+        self.add_function_node_dict(
             {
                 "node_file": node_file,
                 "schedule": schedule,
@@ -146,6 +138,37 @@ class GraphConfigEditor:
         )
         return self
 
+    def add_store(
+        self,
+        name: str,
+        table: bool,
+        title: str = None,
+        id: Optional[str] = MISSING,
+        schema: str = None,
+    ):
+        if id is MISSING:
+            id = random_node_id()
+        d = {
+            "table" if table else "stream": name,
+            "title": title,
+            "id": str(id) if id else id,
+            "schema": schema,
+        }
+        d = {k: v for (k, v) in d.items() if v is not None}
+
+        for k in ("table", "stream", "id"):
+            if d.get(k) and any(
+                it.get(k) == d[k] for it in self._cfg.get("stores", [])
+            ):
+                raise ValueError(
+                    f"{k} '{d[k]}' already defined in the graph configuration"
+                )
+
+        if "stores" not in self._cfg:
+            self._cfg["stores"] = []
+        self._cfg["stores"].append(d)
+        return self
+
     def add_webhook(
         self,
         webhook: str,
@@ -156,7 +179,7 @@ class GraphConfigEditor:
     ) -> GraphConfigEditor:
         if id is MISSING:
             id = random_node_id()
-        self.add_node_dict(
+        self.add_function_node_dict(
             {
                 "webhook": webhook,
                 "title": title,
@@ -171,8 +194,8 @@ class GraphConfigEditor:
         self,
         component_key: str,
         schedule: str = None,
-        inputs: List[str] = None,
-        outputs: List[str] = None,
+        inputs: Dict[str, str] = None,
+        outputs: Dict[str, str] = None,
         parameters: Dict[str, Any] = None,
         title: str = None,
         id: Optional[str] = MISSING,
@@ -181,7 +204,7 @@ class GraphConfigEditor:
     ) -> GraphConfigEditor:
         if id is MISSING:
             id = random_node_id()
-        self.add_node_dict(
+        self.add_function_node_dict(
             {
                 "uses": component_key,
                 "schedule": schedule,
@@ -198,13 +221,23 @@ class GraphConfigEditor:
 
     def add_missing_node_ids(self) -> GraphConfigEditor:
         """Add a random id to any node entry that doesn't specify one"""
-        for node in self._nodes():
+        for node in self.function_nodes():
             if "id" not in node:
                 node["id"] = random_node_id()
         return self
 
-    def _nodes(self) -> Iterator[dict]:
-        nodes = self._cfg.get("nodes")
+    def function_nodes(self) -> Iterator[dict]:
+        nodes = self._cfg.get("functions")
+        if not isinstance(nodes, list):
+            return
+
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            yield node
+
+    def store_nodes(self) -> Iterator[dict]:
+        nodes = self._cfg.get("stores")
         if not isinstance(nodes, list):
             return
 
@@ -241,7 +274,7 @@ class GraphDirectoryEditor:
     def graph_slug(self) -> str:
         """Return the graph name slug based on the graph directory name"""
         name = self.yml_path.parent.name
-        return re.sub(r'[^a-zA-Z0-9]', '-', name)
+        return re.sub(r"[^a-zA-Z0-9]", "-", name)
 
     def compress_directory(self) -> io.BytesIO:
         """Return an in-memory zip file containing the compressed graph directory"""

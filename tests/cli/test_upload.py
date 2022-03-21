@@ -14,7 +14,7 @@ name: name
 exposes:
   outputs:
     - output
-nodes:
+functions:
   - node_file: p.py
 """.lstrip()
     graph_file.write_text(text_before)

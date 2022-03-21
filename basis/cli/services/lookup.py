@@ -105,7 +105,7 @@ class IdLookup:
         except Exception as e:
             raise Exception(err_msg) from e
         cfg = load_yaml(graph) or {}
-        for node in cfg.get("nodes", []):
+        for node in cfg.get("functions", []):
             if node.get("node_file") == node_path.as_posix():
                 id = node.get("id")
                 if id:
