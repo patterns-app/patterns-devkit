@@ -188,6 +188,9 @@ def test_add_missing_node_ids(tmp_path: Path):
       - node_file: b.py
         id: foo
       - node_file: c.py
+    stores:
+      - table: t
+      - stream: s
     """
     after = """
     functions:
@@ -197,6 +200,11 @@ def test_add_missing_node_ids(tmp_path: Path):
       - node_file: b.py
         id: <id>
       - node_file: c.py
+        id: <id>
+    stores:
+      - table: t
+        id: <id>
+      - stream: s
         id: <id>
     """
     editor = get_editor(tmp_path, before).add_missing_node_ids()
