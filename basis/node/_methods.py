@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from typing import Iterator, Any
 
-from pandas import DataFrame
+try:
+    # DataFrame is only used in type annotations
+    from pandas import DataFrame
+except ImportError:
+    DataFrame = None
 
 
 class InputTableMethods:

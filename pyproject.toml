@@ -9,13 +9,10 @@ packages = [
 version = "0.1.7"
 
 [tool.poetry.dependencies]
-pandas = "^1"
-jinja2 = "^3.0.0"
 platformdirs = "^2.4.0"
 pydantic = "^1.8.1"
 python = "^3.8"
-requests-mock = "^1.9.3"
-rich = "^10.15.2"
+rich = "^12.0.1"
 ruyaml = "^0.91.0"
 typer = {extras = ["all"], version = "^0.4.0"}
 
@@ -26,6 +23,7 @@ isort = "^4.3.21"
 mypy = "^0.910"
 pre-commit = "^2.1.1"
 pytest = "^6.2.5"
+requests-mock = "^1.9.3"
 
 [tool.poetry.scripts]
 basis = "basis.cli.main:main"

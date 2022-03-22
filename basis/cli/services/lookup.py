@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 
+import yaml
+
 from basis.cli.config import (
     read_local_basis_config,
     CliConfig,
@@ -22,7 +24,11 @@ from basis.cli.services.organizations import (
     paginated_organizations,
 )
 from basis.cli.services.output import prompt_choices
-from basis.configuration.base import load_yaml
+
+try:
+    from yaml import CLoader as Loader, CDumper as Dumper
+except ImportError:
+    from yaml import Loader, Dumper
 
 
 @dataclass
@@ -104,7 +110,7 @@ class IdLookup:
             node_path = node.absolute().relative_to(graph.parent)
         except Exception as e:
             raise Exception(err_msg) from e
-        cfg = load_yaml(graph) or {}
+        cfg = self._load_yaml(graph) or {}
         for node in cfg.get("functions", []):
             if node.get("node_file") == node_path.as_posix():
                 id = node.get("id")
@@ -142,8 +148,8 @@ class IdLookup:
     @cached_property
     def graph_name(self) -> str:
         def from_yaml():
-            yaml = load_yaml(self.root_graph_file)
-            return yaml.get("name", self.root_graph_file.parent.name)
+            graph = self._load_yaml(self.root_graph_file)
+            return graph.get("name", self.root_graph_file.parent.name)
 
         if self.explicit_graph_name:
             return self.explicit_graph_name
@@ -153,3 +159,7 @@ class IdLookup:
             vid = self.explicit_graph_version_id
             return get_graph_version_by_id(vid)["graph"]["name"]
         return from_yaml()
+
+    def _load_yaml(self, path: Path) -> dict:
+        with open(path) as f:
+            return yaml.load(f.read(), Loader=Loader)

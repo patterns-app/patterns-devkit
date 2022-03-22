@@ -5,10 +5,8 @@ from typer import Option, Argument
 from basis.cli.services.deploy import deploy_graph_version
 from basis.cli.services.graph_components import create_graph_component
 from basis.cli.services.lookup import IdLookup
-from basis.cli.services.output import sprint, abort_on_error, abort
+from basis.cli.services.output import sprint, abort_on_error
 from basis.cli.services.upload import upload_graph_version
-from basis.configuration.base import load_yaml
-from basis.configuration.edit import GraphConfigEditor
 
 _graph_help = "The location of the graph.yml file for the graph to upload"
 _deploy_help = "Whether or not to automatically deploy the graph after upload"
