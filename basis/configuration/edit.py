@@ -221,10 +221,15 @@ class GraphConfigEditor:
 
     def add_missing_node_ids(self) -> GraphConfigEditor:
         """Add a random id to any node entry that doesn't specify one"""
-        for node in self.function_nodes():
+        for node in self.all_nodes():
             if "id" not in node:
                 node["id"] = random_node_id()
         return self
+
+    def all_nodes(self) -> Iterator[dict]:
+        """Return an iterator over all function and store node declarations"""
+        yield from self.function_nodes()
+        yield from self.store_nodes()
 
     def function_nodes(self) -> Iterator[dict]:
         nodes = self._cfg.get("functions")
