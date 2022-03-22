@@ -3,14 +3,13 @@ from pathlib import Path
 from typing import Optional
 
 import platformdirs
-
-from basis.configuration.base import PydanticBase
+import pydantic
 
 BASIS_CONFIG_ENV_VAR = "BASIS_CONFIG"
 BASIS_CONFIG_NAME = "config.json"
 
 
-class CliConfig(PydanticBase):
+class CliConfig(pydantic.BaseModel):
     organization_id: str = None
     environment_id: str = None
     token: str = None
@@ -19,6 +18,7 @@ class CliConfig(PydanticBase):
 
     class Config:
         extra = "ignore"
+        allow_population_by_field_name = True
 
 
 def get_basis_config_path() -> Path:
