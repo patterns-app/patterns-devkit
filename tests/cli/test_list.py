@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from basis.cli.services.api import API_BASE_URL, Endpoints
+from basis.configuration.edit import GraphConfigEditor
 from tests.cli.base import request_mocker, set_tmp_dir, run_cli
 
 
@@ -44,7 +45,11 @@ def test_list_data(tmp_path: Path):
     path = dr / "name"
     node = path / "node.py"
     run_cli(f"create graph {path}")
-    run_cli(f"create node {node}")
+    r = run_cli(f"create node {node}")
+
+    editor = GraphConfigEditor(path / "graph.yml")
+    node_id = list(editor.function_nodes())[0]['id']
+
     with request_mocker() as m:
         m.get(
             API_BASE_URL + Endpoints.graph_by_name("test-org-uid", "name"),
@@ -54,7 +59,7 @@ def test_list_data(tmp_path: Path):
             API_BASE_URL + Endpoints.OUTPUT_DATA,
             json={"results": [{"name": "name"}], "next": None},
         )
-        result = run_cli(f"list output {node} port --json")
+        result = run_cli(f"list output {path} {node_id} --json")
     assert "name" in result.output
 
 

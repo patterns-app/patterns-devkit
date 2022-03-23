@@ -86,6 +86,7 @@ def logs(
 _port_help = "The name of the output port"
 
 _node_output_help = "The id of the node to get logs for"
+_graph_help = "The location of the graph.yml file for the graph"
 
 
 @list_command.command()
@@ -93,12 +94,14 @@ def output(
     print_json: bool = Option(False, "--json", help=_json_help),
     organization: str = Option("", "-o", "--organization", help=_organization_help),
     environment: str = Option("", "-e", "--environment", help=_environment_help),
+    graph: Path = Argument(None, exists=True, help=_graph_help),
     node_id: str = Argument(..., exists=True, help=_node_output_help),
 ):
     """List data sent to an output port of a from the most recent run of a node"""
     ids = IdLookup(
         environment_name=environment,
         organization_name=organization,
+        explicit_graph_path=graph,
     )
 
     with abort_on_error("Could not get node data"):
