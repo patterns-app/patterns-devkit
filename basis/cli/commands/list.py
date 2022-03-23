@@ -85,25 +85,25 @@ def logs(
 
 _port_help = "The name of the output port"
 
+_node_output_help = "The id of the node to get logs for"
+
 
 @list_command.command()
 def output(
     print_json: bool = Option(False, "--json", help=_json_help),
     organization: str = Option("", "-o", "--organization", help=_organization_help),
     environment: str = Option("", "-e", "--environment", help=_environment_help),
-    node: Path = Argument(..., exists=True, help=_node_help),
-    port: str = Argument(..., help=_port_help),
+    node_id: str = Argument(..., exists=True, help=_node_output_help),
 ):
     """List data sent to an output port of a from the most recent run of a node"""
     ids = IdLookup(
         environment_name=environment,
         organization_name=organization,
-        node_file_path=node,
     )
 
     with abort_on_error("Could not get node data"):
         data = list(
-            paginated_output_data(ids.environment_id, ids.graph_id, ids.node_id, port)
+            paginated_output_data(ids.environment_id, ids.graph_id, node_id)
         )
     _print_objects(data, print_json)
 
