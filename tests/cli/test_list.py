@@ -47,7 +47,7 @@ def test_list_data(tmp_path: Path):
     run_cli(f"create graph {path}")
     run_cli(f"create node {node}")
 
-    node_name = "test"
+    store_name = "test"
 
     with request_mocker() as m:
         m.get(
@@ -58,7 +58,7 @@ def test_list_data(tmp_path: Path):
             API_BASE_URL + Endpoints.OUTPUT_DATA,
             json={"results": [{"name": "name"}], "next": None},
         )
-        result = run_cli(f"list output {path} {node_name} --json")
+        result = run_cli(f"list output {path} {store_name} --json")
     assert "name" in result.output
 
 
