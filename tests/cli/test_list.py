@@ -45,10 +45,9 @@ def test_list_data(tmp_path: Path):
     path = dr / "name"
     node = path / "node.py"
     run_cli(f"create graph {path}")
-    r = run_cli(f"create node {node}")
+    run_cli(f"create node {node}")
 
-    editor = GraphConfigEditor(path / "graph.yml")
-    node_id = list(editor.function_nodes())[0]['id']
+    node_name = "test"
 
     with request_mocker() as m:
         m.get(
@@ -59,7 +58,7 @@ def test_list_data(tmp_path: Path):
             API_BASE_URL + Endpoints.OUTPUT_DATA,
             json={"results": [{"name": "name"}], "next": None},
         )
-        result = run_cli(f"list output {path} {node_id} --json")
+        result = run_cli(f"list output {path} {node_name} --json")
     assert "name" in result.output
 
 

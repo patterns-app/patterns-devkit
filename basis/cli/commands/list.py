@@ -85,7 +85,7 @@ def logs(
 
 _port_help = "The name of the output port"
 
-_node_output_help = "The id of the node to get logs for"
+_node_title_help = "The node title of the store to get the latest output for"
 _graph_help = "The location of the graph.yml file for the graph"
 
 
@@ -95,7 +95,7 @@ def output(
     organization: str = Option("", "-o", "--organization", help=_organization_help),
     environment: str = Option("", "-e", "--environment", help=_environment_help),
     graph: Path = Argument(None, exists=True, help=_graph_help),
-    node_id: str = Argument(..., exists=True, help=_node_output_help),
+    node_title: str = Argument(..., exists=True, help=_node_title_help),
 ):
     """List data sent to an output port of a from the most recent run of a node"""
     ids = IdLookup(
@@ -106,7 +106,7 @@ def output(
 
     with abort_on_error("Could not get node data"):
         data = list(
-            paginated_output_data(ids.environment_id, ids.graph_id, node_id)
+            paginated_output_data(ids.environment_id, ids.graph_id, node_title)
         )
     _print_objects(data, print_json)
 
