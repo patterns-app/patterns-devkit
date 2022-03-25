@@ -94,7 +94,7 @@ def output(
     print_json: bool = Option(False, "--json", help=_json_help),
     organization: str = Option("", "-o", "--organization", help=_organization_help),
     environment: str = Option("", "-e", "--environment", help=_environment_help),
-    graph: Path = Option("", "-p", "--graph_path", help=_graph_help),
+    graph: Path = Option("", "-g", "--graph-path", help=_graph_help),
     store_name: str = Argument(..., exists=True, help=_store_name_help),
 ):
     """List data sent to an output port of a from the most recent run of a node"""
