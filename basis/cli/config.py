@@ -9,12 +9,18 @@ BASIS_CONFIG_ENV_VAR = "BASIS_CONFIG"
 BASIS_CONFIG_NAME = "config.json"
 
 
+class AuthServer(pydantic.BaseModel):
+    domain: str
+    audience: str
+    devkit_client_id: str
+
+
 class CliConfig(pydantic.BaseModel):
     organization_id: str = None
     environment_id: str = None
     token: str = None
     refresh: str = None
-    email: str = None
+    auth_server: AuthServer = None
 
     class Config:
         extra = "ignore"
@@ -50,7 +56,7 @@ def update_local_basis_config(
     environment_id: Optional[str] = _UNCHANGED,
     token: Optional[str] = _UNCHANGED,
     refresh: Optional[str] = _UNCHANGED,
-    email: Optional[str] = _UNCHANGED,
+    auth_server: Optional[AuthServer] = _UNCHANGED,
 ) -> CliConfig:
     cfg = read_local_basis_config()
     update = {}
@@ -62,8 +68,8 @@ def update_local_basis_config(
         update["token"] = token
     if refresh != _UNCHANGED:
         update["refresh"] = refresh
-    if email != _UNCHANGED:
-        update["email"] = email
+    if auth_server != _UNCHANGED:
+        update["auth_server"] = auth_server
     copy = cfg.copy(update=update)
     write_local_basis_config(copy)
     return copy

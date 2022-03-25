@@ -16,6 +16,7 @@ from basis.cli.services.list import (
     paginated_graph_components,
 )
 from basis.cli.services.lookup import IdLookup
+from basis.cli.services.organizations import paginated_organizations
 from basis.cli.services.output import sprint, abort_on_error
 
 
@@ -56,6 +57,16 @@ def environments(
     ids = IdLookup(organization_name=organization)
     with abort_on_error("Error listing environments"):
         es = list(paginated_environments(ids.organization_id))
+    _print_objects(es, print_json)
+
+
+@list_command.command()
+def organizations(
+    print_json: bool = Option(False, "--json", help=_json_help),
+):
+    """List organizations"""
+    with abort_on_error("Error listing environments"):
+        es = list(paginated_organizations())
     _print_objects(es, print_json)
 
 
@@ -131,7 +142,9 @@ def webhooks(
 
 
 @list_command.command()
-def components(print_json: bool = Option(False, "--json", help=_json_help),):
+def components(
+    print_json: bool = Option(False, "--json", help=_json_help),
+):
     """List available graph components that you can add to your graphs"""
     with abort_on_error("Could not get components"):
         data = list(paginated_graph_components())
