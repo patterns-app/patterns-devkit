@@ -10,6 +10,7 @@ from socketserver import BaseRequestHandler
 from urllib.parse import ParseResult
 
 import requests
+from requests import HTTPError
 
 from basis.cli.config import update_local_basis_config
 from basis.cli.services.api import (
@@ -26,14 +27,32 @@ from basis.cli.services.auth import (
 def login():
     auth_server = get_auth_server()
 
-    code_verifier = base64.urlsafe_b64encode(os.urandom(72)).decode("utf-8")
-    code_verifier = re.sub("[^a-zA-Z0-9]+", "", code_verifier)
-
-    state = base64.urlsafe_b64encode(os.urandom(72)).decode("utf-8")
+    # The code_verifier and code_challenge are part of the OAuth PKCE spec.
+    # https://datatracker.ietf.org/doc/html/rfc7636#section-4.1
+    # https://developer.okta.com/blog/2019/08/22/okta-authjs-pkce
+    #
+    # We make some random bits (code_verifier), hash it (code_challenge) and send
+    # the challenge with our initial authorize request.  When the user is redirected
+    # back, we post the unhashed value (code_verifier) when obtaining the
+    # token.  The server then hashes the code_verifier to match the initial value that
+    # was sent by the redirected client.
+    #
+    # This flow stands in the place of having a client secret, since the devkit is
+    # Open Source we cannot use client secret based auth.
+    #
+    # The encoded verifier only needs 32 bytes of entropy, but we use 33 because
+    # otherwise we end up with padding on our bas64 encoded value
+    code_verifier = base64.urlsafe_b64encode(os.urandom(33)).decode("utf-8")
 
     code_challenge = hashlib.sha256(code_verifier.encode("utf-8")).digest()
     code_challenge = base64.urlsafe_b64encode(code_challenge).decode("utf-8")
+    # Remove padding (per Auth0 samples)
     code_challenge = code_challenge.replace("=", "")
+
+    # Random state is sent with the initial request and received on the redirect
+    # and is supposed to mitigate CSRF attacks:
+    # https://auth0.com/docs/secure/attack-protection/state-parameters
+    state = os.urandom(50).hex()
 
     redirect_url = (
         f"http://localhost:{LOCAL_OAUTH_PORT}{LoginRequestHandler.handled_path}"

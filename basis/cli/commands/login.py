@@ -20,7 +20,7 @@ def login():
             organization_id=ids.organization_id, environment_id=ids.environment_id
         )
 
-    with abort_on_error("Fetching me failed"):
+    with abort_on_error("Fetching user profile failed"):
         profile = me()
 
     sprint(

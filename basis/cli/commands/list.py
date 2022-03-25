@@ -65,7 +65,7 @@ def organizations(
     print_json: bool = Option(False, "--json", help=_json_help),
 ):
     """List organizations"""
-    with abort_on_error("Error listing environments"):
+    with abort_on_error("Error listing organizations"):
         es = list(paginated_organizations())
     _print_objects(es, print_json)
 
