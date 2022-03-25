@@ -35,11 +35,6 @@ def upload(
     ui_url = resp["ui_url"]
     sprint(f"\n[success]Uploaded new graph version with id [b]{graph_version_id}")
 
-    if deploy:
-        with abort_on_error("Deploy failed"):
-            deploy_graph_version(graph_version_id, ids.environment_id)
-        sprint(f"[success]Graph deployed")
-
     if publish_component:
         with abort_on_error("Error creating component"):
             resp = create_graph_component(graph_version_id)
@@ -54,4 +49,9 @@ def upload(
                 f"at id [b]{resp_id}"
             )
 
+    elif deploy:
+        with abort_on_error("Deploy failed"):
+            deploy_graph_version(graph_version_id, ids.environment_id)
+        sprint(f"[success]Graph deployed")
+        
     sprint(f"\n[info]Visit [code]{ui_url}[/code] to view your graph")
