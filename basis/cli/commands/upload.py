@@ -33,7 +33,12 @@ def upload(
         resp = upload_graph_version(ids.graph_file_path, ids.organization_id)
     graph_version_id = resp["uid"]
     ui_url = resp["ui_url"]
+    manifest = resp["manifest"]
     sprint(f"\n[success]Uploaded new graph version with id [b]{graph_version_id}")
+    if manifest.get("errors"):
+        sprint(f"[error]Graph contains the following errors:")
+        for error in manifest["errors"]:
+            sprint(f"\t[error]{error}")
 
     if publish_component:
         with abort_on_error("Error creating component"):
@@ -53,5 +58,5 @@ def upload(
         with abort_on_error("Deploy failed"):
             deploy_graph_version(graph_version_id, ids.environment_id)
         sprint(f"[success]Graph deployed")
-        
+
     sprint(f"\n[info]Visit [code]{ui_url}[/code] to view your graph")

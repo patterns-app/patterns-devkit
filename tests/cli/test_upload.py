@@ -34,10 +34,18 @@ def node_fn(output=OutputTable):
         ]:
             m.post(
                 API_BASE_URL + e,
-                json={"uid": "1", "ui_url": "url.com", "graph": {"name": "g"}},
+                json={
+                    "uid": "1",
+                    "ui_url": "url.com",
+                    "graph": {"name": "g"},
+                    "manifest": {
+                        "errors": [{"node_id": "n1", "message": "Test Error"}]
+                    },
+                },
             )
         result = run_cli(f"upload {path}")
         assert "Uploaded new graph" in result.output
+        assert "Test Error" in result.output
         assert "Graph deployed" in result.output
         assert "url.com" in result.output
 
@@ -63,7 +71,12 @@ def test_upload_component(tmp_path: Path):
         ]:
             m.post(
                 API_BASE_URL + e,
-                json={"uid": "1", "ui_url": "url.com", "graph": {"name": "g"}},
+                json={
+                    "uid": "1",
+                    "ui_url": "url.com",
+                    "graph": {"name": "g"},
+                    "manifest": {"errors": []},
+                },
             )
         m.post(
             API_BASE_URL + Endpoints.COMPONENTS_CREATE,
@@ -76,5 +89,4 @@ def test_upload_component(tmp_path: Path):
         )
         result = run_cli(f"upload --publish-component {path}")
         assert "Uploaded new graph" in result.output
-        assert "Graph deployed" in result.output
         assert "Published graph component" in result.output
