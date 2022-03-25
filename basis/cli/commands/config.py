@@ -31,7 +31,8 @@ def config(
         ids.cfg.environment_id = ids.environment_id
     write_local_basis_config(ids.cfg)
 
-    sprint(f"[info]Your basis config is located [code]{get_basis_config_path()}")
+    sprint(f"[info]Your basis config is located at "
+           f"[code]{get_basis_config_path().as_posix()}")
 
     t = Table(show_header=False)
     try:
@@ -44,9 +45,8 @@ def config(
         t.add_row("environment", name)
     except Exception:
         t.add_row("environment_id", ids.environment_id)
-    t.add_row("email", ids.cfg.email)
-    for k, v in ids.cfg.dict(exclude_none=True).items():
-        if k in ("organization_id", "environment_id", "email"):
-            continue
-        t.add_row(k, v)
+    if ids.cfg.auth_server:
+        t.add_row("auth_server.domain", ids.cfg.auth_server.domain)
+        t.add_row("auth_server.audience", ids.cfg.auth_server.audience)
+        t.add_row("auth_server.devkit_client_id", ids.cfg.auth_server.devkit_client_id)
     sprint(t)

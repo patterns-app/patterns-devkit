@@ -27,7 +27,10 @@ def login():
         f"\n[success]Logged in to Basis organization [b]{ids.organization_name}[/b] "
         f"as [b]{profile['username']}[/b] ([b]{profile['email']}[/b])"
     )
-    sprint(f"\n[info]Your login information is stored at {get_basis_config_path()}")
+    sprint(
+        f"\n[info]Your login information is stored at "
+        f"{get_basis_config_path().as_posix()}"
+    )
     sprint(
         f"\n[info]If you want to create a new graph, run "
         f"[code]basis create graph[/code] get started"
