@@ -158,28 +158,6 @@ def test_add_component_with_all_fields(tmp_path: Path):
     ).assert_dump(after)
 
 
-def test_remove_nodes(tmp_path: Path):
-    before = """
-    functions:
-      - node_file: a.py
-        title: a1
-      - node_file: b.py
-        title: b
-      - node_file: a.py
-        title: a2
-    """
-    after = """
-    functions:
-      - node_file: a.py
-        title: a1
-      - node_file: b.py
-        title: b
-    """
-    get_editor(tmp_path, before).remove_node_with_id(
-        "a2", lambda n: n["title"]
-    ).assert_dump(after)
-
-
 def test_add_missing_node_ids(tmp_path: Path):
     before = """
     functions:

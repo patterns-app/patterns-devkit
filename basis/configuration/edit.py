@@ -90,25 +90,6 @@ class GraphConfigEditor:
         self._cfg["functions"].append(d)
         return self
 
-    def remove_node_with_id(
-        self, node_id: str, default_id: Callable[[dict], str] = lambda _: {}
-    ) -> GraphConfigEditor:
-        """Remove node entry with a given id value
-
-        Raise a KeyError if no such nodes exist
-        You can pass a default_id function that returns ids for node entries that don't
-        have them defined.
-        """
-        for i, node in enumerate(self.function_nodes()):
-            id = node["id"] if "id" in node else default_id(node)
-            if id == node_id:
-                del self._cfg["functions"][i]
-                break
-        else:
-            raise KeyError(node_id)
-
-        return self
-
     def add_node(
         self,
         node_file: str,
@@ -269,12 +250,6 @@ class GraphDirectoryEditor:
             self._cfg = self._editor(self.yml_path)
         else:
             self._cfg: Optional[GraphConfigEditor] = None
-
-    def graph_title(self) -> Optional[str]:
-        """Return the title of the graph"""
-        if self._cfg:
-            return self._cfg.get_title()
-        return None
 
     def graph_slug(self) -> str:
         """Return the graph name slug based on the graph directory name"""
