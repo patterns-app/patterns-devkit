@@ -145,9 +145,7 @@ def webhooks(
 
 
 @list_command.command()
-def components(
-    print_json: bool = Option(False, "--json", help=_json_help),
-):
+def components(print_json: bool = Option(False, "--json", help=_json_help)):
     """List available graph components that you can add to your graphs"""
     with abort_on_error("Could not get components"):
         data = list(paginated_graph_components())
