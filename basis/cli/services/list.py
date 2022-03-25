@@ -25,15 +25,14 @@ def paginated_execution_events(environment_uid: str, graph_uid: str, node_id: st
 
 @paginated
 def paginated_output_data(
-    environment_uid: str, graph_uid: str, node_id: str, output_port_name: str
+    environment_uid: str, graph_uid: str, store_name: str
 ):
     return get_json(
         Endpoints.OUTPUT_DATA,
         params={
             "environment_uid": environment_uid,
             "graph_uid": graph_uid,
-            "node_id": node_id,
-            "output_port_name": output_port_name,
+            "store_name": store_name,
         },
     )
 

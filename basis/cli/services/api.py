@@ -129,7 +129,7 @@ class Endpoints:
     ENVIRONMENTS_CREATE = f"{PUBLIC_API_BASE_URL}/environments/"
     ORGANIZATIONS_LIST = f"{PUBLIC_API_BASE_URL}/organizations/"
     EXECUTION_EVENTS = f"{PUBLIC_API_BASE_URL}/nodes/execution_events/"
-    OUTPUT_DATA = f"{PUBLIC_API_BASE_URL}/nodes/output_block_data/latest/"
+    OUTPUT_DATA = f"{PUBLIC_API_BASE_URL}/nodes/store_data/latest/"
     WEBHOOKS = f"{PUBLIC_API_BASE_URL}/webhooks/"
     COMPONENTS_LIST = f"{PUBLIC_API_BASE_URL}/marketplace/components/"
     COMPONENTS_CREATE = f"{PUBLIC_API_BASE_URL}/marketplace/components/versions/"
