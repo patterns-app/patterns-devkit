@@ -47,7 +47,7 @@ def prompt_path(
     return p
 
 
-def prompt_str(message: str, default: str = None, password: bool = False,) -> str:
+def prompt_str(message: str, default: str = None, password: bool = False) -> str:
     return rich.prompt.Prompt.ask(message, default=default, password=password)
 
 

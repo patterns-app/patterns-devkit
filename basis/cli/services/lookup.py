@@ -41,6 +41,7 @@ class IdLookup:
     node_file_path: Path = None
     explicit_graph_version_id: str = None
     ignore_local_cfg: bool = False
+    ignore_cfg_environment: bool = False
     explicit_graph_name: str = None
     find_nearest_graph: bool = False
 
@@ -70,7 +71,7 @@ class IdLookup:
         if self.environment_name:
             env = get_environment_by_name(self.organization_id, self.environment_name)
             return env["uid"]
-        if self.cfg.environment_id:
+        if self.cfg.environment_id and not self.ignore_cfg_environment:
             return self.cfg.environment_id
 
         environments = list(paginated_environments(self.organization_id))
