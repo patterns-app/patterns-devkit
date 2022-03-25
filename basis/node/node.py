@@ -54,18 +54,12 @@ class _OutputMeta(type):
 
 
 class _StateMeta(type):
-    def __new__(
-        mcs, description: str = None, type: str = None, default: Any = None,
-    ):
+    def __new__(mcs):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
-    def __init__(
-        cls, description: str = None, type: str = None, default: Any = None,
-    ):
-        cls.description = description
-        cls.type = type
-        cls.default = default
+    def __init__(cls):
+        pass
 
 
 class InputTable(_InputMeta, InputTableMethods):
