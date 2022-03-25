@@ -58,7 +58,7 @@ def test_list_data(tmp_path: Path):
             API_BASE_URL + Endpoints.OUTPUT_DATA,
             json={"results": [{"name": "name"}], "next": None},
         )
-        result = run_cli(f"list output {path} {store_name} --json")
+        result = run_cli(f"list output {store_name} -p {path} --json")
     assert "name" in result.output
 
 
