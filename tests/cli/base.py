@@ -37,9 +37,5 @@ def set_tmp_dir(tmp_dir: Path, create_basis_config: bool = True) -> Path:
 @contextmanager
 def request_mocker():
     with requests_mock.Mocker() as m:
-        m.post(
-            API_BASE_URL + Endpoints.TOKEN_CREATE,
-            json={"access": "access-token", "refresh": "refresh-token"},
-        )
         m.post(API_BASE_URL + Endpoints.TOKEN_VERIFY)
         yield m

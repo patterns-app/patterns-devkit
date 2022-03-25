@@ -8,6 +8,7 @@ from basis.cli.config import (
     read_local_basis_config,
     CliConfig,
     write_local_basis_config,
+    AuthServer,
 )
 from basis.cli.services.output import abort, abort_on_error
 
@@ -33,6 +34,13 @@ def _get_api_session() -> Session:
     return s
 
 
+def get_auth_server() -> AuthServer:
+    with abort_on_error("Failed getting the auth server"):
+        resp = requests.get(API_BASE_URL + Endpoints.TOKEN_AUTHSERVER)
+        resp.raise_for_status()
+        return AuthServer(**resp.json())
+
+
 def _get_auth_token() -> str:
     override = os.environ.get(AUTH_TOKEN_ENV_VAR)
     if override:
@@ -47,28 +55,32 @@ def _get_auth_token() -> str:
             API_BASE_URL + Endpoints.TOKEN_VERIFY, json={"token": cfg.token}
         )
     if resp.status_code == 401:
-        if refresh := cfg.refresh:
-            cfg = _refresh_token(refresh)
+        if cfg.refresh:
+            cfg = _refresh_token(cfg)
     else:
         resp.raise_for_status()
     return cfg.token
 
 
-def _refresh_token(token: str) -> CliConfig:
-    with abort_on_error(
-        "Not logged in", suffix="\n[info]You can log in with [code]basis login"
-    ):
+def _refresh_token(cfg: CliConfig) -> CliConfig:
+    auth_server = cfg.auth_server
+    if not auth_server or not cfg.refresh:
+        abort("Not logged in\n[info]You can log in with [code]basis login")
+
+    with abort_on_error("Failed to refresh access token"):
         resp = requests.post(
-            API_BASE_URL + Endpoints.TOKEN_REFRESH, json={"refresh": token}
+            f"https://{auth_server.domain}/oauth/token",
+            data={
+                "client_id": auth_server.devkit_client_id,
+                "refresh_token": cfg.refresh,
+                "grant_type": "refresh_token",
+            },
         )
         resp.raise_for_status()
-    data = resp.json()
-    cfg = read_local_basis_config()
-    if "refresh" in data:
-        cfg.refresh = data["refresh"]
-    cfg.token = data["access"]
 
+    cfg.token = resp.json()["access_token"]
     write_local_basis_config(cfg)
+
     return cfg
 
 
@@ -122,8 +134,9 @@ def post(
 
 class Endpoints:
     TOKEN_CREATE = "auth/jwt/create/"
-    TOKEN_VERIFY = "auth/jwt/verify/"
-    TOKEN_REFRESH = "auth/jwt/refresh/"
+    TOKEN_AUTHSERVER = f"{PUBLIC_API_BASE_URL}/auth/jwt/authserver/"
+    TOKEN_VERIFY = f"{PUBLIC_API_BASE_URL}/auth/jwt/verify/"
+    ACCOUNTS_ME = f"{PUBLIC_API_BASE_URL}/accounts/me/"
     DEPLOYMENTS_DEPLOY = f"{PUBLIC_API_BASE_URL}/deployments/"
     DEPLOYMENTS_TRIGGER_NODE = f"{PUBLIC_API_BASE_URL}/deployments/triggers/"
     ENVIRONMENTS_CREATE = f"{PUBLIC_API_BASE_URL}/environments/"

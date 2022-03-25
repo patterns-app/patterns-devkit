@@ -1,6 +1,6 @@
-from basis.cli.services import auth
+from basis.cli.services import logout as logout_service
 
 
 def logout():
     """Log out of your Basis account"""
-    auth.logout()
+    logout_service.logout()
