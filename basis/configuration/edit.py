@@ -73,6 +73,10 @@ class GraphConfigEditor:
     def get_title(self) -> Optional[str]:
         return self._cfg.get("title")
 
+    def get_slug(self) -> Optional[str]:
+        """Return the slug value listed in the yaml, or None if it's not present"""
+        return self._cfg.get("slug")
+
     def add_function_node_dict(self, node: dict) -> GraphConfigEditor:
         d = {k: v for (k, v) in node.items() if v is not None}
         for k in ("node_file", "id", "webhook"):
@@ -253,7 +257,10 @@ class GraphDirectoryEditor:
 
     def graph_slug(self) -> str:
         """Return the graph name slug based on the graph directory name"""
-        name = self.yml_path.parent.name
+        if self._cfg and self._cfg.get_slug():
+            name = self._cfg.get_slug()
+        else:
+            name = self.yml_path.parent.name
         return re.sub(r"[^a-zA-Z0-9]", "-", name)
 
     def compress_directory(self) -> io.BytesIO:
