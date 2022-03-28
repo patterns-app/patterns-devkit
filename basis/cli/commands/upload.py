@@ -30,7 +30,12 @@ def upload(
     )
 
     with abort_on_error("Upload failed"):
-        resp = upload_graph_version(ids.graph_file_path, ids.organization_id)
+        resp = upload_graph_version(
+            ids.graph_file_path,
+            ids.organization_id,
+            add_missing_node_ids=not publish_component,
+        )
+
     graph_version_id = resp["uid"]
     ui_url = resp["ui_url"]
     manifest = resp["manifest"]
@@ -53,7 +58,6 @@ def upload(
                 f"with versions [b]{resp_versions}[/b] "
                 f"at id [b]{resp_id}"
             )
-
     elif deploy:
         with abort_on_error("Deploy failed"):
             deploy_graph_version(graph_version_id, ids.environment_id)
