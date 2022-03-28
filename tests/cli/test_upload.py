@@ -11,6 +11,7 @@ def test_upload(tmp_path: Path):
     graph_file = path / "graph.yml"
     text_before = """
 name: name
+slug: test-graph
 exposes:
   outputs:
     - output
@@ -52,6 +53,7 @@ def node_fn(output=OutputTable):
         result = run_cli(f"upload --no-deploy {path}")
         assert "Uploaded new graph" in result.output
         assert "Graph deployed" not in result.output
+        assert b'{"slug": "test-graph"}' in m.last_request.body
 
     text_after = graph_file.read_text()
     assert text_after[: len(text_before)] == text_before
