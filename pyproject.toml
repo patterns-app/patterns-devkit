@@ -15,7 +15,7 @@ python = "^3.8"
 rich = "^12.0.1"
 ruyaml = "^0.91.0"
 # workaround for bug in typer 0.4 (https://github.com/tiangolo/typer/issues/377)
-click = "^7.1.1"
+click = "8.0.4"
 typer = {extras = ["all"], version = "^0.4.0"}
 
 [tool.poetry.dev-dependencies]
