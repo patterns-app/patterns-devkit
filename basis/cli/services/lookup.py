@@ -1,6 +1,8 @@
+import os
 from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
+from typing import Optional
 
 import yaml
 
@@ -13,7 +15,7 @@ from basis.cli.services.environments import (
     get_environment_by_name,
     paginated_environments,
 )
-from basis.cli.services.graph import find_graph_file, resolve_graph_path
+from basis.cli.services.graph import resolve_graph_path
 from basis.cli.services.graph_versions import (
     get_graph_by_name,
     get_active_graph_version,
@@ -23,7 +25,7 @@ from basis.cli.services.organizations import (
     get_organization_by_name,
     paginated_organizations,
 )
-from basis.cli.services.output import prompt_choices
+from basis.cli.services.output import prompt_choices, prompt_path
 
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -125,12 +127,12 @@ class IdLookup:
         if self.explicit_graph_path:
             return resolve_graph_path(self.explicit_graph_path, exists=True)
         if self.node_file_path:
-            return find_graph_file(
+            return _find_graph_file(
                 self.node_file_path.parent,
                 prompt=False,
                 nearest=self.find_nearest_graph,
             )
-        return find_graph_file(path=None, prompt=True, nearest=self.find_nearest_graph)
+        return _find_graph_file(path=None, prompt=True, nearest=self.find_nearest_graph)
 
     @cached_property
     def graph_directory(self) -> Path:
@@ -138,7 +140,7 @@ class IdLookup:
 
     @cached_property
     def root_graph_file(self) -> Path:
-        return find_graph_file(self.graph_directory, nearest=False)
+        return _find_graph_file(self.graph_directory, nearest=False)
 
     @cached_property
     def cfg(self) -> CliConfig:
@@ -164,3 +166,42 @@ class IdLookup:
     def _load_yaml(self, path: Path) -> dict:
         with open(path) as f:
             return yaml.load(f.read(), Loader=Loader)
+
+
+def _find_graph_file(
+    path: Optional[Path], prompt: bool = True, nearest: bool = False
+) -> Path:
+    """Walk up a directory tree looking for a graph
+
+    :param path: The location to start the search
+    :param prompt: If True, ask the user to enter a path if it can't be found
+    :param nearest: If False, keep walking up until there's no graph.yml in the parent
+                    directory. If True, stop as soon as one if found.
+    """
+    if path and path.is_file():
+        return resolve_graph_path(path, exists=True)
+    if not path:
+        path = Path(os.getcwd())
+    path = path.absolute()
+
+    found = None
+
+    for _ in range(100):
+        if not path or path == path.parent:
+            break
+        p = path / "graph.yml"
+        if p.is_file():
+            found = p
+            if nearest:
+                break
+        elif found:
+            break
+        path = path.parent
+    if found:
+        return found
+
+    if prompt:
+        resp = prompt_path("Enter the path to the graph yaml file", exists=True)
+        return resolve_graph_path(resp, exists=True)
+    else:
+        raise ValueError(f"Cannot find graph.yml{f' at {path}' if path else ''}")
