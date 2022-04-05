@@ -90,6 +90,7 @@ def abort_on_error(message: str, prefix=": ", suffix=""):
             details = f"HTTP {e.response.status_code}"
 
         # check 403 error message for unverified email / unsetup account and display message
+        # we give them the home page, since the webapp will redirect them to the proper setup page automatically
         if e.response.status_code == 403:
             if details == 'unverified email':
                 abort(f"Please verify your email address before using Basis - https://studio.getbasis.com/")
