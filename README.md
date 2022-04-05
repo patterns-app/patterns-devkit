@@ -15,50 +15,43 @@
 
 ## Usage
 
-In a new git repository:
+`basis create graph mygraph`
 
-`basis generate graph mygraph`
-
-This will create a skeleton for a basis graph:
+This will create an empty basis graph:
 
 ```
 mygraph/
   graph.yml
-  README.md
-  requirements.txt
 ```
 
-To create a simple python node template:
+Create a new python node:
 
-`basis generate node mygraph/mynode.py --simple`
+```
+cd mygraph
+basis create node mynode.py
+```
 
 ```
 mygraph/
   graph.yml
   mynode.py
-  README.md
-  requirements.txt
-```
-
-And then edit the graph configuration `mygraph/graph.yml` to specify node configuration:
-
-```yaml
-name: mygraph
-nodes:
-  - python: mynode.py
-    name: mynode1 # Override the default name (mynode)
 ```
 
 ## Deploy
 
-To deploy a graph, you must sign up for a getbasis.com account and login to authenticate the cli:
+To deploy a graph, you must sign up for a getbasis.com account and login to authenticate
+the cli:
 
 `basis login`
 
-Ensure you have an environment created:
+Then you can deploy you graph:
 
-`basis env list`
+`basis upload`
 
-And then you can deploy a graph to an environment:
+## Other commands
 
-`basis deploy mygraph/graph.yml -e production`
+You can see the full list of available cli commands:
+
+```
+basis --help
+```
