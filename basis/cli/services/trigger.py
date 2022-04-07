@@ -23,6 +23,6 @@ def trigger_node(
             "node_id": node_id,
             "environment_uid": environment_uid,
             "graph_version_uid": graph_version_uid,
-            "execution_type": execution_type.name.upper(),
+            "execution_type": execution_type.name,
         },
     )
