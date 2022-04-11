@@ -6,7 +6,7 @@ name = "basis-devkit"
 packages = [
   {include = "basis"},
 ]
-version = "0.1.8"
+version = "0.1.9"
 
 [tool.poetry.dependencies]
 platformdirs = "^2.4.0"
