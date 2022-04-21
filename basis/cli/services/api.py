@@ -168,8 +168,8 @@ class Endpoints:
         return f"{PUBLIC_API_BASE_URL}/graph_versions/{graph_version_uid}/zip/"
 
     @classmethod
-    def graph_by_name(cls, organization_uid: str, name: str) -> str:
-        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/graphs/name/{name}/"
+    def graph_by_slug(cls, organization_uid: str, slug: str) -> str:
+        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/graphs/slug/{slug}/"
 
     @classmethod
     def graph_version_by_id(cls, graph_version_uid: str) -> str:

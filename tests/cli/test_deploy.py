@@ -18,7 +18,7 @@ def test_deploy(tmp_path: Path):
                 json={"uid": "1", "ui_url": "url.com", "graph": {"name": "g"}, "manifest":{}},
             )
         for e in [
-            Endpoints.graph_by_name("test-org-uid", "name"),
+            Endpoints.graph_by_slug("test-org-uid", "name"),
             Endpoints.graphs_latest("1"),
         ]:
             m.get(

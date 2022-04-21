@@ -18,7 +18,7 @@ def test_trigger_node_in_subgraph(tmp_path: Path):
             API_BASE_URL + Endpoints.DEPLOYMENTS_TRIGGER_NODE, json={"uid": "1"},
         )
         m.get(
-            API_BASE_URL + Endpoints.graph_by_name("test-org-uid", "graph"),
+            API_BASE_URL + Endpoints.graph_by_slug("test-org-uid", "graph"),
             json={"uid": "2"},
         )
         m.get(
