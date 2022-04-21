@@ -18,7 +18,7 @@ from basis.cli.services.environments import (
 from basis.cli.services.graph import resolve_graph_path
 from basis.cli.services.graph_versions import (
     get_graph_by_slug,
-    get_active_graph_version,
+    get_latest_graph_version,
     get_graph_version_by_id,
 )
 from basis.cli.services.organizations import (
@@ -99,7 +99,7 @@ class IdLookup:
     def graph_version_id(self):
         if self.explicit_graph_version_id:
             return self.explicit_graph_version_id
-        return get_active_graph_version(self.graph_id)["uid"]
+        return get_latest_graph_version(self.graph_id)["uid"]
 
     @cached_property
     def node_id(self) -> str:
