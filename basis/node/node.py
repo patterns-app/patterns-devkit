@@ -91,7 +91,6 @@ class _Parameter(str):
         description: str = None,
         type: Type[T] = str,
         default: Any = None,
-        template: str = None,
     ) -> T:
         pass
 
