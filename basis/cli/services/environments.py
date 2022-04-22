@@ -5,7 +5,7 @@ from basis.cli.services.pagination import paginated
 
 
 def get_environment_by_name(organization_uid: str, name: str) -> dict:
-    return get_json(Endpoints.environment_by_name(organization_uid, name))
+    return get_json(Endpoints.environment_by_slug(organization_uid, name))
 
 
 def get_environment_by_id(environment_uid: str) -> dict:

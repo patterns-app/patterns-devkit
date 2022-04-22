@@ -148,8 +148,8 @@ class Endpoints:
     COMPONENTS_CREATE = f"{PUBLIC_API_BASE_URL}/marketplace/components/versions/"
 
     @classmethod
-    def organization_by_name(cls, name: str) -> str:
-        return f"{PUBLIC_API_BASE_URL}/organizations/name/{name}/"
+    def organization_by_slug(cls, slug: str) -> str:
+        return f"{PUBLIC_API_BASE_URL}/organizations/slug/{slug}/"
 
     @classmethod
     def organization_by_id(cls, organization_uid: str) -> str:
@@ -184,8 +184,8 @@ class Endpoints:
         return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/environments/"
 
     @classmethod
-    def environment_by_name(cls, organization_uid: str, name: str) -> str:
-        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/environments/name/{name}/"
+    def environment_by_slug(cls, organization_uid: str, slug: str) -> str:
+        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/environments/slug/{slug}/"
 
     @classmethod
     def environment_by_id(cls, environment_uid: str) -> str:

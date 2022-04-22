@@ -39,9 +39,7 @@ def node_fn(output=OutputTable):
                     "uid": "1",
                     "ui_url": "url.com",
                     "graph": {"name": "g"},
-                    "manifest": {
-                        "errors": [{"node_id": "n1", "message": "Test Error"}]
-                    },
+                    "errors": [{"node_id": "n1", "message": "Test Error"}]
                 },
             )
         result = run_cli(f"upload {path}")
@@ -77,7 +75,7 @@ def test_upload_component(tmp_path: Path):
                     "uid": "1",
                     "ui_url": "url.com",
                     "graph": {"name": "g"},
-                    "manifest": {"errors": []},
+                    "errors": []
                 },
             )
         m.post(

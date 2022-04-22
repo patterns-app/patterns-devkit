@@ -13,11 +13,11 @@ def test_config_org_and_env(tmp_path: Path):
 
     with request_mocker() as m:
         m.get(
-            API_BASE_URL + Endpoints.organization_by_name("org"),
+            API_BASE_URL + Endpoints.organization_by_slug("org"),
             json={"uid": "org-uid"},
         )
         m.get(
-            API_BASE_URL + Endpoints.environment_by_name("org-uid", "env"),
+            API_BASE_URL + Endpoints.environment_by_slug("org-uid", "env"),
             json={"uid": "env-uid"},
         )
         run_cli("config -o org -e env")
