@@ -105,7 +105,7 @@ class GraphConfigEditor:
         id: Optional[str] = MISSING,
         description: str = None,
         description_file: str = None,
-    ) -> GraphConfigEditor:
+    )-> str:
         if id is MISSING:
             id = random_node_id()
         self.add_function_node_dict(
@@ -121,7 +121,7 @@ class GraphConfigEditor:
                 "description_file": description_file,
             }
         )
-        return self
+        return id
 
     def add_store(
         self,
@@ -130,7 +130,7 @@ class GraphConfigEditor:
         title: str = None,
         id: Optional[str] = MISSING,
         schema: str = None,
-    ):
+    ) -> str:
         if id is MISSING:
             id = random_node_id()
         d = {
@@ -152,7 +152,7 @@ class GraphConfigEditor:
         if "stores" not in self._cfg:
             self._cfg["stores"] = []
         self._cfg["stores"].append(d)
-        return self
+        return id
 
     def add_webhook(
         self,
@@ -161,7 +161,7 @@ class GraphConfigEditor:
         id: Optional[str] = MISSING,
         description: str = None,
         description_file: str = None,
-    ) -> GraphConfigEditor:
+    ) -> str:
         if id is MISSING:
             id = random_node_id()
         self.add_function_node_dict(
@@ -173,7 +173,7 @@ class GraphConfigEditor:
                 "description_file": description_file,
             }
         )
-        return self
+        return id
 
     def add_component_uses(
         self,
@@ -186,7 +186,7 @@ class GraphConfigEditor:
         id: Optional[str] = MISSING,
         description: str = None,
         description_file: str = None,
-    ) -> GraphConfigEditor:
+    ) -> str:
         if id is MISSING:
             id = random_node_id()
         self.add_function_node_dict(
@@ -202,7 +202,7 @@ class GraphConfigEditor:
                 "description_file": description_file,
             }
         )
-        return self
+        return id
 
     def add_missing_node_ids(self) -> GraphConfigEditor:
         """Add a random id to any node entry that doesn't specify one"""
@@ -331,7 +331,8 @@ class GraphDirectoryEditor:
         if not self._cfg or str(dst_path) == "graph.yml":
             return
         try:
-            self._cfg.add_node(_zip_name(dst_path)).write()
+            self._cfg.add_node(_zip_name(dst_path))
+            self._cfg.write()
         except ValueError:
             pass  # node already exists, leave it unchanged
 
