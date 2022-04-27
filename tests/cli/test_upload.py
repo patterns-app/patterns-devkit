@@ -53,7 +53,10 @@ def node_fn(output=OutputTable):
         result = run_cli(f"upload --no-deploy {path}")
         assert "Uploaded new graph" in result.output
         assert "Graph deployed" not in result.output
-        assert b'{"slug": "test-graph"}' in m.last_request.body
+        assert (
+            b'{"slug": "test-graph", "root_yaml_path": "graph.yml"}'
+            in m.last_request.body
+        )
 
     text_after = graph_file.read_text()
     assert text_after[: len(text_before)] == text_before
@@ -92,3 +95,30 @@ def test_upload_component(tmp_path: Path):
         result = run_cli(f"upload --publish-component {path}")
         assert "Uploaded new graph" in result.output
         assert "Published graph component" in result.output
+
+
+def test_upload_custom_yaml_name(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent
+    path = dr / "name"
+    path.mkdir()
+    graph_file = path / "custom.yml"
+    graph_file.write_text(
+        """
+name: name
+stores:
+ - table: t
+""".lstrip()
+    )
+
+    with request_mocker() as m:
+        m.post(
+            API_BASE_URL + Endpoints.graph_version_create("test-org-uid"),
+            json={
+                "uid": "1",
+                "ui_url": "url.com",
+                "graph": {"name": "g"},
+                "manifest": {},
+            },
+        )
+        result = run_cli(f"upload --no-deploy {graph_file.as_posix()}")
+        assert "Uploaded new graph" in result.output
