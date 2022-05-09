@@ -6,7 +6,10 @@ from .node.node import (
     OutputStream,
     Parameter,
     State,
+    Stream,
+    Table,
 )
+
 
 __all__ = [
     "node",
@@ -16,4 +19,6 @@ __all__ = [
     "OutputStream",
     "Parameter",
     "State",
+    "Table",
+    "Stream",
 ]

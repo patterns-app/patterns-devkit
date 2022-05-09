@@ -11,8 +11,22 @@ except ImportError:
 
 
 @dataclass
-class Table:
-    name: str
+class TableVersion:
+    @property
+    def name(self) -> str:
+        ...
+
+    @property
+    def storage(self):
+        ...
+
+    @property
+    def schema(self):
+        ...
+
+    @property
+    def record_count(self) -> int | None:
+        ...
 
 
 class InputTableMethods:
@@ -34,11 +48,11 @@ class InputTableMethods:
         ...
 
     @classmethod
-    def get_current_table(cls) -> Table | None:
+    def get_active_version(cls) -> TableVersion | None:
         ...
 
     @classmethod
-    def exists(cls) -> bool:
+    def has_active_version(cls) -> bool:
         ...
 
 
@@ -52,15 +66,19 @@ class OutputTableMethods:
         ...
 
     @classmethod
-    def new_table(cls) -> Table:
+    def create_new_version(cls) -> TableVersion:
         ...
 
     @classmethod
-    def get_current_table(cls) -> Table | None:
+    def get_active_version(cls) -> TableVersion | None:
         ...
 
     @classmethod
-    def set_current_table(cls, table: Table):
+    def set_active_version(cls, table: TableVersion):
+        ...
+
+    @classmethod
+    def has_active_version(cls) -> bool:
         ...
 
     @classmethod
@@ -72,7 +90,7 @@ class OutputTableMethods:
         ...
 
     @classmethod
-    def exists(cls) -> bool:
+    def signal_reset(cls):
         ...
 
 
@@ -131,6 +149,7 @@ class StateMethods:
         cls, trigger_downstream: bool = True, wait_atleast_seconds: int = None
     ):
         ...
+
 
 class ParameterMethods:
     pass
