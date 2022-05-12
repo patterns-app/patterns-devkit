@@ -88,12 +88,28 @@ class OutputStream(_OutputMeta, OutputStreamMethods):
     pass
 
 
-class Table(_InputMeta, InputTableMethods, OutputTableMethods):
-    pass
+class Table(InputTableMethods, OutputTableMethods):
+    def __init__(
+        self,
+        name: str,
+        mode: str = "r",
+        description: str = None,
+        schema: str = None,
+        required: bool = True,
+    ):
+        pass
 
 
-class Stream(_InputMeta, InputStreamMethods, OutputStreamMethods):
-    pass
+class Stream(InputStreamMethods, OutputStreamMethods):
+    def __init__(
+        self,
+        name: str,
+        mode: str = "r",
+        description: str = None,
+        schema: str = None,
+        required: bool = True,
+    ):
+        pass
 
 
 class State(_StateMeta, StateMethods):

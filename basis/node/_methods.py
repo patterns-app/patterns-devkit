@@ -10,7 +10,6 @@ except ImportError:
     DataFrame = None
 
 
-@dataclass
 class TableVersion:
     @property
     def name(self) -> str:
