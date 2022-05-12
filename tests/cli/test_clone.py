@@ -1,5 +1,4 @@
 import io
-import os
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -21,7 +20,7 @@ def test_clone(tmp_path: Path):
             content=b.getvalue(),
         )
 
-        result = run_cli(f"clone --graph-version-id=uid {path}")
+        result = run_cli(f"clone --version=uid {path}")
         assert "Cloned graph" in result.output
         assert (path / "graph.yml").read_text() == content
 
