@@ -18,12 +18,12 @@ def test_trigger_node_in_subgraph(tmp_path: Path):
             API_BASE_URL + Endpoints.DEPLOYMENTS_TRIGGER_NODE, json={"uid": "1"},
         )
         m.get(
-            API_BASE_URL + Endpoints.graph_by_name("test-org-uid", "graph"),
+            API_BASE_URL + Endpoints.graph_by_slug("test-org-uid", "graph"),
             json={"uid": "2"},
         )
         m.get(
             API_BASE_URL + Endpoints.graphs_latest("2"),
-            json={"active_graph_version": {"uid": "3"}},
+            json={"latest_graph_version": {"uid": "3"}},
         )
         result = run_cli(f"trigger {name}")
         assert "Triggered node" in result.output

@@ -29,7 +29,7 @@ def test_list_logs(tmp_path: Path):
     run_cli(f"create node {node}")
     with request_mocker() as m:
         m.get(
-            API_BASE_URL + Endpoints.graph_by_name("test-org-uid", "name"),
+            API_BASE_URL + Endpoints.graph_by_slug("test-org-uid", "name"),
             json={"uid": "1"},
         )
         m.get(
@@ -51,7 +51,7 @@ def test_list_data(tmp_path: Path):
 
     with request_mocker() as m:
         m.get(
-            API_BASE_URL + Endpoints.graph_by_name("test-org-uid", "name"),
+            API_BASE_URL + Endpoints.graph_by_slug("test-org-uid", "name"),
             json={"uid": "1"},
         )
         m.get(
@@ -70,7 +70,7 @@ def test_list_webhooks(tmp_path: Path):
     run_cli(f"create webhook --graph='{path}' undeployed_webhook")
     with request_mocker() as m:
         m.get(
-            API_BASE_URL + Endpoints.graph_by_name("test-org-uid", "name"),
+            API_BASE_URL + Endpoints.graph_by_slug("test-org-uid", "name"),
             json={"uid": "1"},
         )
         m.get(

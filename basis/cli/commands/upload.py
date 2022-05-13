@@ -38,11 +38,10 @@ def upload(
 
     graph_version_id = resp["uid"]
     ui_url = resp["ui_url"]
-    manifest = resp["manifest"]
     sprint(f"\n[success]Uploaded new graph version with id [b]{graph_version_id}")
-    if manifest.get("errors"):
+    if resp.get("errors"):
         sprint(f"[error]Graph contains the following errors:")
-        for error in manifest["errors"]:
+        for error in resp["errors"]:
             sprint(f"\t[error]{error}")
 
     if publish_component:

@@ -18,12 +18,12 @@ def test_deploy(tmp_path: Path):
                 json={"uid": "1", "ui_url": "url.com", "graph": {"name": "g"}, "manifest":{}},
             )
         for e in [
-            Endpoints.graph_by_name("test-org-uid", "name"),
+            Endpoints.graph_by_slug("test-org-uid", "name"),
             Endpoints.graphs_latest("1"),
         ]:
             m.get(
                 API_BASE_URL + e,
-                json={"uid": "1", "active_graph_version": {"uid": "1"}},
+                json={"uid": "1", "latest_graph_version": {"uid": "1"}},
             )
 
         run_cli(f"create graph {path}")
