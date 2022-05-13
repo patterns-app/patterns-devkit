@@ -2,7 +2,7 @@ import io
 from pathlib import Path
 from zipfile import ZipFile
 
-from basis.cli.services.api import API_BASE_URL, Endpoints
+from patterns.cli.services.api import API_BASE_URL, Endpoints
 from tests.cli.base import request_mocker, set_tmp_dir, run_cli
 
 

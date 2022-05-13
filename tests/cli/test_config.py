@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from basis.cli.config import read_devkit_config
-from basis.cli.services.api import Endpoints, API_BASE_URL
+from patterns.cli.config import read_devkit_config
+from patterns.cli.services.api import Endpoints, API_BASE_URL
 from tests.cli.base import set_tmp_dir, run_cli, request_mocker
 
 

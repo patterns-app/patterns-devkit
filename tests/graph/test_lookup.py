@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from basis.cli.services.lookup import IdLookup
+from patterns.cli.services.lookup import IdLookup
 from tests.configuration.utils import setup_graph_files
 
 
