@@ -7,9 +7,9 @@ from typing import Optional
 import yaml
 
 from basis.cli.config import (
-    read_local_basis_config,
+    read_devkit_config,
     CliConfig,
-    update_local_basis_config,
+    update_devkit_config,
 )
 from basis.cli.services.environments import (
     get_environment_by_name,
@@ -57,7 +57,7 @@ class IdLookup:
         orgs_by_name = {org["name"]: org for org in organizations}
         if len(organizations) == 1:
             org = organizations[0]
-            update_local_basis_config(organization_id=org["uid"])
+            update_devkit_config(organization_id=org["uid"])
         else:
             org_name = prompt_choices(
                 "Available organizations",
@@ -81,7 +81,7 @@ class IdLookup:
 
         if len(environments) == 1:
             uid = environments[0]["uid"]
-            update_local_basis_config(environment_id=uid)
+            update_devkit_config(environment_id=uid)
             return uid
 
         env_name = prompt_choices(
@@ -119,7 +119,7 @@ class IdLookup:
                 id = node.get("id")
                 if id:
                     return id
-                raise Exception("Node does not have an id. Run `basis upload` first.")
+                raise Exception("Node does not have an id. Run [code]patterns upload")
         raise Exception(err_msg)
 
     @cached_property
@@ -146,7 +146,7 @@ class IdLookup:
     def cfg(self) -> CliConfig:
         if self.ignore_local_cfg:
             return CliConfig()
-        return read_local_basis_config()
+        return read_devkit_config()
 
     @cached_property
     def graph_name(self) -> str:

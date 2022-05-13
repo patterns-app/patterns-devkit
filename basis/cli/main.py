@@ -25,7 +25,7 @@ class _Command(Group):
         debug_opt = click.Option(
             ["--stacktrace"], hidden=True, is_flag=True, callback=debug_cb
         )
-        super().__init__(name="basis", no_args_is_help=True, params=[debug_opt])
+        super().__init__(name="patterns", no_args_is_help=True, params=[debug_opt])
 
     def add_typer_fn(self, fn, **kw):
         if isinstance(fn, typer.Typer):

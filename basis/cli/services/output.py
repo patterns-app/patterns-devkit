@@ -98,16 +98,16 @@ def abort_on_error(message: str, prefix=": ", suffix=""):
         if e.response.status_code == 403:
             if details == "unverified email":
                 abort(
-                    f"Please verify your email address before using Basis - https://studio.getbasis.com/"
+                    f"Please verify your email address before using Patterns - https://studio.patterns.app"
                 )
             elif details == "incomplete setup":
                 abort(
-                    f"Please finish account setup before using Basis - https://studio.getbasis.com/"
+                    f"Please finish account setup before using Patterns - https://studio.patterns.app"
                 )
         elif e.response.status_code == 401:
             abort(
                 "You are not logged in to the devkit.\n"
-                "[info]You can log in with [code]basis login"
+                "[info]You can log in with [code]patterns login"
             )
 
         abort(f"{message}{prefix}{details}{suffix}")

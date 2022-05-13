@@ -8,8 +8,8 @@ from basis.cli.services.output import sprint, abort_on_error
 
 _graph_help = "The location of the graph.yml file of the graph to deploy"
 _graph_version_id_help = "The id of the graph version to deploy"
-_environment_help = "The name of the Basis environment deploy to"
-_organization_help = "The name of the Basis organization that the graph specified with --graph was uploaded to"
+_environment_help = "The name of the Patterns environment deploy to"
+_organization_help = "The name of the Patterns organization that the graph specified with --graph was uploaded to"
 
 
 def deploy(

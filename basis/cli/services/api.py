@@ -5,19 +5,19 @@ import requests
 from requests import Response, Session
 
 from basis.cli.config import (
-    read_local_basis_config,
+    read_devkit_config,
     CliConfig,
-    write_local_basis_config,
+    write_devkit_config,
     AuthServer,
 )
 from basis.cli.services.output import abort, abort_on_error
 
 API_BASE_URL = (
-    os.environ.get("BASIS_API_URL", "https://api-production.getbasis.com/").rstrip("/")
+    os.environ.get("PATTERNS_API_URL", "https://api-production.patterns.app/").rstrip("/")
     + "/"
 )
 
-AUTH_TOKEN_ENV_VAR = "BASIS_AUTH_TOKEN"
+AUTH_TOKEN_ENV_VAR = "PATTERNS_AUTH_TOKEN"
 AUTH_TOKEN_PREFIX = "JWT"
 
 PUBLIC_API_BASE_URL = "api/v1"
@@ -47,9 +47,9 @@ def _get_auth_token() -> str:
     if override:
         return override
 
-    cfg = read_local_basis_config()
+    cfg = read_devkit_config()
     if not cfg.token:
-        abort("You must be logged in to use this command. Run 'basis login'.")
+        abort("You must be logged in to use this command. Run [code]patterns login")
 
     with abort_on_error("Failed verifying auth token"):
         resp = requests.post(
@@ -66,7 +66,7 @@ def _get_auth_token() -> str:
 def _refresh_token(cfg: CliConfig) -> CliConfig:
     auth_server = cfg.auth_server
     if not auth_server or not cfg.refresh:
-        abort("Not logged in\n[info]You can log in with [code]basis login")
+        abort("Not logged in\n[info]You can log in with [code]patterns login")
 
     with abort_on_error("Failed to refresh access token"):
         resp = requests.post(
@@ -80,7 +80,7 @@ def _refresh_token(cfg: CliConfig) -> CliConfig:
         resp.raise_for_status()
 
     cfg.token = resp.json()["access_token"]
-    write_local_basis_config(cfg)
+    write_devkit_config(cfg)
 
     return cfg
 

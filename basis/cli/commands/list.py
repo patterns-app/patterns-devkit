@@ -27,8 +27,8 @@ class Listable(str, Enum):
 
 _type_help = "The type of object to list"
 _json_help = "Output the object as JSON Lines"
-_organization_help = "The name of the Basis organization to use"
-_environment_help = "The name of the Basis environment to use"
+_organization_help = "The name of the Patterns organization to use"
+_environment_help = "The name of the Patterns environment to use"
 
 _organization_option = Option("", "--organization", "-o", help=_organization_help)
 _environment_option = Option("", "--environment", "-e", help=_environment_help)

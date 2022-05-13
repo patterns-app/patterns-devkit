@@ -1,13 +1,13 @@
 from pathlib import Path
 
-from basis.cli.config import read_local_basis_config
+from basis.cli.config import read_devkit_config
 from basis.cli.services.api import Endpoints, API_BASE_URL
 from tests.cli.base import set_tmp_dir, run_cli, request_mocker
 
 
 def test_config_org_and_env(tmp_path: Path):
     set_tmp_dir(tmp_path)
-    old_cfg = read_local_basis_config()
+    old_cfg = read_devkit_config()
     assert old_cfg.environment_id == "test-env-uid"
     assert old_cfg.organization_id == "test-org-uid"
 
@@ -21,6 +21,6 @@ def test_config_org_and_env(tmp_path: Path):
             json={"uid": "env-uid"},
         )
         run_cli("config -o org -e env")
-    new_cfg = read_local_basis_config()
+    new_cfg = read_devkit_config()
     assert new_cfg.organization_id == "org-uid"
     assert new_cfg.environment_id == "env-uid"

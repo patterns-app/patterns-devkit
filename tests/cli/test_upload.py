@@ -21,7 +21,7 @@ functions:
     graph_file.write_text(text_before)
     (path / "p.py").write_text(
         """
-from basis import *
+from patterns import *
 @node
 def node_fn(output=OutputTable):
     pass

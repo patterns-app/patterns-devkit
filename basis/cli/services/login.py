@@ -12,7 +12,7 @@ from urllib.parse import ParseResult
 import requests
 from requests import HTTPError
 
-from basis.cli.config import update_local_basis_config
+from basis.cli.config import update_devkit_config
 from basis.cli.services.api import (
     AuthServer,
     get_auth_server,
@@ -131,7 +131,7 @@ class LoginRequestHandler(BaseOAuthRequestHandler):
                 401, f"We did not receive a valid authorization result: {json}"
             )
 
-        update_local_basis_config(
+        update_devkit_config(
             auth_server=login_config.auth_server,
             refresh=json["refresh_token"],
             token=json["access_token"],

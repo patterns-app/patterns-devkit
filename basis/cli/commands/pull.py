@@ -15,11 +15,11 @@ from basis.cli.services.pull import (
 )
 from basis.configuration.edit import GraphDirectoryEditor, FileOverwriteError
 
-_graph_help = "The name of a graph in your Basis organization [default: directory name]"
+_graph_help = "The name of a graph in your Patterns organization [default: directory name]"
 _graph_version_id_help = (
     "The id of the graph version to pull. [default: latest version]"
 )
-_organization_help = "The name of the Basis organization that the graph was uploaded to"
+_organization_help = "The name of the Patterns organization that the graph was uploaded to"
 _force_help = "Overwrite existing files without prompting"
 _directory_help = "The directory to create the new graph in. Must not exist."
 _component_help = (
@@ -43,7 +43,7 @@ def clone(
             )
         else:
             abort(
-                f"Missing graph argument." f"\n[code](try `basis clone graph-to-clone`)"
+                f"Missing graph argument." f"\ntry [code]patterns clone graph-to-clone"
             )
     component_match = COMPONENT_RE.fullmatch(component)
     if component and not component_match:

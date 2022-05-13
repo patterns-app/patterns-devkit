@@ -3,7 +3,7 @@ from __future__ import annotations
 import urllib.parse
 from urllib.parse import ParseResult
 
-from basis.cli.config import read_local_basis_config, update_local_basis_config
+from basis.cli.config import read_devkit_config, update_devkit_config
 from basis.cli.services.auth import (
     LOCAL_OAUTH_PORT,
     BaseOAuthRequestHandler,
@@ -12,7 +12,7 @@ from basis.cli.services.auth import (
 
 
 def logout():
-    cfg = read_local_basis_config()
+    cfg = read_devkit_config()
     if not cfg.auth_server:
         return
 
@@ -31,7 +31,7 @@ class LogoutRequestHandler(BaseOAuthRequestHandler):
     handled_path: str = "/logout_callback"
 
     def handle_callback(self, parsed_url: ParseResult):
-        update_local_basis_config(refresh=None, token=None, auth_server=None)
+        update_devkit_config(refresh=None, token=None, auth_server=None)
         self.finish_with_success(
             "Successfully logged out", "You have successfully logged out"
         )

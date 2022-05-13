@@ -40,7 +40,7 @@ def graph(
     sprint(f"\n[success]Created graph [b]{name}")
     sprint(
         f"\n[info]You can add nodes with [code]cd {location}[/code],"
-        f" then [code]basis create node[/code]"
+        f" then [code]patterns create node[/code]"
     )
 
 
@@ -57,7 +57,7 @@ def node(
 ):
     """Add a new node to a graph
 
-    basis create node --name='My Node' mynode.py
+    patterns create node --name='My Node' mynode.py
     """
     if component and location:
         abort("Specify either a component or a node location, not both")
@@ -110,7 +110,7 @@ def node(
     sprint(f"\n[success]Created node [b]{location}")
     sprint(
         f"\n[info]Once you've edited the node and are ready to run the graph, "
-        f"use [code]basis upload"
+        f"use [code]patterns upload"
     )
 
 
@@ -133,12 +133,12 @@ def webhook(
     sprint(f"\n[success]Created webhook [b]{name}")
     sprint(
         f"\n[info]Once you've deployed the graph, use "
-        f"[code]basis list webhooks[/code] to get the url of the webhook"
+        f"[code]patterns list webhooks[/code] to get the url of the webhook"
     )
 
 
 _PY_FILE_TEMPLATE = """
-from basis import *
+from patterns import *
 
 
 @node

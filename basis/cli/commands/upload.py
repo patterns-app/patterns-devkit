@@ -10,8 +10,8 @@ from basis.cli.services.upload import upload_graph_version
 
 _graph_help = "The location of the graph.yml file for the graph to upload"
 _deploy_help = "Whether or not to automatically deploy the graph after upload"
-_organization_help = "The name of the Basis organization to upload to"
-_environment_help = "The name of the Basis environment to use if deploying the graph"
+_organization_help = "The name of the Patterns organization to upload to"
+_environment_help = "The name of the Patterns environment to use if deploying the graph"
 _component_help = "After uploading, publish the graph version as a public component"
 
 
@@ -22,7 +22,7 @@ def upload(
     graph: Path = Argument(None, exists=True, help=_graph_help),
     publish_component: bool = Option(False, help=_component_help),
 ):
-    """Upload a new version of a graph to Basis"""
+    """Upload a new version of a graph to Patterns"""
     ids = IdLookup(
         environment_name=environment,
         organization_name=organization,

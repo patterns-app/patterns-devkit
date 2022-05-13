@@ -2,9 +2,9 @@ from rich.table import Table
 from typer import Option
 
 from basis.cli.config import (
-    read_local_basis_config,
-    write_local_basis_config,
-    get_basis_config_path,
+    read_devkit_config,
+    write_devkit_config,
+    get_devkit_config_path,
 )
 from basis.cli.services.environments import get_environment_by_id
 from basis.cli.services.lookup import IdLookup
@@ -29,10 +29,10 @@ def config(
         ids.cfg.organization_id = ids.organization_id
     if environment:
         ids.cfg.environment_id = ids.environment_id
-    write_local_basis_config(ids.cfg)
+    write_devkit_config(ids.cfg)
 
-    sprint(f"[info]Your basis config is located at "
-           f"[code]{get_basis_config_path().as_posix()}")
+    sprint(f"[info]Your patterns config is located at "
+           f"[code]{get_devkit_config_path().as_posix()}")
 
     t = Table(show_header=False)
     try:

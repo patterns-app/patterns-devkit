@@ -8,9 +8,9 @@ from basis.cli.services.trigger import trigger_node, TypeChoices
 
 _graph_help = "The location of the graph.yml file for the deployed graph"
 _graph_version_id_help = "The id of the deployed graph version"
-_environment_help = "The name of the Basis environment that the graph is deployed to"
+_environment_help = "The name of the Patterns environment that the graph is deployed to"
 _organization_help = (
-    "The name of the Basis organization that the graph specified "
+    "The name of the Patterns organization that the graph specified "
     "with --graph was uploaded to"
 )
 _node_help = "The path to the node to trigger"
