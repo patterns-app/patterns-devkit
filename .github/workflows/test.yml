@@ -1,4 +1,4 @@
-name: basis
+name: test
 
 on:
   push:
