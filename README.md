@@ -4,20 +4,20 @@
 </p>
 <p>&nbsp;</p>
 <p align="center">
-  <em>Basis - Build data systems from re-usable sql and python components</em>
+  <em>Patterns - Build data systems from re-usable sql and python components</em>
 </p>
 
 ---
 
 ## Installation
 
-`pip install basis-devkit`
+`pip install patterns-devkit`
 
 ## Usage
 
-`basis create graph mygraph`
+`patterns create graph mygraph`
 
-This will create an empty basis graph:
+This will create an empty patterns graph:
 
 ```
 mygraph/
@@ -28,7 +28,7 @@ Create a new python node:
 
 ```
 cd mygraph
-basis create node mynode.py
+patterns create node mynode.py
 ```
 
 ```
@@ -39,19 +39,19 @@ mygraph/
 
 ## Deploy
 
-To deploy a graph, you must sign up for a getbasis.com account and login to authenticate
+To deploy a graph, you must sign up for a patterns.app account and login to authenticate
 the cli:
 
-`basis login`
+`patterns login`
 
 Then you can deploy you graph:
 
-`basis upload`
+`patterns upload`
 
 ## Other commands
 
 You can see the full list of available cli commands:
 
 ```
-basis --help
+patterns --help
 ```

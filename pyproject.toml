@@ -1,10 +1,10 @@
 [tool.poetry]
-authors = ["AJ Alt <aj@getbasis.com>", "Ken Van Haren <kvh@getbasis.com>"]
+authors = ["AJ Alt <aj@patterns.app>", "Ken Van Haren <kvh@patterns.app>"]
 description = "Data pipelines from re-usable components"
 license = "BSD-3-Clause"
-name = "basis-devkit"
+name = "patterns-devkit"
 packages = [
-  {include = "basis"},
+  {include = "patterns"},
 ]
 version = "0.1.9"
 
@@ -27,7 +27,7 @@ pytest = "^7.1.1"
 requests-mock = "^1.9.3"
 
 [tool.poetry.scripts]
-basis = "basis.cli.main:main"
+patterns = "patterns.cli.main:main"
 
 [tool.black]
 exclude = '''
@@ -40,7 +40,6 @@ exclude = '''
   | build
   | dist
   | examples
-  | basis/cli/templates/templates
 )/
 '''
 

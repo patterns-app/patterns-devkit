@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from basis.cli.services.api import API_BASE_URL, Endpoints
-from basis.configuration.edit import GraphConfigEditor
+from patterns.cli.services.api import API_BASE_URL, Endpoints
+from patterns.configuration.edit import GraphConfigEditor
 from tests.cli.base import request_mocker, set_tmp_dir, run_cli
 
 

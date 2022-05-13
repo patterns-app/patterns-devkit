@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from basis.cli.services.api import API_BASE_URL, Endpoints
+from patterns.cli.services.api import API_BASE_URL, Endpoints
 from tests.cli.base import request_mocker, set_tmp_dir, run_cli
 
 
@@ -21,7 +21,7 @@ functions:
     graph_file.write_text(text_before)
     (path / "p.py").write_text(
         """
-from basis import *
+from patterns import *
 @node
 def node_fn(output=OutputTable):
     pass
