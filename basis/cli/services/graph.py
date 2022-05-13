@@ -14,7 +14,7 @@ def resolve_graph_path(
         if exists:
             raise ValueError(f"File '{f}' does not exist")
         return f.absolute()
-    if path.suffix and path.name != "graph.yml":
+    if path.suffix and path.suffix not in (".yml", ".yaml"):
         raise ValueError(f"Invalid graph file name: {path.name}")
     if path.is_file():
         if not exists:

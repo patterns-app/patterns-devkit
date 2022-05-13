@@ -28,7 +28,7 @@ def _all_files(path: Path) -> Generator[str]:
             dirnames.remove("__pycache__")
         for f in files:
             p = Path(dirname) / f
-            if p.suffix != ".pyc":
+            if p.suffix != ".pyc" and p.name.lower() != ".ds_store":
                 yield p
 
 

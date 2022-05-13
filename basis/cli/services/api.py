@@ -169,6 +169,10 @@ class Endpoints:
         return f"{PUBLIC_API_BASE_URL}/graph_versions/{graph_version_uid}/zip"
 
     @classmethod
+    def component_download(cls, organization: str, component: str, version: str) -> str:
+        return f"{PUBLIC_API_BASE_URL}/marketplace/components/{organization}/{component}/{version}/zip"
+
+    @classmethod
     def graph_by_slug(cls, organization_uid: str, slug: str) -> str:
         return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/graphs/slug/{slug}"
 

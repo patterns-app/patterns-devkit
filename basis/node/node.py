@@ -26,13 +26,19 @@ def _mixin_attrs():
 # but that fine for how we're using them.
 class _InputMeta(type):
     def __new__(
-        mcs, description: str = None, schema: str = None, required: bool = True,
+        mcs,
+        description: str = None,
+        schema: str = None,
+        required: bool = True,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
     def __init__(
-        cls, description: str = None, schema: str = None, required: bool = True,
+        cls,
+        description: str = None,
+        schema: str = None,
+        required: bool = True,
     ):
         cls.description = description
         cls.schema = schema
@@ -41,13 +47,17 @@ class _InputMeta(type):
 
 class _OutputMeta(type):
     def __new__(
-        mcs, description: str = None, schema: str = None,
+        mcs,
+        description: str = None,
+        schema: str = None,
     ):
         return super().__new__(mcs, mcs.__name__, (mcs,), _mixin_attrs())
 
     # noinspection PyMissingConstructor
     def __init__(
-        cls, description: str = None, schema: str = None,
+        cls,
+        description: str = None,
+        schema: str = None,
     ):
         cls.description = description
         cls.schema = schema
@@ -78,6 +88,30 @@ class OutputStream(_OutputMeta, OutputStreamMethods):
     pass
 
 
+class Table(InputTableMethods, OutputTableMethods):
+    def __init__(
+        self,
+        name: str,
+        mode: str = "r",
+        description: str = None,
+        schema: str = None,
+        required: bool = True,
+    ):
+        pass
+
+
+class Stream(InputStreamMethods, OutputStreamMethods):
+    def __init__(
+        self,
+        name: str,
+        mode: str = "r",
+        description: str = None,
+        schema: str = None,
+        required: bool = True,
+    ):
+        pass
+
+
 class State(_StateMeta, StateMethods):
     pass
 
@@ -91,7 +125,6 @@ class _Parameter(str):
         description: str = None,
         type: Type[T] = str,
         default: Any = None,
-        template: str = None,
     ) -> T:
         pass
 
