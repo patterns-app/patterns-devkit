@@ -12,4 +12,5 @@ def get_graph_version_by_id(graph_version_uid) -> dict:
 
 
 def get_latest_graph_version(graph_uid: str) -> dict:
-    return get_json(Endpoints.graphs_latest(graph_uid))["latest_graph_version"]
+    resp = get_json(Endpoints.graphs_latest(graph_uid))
+    return resp["active_graph_version"]
