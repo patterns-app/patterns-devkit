@@ -23,7 +23,7 @@ def test_deploy(tmp_path: Path):
         ]:
             m.get(
                 API_BASE_URL + e,
-                json={"uid": "1", "latest_graph_version": {"uid": "1"}},
+                json={"uid": "1", "active_graph_version": {"uid": "1"}},
             )
 
         run_cli(f"create graph {path}")
