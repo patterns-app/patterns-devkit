@@ -50,6 +50,8 @@ class IdLookup:
     @cached_property
     def organization_id(self) -> str:
         if self.organization_name:
+            if not self.environment_name:
+                raise ValueError("Must --environment when you specify --organization")
             return get_organization_by_name(self.organization_name)["uid"]
         if self.cfg.organization_id:
             return self.cfg.organization_id
