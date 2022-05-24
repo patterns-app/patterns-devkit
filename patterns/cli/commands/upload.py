@@ -39,7 +39,9 @@ def upload(
     graph_version_id = resp["uid"]
     ui_url = resp["ui_url"]
     sprint(f"\n[success]Uploaded new graph version with id [b]{graph_version_id}")
-    errors = resp["manifest"].get("errors", [])
+    errors = resp.get("errors", [])
+    if resp.get("manifest"):
+        errors = errors + resp["manifest"].get("errors", [])
     if publish_component:
         errors = [
             e
