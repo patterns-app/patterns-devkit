@@ -39,9 +39,20 @@ def upload(
     graph_version_id = resp["uid"]
     ui_url = resp["ui_url"]
     sprint(f"\n[success]Uploaded new graph version with id [b]{graph_version_id}")
-    if resp.get("errors"):
+    errors = resp["manifest"].get("errors", [])
+    if publish_component:
+        errors = [
+            e
+            for e in errors
+            if not e["message"].startswith("Top level input is not connected")
+            and not (
+                e["message"].startswith("Parameter")
+                and e["message"].endswith("has no default or value")
+            )
+        ]
+    if errors:
         sprint(f"[error]Graph contains the following errors:")
-        for error in resp["errors"]:
+        for error in errors:
             sprint(f"\t[error]{error}")
 
     if publish_component:
