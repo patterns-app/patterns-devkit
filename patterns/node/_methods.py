@@ -134,7 +134,7 @@ class StateMethods:
         ...
 
     @classmethod
-    def get_value(cls, key: str) -> Any:
+    def get_value(cls, key: str, default: Any = None) -> Any:
         ...
 
     @classmethod
