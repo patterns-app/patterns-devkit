@@ -42,6 +42,7 @@ class IdLookup:
     explicit_graph_path: Path = None
     node_file_path: Path = None
     explicit_graph_version_id: str = None
+    explicit_graph_id: str = None
     ignore_local_cfg: bool = False
     ignore_cfg_environment: bool = False
     explicit_graph_name: str = None
@@ -93,6 +94,8 @@ class IdLookup:
 
     @cached_property
     def graph_id(self) -> str:
+        if self.explicit_graph_id:
+            return self.explicit_graph_id
         return get_graph_by_slug(self.organization_id, self.graph_name)["uid"]
 
     @cached_property

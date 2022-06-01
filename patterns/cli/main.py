@@ -6,6 +6,7 @@ from click import Group, Context, HelpFormatter, MultiCommand, Command
 
 from .commands.config import config
 from .commands.create import create
+from .commands.delete import delete
 from .commands.deploy import deploy
 from .commands.list import list_command
 from .commands.login import login
@@ -73,6 +74,7 @@ for command in (
     config,
     create,
     deploy,
+    delete,
     list_command,
     login,
     logout,

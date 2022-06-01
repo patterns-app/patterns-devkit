@@ -16,7 +16,7 @@ def deploy(
     environment: str = Option("", "-e", "--environment", help=_environment_help),
     organization: str = Option("", "-o", "--organization", help=_organization_help),
     graph: Path = Option(None, help=_graph_help),
-    graph_version_id: str = Option(""),
+    graph_version_id: str = Option("", help=_graph_version_id_help),
 ):
     """Deploy a previously uploaded graph version
 
