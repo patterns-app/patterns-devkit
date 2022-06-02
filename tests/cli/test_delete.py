@@ -10,5 +10,5 @@ def test_delete(tmp_path: Path):
     with request_mocker() as m:
         m.delete(API_BASE_URL + Endpoints.graph_delete("uid"))
 
-        result = run_cli(f"delete --graph-id uid")
+        result = run_cli(f"delete -f --graph-id uid")
         assert "Graph deleted" in result.output

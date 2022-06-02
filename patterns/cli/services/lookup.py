@@ -19,7 +19,7 @@ from patterns.cli.services.graph import resolve_graph_path
 from patterns.cli.services.graph_versions import (
     get_graph_by_slug,
     get_latest_graph_version,
-    get_graph_version_by_id,
+    get_graph_version_by_id, get_graph_by_uid,
 )
 from patterns.cli.services.organizations import (
     get_organization_by_name,
@@ -164,6 +164,8 @@ class IdLookup:
         if self.explicit_graph_version_id:
             vid = self.explicit_graph_version_id
             return get_graph_version_by_id(vid)["graph"]["name"]
+        if self.explicit_graph_id:
+            return get_graph_by_uid(self.explicit_graph_id)["name"]
         return from_yaml()
 
     def _load_yaml(self, path: Path) -> dict:
