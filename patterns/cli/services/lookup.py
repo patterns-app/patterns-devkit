@@ -19,7 +19,7 @@ from patterns.cli.services.graph import resolve_graph_path
 from patterns.cli.services.graph_versions import (
     get_graph_by_slug,
     get_latest_graph_version,
-    get_graph_version_by_id,
+    get_graph_version_by_id, get_graph_by_uid,
 )
 from patterns.cli.services.organizations import (
     get_organization_by_name,
@@ -42,6 +42,7 @@ class IdLookup:
     explicit_graph_path: Path = None
     node_file_path: Path = None
     explicit_graph_version_id: str = None
+    explicit_graph_id: str = None
     ignore_local_cfg: bool = False
     ignore_cfg_environment: bool = False
     explicit_graph_name: str = None
@@ -93,6 +94,8 @@ class IdLookup:
 
     @cached_property
     def graph_id(self) -> str:
+        if self.explicit_graph_id:
+            return self.explicit_graph_id
         return get_graph_by_slug(self.organization_id, self.graph_name)["uid"]
 
     @cached_property
@@ -161,6 +164,8 @@ class IdLookup:
         if self.explicit_graph_version_id:
             vid = self.explicit_graph_version_id
             return get_graph_version_by_id(vid)["graph"]["name"]
+        if self.explicit_graph_id:
+            return get_graph_by_uid(self.explicit_graph_id)["name"]
         return from_yaml()
 
     def _load_yaml(self, path: Path) -> dict:
