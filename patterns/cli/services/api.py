@@ -13,7 +13,10 @@ from patterns.cli.config import (
 from patterns.cli.services.output import abort, abort_on_error
 
 API_BASE_URL = (
-    os.environ.get("PATTERNS_API_URL", "https://api-production.patterns.app/").rstrip("/")
+    os.environ.get(
+        "PATTERNS_API_URL",
+        "https://api-production.patterns.app/",
+    ).rstrip("/")
     + "/"
 )
 
@@ -133,6 +136,18 @@ def post(
     return resp
 
 
+def delete(
+    path: str,
+    params: dict = None,
+    session: Session = None,
+    base_url: str = API_BASE_URL,
+    **kwargs,
+) -> Response:
+    session = session or _get_api_session()
+    resp = session.delete(base_url + path, params=params or {}, **kwargs)
+    return resp
+
+
 class Endpoints:
     TOKEN_CREATE = "auth/jwt/create"
     TOKEN_AUTHSERVER = f"{PUBLIC_API_BASE_URL}/auth/jwt/authserver"
@@ -169,12 +184,18 @@ class Endpoints:
         return f"{PUBLIC_API_BASE_URL}/graph_versions/{graph_version_uid}/zip"
 
     @classmethod
+    def graph_delete(cls, graph_uid: str) -> str:
+        return f"{PUBLIC_API_BASE_URL}/graphs/{graph_uid}"
+
+    @classmethod
     def component_download(cls, organization: str, component: str, version: str) -> str:
         return f"{PUBLIC_API_BASE_URL}/marketplace/components/{organization}/{component}/{version}/zip"
 
     @classmethod
     def graph_by_slug(cls, organization_uid: str, slug: str) -> str:
-        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/graphs/slug/{slug}"
+        return (
+            f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/graphs/slug/{slug}"
+        )
 
     @classmethod
     def graph_version_by_id(cls, graph_version_uid: str) -> str:
