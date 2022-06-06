@@ -94,10 +94,7 @@ def node(
 
     # Write to disk last to avoid partial updates
     if location.suffix == ".py":
-        fun_name = re.sub(r"[^a-zA-Z0-9_]", "_", location.stem)
-        if re.match(r"\d", fun_name):
-            fun_name = f"node_{fun_name}"
-        location.write_text(_PY_FILE_TEMPLATE.format(fun_name))
+        location.write_text(_PY_FILE_TEMPLATE)
     elif location.suffix == ".sql":
         location.write_text(_SQL_FILE_TEMPLATE)
     elif location.name == "graph.yml":
@@ -138,24 +135,19 @@ def webhook(
 
 
 _PY_FILE_TEMPLATE = """
-from patterns import *
+# Documentation: https://docs.patterns.app/docs/node-development/python/
 
-
-@node
-def {}(
-    # Declare the node inputs and outputs here:
-    # input_stream=InputStream,
-    # output_table=OutputTable,
-    # myparam=Parameter(type='text'),
-):
-    # use the inputs and outputs here:
-    pass
+from patterns import (
+    Parameter,
+    State,
+    Stream,
+    Table,
+)
 """
 
 _SQL_FILE_TEMPLATE = """
-create table {{ OutputTable("my_output_table") }}
+-- Type '{{' to use Tables and Parameters
+-- Documentation: https://docs.patterns.app/docs/node-development/sql/
+
 select
-    *
-from {{ InputTable("other_node") }}
-limit {{ Parameter("limit", "int", default=100) }}
 """
