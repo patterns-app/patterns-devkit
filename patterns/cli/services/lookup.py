@@ -66,7 +66,6 @@ class IdLookup:
                 choices=orgs_by_name.keys(),
             )
             org = orgs_by_name[org_name]
-        self.organization_name = org["name"]
         return org["uid"]
 
     @cached_property
