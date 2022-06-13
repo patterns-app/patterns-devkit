@@ -47,11 +47,27 @@ class InputTableMethods:
         ...
 
     @classmethod
+    def reset(cls):
+        ...
+
+    @classmethod
     def get_active_version(cls) -> TableVersion | None:
         ...
 
     @classmethod
     def has_active_version(cls) -> bool:
+        ...
+
+    @property
+    def sql_name(self) -> str | None:
+        ...
+
+    @property
+    def schema(self) -> "Schema" | None:
+        ...
+
+    @property
+    def record_count(self) -> int | None:
         ...
 
 
@@ -92,6 +108,10 @@ class OutputTableMethods:
     def signal_reset(cls):
         ...
 
+    @classmethod
+    def reset(cls):
+        ...
+
 
 class InputStreamMethods:
     @classmethod
@@ -111,6 +131,10 @@ class InputStreamMethods:
 
     @classmethod
     def consume_all(cls) -> Iterator[str | None]:
+        ...
+
+    @classmethod
+    def reset(cls):
         ...
 
 
@@ -147,6 +171,10 @@ class StateMethods:
     def request_new_run(
         cls, trigger_downstream: bool = True, wait_atleast_seconds: int = None
     ):
+        ...
+
+    @classmethod
+    def reset(cls):
         ...
 
 
