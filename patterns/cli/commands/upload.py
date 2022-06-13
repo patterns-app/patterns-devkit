@@ -59,13 +59,13 @@ def upload(
         with abort_on_error("Error creating component"):
             resp = create_graph_component(graph_version_id)
             resp_org = resp["organization"]["slug"]
-            resp_versions = resp["version_names"]
+            resp_version = resp["version_name"]
             resp_component = resp["component"]["slug"]
             resp_id = resp["uid"]
             sprint(
                 f"[success]Published graph component "
                 f"[b]{resp_org}/{resp_component}[/b] "
-                f"with versions [b]{resp_versions}[/b] "
+                f"with version [b]{resp_version}[/b] "
                 f"at id [b]{resp_id}"
             )
     elif deploy:

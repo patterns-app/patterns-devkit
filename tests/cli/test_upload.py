@@ -85,7 +85,7 @@ def test_upload_component(tmp_path: Path):
             API_BASE_URL + Endpoints.COMPONENTS_CREATE,
             json={
                 "uid": "2",
-                "version_names": ["v1", "v1.1"],
+                "version_name": "1.1.1",
                 "component": {"uid": "3", "slug": "c"},
                 "organization": {"uid": "4", "slug": "o"},
             },
