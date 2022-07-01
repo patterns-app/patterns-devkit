@@ -129,7 +129,7 @@ def webhook(
 
     sprint(f"\n[success]Created webhook [b]{name}")
     sprint(
-        f"\n[info]Once you've deployed the graph, use "
+        f"\n[info]Once you've uploaded the graph, use "
         f"[code]patterns list webhooks[/code] to get the url of the webhook"
     )
 

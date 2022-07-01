@@ -153,7 +153,6 @@ class Endpoints:
     TOKEN_AUTHSERVER = f"{PUBLIC_API_BASE_URL}/auth/jwt/authserver"
     TOKEN_VERIFY = f"{PUBLIC_API_BASE_URL}/auth/jwt/verify"
     ACCOUNTS_ME = f"{PUBLIC_API_BASE_URL}/accounts/me"
-    DEPLOYMENTS_DEPLOY = f"{PUBLIC_API_BASE_URL}/deployments"
     DEPLOYMENTS_TRIGGER_NODE = f"{PUBLIC_API_BASE_URL}/deployments/triggers"
     ENVIRONMENTS_CREATE = f"{PUBLIC_API_BASE_URL}/environments"
     ORGANIZATIONS_LIST = f"{PUBLIC_API_BASE_URL}/organizations"
