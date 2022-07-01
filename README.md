@@ -37,14 +37,14 @@ mygraph/
   mynode.py
 ```
 
-## Deploy
+## Upload
 
-To deploy a graph, you must sign up for a patterns.app account and login to authenticate
-the cli:
+To deploy a graph, you must sign up for a [patterns.app][https://studio.patterns.app]
+account and login to authenticate the cli:
 
 `patterns login`
 
-Then you can deploy you graph:
+Then you can upload your graph:
 
 `patterns upload`
 

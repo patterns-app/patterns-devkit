@@ -29,32 +29,19 @@ def node_fn(output=OutputTable):
     )
 
     with request_mocker() as m:
-        for e in [
-            Endpoints.graph_version_create("test-org-uid"),
-            Endpoints.DEPLOYMENTS_DEPLOY,
-        ]:
-            m.post(
-                API_BASE_URL + e,
-                json={
-                    "uid": "1",
-                    "ui_url": "url.com",
-                    "graph": {"name": "g"},
-                    "errors": [{"node_id": "n1", "message": "Test Error"}]
-                },
-            )
+        m.post(
+            API_BASE_URL + Endpoints.graph_version_create("test-org-uid"),
+            json={
+                "uid": "1",
+                "ui_url": "url.com",
+                "graph": {"name": "g"},
+                "errors": [{"node_id": "n1", "message": "Test Error"}],
+            },
+        )
         result = run_cli(f"upload {path}")
         assert "Uploaded new graph" in result.output
         assert "Test Error" in result.output
-        assert "Graph deployed" in result.output
         assert "url.com" in result.output
-
-        result = run_cli(f"upload --no-deploy {path}")
-        assert "Uploaded new graph" in result.output
-        assert "Graph deployed" not in result.output
-        assert (
-            b'{"slug": "test-graph", "root_yaml_path": "graph.yml"}'
-            in m.last_request.body
-        )
 
     text_after = graph_file.read_text()
     assert text_after[: len(text_before)] == text_before
@@ -68,19 +55,15 @@ def test_upload_component(tmp_path: Path):
     run_cli(f"create node {path}/node.py")
 
     with request_mocker() as m:
-        for e in [
-            Endpoints.graph_version_create("test-org-uid"),
-            Endpoints.DEPLOYMENTS_DEPLOY,
-        ]:
-            m.post(
-                API_BASE_URL + e,
-                json={
-                    "uid": "1",
-                    "ui_url": "url.com",
-                    "graph": {"name": "g"},
-                    "errors": []
-                },
-            )
+        m.post(
+            API_BASE_URL + Endpoints.graph_version_create("test-org-uid"),
+            json={
+                "uid": "1",
+                "ui_url": "url.com",
+                "graph": {"name": "g"},
+                "errors": [],
+            },
+        )
         m.post(
             API_BASE_URL + Endpoints.COMPONENTS_CREATE,
             json={
@@ -118,5 +101,5 @@ stores:
                 "manifest": {},
             },
         )
-        result = run_cli(f"upload --no-deploy {graph_file.as_posix()}")
+        result = run_cli(f"upload {graph_file.as_posix()}")
         assert "Uploaded new graph" in result.output
