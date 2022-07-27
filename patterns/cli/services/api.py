@@ -12,12 +12,9 @@ from patterns.cli.config import (
 )
 from patterns.cli.services.output import abort, abort_on_error
 
-API_BASE_URL = (
-    os.environ.get(
-        "PATTERNS_API_URL",
-        "https://api-production.patterns.app/",
-    ).rstrip("/")
-    + "/"
+API_BASE_URL = os.environ.get(
+    "PATTERNS_API_URL",
+    "https://api-production.patterns.app/",
 )
 
 AUTH_TOKEN_ENV_VAR = "PATTERNS_AUTH_TOKEN"
@@ -25,27 +22,29 @@ AUTH_TOKEN_PREFIX = "JWT"
 
 PUBLIC_API_BASE_URL = "api/v1"
 
+s = requests.Session()
+s.headers["Accept"] = "application/json"
+
 
 def _get_api_session() -> Session:
-    s = requests.Session()
-    auth_token = _get_auth_token()
-    s.headers.update(
-        {
-            "Authorization": f"{AUTH_TOKEN_PREFIX} {auth_token}",
-            "Accept": "application/json",
-        }
-    )
+    if "Authorization" not in s.headers:
+        auth_token = _get_auth_token()
+        s.headers["Authorization"] = f"{AUTH_TOKEN_PREFIX} {auth_token}"
     return s
+
+
+def reset_session_auth():
+    s.headers.pop("Authorization", None)
 
 
 def get_auth_server() -> AuthServer:
     with abort_on_error("Failed getting the auth server"):
-        resp = requests.get(API_BASE_URL + Endpoints.TOKEN_AUTHSERVER)
+        resp = requests.get(build_url(API_BASE_URL, Endpoints.TOKEN_AUTHSERVER))
         resp.raise_for_status()
         return AuthServer(**resp.json())
 
 
-def _get_auth_token() -> str:
+def _get_auth_token(base_url: str = API_BASE_URL) -> str:
     override = os.environ.get(AUTH_TOKEN_ENV_VAR)
     if override:
         return override
@@ -56,7 +55,7 @@ def _get_auth_token() -> str:
 
     with abort_on_error("Failed verifying auth token"):
         resp = requests.post(
-            API_BASE_URL + Endpoints.TOKEN_VERIFY, json={"token": cfg.token}
+            build_url(base_url, Endpoints.TOKEN_VERIFY), json={"token": cfg.token}
         )
     if resp.status_code == 401:
         if cfg.refresh:
@@ -108,7 +107,7 @@ def get(
     **kwargs,
 ) -> Response:
     session = session or _get_api_session()
-    resp = session.get(base_url + path, params=params or {}, **kwargs)
+    resp = session.get(build_url(base_url, path), params=params or {}, **kwargs)
     return resp
 
 
@@ -132,7 +131,7 @@ def post(
     **kwargs,
 ) -> Response:
     session = session or _get_api_session()
-    resp = session.post(base_url + path, json=json or {}, **kwargs)
+    resp = session.post(build_url(base_url, path), json=json or {}, **kwargs)
     return resp
 
 
@@ -144,8 +143,12 @@ def delete(
     **kwargs,
 ) -> Response:
     session = session or _get_api_session()
-    resp = session.delete(base_url + path, params=params or {}, **kwargs)
+    resp = session.delete(build_url(base_url, path), params=params or {}, **kwargs)
     return resp
+
+
+def build_url(base_url: str, url: str) -> str:
+    return "/".join((base_url.rstrip("/"), url.lstrip("/")))
 
 
 class Endpoints:

@@ -4,12 +4,14 @@ from patterns.cli.config import (
 )
 from patterns.cli.services import login as login_service
 from patterns.cli.services.accounts import me
+from patterns.cli.services.api import reset_session_auth, API_BASE_URL
 from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.output import sprint, abort_on_error
 
 
 def login():
     """Log in to your Patterns account"""
+    reset_session_auth()
 
     with abort_on_error("Login failed"):
         login_service.login()

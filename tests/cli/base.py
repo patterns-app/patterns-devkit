@@ -11,7 +11,7 @@ from click.testing import Result
 
 from patterns.cli.config import DEVKIT_CONFIG_ENV_VAR, update_devkit_config
 from patterns.cli.main import app
-from patterns.cli.services.api import API_BASE_URL, Endpoints
+from patterns.cli.services.api import API_BASE_URL, Endpoints, build_url
 
 
 def run_cli(argv: str, input: str = None, **kwargs) -> click.testing.Result:
@@ -37,5 +37,5 @@ def set_tmp_dir(tmp_dir: Path, create_devkit_config: bool = True) -> Path:
 @contextmanager
 def request_mocker():
     with requests_mock.Mocker() as m:
-        m.post(API_BASE_URL + Endpoints.TOKEN_VERIFY)
+        m.post(build_url(API_BASE_URL, Endpoints.TOKEN_VERIFY))
         yield m
