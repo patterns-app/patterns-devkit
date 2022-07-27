@@ -112,7 +112,7 @@ def output(
     ids = IdLookup(
         environment_name=environment,
         organization_name=organization,
-        explicit_graph_path=graph,
+        graph_path=graph,
     )
 
     with abort_on_error("Could not get node data"):
@@ -136,7 +136,7 @@ def webhooks(
     ids = IdLookup(
         environment_name=environment,
         organization_name=organization,
-        explicit_graph_path=graph,
+        graph_path=graph,
     )
     with abort_on_error("Could not get webhook data"):
         data = list(paginated_webhook_urls(ids.environment_id, ids.graph_id))

@@ -22,8 +22,8 @@ def delete(
     This will not delete any files locally.
     """
     ids = IdLookup(
-        explicit_graph_path=graph,
-        explicit_graph_id=graph_id,
+        graph_path=graph,
+        graph_id=graph_id,
     )
 
     with abort_on_error("Deleting graph failed"):

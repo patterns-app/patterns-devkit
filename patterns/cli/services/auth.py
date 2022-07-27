@@ -171,3 +171,7 @@ class BaseOAuthRequestHandler(BaseHTTPRequestHandler, metaclass=ABCMeta):
     def finish_with_success(self, success_result: str, success_browser_html: str):
         self.send_html_response(200, success_browser_html)
         self.oauth_http_server.finish_with_success(success_result)
+
+    def log_request(self, code: int | str = ..., size: int | str = ...) -> None:
+        # Override with a noop to prevent printing request urls that come in
+        pass

@@ -1,5 +1,4 @@
 import os
-from dataclasses import dataclass
 from functools import cached_property
 from pathlib import Path
 from typing import Optional
@@ -14,16 +13,19 @@ from patterns.cli.config import (
 from patterns.cli.services.environments import (
     get_environment_by_name,
     paginated_environments,
+    get_environment_by_id,
 )
 from patterns.cli.services.graph import resolve_graph_path
 from patterns.cli.services.graph_versions import (
     get_graph_by_slug,
     get_latest_graph_version,
-    get_graph_version_by_id, get_graph_by_uid,
+    get_graph_version_by_id,
+    get_graph_by_uid,
 )
 from patterns.cli.services.organizations import (
     get_organization_by_name,
     paginated_organizations,
+    get_organization_by_id,
 )
 from patterns.cli.services.output import prompt_choices, prompt_path
 
@@ -33,51 +35,85 @@ except ImportError:
     from yaml import Loader, Dumper
 
 
-@dataclass
 class IdLookup:
     """A cached lookup of various ids from whatever info you can give it."""
 
-    environment_name: str = None
-    organization_name: str = None
-    explicit_graph_path: Path = None
-    node_file_path: Path = None
-    explicit_graph_version_id: str = None
-    explicit_graph_id: str = None
-    ignore_local_cfg: bool = False
-    ignore_cfg_environment: bool = False
-    explicit_graph_name: str = None
-    find_nearest_graph: bool = False
+    def __init__(
+        self,
+        environment_name: str = None,
+        organization_name: str = None,
+        graph_path: Path = None,
+        node_file_path: Path = None,
+        graph_version_id: str = None,
+        graph_id: str = None,
+        graph_name: str = None,
+        ignore_local_cfg: bool = False,
+        ignore_cfg_environment: bool = False,
+        find_nearest_graph: bool = False,
+    ):
+        self._given_env_name = environment_name
+        self._given_org_name = organization_name
+        self._given_graph_name = graph_name
+        self._given_graph_path = graph_path
+        self._given_graph_version_id = graph_version_id
+        self._given_graph_id = graph_id
+        self._node_file_path = node_file_path
+        self._ignore_local_cfg = ignore_local_cfg
+        self._ignore_cfg_environment = ignore_cfg_environment
+        self._find_nearest_graph = find_nearest_graph
+
+    @cached_property
+    def organization_name(self) -> str:
+        if self._given_org_name:
+            return self._given_org_name
+        return get_organization_by_id(self.organization_id)["name"]
 
     @cached_property
     def organization_id(self) -> str:
-        if self.organization_name:
-            return get_organization_by_name(self.organization_name)["uid"]
+        if self._given_org_name:
+            return get_organization_by_name(self._given_org_name)["uid"]
         if self.cfg.organization_id:
             return self.cfg.organization_id
         organizations = list(paginated_organizations())
         orgs_by_name = {org["name"]: org for org in organizations}
         if len(organizations) == 1:
             org = organizations[0]
-            update_devkit_config(organization_id=org["uid"])
         else:
+            existing = read_devkit_config().organization_id
+            default = next(
+                (
+                    org["name"]
+                    for org in orgs_by_name.values()
+                    if org["uid"] == existing
+                ),
+                ...,
+            )
             org_name = prompt_choices(
                 "Available organizations",
                 "Select an organization",
                 choices=orgs_by_name.keys(),
+                default=default,
             )
             org = orgs_by_name[org_name]
+        update_devkit_config(organization_id=org["uid"])
         return org["uid"]
 
     @cached_property
+    def environment_name(self) -> str:
+        if self._given_env_name:
+            return self._given_env_name
+        return get_environment_by_id(self.environment_id)["name"]
+
+    @cached_property
     def environment_id(self) -> str:
-        if self.organization_name and not self.environment_name:
+        if self._given_org_name and not self._given_env_name:
             raise ValueError(
                 "Must specify --environment when you specify --organization"
             )
-        if self.environment_name:
-            env = get_environment_by_name(self.organization_id, self.environment_name)
+        if self._given_env_name:
+            env = get_environment_by_name(self.organization_id, self._given_env_name)
             return env["uid"]
-        if self.cfg.environment_id and not self.ignore_cfg_environment:
+        if self.cfg.environment_id and not self._ignore_cfg_environment:
             return self.cfg.environment_id
 
         environments = list(paginated_environments(self.organization_id))
@@ -97,20 +133,20 @@ class IdLookup:
 
     @cached_property
     def graph_id(self) -> str:
-        if self.explicit_graph_id:
-            return self.explicit_graph_id
+        if self._given_graph_id:
+            return self._given_graph_id
         return get_graph_by_slug(self.organization_id, self.graph_name)["uid"]
 
     @cached_property
     def graph_version_id(self):
-        if self.explicit_graph_version_id:
-            return self.explicit_graph_version_id
+        if self._given_graph_version_id:
+            return self._given_graph_version_id
         return get_latest_graph_version(self.graph_id)["uid"]
 
     @cached_property
     def node_id(self) -> str:
         graph = self.graph_file_path
-        node = self.node_file_path
+        node = self._node_file_path
         if not graph or not node:
             raise ValueError("Must specify a node")
         err_msg = f"Node {node} is not part of the graph at {graph}"
@@ -130,15 +166,17 @@ class IdLookup:
 
     @cached_property
     def graph_file_path(self) -> Path:
-        if self.explicit_graph_path:
-            return resolve_graph_path(self.explicit_graph_path, exists=True)
-        if self.node_file_path:
+        if self._given_graph_path:
+            return resolve_graph_path(self._given_graph_path, exists=True)
+        if self._node_file_path:
             return _find_graph_file(
-                self.node_file_path.parent,
+                self._node_file_path.parent,
                 prompt=False,
-                nearest=self.find_nearest_graph,
+                nearest=self._find_nearest_graph,
             )
-        return _find_graph_file(path=None, prompt=True, nearest=self.find_nearest_graph)
+        return _find_graph_file(
+            path=None, prompt=True, nearest=self._find_nearest_graph
+        )
 
     @cached_property
     def graph_directory(self) -> Path:
@@ -150,7 +188,7 @@ class IdLookup:
 
     @cached_property
     def cfg(self) -> CliConfig:
-        if self.ignore_local_cfg:
+        if self._ignore_local_cfg:
             return CliConfig()
         return read_devkit_config()
 
@@ -160,15 +198,15 @@ class IdLookup:
             graph = self._load_yaml(self.root_graph_file)
             return graph.get("name", self.root_graph_file.parent.name)
 
-        if self.explicit_graph_name:
-            return self.explicit_graph_name
-        if self.explicit_graph_path or self.node_file_path:
+        if self._given_graph_name:
+            return self._given_graph_name
+        if self._given_graph_path or self._node_file_path:
             return from_yaml()
-        if self.explicit_graph_version_id:
-            vid = self.explicit_graph_version_id
+        if self._given_graph_version_id:
+            vid = self._given_graph_version_id
             return get_graph_version_by_id(vid)["graph"]["name"]
-        if self.explicit_graph_id:
-            return get_graph_by_uid(self.explicit_graph_id)["name"]
+        if self._given_graph_id:
+            return get_graph_by_uid(self._given_graph_id)["name"]
         return from_yaml()
 
     def _load_yaml(self, path: Path) -> dict:

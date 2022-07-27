@@ -120,7 +120,7 @@ def webhook(
     name: str = Argument(..., help=_webhook_name_help),
 ):
     """Add a new webhook node to a graph"""
-    ids = IdLookup(explicit_graph_path=explicit_graph)
+    ids = IdLookup(graph_path=explicit_graph)
 
     with abort_on_error("Adding webhook failed"):
         editor = GraphConfigEditor(ids.graph_file_path)
