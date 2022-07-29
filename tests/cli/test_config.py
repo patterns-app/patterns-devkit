@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from patterns.cli.config import read_devkit_config
-from patterns.cli.services.api import Endpoints, API_BASE_URL
+from patterns.cli.services.api import Endpoints, API_BASE_URL, build_url
 from tests.cli.base import set_tmp_dir, run_cli, request_mocker
 
 
@@ -13,11 +13,11 @@ def test_config_org_and_env(tmp_path: Path):
 
     with request_mocker() as m:
         m.get(
-            API_BASE_URL + Endpoints.organization_by_slug("org"),
+            build_url(API_BASE_URL, Endpoints.organization_by_slug("org")),
             json={"uid": "org-uid"},
         )
         m.get(
-            API_BASE_URL + Endpoints.environment_by_slug("org-uid", "env"),
+            build_url(API_BASE_URL, Endpoints.environment_by_slug("org-uid", "env")),
             json={"uid": "env-uid"},
         )
         run_cli("config -o org -e env")

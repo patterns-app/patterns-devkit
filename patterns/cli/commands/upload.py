@@ -20,7 +20,7 @@ def upload(
     """Upload a new version of a graph to Patterns"""
     ids = IdLookup(
         organization_name=organization,
-        explicit_graph_path=graph,
+        graph_path=graph,
     )
 
     with abort_on_error("Upload failed"):

@@ -4,7 +4,7 @@ from typer import Option, Argument
 
 from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.output import sprint, abort_on_error
-from patterns.cli.services.trigger import trigger_node, TypeChoices
+from patterns.cli.services.trigger import trigger_node
 
 _graph_help = "The location of the graph.yml file for the deployed graph"
 _graph_version_id_help = "The id of the deployed graph version"
@@ -21,16 +21,16 @@ def trigger(
     environment: str = Option("", "-e", "--environment", help=_environment_help),
     graph: Path = Option(None, exists=True, help=_graph_help),
     graph_version_id: str = Option("", help=_graph_version_id_help),
-    type: TypeChoices = Option(TypeChoices.pubsub, hidden=True),
+    type: str = Option("pubsub", hidden=True),
     node: Path = Argument(..., exists=True, help=_node_help),
 ):
     """Trigger a node on a deployed graph to run immediately"""
     ids = IdLookup(
         environment_name=environment,
         organization_name=organization,
-        explicit_graph_path=graph,
+        graph_path=graph,
         node_file_path=node,
-        explicit_graph_version_id=graph_version_id,
+        graph_version_id=graph_version_id,
         find_nearest_graph=True,
     )
     with abort_on_error("Error triggering node"):

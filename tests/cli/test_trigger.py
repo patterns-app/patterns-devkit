@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from patterns.cli.services.api import Endpoints, API_BASE_URL
+from patterns.cli.services.api import Endpoints, API_BASE_URL, build_url
 from tests.cli.base import set_tmp_dir, run_cli, request_mocker
 
 
@@ -15,14 +15,15 @@ def test_trigger_node_in_subgraph(tmp_path: Path):
 
     with request_mocker() as m:
         m.post(
-            API_BASE_URL + Endpoints.DEPLOYMENTS_TRIGGER_NODE, json={"uid": "1"},
+            build_url(API_BASE_URL, Endpoints.DEPLOYMENTS_TRIGGER_NODE),
+            json={"uid": "1"},
         )
         m.get(
-            API_BASE_URL + Endpoints.graph_by_slug("test-org-uid", "graph"),
+            build_url(API_BASE_URL, Endpoints.graph_by_slug("test-org-uid", "graph")),
             json={"uid": "2"},
         )
         m.get(
-            API_BASE_URL + Endpoints.graphs_latest("2"),
+            build_url(API_BASE_URL, Endpoints.graphs_latest("2")),
             json={"active_graph_version": {"uid": "3"}},
         )
         result = run_cli(f"trigger {name}")

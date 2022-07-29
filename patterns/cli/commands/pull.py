@@ -55,8 +55,8 @@ def clone(
 
     ids = IdLookup(
         organization_name=organization,
-        explicit_graph_name=graph or component_name or directory.name,
-        explicit_graph_version_id=graph_version_id,
+        graph_name=graph or component_name or directory.name,
+        graph_version_id=graph_version_id,
     )
     if not directory:
         if component:
@@ -93,8 +93,8 @@ def pull(
     """Update the code for the current graph"""
     ids = IdLookup(
         organization_name=organization,
-        explicit_graph_version_id=graph_version_id,
-        explicit_graph_path=graph,
+        graph_version_id=graph_version_id,
+        graph_path=graph,
     )
     with abort_on_error("Error downloading graph"):
         b = io.BytesIO(download_graph_zip(ids.graph_version_id))

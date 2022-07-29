@@ -55,6 +55,7 @@ def prompt_choices(
     choice_message: str,
     prompt_message: str,
     choices: typing.Iterable[str],
+    default: typing.Any = ...
 ) -> str:
     sprint(f"[info]{choice_message}:")
     for c in choices:
@@ -63,6 +64,7 @@ def prompt_choices(
         prompt_message,
         choices=list(choices),
         show_choices=False,
+        default=default
     )
 
 
