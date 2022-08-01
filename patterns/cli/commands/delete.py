@@ -10,18 +10,21 @@ from patterns.cli.services.output import sprint, abort_on_error
 _graph_help = "The location of the graph.yml file of the graph to delete"
 _graph_id_help = "The id of the graph version to delete"
 _force_help = "Don't prompt before deleting a graph"
+_organization_help = "The name of the Patterns organization to delete from"
 
 
 def delete(
     graph_id: str = Option(""),
     force: bool = Option(False, "-f", "--force", help=_force_help),
     graph: Path = Argument(None, exists=True, help=_graph_help),
+    organization: str = Option("", "-o", "--organization", help=_organization_help),
 ):
     """Delete a graph from the Patterns studio.
 
     This will not delete any files locally.
     """
     ids = IdLookup(
+        organization_name=organization,
         graph_path=graph,
         graph_id=graph_id,
     )
