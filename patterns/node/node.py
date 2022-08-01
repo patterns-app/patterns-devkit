@@ -132,6 +132,11 @@ class _Parameter(str):
 Parameter = _Parameter()
 
 
+class Connection(dict):
+    def __init__(self, connection_type: str):
+        super().__init__()
+
+
 @dataclass(frozen=True)
 class NodeFunction:
     function: Callable
