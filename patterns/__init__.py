@@ -8,6 +8,7 @@ from .node.node import (
     State,
     Stream,
     Table,
+    Connection,
 )
 
 
@@ -21,4 +22,5 @@ __all__ = [
     "State",
     "Table",
     "Stream",
+    "Connection",
 ]
