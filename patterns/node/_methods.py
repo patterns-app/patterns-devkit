@@ -59,15 +59,15 @@ class InputTableMethods:
         ...
 
     @property
-    def sql_name(self) -> str | None:
+    def sql_name(cls) -> str | None:
         ...
 
     @property
-    def schema(self):
+    def schema(cls):
         ...
 
     @property
-    def record_count(self) -> int | None:
+    def record_count(cls) -> int | None:
         ...
 
 
