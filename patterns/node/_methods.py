@@ -63,7 +63,7 @@ class InputTableMethods:
         ...
 
     @property
-    def schema(cls) -> "Schema":
+    def schema(cls):
         ...
 
     @property
