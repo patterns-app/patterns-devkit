@@ -23,7 +23,7 @@ def _mixin_attrs():
 # classes are invoked. We add __init__ to the generated classes so that invoking them
 # generates new class objects with the description etc. set. This does mean that
 # invoking the class will recursively produce more classes and never an actual instance,
-# but that fine for how we're using them.
+# but that's fine for how we're using them.
 class _InputMeta(type):
     def __new__(
         mcs,
@@ -41,7 +41,7 @@ class _InputMeta(type):
         required: bool = True,
     ):
         cls.description = description
-        cls.schema = schema
+        cls._schema = schema
         cls.required = required
 
 
@@ -60,7 +60,7 @@ class _OutputMeta(type):
         schema: str = None,
     ):
         cls.description = description
-        cls.schema = schema
+        cls._schema = schema
 
 
 class _StateMeta(type):
