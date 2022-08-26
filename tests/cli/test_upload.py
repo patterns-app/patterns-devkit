@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from patterns.cli.services.api import API_BASE_URL, Endpoints, build_url
+from patterns.cli.services.api import Endpoints
 from tests.cli.base import request_mocker, set_tmp_dir, run_cli
 
 
@@ -30,7 +30,7 @@ def node_fn(output=OutputTable):
 
     with request_mocker() as m:
         m.post(
-            build_url(API_BASE_URL, Endpoints.graph_version_create("test-org-uid")),
+            Endpoints.graph_version_create("test-org-uid"),
             json={
                 "uid": "1",
                 "ui_url": "url.com",
@@ -56,7 +56,7 @@ def test_upload_component(tmp_path: Path):
 
     with request_mocker() as m:
         m.post(
-            build_url(API_BASE_URL, Endpoints.graph_version_create("test-org-uid")),
+            Endpoints.graph_version_create("test-org-uid"),
             json={
                 "uid": "1",
                 "ui_url": "url.com",
@@ -65,7 +65,7 @@ def test_upload_component(tmp_path: Path):
             },
         )
         m.post(
-            build_url(API_BASE_URL, Endpoints.COMPONENTS_CREATE),
+            Endpoints.COMPONENTS_CREATE,
             json={
                 "uid": "2",
                 "version_name": "1.1.1",
@@ -93,7 +93,7 @@ stores:
 
     with request_mocker() as m:
         m.post(
-            build_url(API_BASE_URL, Endpoints.graph_version_create("test-org-uid")),
+            Endpoints.graph_version_create("test-org-uid"),
             json={
                 "uid": "1",
                 "ui_url": "url.com",

@@ -2,7 +2,7 @@ import io
 from pathlib import Path
 from zipfile import ZipFile
 
-from patterns.cli.services.api import API_BASE_URL, Endpoints, build_url
+from patterns.cli.services.api import Endpoints
 from tests.cli.base import request_mocker, set_tmp_dir, run_cli
 
 
@@ -15,10 +15,7 @@ def test_clone(tmp_path: Path):
         b = io.BytesIO()
         with ZipFile(b, "w") as zf:
             zf.writestr("graph.yml", content)
-        m.get(
-            build_url(API_BASE_URL, Endpoints.graph_version_download("uid")),
-            content=b.getvalue(),
-        )
+        m.get(Endpoints.graph_version_download("uid"), content=b.getvalue())
 
         result = run_cli(f"clone --version=uid {path}")
         assert "Cloned graph" in result.output
@@ -36,10 +33,7 @@ def test_pull(tmp_path: Path):
         b = io.BytesIO()
         with ZipFile(b, "w") as zf:
             zf.writestr("graph.yml", content)
-        m.get(
-            build_url(API_BASE_URL, Endpoints.graph_version_download("uid")),
-            content=b.getvalue(),
-        )
+        m.get(Endpoints.graph_version_download("uid"), content=b.getvalue())
 
         result = run_cli(f"pull --graph-version-id=uid -f {path}")
         assert "Pulled graph" in result.output

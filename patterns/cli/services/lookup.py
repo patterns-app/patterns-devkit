@@ -47,6 +47,7 @@ class IdLookup:
         graph_version_id: str = None,
         graph_id: str = None,
         graph_name: str = None,
+        node_id: str = None,
         ignore_local_cfg: bool = False,
         ignore_cfg_environment: bool = False,
         find_nearest_graph: bool = False,
@@ -57,6 +58,7 @@ class IdLookup:
         self._given_graph_path = graph_path
         self._given_graph_version_id = graph_version_id
         self._given_graph_id = graph_id
+        self._given_node_id = node_id
         self._node_file_path = node_file_path
         self._ignore_local_cfg = ignore_local_cfg
         self._ignore_cfg_environment = ignore_cfg_environment
@@ -145,6 +147,9 @@ class IdLookup:
 
     @cached_property
     def node_id(self) -> str:
+        if self._given_node_id:
+            return self._given_node_id
+
         graph = self.graph_file_path
         node = self._node_file_path
         if not graph or not node:
