@@ -108,7 +108,7 @@ def output(
     graph: Path = Option("", "-g", "--graph-path", help=_graph_help),
     store_name: str = Argument(..., exists=True, help=_store_name_help),
 ):
-    """List data sent to an output port of a from the most recent run of a node"""
+    """List data sent to an output port from the most recent run of a node"""
     ids = IdLookup(
         environment_name=environment,
         organization_name=organization,

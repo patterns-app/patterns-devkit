@@ -34,8 +34,19 @@ def set_tmp_dir(tmp_dir: Path, create_devkit_config: bool = True) -> Path:
     return cfg_pth
 
 
+class _BaseUrlMocker(requests_mock.Mocker):
+    def __init__(self, base_url):
+        super().__init__()
+        self.base_url = base_url
+
+    def request(self, method, url, *args, **kwargs):
+        if isinstance(url, str):
+            url = build_url(self.base_url, url)
+        return super().request(method, url, *args, **kwargs)
+
+
 @contextmanager
 def request_mocker():
-    with requests_mock.Mocker() as m:
-        m.post(build_url(API_BASE_URL, Endpoints.TOKEN_VERIFY))
+    with _BaseUrlMocker(API_BASE_URL) as m:
+        m.post(Endpoints.TOKEN_VERIFY)
         yield m
