@@ -7,6 +7,7 @@ from pathlib import Path
 
 import click
 import requests_mock
+import typer.testing
 from click.testing import Result
 
 from patterns.cli.config import DEVKIT_CONFIG_ENV_VAR, update_devkit_config
@@ -16,7 +17,7 @@ from patterns.cli.services.api import API_BASE_URL, Endpoints, build_url
 
 def run_cli(argv: str, input: str = None, **kwargs) -> click.testing.Result:
     args = ["--stacktrace"] + shlex.split(argv.replace("\\", "/"))
-    runner = click.testing.CliRunner()
+    runner = typer.testing.CliRunner()
     result = runner.invoke(app, args, input, catch_exceptions=False, **kwargs)
     print(result.output)
     return result
