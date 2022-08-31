@@ -6,7 +6,7 @@ name = "patterns-devkit"
 packages = [
   {include = "patterns"},
 ]
-version = "1.0.1"
+version = "1.1.0"
 
 [tool.poetry.dependencies]
 platformdirs = "^2.4.0"
