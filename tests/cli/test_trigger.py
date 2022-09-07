@@ -15,12 +15,12 @@ def test_trigger_node_in_subgraph(tmp_path: Path):
     run_cli(f"create node", f"{name}\n")
 
     with request_mocker() as m:
-        m.post(Endpoints.DEPLOYMENTS_TRIGGER_NODE, json={"uid": "1"})
+        id = re.search(r"id: (\w+)", path.read_text()).group(1)
+        m.post(Endpoints.trigger_node("2", id), json={"uid": "1"})
         m.get(Endpoints.graph_by_slug("test-org-uid", "graph"), json={"uid": "2"})
         m.get(Endpoints.graphs_latest("2"), json={"active_graph_version": {"uid": "3"}})
         result = run_cli(f"trigger {name}")
         assert "Triggered node" in result.output
 
-        id = re.search(r"id: (\w+)", path.read_text()).group(1)
         result = run_cli(f"trigger --graph={dr} --node-id={id}")
         assert "Triggered node" in result.output

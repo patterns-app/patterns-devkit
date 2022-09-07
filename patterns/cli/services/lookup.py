@@ -10,11 +10,6 @@ from patterns.cli.config import (
     CliConfig,
     update_devkit_config,
 )
-from patterns.cli.services.environments import (
-    get_environment_by_name,
-    paginated_environments,
-    get_environment_by_id,
-)
 from patterns.cli.services.graph import resolve_graph_path
 from patterns.cli.services.graph_versions import (
     get_graph_by_slug,
@@ -40,7 +35,6 @@ class IdLookup:
 
     def __init__(
         self,
-        environment_name: str = None,
         organization_name: str = None,
         graph_path: Path = None,
         node_file_path: Path = None,
@@ -49,10 +43,8 @@ class IdLookup:
         graph_name: str = None,
         node_id: str = None,
         ignore_local_cfg: bool = False,
-        ignore_cfg_environment: bool = False,
         find_nearest_graph: bool = False,
     ):
-        self._given_env_name = environment_name
         self._given_org_name = organization_name
         self._given_graph_name = graph_name
         self._given_graph_path = graph_path
@@ -61,7 +53,6 @@ class IdLookup:
         self._given_node_id = node_id
         self._node_file_path = node_file_path
         self._ignore_local_cfg = ignore_local_cfg
-        self._ignore_cfg_environment = ignore_cfg_environment
         self._find_nearest_graph = find_nearest_graph
 
     @cached_property
@@ -99,39 +90,6 @@ class IdLookup:
             org = orgs_by_name[org_name]
         update_devkit_config(organization_id=org["uid"])
         return org["uid"]
-
-    @cached_property
-    def environment_name(self) -> str:
-        if self._given_env_name:
-            return self._given_env_name
-        return get_environment_by_id(self.environment_id)["name"]
-
-    @cached_property
-    def environment_id(self) -> str:
-        if self._given_org_name and not self._given_env_name:
-            raise ValueError(
-                "Must specify --environment when you specify --organization"
-            )
-        if self._given_env_name:
-            env = get_environment_by_name(self.organization_id, self._given_env_name)
-            return env["uid"]
-        if self.cfg.environment_id and not self._ignore_cfg_environment:
-            return self.cfg.environment_id
-
-        environments = list(paginated_environments(self.organization_id))
-        envs_by_name = {env["name"]: env for env in environments}
-
-        if len(environments) == 1:
-            uid = environments[0]["uid"]
-            update_devkit_config(environment_id=uid)
-            return uid
-
-        env_name = prompt_choices(
-            "Available environments",
-            "Select an environment",
-            choices=envs_by_name.keys(),
-        )
-        return envs_by_name[env_name]["uid"]
 
     @cached_property
     def graph_id(self) -> str:

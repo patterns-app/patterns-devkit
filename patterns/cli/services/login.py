@@ -4,13 +4,11 @@ import base64
 import dataclasses
 import hashlib
 import os
-import re
 import urllib.parse
 from socketserver import BaseRequestHandler
 from urllib.parse import ParseResult
 
 import requests
-from requests import HTTPError
 
 from patterns.cli.config import update_devkit_config
 from patterns.cli.services.api import (

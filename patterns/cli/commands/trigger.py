@@ -8,7 +8,6 @@ from patterns.cli.services.trigger import trigger_node
 
 _graph_help = "The location of the graph.yml file for the deployed graph"
 _graph_version_id_help = "The id of the deployed graph version"
-_environment_help = "The name of the Patterns environment that the graph is deployed to"
 _organization_help = (
     "The name of the Patterns organization that the graph specified "
     "with --graph was uploaded to"
@@ -19,7 +18,6 @@ _node_help = "The path to the node to trigger"
 
 def trigger(
     organization: str = Option("", "-o", "--organization", help=_organization_help),
-    environment: str = Option("", "-e", "--environment", help=_environment_help),
     graph: Path = Option(None, exists=True, help=_graph_help),
     graph_version_id: str = Option("", help=_graph_version_id_help),
     type: str = Option("pubsub", hidden=True),
@@ -42,7 +40,6 @@ def trigger(
         abort("Must specify one of --node-id or NODE path argument")
 
     ids = IdLookup(
-        environment_name=environment,
         organization_name=organization,
         graph_path=graph,
         node_file_path=node,
@@ -52,9 +49,8 @@ def trigger(
     )
     with abort_on_error("Error triggering node"):
         trigger_node(
+            ids.graph_id,
             ids.node_id,
-            ids.graph_version_id,
-            ids.environment_id,
             execution_type=type,
         )
 

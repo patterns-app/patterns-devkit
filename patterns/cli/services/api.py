@@ -156,13 +156,7 @@ class Endpoints:
     TOKEN_AUTHSERVER = f"{PUBLIC_API_BASE_URL}/auth/jwt/authserver"
     TOKEN_VERIFY = f"{PUBLIC_API_BASE_URL}/auth/jwt/verify"
     ACCOUNTS_ME = f"{PUBLIC_API_BASE_URL}/accounts/me"
-    DEPLOYMENTS_TRIGGER_NODE = f"{PUBLIC_API_BASE_URL}/deployments/triggers"
-    ENVIRONMENTS_CREATE = f"{PUBLIC_API_BASE_URL}/environments"
     ORGANIZATIONS_LIST = f"{PUBLIC_API_BASE_URL}/organizations"
-    EXECUTION_EVENTS = f"{PUBLIC_API_BASE_URL}/nodes/execution_events"
-    OUTPUT_DATA = f"{PUBLIC_API_BASE_URL}/nodes/store_data/latest"
-    WEBHOOKS = f"{PUBLIC_API_BASE_URL}/webhooks"
-    COMPONENTS_LIST = f"{PUBLIC_API_BASE_URL}/marketplace/components"
     COMPONENTS_CREATE = f"{PUBLIC_API_BASE_URL}/marketplace/components/versions"
 
     @classmethod
@@ -208,13 +202,5 @@ class Endpoints:
         return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/graph_versions"
 
     @classmethod
-    def environments_list(cls, organization_uid: str) -> str:
-        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/environments"
-
-    @classmethod
-    def environment_by_slug(cls, organization_uid: str, slug: str) -> str:
-        return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/environments/slug/{slug}"
-
-    @classmethod
-    def environment_by_id(cls, environment_uid: str) -> str:
-        return f"{PUBLIC_API_BASE_URL}/environments/{environment_uid}"
+    def trigger_node(cls, graph_uid: str, node_id: str) -> str:
+        return f"{PUBLIC_API_BASE_URL}/graphs/{graph_uid}/nodes/{node_id}/trigger"
