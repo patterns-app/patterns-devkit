@@ -23,7 +23,7 @@ def _all_files_not_gitignored(path: Path) -> Generator[Path]:
 
 
 def _all_files(path: Path) -> Generator[str]:
-    for dirname, dirnames, files in os.walk(path):
+    for dirname, dirnames, files in os.walk(path, followlinks=True):
         if "__pycache__" in dirnames:
             dirnames.remove("__pycache__")
         for f in files:
