@@ -4,7 +4,7 @@ from patterns.cli.config import (
 )
 from patterns.cli.services import login as login_service
 from patterns.cli.services.accounts import me
-from patterns.cli.services.api import reset_session_auth, API_BASE_URL
+from patterns.cli.services.api import reset_session_auth
 from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.output import sprint, abort_on_error
 
@@ -18,9 +18,7 @@ def login():
 
     ids = IdLookup(ignore_local_cfg=True)
     with abort_on_error("Fetching account failed"):
-        update_devkit_config(
-            organization_id=ids.organization_id, environment_id=ids.environment_id
-        )
+        update_devkit_config(organization_id=ids.organization_id)
 
     with abort_on_error("Fetching user profile failed"):
         profile = me()

@@ -17,7 +17,6 @@ class AuthServer(pydantic.BaseModel):
 
 class CliConfig(pydantic.BaseModel):
     organization_id: str = None
-    environment_id: str = None
     token: str = None
     refresh: str = None
     auth_server: AuthServer = None
@@ -53,7 +52,6 @@ _UNCHANGED = object()
 
 def update_devkit_config(
     organization_id: Optional[str] = _UNCHANGED,
-    environment_id: Optional[str] = _UNCHANGED,
     token: Optional[str] = _UNCHANGED,
     refresh: Optional[str] = _UNCHANGED,
     auth_server: Optional[AuthServer] = _UNCHANGED,
@@ -62,8 +60,6 @@ def update_devkit_config(
     update = {}
     if organization_id != _UNCHANGED:
         update["organization_id"] = organization_id
-    if environment_id != _UNCHANGED:
-        update["environment_id"] = environment_id
     if token != _UNCHANGED:
         update["token"] = token
     if refresh != _UNCHANGED:

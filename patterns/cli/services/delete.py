@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from patterns.cli.services.api import Endpoints, post_for_json, delete
+from patterns.cli.services.api import Endpoints, delete
 
 
 def delete_graph(graph_uid: str):

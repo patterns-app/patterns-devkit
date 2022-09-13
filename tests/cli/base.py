@@ -30,7 +30,6 @@ def set_tmp_dir(tmp_dir: Path, create_devkit_config: bool = True) -> Path:
         update_devkit_config(
             token="test-token",
             organization_id="test-org-uid",
-            environment_id="test-env-uid",
         )
     return cfg_pth
 
