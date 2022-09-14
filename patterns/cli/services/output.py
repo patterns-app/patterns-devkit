@@ -55,16 +55,13 @@ def prompt_choices(
     choice_message: str,
     prompt_message: str,
     choices: typing.Iterable[str],
-    default: typing.Any = ...
+    default: typing.Any = ...,
 ) -> str:
     sprint(f"[info]{choice_message}:")
     for c in choices:
         sprint(f"    [info]{c}")
     return rich.prompt.Prompt.ask(
-        prompt_message,
-        choices=list(choices),
-        show_choices=False,
-        default=default
+        prompt_message, choices=list(choices), show_choices=False, default=default
     )
 
 

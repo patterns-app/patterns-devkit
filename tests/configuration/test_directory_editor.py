@@ -33,7 +33,10 @@ def test_add_unchanged_node(tmp_path: Path):
     do_add_zip_test(
         tmp_path,
         before={"graph.yml": 'functions: [{"node_file": "old.sql"}]', "old.sql": "foo"},
-        zip={"graph.yml": 'functions: [{"d/node_file": "node.sql"}]', "d/node.sql": "foo"},
+        zip={
+            "graph.yml": 'functions: [{"d/node_file": "node.sql"}]',
+            "d/node.sql": "foo",
+        },
         src="d/node.sql",
         dst="old.sql",
         after={"graph.yml": 'functions: [{"node_file": "old.sql"}]', "old.sql": "foo"},
@@ -44,8 +47,14 @@ def test_err_add_changed_node(tmp_path: Path):
     with pytest.raises(FileOverwriteError) as exc_info:
         do_add_zip_test(
             tmp_path,
-            before={"graph.yml": 'functions: [{"node_file": "old.sql"}]', "old.sql": "foo"},
-            zip={"graph.yml": 'functions: [{"node_file": "node.sql"}]', "node.sql": "bar"},
+            before={
+                "graph.yml": 'functions: [{"node_file": "old.sql"}]',
+                "old.sql": "foo",
+            },
+            zip={
+                "graph.yml": 'functions: [{"node_file": "node.sql"}]',
+                "node.sql": "bar",
+            },
             src="node.sql",
             dst="old.sql",
         )
@@ -71,7 +80,10 @@ def test_full_clone(tmp_path: Path):
         zip={"graph.yml": 'functions: [{"node_file": "node.sql"}]', "node.sql": "bar"},
         src="graph.yml",
         dst="graph.yml",
-        after={"graph.yml": 'functions: [{"node_file": "node.sql"}]', "node.sql": "bar"},
+        after={
+            "graph.yml": 'functions: [{"node_file": "node.sql"}]',
+            "node.sql": "bar",
+        },
         overwrite=True,
     )
 
