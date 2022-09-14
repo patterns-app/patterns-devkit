@@ -1,6 +1,6 @@
 <p>&nbsp;</p>
 <p align="center">
-  <img width="150" src="assets/logo.svg">
+  <img width="800" src="assets/logo.svg">
 </p>
 <p>&nbsp;</p>
 <p align="center">
@@ -39,7 +39,7 @@ mygraph/
 
 ## Upload
 
-To deploy a graph, you must sign up for a [patterns.app][https://studio.patterns.app]
+To deploy a graph, you must sign up for a [patterns.app](https://studio.patterns.app)
 account and login to authenticate the cli:
 
 `patterns login`
