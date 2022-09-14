@@ -270,9 +270,9 @@ class GraphDirectoryEditor:
     def add_node_from_file(self, dst_path: Union[Path, str], file: IO[bytes]):
         """Write the content of a file to dst_path
 
-       :param dst_path: Path relative to the output graph directory
-       :param file: A file-like object open in read mode
-       """
+        :param dst_path: Path relative to the output graph directory
+        :param file: A file-like object open in read mode
+        """
         dst_path = Path(dst_path)
         self._write_file(dst_path, file)
         self._add_cfg_node(dst_path)

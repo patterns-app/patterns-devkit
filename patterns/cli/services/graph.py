@@ -30,4 +30,3 @@ def resolve_graph_path(
         path.mkdir(parents=True)
     graph_path = (path / "graph.yml").absolute()
     return graph_path
-
