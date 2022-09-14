@@ -10,10 +10,12 @@ from patterns.cli.services.upload import upload_graph_version
 _graph_help = "The location of the graph.yml file for the graph to upload"
 _organization_help = "The name of the Patterns organization to upload to"
 _component_help = "After uploading, publish the graph version as a public component"
-
+_slug_help = "The slug to use for the graph. Can only contain letters and hyphens. " \
+             "Defaults to the name of the graph directory"
 
 def upload(
     organization: str = Option("", "-o", "--organization", help=_organization_help),
+    slug: str = Option(None, "--slug", help=_slug_help),
     graph: Path = Argument(None, exists=True, help=_graph_help),
     publish_component: bool = Option(False, help=_component_help),
 ):
@@ -28,6 +30,7 @@ def upload(
             ids.graph_file_path,
             ids.organization_id,
             add_missing_node_ids=not publish_component,
+            slug=slug
         )
 
     graph_version_id = resp["uid"]
