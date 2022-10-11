@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import os
-from functools import cached_property
+from functools import cached_property, cache, lru_cache
 from pathlib import Path
 from typing import Optional
 
 import yaml
+from requests import HTTPError
 
 from patterns.cli.config import (
     read_devkit_config,
@@ -42,6 +45,7 @@ class IdLookup:
         graph_id: str = None,
         graph_name: str = None,
         node_id: str = None,
+        graph_slug_or_uid: str = None,
         ignore_local_cfg: bool = False,
         find_nearest_graph: bool = False,
     ):
@@ -51,6 +55,7 @@ class IdLookup:
         self._given_graph_version_id = graph_version_id
         self._given_graph_id = graph_id
         self._given_node_id = node_id
+        self._given_graph_slug_or_uid = graph_slug_or_uid
         self._node_file_path = node_file_path
         self._ignore_local_cfg = ignore_local_cfg
         self._find_nearest_graph = find_nearest_graph
@@ -59,10 +64,10 @@ class IdLookup:
     def organization_name(self) -> str:
         if self._given_org_name:
             return self._given_org_name
-        return get_organization_by_id(self.organization_id)["name"]
+        return get_organization_by_id(self.organization_uid)["name"]
 
     @cached_property
-    def organization_id(self) -> str:
+    def organization_uid(self) -> str:
         if self._given_org_name:
             return get_organization_by_name(self._given_org_name)["uid"]
         if self.cfg.organization_id:
@@ -92,16 +97,18 @@ class IdLookup:
         return org["uid"]
 
     @cached_property
-    def graph_id(self) -> str:
+    def graph_uid(self) -> str:
         if self._given_graph_id:
             return self._given_graph_id
-        return get_graph_by_slug(self.organization_id, self.graph_name)["uid"]
+        if self._given_graph_slug_or_uid:
+            return self._graph_by_slug_or_uid["uid"]
+        return get_graph_by_slug(self.organization_uid, self.graph_slug)["uid"]
 
     @cached_property
-    def graph_version_id(self):
+    def graph_version_uid(self):
         if self._given_graph_version_id:
             return self._given_graph_version_id
-        return get_latest_graph_version(self.graph_id)["uid"]
+        return get_latest_graph_version(self.graph_uid)["uid"]
 
     @cached_property
     def node_id(self) -> str:
@@ -142,6 +149,13 @@ class IdLookup:
         )
 
     @cached_property
+    def graph_file_path_or_null(self) -> Path | None:
+        try:
+            return self.graph_file_path
+        except ValueError:
+            return None
+
+    @cached_property
     def graph_directory(self) -> Path:
         return self.graph_file_path.parent
 
@@ -156,10 +170,10 @@ class IdLookup:
         return read_devkit_config()
 
     @cached_property
-    def graph_name(self) -> str:
+    def graph_slug(self) -> str:
         def from_yaml():
             graph = self._load_yaml(self.root_graph_file)
-            return graph.get("name", self.root_graph_file.parent.name)
+            return graph.get("slug", self.root_graph_file.parent.name)
 
         if self._given_graph_name:
             return self._given_graph_name
@@ -167,14 +181,35 @@ class IdLookup:
             return from_yaml()
         if self._given_graph_version_id:
             vid = self._given_graph_version_id
-            return get_graph_version_by_id(vid)["graph"]["name"]
+            return get_graph_version_by_id(vid)["graph"]["slug"]
         if self._given_graph_id:
-            return get_graph_by_uid(self._given_graph_id)["name"]
+            return get_graph_by_uid(self._given_graph_id)["slug"]
+        if self._given_graph_slug_or_uid:
+            return self._graph_by_slug_or_uid["slug"]
         return from_yaml()
 
     def _load_yaml(self, path: Path) -> dict:
         with open(path) as f:
             return yaml.load(f.read(), Loader=Loader)
+
+    @cached_property
+    def _graph_by_slug_or_uid(self) -> dict:
+        """return graph response json"""
+        try:
+            return get_graph_by_slug(
+                self.organization_uid, self._given_graph_slug_or_uid
+            )
+        except HTTPError:
+            pass
+        try:
+            return get_graph_by_uid(self._given_graph_slug_or_uid)
+        except HTTPError:
+            pass
+        try:
+            return get_graph_version_by_id(self._given_graph_slug_or_uid)["graph"]
+        except HTTPError:
+            pass
+        raise Exception(f"No graph with slug or id {self._given_graph_slug_or_uid}")
 
 
 def _find_graph_file(

@@ -49,7 +49,7 @@ def trigger(
     )
     with abort_on_error("Error triggering node"):
         trigger_node(
-            ids.graph_id,
+            ids.graph_uid,
             ids.node_id,
             execution_type=type,
         )

@@ -31,7 +31,7 @@ def delete(
 
     with abort_on_error("Deleting graph failed"):
         if not force:
-            Confirm.ask(f"Delete graph {ids.graph_name}?")
-        delete_graph(ids.graph_id)
+            Confirm.ask(f"Delete graph {ids.graph_slug}?")
+        delete_graph(ids.graph_uid)
 
     sprint(f"[success]Graph deleted from Patterns studio.")

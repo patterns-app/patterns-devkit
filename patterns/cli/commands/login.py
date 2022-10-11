@@ -18,7 +18,7 @@ def login():
 
     ids = IdLookup(ignore_local_cfg=True)
     with abort_on_error("Fetching account failed"):
-        update_devkit_config(organization_id=ids.organization_id)
+        update_devkit_config(organization_id=ids.organization_uid)
 
     with abort_on_error("Fetching user profile failed"):
         profile = me()

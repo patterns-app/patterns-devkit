@@ -13,7 +13,7 @@ from .commands.delete import delete
 from .commands.list import list_command
 from .commands.login import login
 from .commands.logout import logout
-from .commands.pull import pull, clone
+from .commands.download import download
 from .commands.trigger import trigger
 from .commands.upload import upload
 from ..cli.services import output
@@ -36,8 +36,7 @@ for command in (
     logout,
     trigger,
     upload,
-    pull,
-    clone,
+    download,
 ):
     if isinstance(command, typer.Typer):
         command._add_completion = False

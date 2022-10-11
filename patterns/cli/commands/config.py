@@ -19,7 +19,7 @@ def config(
         organization_name=organization,
     )
     if organization:
-        ids.cfg.organization_id = ids.organization_id
+        ids.cfg.organization_id = ids.organization_uid
         write_devkit_config(ids.cfg)
 
     sprint(
@@ -31,7 +31,7 @@ def config(
     try:
         t.add_row("organization", ids.organization_name)
     except Exception:
-        t.add_row("organization_id", ids.organization_id)
+        t.add_row("organization_id", ids.organization_uid)
     if ids.cfg.auth_server:
         t.add_row("auth_server.domain", ids.cfg.auth_server.domain)
         t.add_row("auth_server.audience", ids.cfg.auth_server.audience)

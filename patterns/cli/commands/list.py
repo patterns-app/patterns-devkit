@@ -27,7 +27,7 @@ def graphs(
     """List graphs"""
     ids = IdLookup(organization_name=organization)
     with abort_on_error("Error listing graphs"):
-        gs = list(paginated_graphs(ids.organization_id))
+        gs = list(paginated_graphs(ids.organization_uid))
     _print_objects(gs, print_json)
 
 

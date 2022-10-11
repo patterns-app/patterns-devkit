@@ -28,7 +28,7 @@ def upload(
     with abort_on_error("Upload failed"):
         resp = upload_graph_version(
             ids.graph_file_path,
-            ids.organization_id,
+            ids.organization_uid,
             add_missing_node_ids=not publish_component,
             slug=slug
         )
