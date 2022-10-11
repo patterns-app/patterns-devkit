@@ -7,31 +7,25 @@ from patterns.cli.services.delete import delete_graph
 from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.output import sprint, abort_on_error
 
-_graph_help = "The location of the graph.yml file of the graph to delete"
-_graph_id_help = "The id of the graph version to delete"
-_force_help = "Don't prompt before deleting a graph"
+_app_help = "The slug, id, or location of the graph.yml file of the app to delete"
+_force_help = "Don't prompt before deleting a app"
 _organization_help = "The name of the Patterns organization to delete from"
 
 
 def delete(
-    graph_id: str = Option(""),
     force: bool = Option(False, "-f", "--force", help=_force_help),
-    graph: Path = Argument(None, exists=True, help=_graph_help),
     organization: str = Option("", "-o", "--organization", help=_organization_help),
+    app: str = Argument(None, help=_app_help),
 ):
-    """Delete a graph from the Patterns studio.
+    """Delete an app from the Patterns studio.
 
     This will not delete any files locally.
     """
-    ids = IdLookup(
-        organization_name=organization,
-        graph_path=graph,
-        graph_id=graph_id,
-    )
+    ids = IdLookup(organization_name=organization, graph_slug_or_uid=app)
 
-    with abort_on_error("Deleting graph failed"):
+    with abort_on_error("Deleting app failed"):
         if not force:
-            Confirm.ask(f"Delete graph {ids.graph_slug}?")
+            Confirm.ask(f"Delete app {ids.graph_slug}?")
         delete_graph(ids.graph_uid)
 
-    sprint(f"[success]Graph deleted from Patterns studio.")
+    sprint(f"[success]App deleted from Patterns studio.")

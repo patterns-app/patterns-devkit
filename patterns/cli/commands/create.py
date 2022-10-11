@@ -10,35 +10,35 @@ from patterns.cli.services.output import abort, prompt_path, abort_on_error
 from patterns.cli.services.output import sprint
 from patterns.configuration.edit import GraphConfigEditor
 
-create = typer.Typer(name="create", help="Create a graph new or node")
+create = typer.Typer(name="create", help="Create a new app or node")
 
-_name_help = "The name of the graph. The location will be used as a name by default"
+_name_help = "The name of the app. The location will be used as a name by default"
 
 
 @create.command()
 def graph(
     name: str = Option("", "--name", "-n", help=_name_help),
-    location: Path = Argument(None, metavar="GRAPH"),
+    location: Path = Argument(None, metavar="APP"),
 ):
-    """Add a new node to a graph"""
+    """Add a new node to an app"""
     if not location:
         prompt = (
-            "Enter a name for the new graph directory [prompt.default](e.g. my_graph)"
+            "Enter a name for the new app directory [prompt.default](e.g. my_app)"
         )
         location = prompt_path(prompt, exists=False)
-    with abort_on_error("Error creating graph"):
+    with abort_on_error("Error creating app"):
         path = resolve_graph_path(location, exists=False)
     name = name or location.stem
     GraphConfigEditor(path, read=False).set_name(name).write()
 
-    sprint(f"\n[success]Created graph [b]{name}")
+    sprint(f"\n[success]Created app [b]{name}")
     sprint(
         f"\n[info]You can add nodes with [code]cd {location}[/code],"
         f" then [code]patterns create node[/code]"
     )
 
 
-_graph_help = "The graph to add this node to"
+_app_help = "The app to add this node to"
 _title_help = "The title of the node. The location will be used as a title by default"
 _component_help = "The name of component to use to create this node"
 
@@ -49,7 +49,7 @@ def node(
     component: str = Option("", "-c", "--component", help=_component_help),
     location: Path = Argument(None),
 ):
-    """Add a new node to a graph
+    """Add a new node to an app
 
     patterns create node --name='My Node' mynode.py
     """
@@ -61,7 +61,7 @@ def node(
         GraphConfigEditor(ids.graph_file_path).add_component_uses(
             component_key=component
         ).write()
-        sprint(f"[success]Added component {component} to graph")
+        sprint(f"[success]Added component {component} to app")
         return
 
     if not location:
@@ -102,7 +102,7 @@ def node(
 
     sprint(f"\n[success]Created node [b]{location}")
     sprint(
-        f"\n[info]Once you've edited the node and are ready to run the graph, "
+        f"\n[info]Once you've edited the node and are ready to run the app, "
         f"use [code]patterns upload"
     )
 
@@ -112,11 +112,11 @@ _webhook_name_help = "The name of the webhook output stream"
 
 @create.command()
 def webhook(
-    explicit_graph: Path = Option(None, "--graph", "-g", exists=True, help=_graph_help),
+    explicit_app: Path = Option(None, "--app", "-a", exists=True, help=_app_help),
     name: str = Argument(..., help=_webhook_name_help),
 ):
-    """Add a new webhook node to a graph"""
-    ids = IdLookup(graph_path=explicit_graph)
+    """Add a new webhook node to an app"""
+    ids = IdLookup(graph_path=explicit_app)
 
     with abort_on_error("Adding webhook failed"):
         editor = GraphConfigEditor(ids.graph_file_path)
@@ -125,7 +125,7 @@ def webhook(
 
     sprint(f"\n[success]Created webhook [b]{name}")
     sprint(
-        f"\n[info]Once you've uploaded the graph, use "
+        f"\n[info]Once you've uploaded the app, use "
         f"[code]patterns list webhooks[/code] to get the url of the webhook"
     )
 

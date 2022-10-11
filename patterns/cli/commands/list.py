@@ -24,9 +24,9 @@ def graphs(
     organization: str = Option("", help=_organization_help),
     print_json: bool = Option(False, "--json", help=_json_help),
 ):
-    """List graphs"""
+    """List apps"""
     ids = IdLookup(organization_name=organization)
-    with abort_on_error("Error listing graphs"):
+    with abort_on_error("Error listing apps"):
         gs = list(paginated_graphs(ids.organization_uid))
     _print_objects(gs, print_json)
 

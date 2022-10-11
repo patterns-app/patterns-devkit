@@ -32,6 +32,6 @@ def login():
         f"{get_devkit_config_path().as_posix()}"
     )
     sprint(
-        f"\n[info]If you want to create a new graph, run "
-        f"[code]patterns create graph[/code] get started"
+        f"\n[info]If you want to create a new app, run "
+        f"[code]patterns create app[/code] get started"
     )
