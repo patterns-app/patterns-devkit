@@ -21,7 +21,7 @@ def download(
     organization: str = Option("", "-o", "--organization", help=_organization_help),
     force: bool = Option(False, "-f", "--force", help=_force_help),
     app: str = Argument(None, help=_app_help),
-    directory: Path = Argument(None, help=_directory_help),
+    directory: Path = Argument(None, help=_directory_help, file_okay=False),
 ):
     """Download the code for a Patterns app"""
     ids = IdLookup(
@@ -31,9 +31,15 @@ def download(
     with abort_on_error("Error downloading app"):
         content = io.BytesIO(download_graph_zip(ids.graph_version_uid))
 
-        # if we aren't in a graph, download to a new folder
-        gp = ids.graph_file_path_or_null
-        root = gp.parent if gp else Path(ids.graph_slug).resolve()
+        root = (
+            directory
+            if directory
+            # If a graph is specified, download it to a folder matching its slug.
+            else Path(ids.graph_slug).resolve()
+            if app
+            # Otherwise download the current graph
+            else ids.graph_directory
+        )
         with ZipFile(content, "r") as zf:
             if force:
                 zf.extractall(root)
@@ -57,11 +63,12 @@ def _get_conflicts(zf: ZipFile, root: Path) -> list[str]:
     conflicts = []
     for zipinfo in zf.infolist():
         dst = root / zipinfo.filename
-        if dst.exists():
-            if dst.is_file():
-                new = zf.read(zipinfo).decode()
-                if dst.read_text() != new:
-                    conflicts.append(zipinfo.filename)
-            else:
+        if zipinfo.is_dir() or not dst.exists():
+            continue
+        if dst.is_file():
+            new = zf.read(zipinfo).decode()
+            if dst.read_text() != new:
                 conflicts.append(zipinfo.filename)
+        else:
+            conflicts.append(zipinfo.filename)
     return conflicts

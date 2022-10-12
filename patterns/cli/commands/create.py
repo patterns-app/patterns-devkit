@@ -16,7 +16,7 @@ _name_help = "The name of the app. The location will be used as a name by defaul
 
 
 @create.command()
-def graph(
+def app(
     name: str = Option("", "--name", "-n", help=_name_help),
     location: Path = Argument(None, metavar="APP"),
 ):
@@ -37,6 +37,13 @@ def graph(
         f" then [code]patterns create node[/code]"
     )
 
+# deprecated alias to `create app`
+@create.command(hidden=True)
+def graph(
+    name: str = Option("", "--name", "-n", help=_name_help),
+    location: Path = Argument(None, metavar="APP"),
+):
+    app(name, location)
 
 _app_help = "The app to add this node to"
 _title_help = "The title of the node. The location will be used as a title by default"

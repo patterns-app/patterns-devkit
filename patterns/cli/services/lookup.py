@@ -136,6 +136,13 @@ class IdLookup:
 
     @cached_property
     def graph_file_path(self) -> Path:
+        return self.graph_file_path_or_null or _find_graph_file(
+            path=None, prompt=True, nearest=self._find_nearest_graph
+        )
+
+    @cached_property
+    def graph_file_path_or_null(self) -> Path | None:
+        """Return the file path if possible without prompting"""
         if self._given_graph_path:
             return resolve_graph_path(self._given_graph_path, exists=True)
         if self._node_file_path:
@@ -144,15 +151,11 @@ class IdLookup:
                 prompt=False,
                 nearest=self._find_nearest_graph,
             )
-        return _find_graph_file(
-            path=None, prompt=True, nearest=self._find_nearest_graph
-        )
-
-    @cached_property
-    def graph_file_path_or_null(self) -> Path | None:
         try:
-            return self.graph_file_path
-        except ValueError:
+            return _find_graph_file(
+                path=None, prompt=False, nearest=self._find_nearest_graph
+            )
+        except ValueError as e:
             return None
 
     @cached_property

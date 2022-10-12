@@ -20,7 +20,7 @@ list_command = typer.Typer(name="list", help="List objects of a given type")
 
 
 @list_command.command()
-def graphs(
+def apps(
     organization: str = Option("", help=_organization_help),
     print_json: bool = Option(False, "--json", help=_json_help),
 ):
@@ -29,6 +29,15 @@ def graphs(
     with abort_on_error("Error listing apps"):
         gs = list(paginated_graphs(ids.organization_uid))
     _print_objects(gs, print_json)
+
+
+# deprecated alias for `list apps`
+@list_command.command(hidden=True)
+def graphs(
+    organization: str = Option("", help=_organization_help),
+    print_json: bool = Option(False, "--json", help=_json_help),
+):
+    apps(organization, print_json)
 
 
 @list_command.command()
