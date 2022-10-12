@@ -5,7 +5,7 @@ from zipfile import ZipFile
 import typer
 from typer import Option, Argument
 
-from patterns.cli.services.diffs import get_conflicts_between_zip_and_dir
+from patterns.cli.services.diffs import get_diffs_between_zip_and_dir, print_diffs
 from patterns.cli.services.download import (
     download_graph_zip,
 )
@@ -16,11 +16,13 @@ _app_help = "The slug or uid of an app or app version"
 _directory_help = "The directory to download the app to"
 _organization_help = "The name of the Patterns organization that the graph belongs to"
 _force_help = "Overwrite existing files without prompting"
+_diff_help = "Show a full diff of file conflicts"
 
 
 def download(
     organization: str = Option("", "-o", "--organization", help=_organization_help),
     force: bool = Option(False, "-f", "--force", help=_force_help),
+    diff: bool = Option(False, "-d", "--diff", help=_diff_help),
     app: str = Argument(None, help=_app_help),
     directory: Path = Argument(None, help=_directory_help, file_okay=False),
 ):
@@ -34,6 +36,8 @@ def download(
 
     This command will never overwrite data by default. You can call this command with
     [bold cyan]--force[/] to overwrite local files.
+
+    This command will never delete files, no matter if they're part of the app or not.
     """
     ids = IdLookup(
         organization_name=organization, graph_slug_or_uid=app, graph_path=directory
@@ -55,13 +59,13 @@ def download(
             if force:
                 zf.extractall(root)
             else:
-                conflicts = get_conflicts_between_zip_and_dir(zf, root)
+                conflicts = get_diffs_between_zip_and_dir(zf, root)
                 if conflicts:
-                    sprint("[error]Download would overwrite the following files:")
-                    for conflict in conflicts:
-                        sprint(f"\t[error]{conflict}")
+                    sprint("[error]Download would overwrite the following files:\n")
+                    print_diffs(conflicts, diff)
                     sprint(
-                        "[info]Run this command with --force to overwrite local files"
+                        "\n[info]Run this command with [code]--force[/code] to overwrite"
+                        " local files, or [code]--diff[/code] to see detailed differences"
                     )
                     raise typer.Exit(1)
                 else:
