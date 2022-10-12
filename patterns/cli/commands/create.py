@@ -4,10 +4,11 @@ import typer
 from typer import Option, Argument
 
 from patterns.cli.helpers import random_node_id
-from patterns.cli.services.graph import resolve_graph_path
+from patterns.cli.services.graph_path import resolve_graph_path
 from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.output import abort, prompt_path, abort_on_error
 from patterns.cli.services.output import sprint
+from patterns.cli.services.secrets import create_secret
 from patterns.configuration.edit import GraphConfigEditor
 
 create = typer.Typer(name="create", help="Create a new app or node")
@@ -22,9 +23,7 @@ def app(
 ):
     """Add a new node to an app"""
     if not location:
-        prompt = (
-            "Enter a name for the new app directory [prompt.default](e.g. my_app)"
-        )
+        prompt = "Enter a name for the new app directory [prompt.default](e.g. my_app)"
         location = prompt_path(prompt, exists=False)
     with abort_on_error("Error creating app"):
         path = resolve_graph_path(location, exists=False)
@@ -37,6 +36,7 @@ def app(
         f" then [code]patterns create node[/code]"
     )
 
+
 # deprecated alias to `create app`
 @create.command(hidden=True)
 def graph(
@@ -44,6 +44,7 @@ def graph(
     location: Path = Argument(None, metavar="APP"),
 ):
     app(name, location)
+
 
 _app_help = "The app to add this node to"
 _title_help = "The title of the node. The location will be used as a title by default"
@@ -135,6 +136,31 @@ def webhook(
         f"\n[info]Once you've uploaded the app, use "
         f"[code]patterns list webhooks[/code] to get the url of the webhook"
     )
+
+
+_organization_help = "The name of the Patterns organization to add a secret to"
+_secret_name_help = (
+    "The name of the secret. Can only contain letters, numbers, and underscores."
+)
+_secret_value_help = "The value of the secret."
+_secret_desc_help = "A description for the secret."
+_sensitive_help = "Mark the secret value as sensitive. This value won't be visible to the UI or devkit."
+
+
+@create.command()
+def secret(
+    organization: str = Option("", "-o", "--organization", help=_organization_help),
+    sensitive: bool = Option(False, "--sensitive", "-s", help=_sensitive_help),
+    description: str = Option(None, "-d", "--description", help=_secret_desc_help),
+    name: str = Argument(..., help=_webhook_name_help),
+    value: str = Argument(..., help=_webhook_name_help),
+):
+    """Create a new secret value in your organization"""
+    ids = IdLookup(organization_name=organization)
+
+    with abort_on_error("Creating secret failed"):
+        create_secret(ids.organization_uid, name, value, description, sensitive)
+    sprint(f"\n[success]Created secret [b]{name}")
 
 
 _PY_FILE_TEMPLATE = """

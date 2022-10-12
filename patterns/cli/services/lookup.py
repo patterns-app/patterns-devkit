@@ -13,7 +13,7 @@ from patterns.cli.config import (
     CliConfig,
     update_devkit_config,
 )
-from patterns.cli.services.graph import resolve_graph_path
+from patterns.cli.services.graph_path import resolve_graph_path
 from patterns.cli.services.graph_versions import (
     get_graph_by_slug,
     get_latest_graph_version,

@@ -11,7 +11,7 @@ from zipfile import ZipFile, ZipInfo
 import ruyaml
 
 from patterns.cli.helpers import compress_directory, random_node_id
-from patterns.cli.services.graph import resolve_graph_path
+from patterns.cli.services.graph_path import resolve_graph_path
 
 MISSING = object()
 
