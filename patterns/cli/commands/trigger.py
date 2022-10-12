@@ -6,10 +6,10 @@ from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.output import sprint, abort_on_error, abort
 from patterns.cli.services.trigger import trigger_node
 
-_app_help = "The location of the graph.yml file for the deployed graph"
+_app_help = "The name or id of the app to trigger"
 _organization_help = (
     "The name of the Patterns organization that the graph specified "
-    "with --graph was uploaded to"
+    "with --app was uploaded to"
 )
 _node_id_help = "The id of the node to trigger"
 _node_help = "The path to the node to trigger"

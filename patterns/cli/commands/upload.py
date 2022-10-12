@@ -77,7 +77,7 @@ def upload(
             )
         ]
     if errors:
-        sprint(f"[error]Graph contains the following errors:")
+        sprint(f"[error]App contains the following errors:")
         for error in errors:
             sprint(f"\t[error]{error}")
 
