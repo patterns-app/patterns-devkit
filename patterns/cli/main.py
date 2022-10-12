@@ -10,10 +10,10 @@ from typer.core import TyperGroup
 from .commands.config import config
 from .commands.create import create
 from .commands.delete import delete
+from .commands.download import download
 from .commands.list import list_command
 from .commands.login import login
 from .commands.logout import logout
-from .commands.download import download
 from .commands.trigger import trigger
 from .commands.upload import upload
 from ..cli.services import output
@@ -45,6 +45,10 @@ for command in (
         app.add_typer(command)
     else:
         app.command()(command)
+
+# deprecated aliases
+app.command(name="pull")(download)
+app.command(name="clone")(download)
 
 
 def main():

@@ -60,15 +60,14 @@ def download(
                 zf.extractall(root)
             else:
                 conflicts = get_diffs_between_zip_and_dir(zf, root)
-                if conflicts:
-                    sprint("[error]Download would overwrite the following files:\n")
-                    print_diffs(conflicts, diff)
-                    sprint(
-                        "\n[info]Run this command with [code]--force[/code] to overwrite"
-                        " local files, or [code]--diff[/code] to see detailed differences"
-                    )
-                    raise typer.Exit(1)
-                else:
+                if not conflicts.changed:
                     zf.extractall(root)
-
-    sprint(f"[success]Downloaded app {ids.graph_slug}")
+                    sprint(f"[success]Downloaded app {ids.graph_slug}")
+                    return
+                sprint("[error]Download would overwrite the following files:\n")
+                print_diffs(conflicts, diff, False)
+                msg = "\n[info]Run this command with [code]--force[/code] to overwrite local files"
+                if not diff:
+                    msg += ", or [code]--diff[/code] to see detailed differences"
+                sprint(msg)
+                raise typer.Exit(1)

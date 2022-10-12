@@ -46,13 +46,13 @@ def upload(
         else:
             with ZipFile(content, "r") as zf:
                 conflicts = get_diffs_between_zip_and_dir(zf, ids.graph_directory)
-                if conflicts:
-                    sprint("[error]Upload would overwrite the following files:\n")
-                    print_diffs(conflicts, diff)
-                    sprint(
-                        "\n[info]Run this command with [code]--force[/code] to overwrite"
-                        " local files, or [code]--diff[/code] to see detailed differences"
-                    )
+                if conflicts.is_not_empty:
+                    sprint("[info]Upload would change the following files:\n")
+                    print_diffs(conflicts, diff, True)
+                    msg = "\n[info]Run this command with [code]--force[/code] to upload the app"
+                    if not diff:
+                        msg += ", or [code]--diff[/code] to see detailed differences"
+                    sprint(msg)
                     raise typer.Exit(1)
 
     with abort_on_error("Upload failed"):

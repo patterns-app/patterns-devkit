@@ -16,6 +16,7 @@ create = typer.Typer(name="create", help="Create a new app or node")
 _name_help = "The name of the app. The location will be used as a name by default"
 
 
+@create.command(name="graph", hidden=True)  # deprecated alias
 @create.command()
 def app(
     name: str = Option("", "--name", "-n", help=_name_help),
@@ -35,15 +36,6 @@ def app(
         f"\n[info]You can add nodes with [code]cd {location}[/code],"
         f" then [code]patterns create node[/code]"
     )
-
-
-# deprecated alias to `create app`
-@create.command(hidden=True)
-def graph(
-    name: str = Option("", "--name", "-n", help=_name_help),
-    location: Path = Argument(None, metavar="APP"),
-):
-    app(name, location)
 
 
 _app_help = "The app to add this node to"
