@@ -24,7 +24,11 @@ def upload(
     app: Path = Argument(None, exists=True, help=_app_help),
     publish_component: bool = Option(False, help=_component_help),
 ):
-    """Upload a new version of an app to Patterns"""
+    """Upload a new version of an app to Patterns
+
+    This command will never overwrite data by default. You can call this command with
+    [bold cyan]--force[/] to overwrite files Patterns Studio.
+    """
     ids = IdLookup(
         organization_name=organization,
         graph_path=app,

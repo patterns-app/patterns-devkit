@@ -24,7 +24,17 @@ def download(
     app: str = Argument(None, help=_app_help),
     directory: Path = Argument(None, help=_directory_help, file_okay=False),
 ):
-    """Download the code for a Patterns app"""
+    """Download the code for a Patterns app
+
+    Call this command like [bold cyan]patterns download my-app[/] to download the app named "my-app"
+    to a new folder.
+
+    If you are in the directory of an app you've already downloaded, you can get the
+    latest version of the app by calling [bold cyan]patterns download[/] with no extra arguments.
+
+    This command will never overwrite data by default. You can call this command with
+    [bold cyan]--force[/] to overwrite local files.
+    """
     ids = IdLookup(
         organization_name=organization, graph_slug_or_uid=app, graph_path=directory
     )

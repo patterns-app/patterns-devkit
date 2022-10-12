@@ -18,7 +18,9 @@ from .commands.trigger import trigger
 from .commands.upload import upload
 from ..cli.services import output
 
-app = Typer(name="patterns", no_args_is_help=True, add_completion=False)
+app = Typer(
+    name="patterns", no_args_is_help=True, add_completion=False, rich_markup_mode="rich"
+)
 
 
 @app.callback()
