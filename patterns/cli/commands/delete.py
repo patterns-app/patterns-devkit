@@ -8,7 +8,7 @@ from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.output import sprint, abort_on_error
 
 _app_help = "The slug, id, or location of the graph.yml file of the app to delete"
-_force_help = "Don't prompt before deleting a app"
+_force_help = "Don't prompt before deleting an app"
 _organization_help = "The name of the Patterns organization to delete from"
 
 
