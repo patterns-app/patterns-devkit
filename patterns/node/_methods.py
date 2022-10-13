@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Iterator, Any
+from typing import Iterator, Any, List
 
 try:
     # DataFrame is only used in type annotations
@@ -34,7 +33,7 @@ class InputTableMethods:
         cls,
         as_format: str = "records",
         chunksize: int | None = None,
-    ) -> list[dict] | DataFrame | Iterator[list[dict]] | Iterator[DataFrame]:
+    ) -> List[dict] | DataFrame | Iterator[List[dict]] | Iterator[DataFrame]:
         ...
 
     @classmethod
@@ -43,7 +42,7 @@ class InputTableMethods:
         sql: str,
         as_format: str = "records",
         chunksize: int | None = None,
-    ) -> list[dict] | DataFrame | Iterator[list[dict]] | Iterator[DataFrame]:
+    ) -> List[dict] | DataFrame | Iterator[List[dict]] | Iterator[DataFrame]:
         ...
 
     @classmethod
@@ -73,7 +72,7 @@ class InputTableMethods:
 
 class OutputTableMethods:
     @classmethod
-    def write(cls, records: DataFrame | list[dict] | dict, replace=False):
+    def write(cls, records: DataFrame | List[dict] | dict, replace=False):
         ...
 
     @classmethod
@@ -140,7 +139,7 @@ class InputStreamMethods:
 
 class OutputStreamMethods:
     @classmethod
-    def write(cls, record: DataFrame | list[dict] | dict):
+    def write(cls, record: DataFrame | List[dict] | dict):
         ...
 
 

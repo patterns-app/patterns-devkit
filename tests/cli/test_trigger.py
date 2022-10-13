@@ -22,5 +22,5 @@ def test_trigger_node_in_subgraph(tmp_path: Path):
         result = run_cli(f"trigger {name}")
         assert "Triggered node" in result.output
 
-        result = run_cli(f"trigger --graph={dr} --node-id={id}")
+        result = run_cli(f"trigger --app=graph --node-id={id}")
         assert "Triggered node" in result.output

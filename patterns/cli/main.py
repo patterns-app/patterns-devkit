@@ -10,15 +10,17 @@ from typer.core import TyperGroup
 from .commands.config import config
 from .commands.create import create
 from .commands.delete import delete
+from .commands.download import download
 from .commands.list import list_command
 from .commands.login import login
 from .commands.logout import logout
-from .commands.pull import pull, clone
 from .commands.trigger import trigger
 from .commands.upload import upload
 from ..cli.services import output
 
-app = Typer(name="patterns", no_args_is_help=True, add_completion=False)
+app = Typer(
+    name="patterns", no_args_is_help=True, add_completion=False, rich_markup_mode="rich"
+)
 
 
 @app.callback()
@@ -36,14 +38,17 @@ for command in (
     logout,
     trigger,
     upload,
-    pull,
-    clone,
+    download,
 ):
     if isinstance(command, typer.Typer):
         command._add_completion = False
         app.add_typer(command)
     else:
         app.command()(command)
+
+# deprecated aliases
+app.command(name="pull")(download)
+app.command(name="clone")(download)
 
 
 def main():

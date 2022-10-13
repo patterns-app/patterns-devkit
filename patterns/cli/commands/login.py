@@ -18,7 +18,7 @@ def login():
 
     ids = IdLookup(ignore_local_cfg=True)
     with abort_on_error("Fetching account failed"):
-        update_devkit_config(organization_id=ids.organization_id)
+        update_devkit_config(organization_id=ids.organization_uid)
 
     with abort_on_error("Fetching user profile failed"):
         profile = me()
@@ -32,6 +32,6 @@ def login():
         f"{get_devkit_config_path().as_posix()}"
     )
     sprint(
-        f"\n[info]If you want to create a new graph, run "
-        f"[code]patterns create graph[/code] get started"
+        f"\n[info]If you want to create a new app, run "
+        f"[code]patterns create app[/code] get started"
     )
