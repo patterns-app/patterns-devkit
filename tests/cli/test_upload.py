@@ -1,4 +1,6 @@
+import io
 from pathlib import Path
+from zipfile import ZipFile
 
 from patterns.cli.services.api import Endpoints
 from tests.cli.base import request_mocker, set_tmp_dir, run_cli
@@ -38,8 +40,8 @@ def node_fn(output=OutputTable):
                 "errors": [{"node_id": "n1", "message": "Test Error"}],
             },
         )
-        result = run_cli(f"upload {path}")
-        assert "Uploaded new graph" in result.output
+        result = run_cli(f"upload {path} --force")
+        assert "Uploaded new app" in result.output
         assert "Test Error" in result.output
         assert "url.com" in result.output
 
@@ -51,7 +53,7 @@ def node_fn(output=OutputTable):
 def test_upload_component(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent
     path = "/".join((dr / "name").parts)
-    run_cli(f"create graph {path}")
+    run_cli(f"create app {path}")
     run_cli(f"create node {path}/node.py")
 
     with request_mocker() as m:
@@ -73,9 +75,9 @@ def test_upload_component(tmp_path: Path):
                 "organization": {"uid": "4", "slug": "o"},
             },
         )
-        result = run_cli(f"upload --publish-component {path}")
-        assert "Uploaded new graph" in result.output
-        assert "Published graph component" in result.output
+        result = run_cli(f"upload --publish-component {path} --force")
+        assert "Uploaded new app" in result.output
+        assert "Published app component" in result.output
 
 
 def test_upload_custom_yaml_name(tmp_path: Path):
@@ -101,5 +103,5 @@ stores:
                 "manifest": {},
             },
         )
-        result = run_cli(f"upload {graph_file.as_posix()}")
-        assert "Uploaded new graph" in result.output
+        result = run_cli(f"upload {graph_file.as_posix()} --force")
+        assert "Uploaded new app" in result.output

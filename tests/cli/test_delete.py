@@ -8,7 +8,8 @@ def test_delete(tmp_path: Path):
     set_tmp_dir(tmp_path)
 
     with request_mocker() as m:
-        m.delete(Endpoints.graph_delete("uid"))
+        m.delete(Endpoints.graph_delete("2"))
+        m.get(Endpoints.graph_by_slug("test-org-uid", "test-graph"), json={"uid": "2"})
 
-        result = run_cli(f"delete -f --graph-id uid")
-        assert "Graph deleted" in result.output
+        result = run_cli(f"delete -f test-graph")
+        assert "App deleted" in result.output
