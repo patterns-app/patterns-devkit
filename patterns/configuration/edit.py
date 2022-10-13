@@ -5,7 +5,7 @@ import io
 import re
 from io import StringIO
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Union, IO, Iterator, Callable
+from typing import Dict, Any, Optional, Union, IO, Iterator
 from zipfile import ZipFile, ZipInfo
 
 import ruyaml

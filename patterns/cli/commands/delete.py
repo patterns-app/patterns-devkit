@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from rich.prompt import Confirm
 from typer import Option, Argument
 

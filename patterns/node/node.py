@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from dataclasses import dataclass
 from typing import Callable, Any, TypeVar, Type
 
 from patterns.node._methods import (

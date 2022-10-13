@@ -206,6 +206,5 @@ class Endpoints:
         return f"{PUBLIC_API_BASE_URL}/graphs/{graph_uid}/nodes/{node_id}/trigger"
 
     @classmethod
-    def org_secrets(cls,organization_uid : str) -> str:
+    def org_secrets(cls, organization_uid: str) -> str:
         return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/secrets"
-

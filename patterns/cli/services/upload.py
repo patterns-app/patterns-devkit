@@ -17,7 +17,10 @@ def upload_graph_version(
     editor = GraphDirectoryEditor(graph_yaml_path)
     if add_missing_node_ids:
         editor.add_missing_node_ids()
-    payload = {"slug": slug or editor.graph_slug(), "root_yaml_path": editor.yml_path.name}
+    payload = {
+        "slug": slug or editor.graph_slug(),
+        "root_yaml_path": editor.yml_path.name,
+    }
     return post_for_json(
         Endpoints.graph_version_create(organization_uid),
         data={"payload": json.dumps(payload)},
