@@ -2,7 +2,7 @@ import difflib
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, List, Dict
 from zipfile import ZipFile
 
 from rich.markdown import Markdown
@@ -12,9 +12,9 @@ from patterns.cli.services.output import sprint
 
 @dataclass
 class DiffResult:
-    added: list[str]
-    removed: list[str]
-    changed: dict[str, Iterator[str]]
+    added: List[str]
+    removed: List[str]
+    changed: Dict[str, Iterator[str]]
 
     @property
     def is_not_empty(self) -> bool:

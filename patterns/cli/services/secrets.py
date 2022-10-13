@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import List
+
 from requests import Session
 
 from patterns.cli.services.api import Endpoints, post_for_json, get_json
@@ -13,7 +15,7 @@ def create_secret(
     description: str,
     sensitive: bool,
     session: Session = None,
-) -> list[dict]:
+) -> List[dict]:
     return post_for_json(
         Endpoints.org_secrets(organization_uid),
         json={
