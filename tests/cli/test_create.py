@@ -6,7 +6,7 @@ from tests.cli.base import set_tmp_dir, run_cli
 def test_create_graph(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent
     name = "testgraph"
-    run_cli("create graph", f"{dr / name}\n")
+    run_cli("create app", f"{dr / name}\n")
     assert name in (dr / name / "graph.yml").read_text()
 
 
@@ -14,14 +14,14 @@ def test_create_graph_explicit(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent
     name = "testgraph"
     path = dr / "pth" / "projname"
-    run_cli(f"create graph --name={name} '{path}'")
+    run_cli(f"create app --name={name} '{path}'")
     assert name in (dr / path / "graph.yml").read_text()
 
 
 def test_create_node(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent / "graph"
     name = "mynode.py"
-    run_cli("create graph", f"{dr}\n")
+    run_cli("create app", f"{dr}\n")
     path = dr / name
     run_cli(f"create node", f"{path}\n")
     assert name in (dr / "graph.yml").read_text()
@@ -30,7 +30,7 @@ def test_create_node(tmp_path: Path):
 def test_create_subgraph(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent / "graph"
     name = "sub/graph.yml"
-    run_cli("create graph", f"{dr}\n")
+    run_cli("create app", f"{dr}\n")
     path = dr / name
     run_cli(f"create node", f"{path}\n")
     assert name in (dr / "graph.yml").read_text()
@@ -44,7 +44,7 @@ def test_create_subgraph(tmp_path: Path):
 def test_create_node_explicit(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent / "graph"
     name = "mynode.py"
-    run_cli("create graph", f"{dr}\n")
+    run_cli("create app", f"{dr}\n")
     path = dr / name
     run_cli(f"create node '{path}'")
     assert name in (dr / "graph.yml").read_text()

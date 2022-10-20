@@ -2,11 +2,11 @@ from pathlib import Path
 
 from typer import Option, Argument
 
+from patterns.cli.commands._common import app_argument_help
 from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.output import sprint, abort_on_error, abort
 from patterns.cli.services.trigger import trigger_node
 
-_app_help = "The name or id of the app to trigger"
 _organization_help = (
     "The name of the Patterns organization that the graph specified "
     "with --app was uploaded to"
@@ -17,7 +17,7 @@ _node_help = "The path to the node to trigger"
 
 def trigger(
     organization: str = Option("", "-o", "--organization", help=_organization_help),
-    app: str = Option(None, exists=True, help=_app_help),
+    app: str = Option(None, exists=True, help=app_argument_help),
     type: str = Option("pubsub", hidden=True),
     node_id: str = Option(None, help=_node_id_help),
     node: Path = Argument(None, exists=True, help=_node_help),
@@ -38,8 +38,8 @@ def trigger(
         abort("Must specify one of --node-id or NODE path argument")
 
     ids = IdLookup(
-        organization_name=organization,
-        graph_slug_or_uid=app,
+        organization_slug=organization,
+        graph_slug_or_uid_or_path=app,
         node_file_path=node,
         node_id=node_id,
         find_nearest_graph=True,

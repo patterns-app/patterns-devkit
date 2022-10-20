@@ -17,7 +17,7 @@ from patterns.cli.services.graph_path import resolve_graph_path
 from patterns.cli.services.graph_versions import (
     get_graph_by_slug,
     get_latest_graph_version,
-    get_graph_version_by_id,
+    get_graph_version_by_uid,
     get_graph_by_uid,
 )
 from patterns.cli.services.organizations import (
@@ -38,38 +38,41 @@ class IdLookup:
 
     def __init__(
         self,
-        organization_name: str = None,
+        organization_slug: str = None,
         graph_path: Path = None,
         node_file_path: Path = None,
-        graph_version_id: str = None,
-        graph_id: str = None,
-        graph_name: str = None,
         node_id: str = None,
-        graph_slug_or_uid: str = None,
+        graph_slug_or_uid_or_path: str = None,
         ignore_local_cfg: bool = False,
         find_nearest_graph: bool = False,
     ):
-        self._given_org_name = organization_name
-        self._given_graph_name = graph_name
-        self._given_graph_path = graph_path
-        self._given_graph_version_id = graph_version_id
-        self._given_graph_id = graph_id
+        self._given_org_slug = organization_slug
         self._given_node_id = node_id
-        self._given_graph_slug_or_uid = graph_slug_or_uid
         self._node_file_path = node_file_path
         self._ignore_local_cfg = ignore_local_cfg
         self._find_nearest_graph = find_nearest_graph
+        self._given_graph_path = graph_path
+        self._given_graph_slug_or_uid = None
+
+        if (
+            graph_slug_or_uid_or_path
+            and not self._given_graph_path
+            and (any(c in graph_slug_or_uid_or_path for c in "./\\"))
+        ):
+            self._given_graph_path = Path(graph_slug_or_uid_or_path).absolute()
+        else:
+            self._given_graph_slug_or_uid = graph_slug_or_uid_or_path
 
     @cached_property
     def organization_name(self) -> str:
-        if self._given_org_name:
-            return self._given_org_name
+        if self._given_org_slug:
+            return self._given_org_slug
         return get_organization_by_id(self.organization_uid)["name"]
 
     @cached_property
     def organization_uid(self) -> str:
-        if self._given_org_name:
-            return get_organization_by_name(self._given_org_name)["uid"]
+        if self._given_org_slug:
+            return get_organization_by_name(self._given_org_slug)["uid"]
         if self.cfg.organization_id:
             return self.cfg.organization_id
         organizations = list(paginated_organizations())
@@ -98,16 +101,12 @@ class IdLookup:
 
     @cached_property
     def graph_uid(self) -> str:
-        if self._given_graph_id:
-            return self._given_graph_id
         if self._given_graph_slug_or_uid:
             return self._graph_by_slug_or_uid["uid"]
         return get_graph_by_slug(self.organization_uid, self.graph_slug)["uid"]
 
     @cached_property
     def graph_version_uid(self):
-        if self._given_graph_version_id:
-            return self._given_graph_version_id
         return get_latest_graph_version(self.graph_uid)["uid"]
 
     @cached_property
@@ -137,7 +136,7 @@ class IdLookup:
     @cached_property
     def graph_file_path(self) -> Path:
         return self.graph_file_path_or_null or _find_graph_file(
-            path=None, prompt=True, nearest=self._find_nearest_graph
+            given_path=None, prompt=True, nearest=self._find_nearest_graph
         )
 
     @cached_property
@@ -153,7 +152,7 @@ class IdLookup:
             )
         try:
             return _find_graph_file(
-                path=None, prompt=False, nearest=self._find_nearest_graph
+                given_path=None, prompt=False, nearest=self._find_nearest_graph
             )
         except ValueError as e:
             return None
@@ -178,15 +177,8 @@ class IdLookup:
             graph = self._load_yaml(self.root_graph_file)
             return graph.get("slug", self.root_graph_file.parent.name)
 
-        if self._given_graph_name:
-            return self._given_graph_name
         if self._given_graph_path or self._node_file_path:
             return from_yaml()
-        if self._given_graph_version_id:
-            vid = self._given_graph_version_id
-            return get_graph_version_by_id(vid)["graph"]["slug"]
-        if self._given_graph_id:
-            return get_graph_by_uid(self._given_graph_id)["slug"]
         if self._given_graph_slug_or_uid:
             return self._graph_by_slug_or_uid["slug"]
         return from_yaml()
@@ -209,27 +201,28 @@ class IdLookup:
         except HTTPError:
             pass
         try:
-            return get_graph_version_by_id(self._given_graph_slug_or_uid)["graph"]
+            return get_graph_version_by_uid(self._given_graph_slug_or_uid)["graph"]
         except HTTPError:
             pass
         raise Exception(f"No graph with slug or id {self._given_graph_slug_or_uid}")
 
 
 def _find_graph_file(
-    path: Optional[Path], prompt: bool = True, nearest: bool = False
+    given_path: Optional[Path], prompt: bool = True, nearest: bool = False
 ) -> Path:
     """Walk up a directory tree looking for a graph
 
-    :param path: The location to start the search
+    :param given_path: The location to start the search
     :param prompt: If True, ask the user to enter a path if it can't be found
     :param nearest: If False, keep walking up until there's no graph.yml in the parent
                     directory. If True, stop as soon as one if found.
     """
-    if path and path.is_file():
-        return resolve_graph_path(path, exists=True)
-    if not path:
-        path = Path(os.getcwd())
-    path = path.absolute()
+    if given_path and given_path.is_file():
+        return resolve_graph_path(given_path, exists=True)
+    if given_path:
+        path = given_path.absolute()
+    else:
+        path = Path(os.getcwd()).absolute()
 
     found = None
 
@@ -251,4 +244,4 @@ def _find_graph_file(
         resp = prompt_path("Enter the path to the graph yaml file", exists=True)
         return resolve_graph_path(resp, exists=True)
     else:
-        raise ValueError(f"Cannot find graph.yml{f' at {path}' if path else ''}")
+        raise ValueError(f"Cannot find graph.yml{f' at {given_path}' if path else ''}")

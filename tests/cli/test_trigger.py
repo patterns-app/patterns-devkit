@@ -8,7 +8,7 @@ from tests.cli.base import set_tmp_dir, run_cli, request_mocker
 def test_trigger_node_in_subgraph(tmp_path: Path):
     dr = set_tmp_dir(tmp_path).parent / "graph"
     name = "sub/graph.yml"
-    run_cli("create graph", f"{dr}\n")
+    run_cli("create app", f"{dr}\n")
     path = dr / name
     run_cli(f"create node", f"{path}\n")
     name = (dr / "sub/p.py").as_posix()

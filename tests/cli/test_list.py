@@ -14,5 +14,5 @@ def test_list_graphs(tmp_path: Path):
                 e,
                 json={"results": [{"name": "name"}], "next": None},
             )
-        result = run_cli("list graphs --json")
+        result = run_cli("list apps --json")
         assert "name" in result.output

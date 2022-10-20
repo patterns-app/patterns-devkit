@@ -20,7 +20,7 @@ def config(
 ):
     """Get or set the default values used by other commands"""
     ids = IdLookup(
-        organization_name=organization,
+        organization_slug=organization,
     )
     if organization:
         ids.cfg.organization_id = ids.organization_uid
