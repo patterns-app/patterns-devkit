@@ -6,6 +6,7 @@ import typer
 from requests import HTTPError
 from typer import Option, Argument
 
+from patterns.cli.commands._common import app_argument_help
 from patterns.cli.services.diffs import get_diffs_between_zip_and_dir, print_diffs
 from patterns.cli.services.download import download_graph_zip
 from patterns.cli.services.graph_components import create_graph_component
@@ -13,7 +14,7 @@ from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.output import sprint, abort_on_error
 from patterns.cli.services.upload import upload_graph_version
 
-_app_help = "The location of the graph.yml file for the app to upload"
+_app_help = "The location of the graph.yml file of the app to upload"
 _organization_help = "The name of the Patterns organization to upload to"
 _component_help = "After uploading, publish the app version as a public component"
 _force_help = "Overwrite existing files without prompting"
@@ -24,8 +25,8 @@ def upload(
     organization: str = Option("", "-o", "--organization", help=_organization_help),
     force: bool = Option(False, "-f", "--force", help=_force_help),
     diff: bool = Option(False, "-d", "--diff", help=_diff_help),
-    app: Path = Argument(None, exists=True, help=_app_help),
     publish_component: bool = Option(False, help=_component_help),
+    app: Path = Argument(None, exists=True, help=_app_help),
 ):
     """Upload a new version of an app to Patterns
 
@@ -33,7 +34,7 @@ def upload(
     [bold cyan]--force[/] to overwrite files Patterns Studio.
     """
     ids = IdLookup(
-        organization_name=organization,
+        organization_slug=organization,
         graph_path=app,
     )
 

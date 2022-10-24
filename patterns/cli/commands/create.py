@@ -16,7 +16,6 @@ create = typer.Typer(name="create", help="Create a new app or node")
 _name_help = "The name of the app. The location will be used as a name by default"
 
 
-@create.command(name="graph", hidden=True)  # deprecated alias
 @create.command()
 def app(
     name: str = Option("", "--name", "-n", help=_name_help),
@@ -148,7 +147,7 @@ def secret(
     value: str = Argument(..., help=_webhook_name_help),
 ):
     """Create a new secret value in your organization"""
-    ids = IdLookup(organization_name=organization)
+    ids = IdLookup(organization_slug=organization)
 
     with abort_on_error("Creating secret failed"):
         create_secret(ids.organization_uid, name, value, description, sensitive)

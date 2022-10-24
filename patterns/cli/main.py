@@ -46,10 +46,6 @@ for command in (
     else:
         app.command()(command)
 
-# deprecated aliases
-app.command(name="pull")(download)
-app.command(name="clone")(download)
-
 
 def main():
     def _get_group(*args, **kwargs) -> click.Command:

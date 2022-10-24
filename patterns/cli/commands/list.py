@@ -20,14 +20,13 @@ _organization_option = Option("", "--organization", "-o", help=_organization_hel
 list_command = typer.Typer(name="list", help="List objects of a given type")
 
 
-@list_command.command(name="graphs", hidden=True)  # deprecated alias
 @list_command.command()
 def apps(
     organization: str = Option("", help=_organization_help),
     print_json: bool = Option(False, "--json", help=_json_help),
 ):
     """List all apps in your organization"""
-    ids = IdLookup(organization_name=organization)
+    ids = IdLookup(organization_slug=organization)
     with abort_on_error("Error listing apps"):
         gs = list(paginated_graphs(ids.organization_uid))
     _print_objects("apps", gs, print_json)
@@ -53,7 +52,7 @@ def secrets(
     def clean(r):
         return {k: "" if v is None else v for k, v in r.items()}
 
-    ids = IdLookup(organization_name=organization)
+    ids = IdLookup(organization_slug=organization)
     with abort_on_error("Error listing secrets"):
         ss = list(map(clean, paginated_secrets(ids.organization_uid)))
     _print_objects("secrets", ss, print_json)
