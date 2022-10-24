@@ -168,6 +168,10 @@ class Endpoints:
         return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}"
 
     @classmethod
+    def webhooks_list(cls, graph_uid: str) -> str:
+        return f"{PUBLIC_API_BASE_URL}/graphs/{graph_uid}/webhooks"
+
+    @classmethod
     def graphs_list(cls, organization_uid: str) -> str:
         return f"{PUBLIC_API_BASE_URL}/organizations/{organization_uid}/graphs"
 
