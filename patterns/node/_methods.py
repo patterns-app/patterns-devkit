@@ -17,8 +17,10 @@ if TYPE_CHECKING:
 
 class TableVersion:
     """A specific version of a Table, representing an actual database table
-    that may or may not be stored on disk yet. A Table may have many TableVersions,
-    one or zero of which will be active at any given time."""
+    that may or may not be stored on disk yet.
+
+    A Table may have many TableVersions, one or zero of which will be active
+    at any given time."""
 
     @property
     def name(self) -> str:
@@ -48,8 +50,8 @@ class TableVersion:
 
 class Stream:
     """A stateful view of a Table that supports consuming the table in a
-    one-record-at-a-time manner in a given ordering, preserving progress across executions for the given
-    node.
+    one-record-at-a-time manner in a given ordering, preserving progress
+    across executions for the given node.
 
     Example::
 
@@ -70,8 +72,9 @@ class Stream:
 
     @classmethod
     def consume_records(cls, with_metadata: bool = False) -> Iterator[dict]:
-        """Iterates over records in this stream one at a time. When a record
-        is yielded it is marked as consumed, regardless of what happens after.
+        """Iterates over records in this stream one at a time.
+
+        When a record is yielded it is marked as consumed, regardless of what happens after.
         If you want to recover from errors and have the option to re-process records,
         you can use ``rollback`` and ``checkpoint`` explicitly in a try / except block.
         """
@@ -83,7 +86,8 @@ class Stream:
 
     @classmethod
     def checkpoint(cls):
-        """Saves the stream state (which records have been consumed from the iterator) to disk."""
+        """Saves the stream state (which records have been consumed from the iterator)
+        to disk."""
         ...
 
     @classmethod
@@ -98,8 +102,10 @@ class Stream:
 
     @classmethod
     def seek(self, value: Any):
-        """Seeks to the given value (of the order_by field). Stream will consume values strictly *greater*
-        than the given value, not including any record equal to the given value."""
+        """Seeks to the given value (of the order_by field).
+        
+        Stream will consume values strictly *greater* than the given value, not including
+        any record equal to the given value."""
         ...
 
     @property
@@ -144,6 +150,7 @@ class InputTableMethods:
         chunksize: int | None = None,
     ) -> List[dict] | DataFrame | Iterator[List[dict]] | Iterator[DataFrame]:
         """Reads records resulting from the given sql expression, in same manner as ``read``.
+        
         To reference tables in the sql, you can get their current (fully qualified and quoted)
         sql name by referencing `.sql_name` or, equivalently, taking their str() representation::
 
@@ -161,27 +168,30 @@ class InputTableMethods:
     @classmethod
     def as_stream(cls, order_by: str = None, starting_value: Any = None) -> Stream:
         """Returns a Stream over the given table that will consume each record in the
-        table exactly once, in order. Progress along the stream is stored in the
-        node's state. A table may have multiple simultaneous streams with different
-        orderings. The stream is ordered by the `order_by` parameter if provided
-        otherwise defaults to the schema's `strictly_monotonic_ordering` if defined
-        or its `created_ordering` if defined. If none of those orderings exist,
-        an exception is thrown.
+        table exactly once, in order.
+        
+        Progress along the stream is stored in the node's state. A table may have
+        multiple simultaneous streams with different orderings. The stream is ordered
+        by the `order_by` parameter if provided otherwise defaults to the schema's
+        `strictly_monotonic_ordering` if defined or its `created_ordering` if defined.
+        If none of those orderings exist, an exception is thrown.
 
 
         Args:
-            order_by: Optional, the field to order the stream by. If not provided defaults to schema-defined orderings
+            order_by: Optional, the field to order the stream by. If not provided
+                defaults to schema-defined orderings
             starting_value: Optional, value on the order by field at which to start the stream
 
         Returns:
-            TableStreamer object.
+            Stream object.
         """
         ...
 
     @classmethod
     def reset(cls):
-        """Resets the table. No data is deleted on disk, but the active version of the
-        table is reset to None.
+        """Resets the table.
+        
+        No data is deleted on disk, but the active version of the table is reset to None.
         """
         ...
 
@@ -195,8 +205,9 @@ class InputTableMethods:
 
     @property
     def is_connected(cls) -> bool:
-        """Returns true if this table port is connected to a store in the graph. Operations
-        on unconnected tables are no-ops and return dummy objects.
+        """Returns true if this table port is connected to a store in the graph.
+        
+        Operations on unconnected tables are no-ops and return dummy objects.
         """
         ...
 
@@ -219,7 +230,7 @@ class InputTableMethods:
 
     @property
     def exists(self) -> bool:
-        """Returns True if the table has been created on disk."""
+        """True if the table has been created on disk."""
         ...
 
 
@@ -249,9 +260,10 @@ class OutputTableMethods:
 
     @classmethod
     def append(cls, records: DataFrame | List[dict] | dict):
-        """Appends the records to the end of this table. If this is the first
-        write to this table then any schema provided is used to create the table,
-        otherwise the schema is inferred from the passed in records.
+        """Appends the records to the end of this table.
+        
+        If this is the first write to this table then any schema provided is used to
+        create the table, otherwise the schema is inferred from the passed in records.
 
         Args:
             records: May be a list of records (list of dicts with str keys),
@@ -262,10 +274,11 @@ class OutputTableMethods:
     @classmethod
     def upsert(cls, records: DataFrame | List[dict] | dict):
         """Upserts the records into this table, inserting new rows or
-        updating if unique key conflicts. Unique fields must be provided by the Schema
-        or passed to ``init``. If this is the first write to this table then any schema
-        provided is used to create the table, otherwise the schema is inferred from the
-        passed in records.
+        updating if unique key conflicts.
+        
+        Unique fields must be provided by the Schema or passed to ``init``. If this is
+        the first write to this table then any schema provided is used to create the table,
+        otherwise the schema is inferred from the passed in records.
 
         Args:
             records: May be a list of records (list of dicts with str keys),
@@ -276,6 +289,7 @@ class OutputTableMethods:
     @classmethod
     def truncate(cls):
         """Truncates this table, preserving the table and schema on disk, but deleting all rows.
+        
         Unlike ``reset`, which sets the active TableVersion to a new version, this action is
         destructive and cannot be undone.
         """
@@ -283,10 +297,11 @@ class OutputTableMethods:
 
     @classmethod
     def execute_sql(cls, sql: str):
-        """Executes the given sql against the database this table is stored on. The sql is inspected
-        to determine if it creates new tables or only modifies them, and appropriate events are recorded.
-        The sql should ONLY create or update THIS table. Creating or updating other tables will result in
-        incorrect event propagation.
+        """Executes the given sql against the database this table is stored on.
+        
+        The sql is inspected to determine if it creates new tables or only modifies them,
+        and appropriate events are recorded. The sql should ONLY create or update THIS table.
+        Creating or updating other tables will result in incorrect event propagation.
 
         To reference tables in the sql, you can get their current (fully qualified and quoted)
         sql name by referencing `.sql_name` or, equivalently, taking their str() representation::
@@ -325,8 +340,9 @@ class OutputTableMethods:
 
     @classmethod
     def reset(cls):
-        """Resets this table to point to a new (null) TableVersion with no Schema or data. Schema
-        and data of previous version still exist on disk until garbage collected according to the
+        """Resets this table to point to a new (null) TableVersion with no Schema or data.
+        
+        Schema and data of previous version still exist on disk until garbage collected according to the
         table's retention policy."""
         ...
 
@@ -411,10 +427,12 @@ class StateMethods:
     def should_continue(
         cls, pct_of_limit: float = None, seconds_till_limit: int = None
     ) -> bool:
-        """Returns False if execution is near its hard time limit (10 minutes typically), otherwise
-        returns True. Used to exit gracefully from long-running jobs,
-        typically in conjunction with ``request_new_run``. Defaults to 80% of limit or
-        120 seconds before the hard limit, which ever is greater
+        """Returns False if execution is near its hard time limit (10 minutes typically),
+        otherwise returns True.
+        
+        Used to exit gracefully from long-running jobs, typically in conjunction with
+        ``request_new_run``. Defaults to 80% of limit or 120 seconds before the
+        hard limit, which ever is greater.
 
         Args:
             pct_of_limit: percent of time limit to trigger at
@@ -427,8 +445,10 @@ class StateMethods:
         cls, trigger_downstream: bool = True, wait_atleast_seconds: int = None
     ):
         """Requests a new run from the server for this node, to be started
-        once the current execution finishes. Often used in conjunction with
-        ``should_continue`` to run long jobs over multiple executions safely.
+        once the current execution finishes.
+        
+        Often used in conjunction with ``should_continue`` to run long jobs
+        over multiple executions safely.
 
         The requested run be delayed with `wait_atleast_seconds` to space out
         the executions.
