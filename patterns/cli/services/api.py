@@ -108,6 +108,7 @@ def get(
 ) -> Response:
     session = session or _get_api_session()
     resp = session.get(build_url(base_url, path), params=params or {}, **kwargs)
+    resp.raise_for_status()
     return resp
 
 
@@ -132,6 +133,7 @@ def post(
 ) -> Response:
     session = session or _get_api_session()
     resp = session.post(build_url(base_url, path), json=json or {}, **kwargs)
+    resp.raise_for_status()
     return resp
 
 
@@ -144,6 +146,20 @@ def delete(
 ) -> Response:
     session = session or _get_api_session()
     resp = session.delete(build_url(base_url, path), params=params or {}, **kwargs)
+    resp.raise_for_status()
+    return resp
+
+
+def patch(
+    path: str,
+    json: dict = None,
+    session: Session = None,
+    base_url: str = API_BASE_URL,
+    **kwargs,
+) -> Response:
+    session = session or _get_api_session()
+    resp = session.patch(build_url(base_url, path), json=json or {}, **kwargs)
+    resp.raise_for_status()
     return resp
 
 
@@ -180,6 +196,10 @@ class Endpoints:
         return f"{PUBLIC_API_BASE_URL}/graphs/{graph_uid}/latest"
 
     @classmethod
+    def graph_update(cls, graph_uid: str) -> str:
+        return f"{PUBLIC_API_BASE_URL}/graphs/{graph_uid}"
+
+    @classmethod
     def graph_version_download(cls, graph_version_uid: str) -> str:
         return f"{PUBLIC_API_BASE_URL}/graph_versions/{graph_version_uid}/zip"
 
@@ -190,6 +210,10 @@ class Endpoints:
     @classmethod
     def component_download(cls, organization: str, component: str, version: str) -> str:
         return f"{PUBLIC_API_BASE_URL}/marketplace/components/{organization}/{component}/{version}/zip"
+
+    @classmethod
+    def component_update(cls, graph_uid: str) -> str:
+        return f"{PUBLIC_API_BASE_URL}/marketplace/components/graph/{graph_uid}"
 
     @classmethod
     def graph_by_slug(cls, organization_uid: str, slug: str) -> str:

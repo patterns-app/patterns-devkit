@@ -1,7 +1,7 @@
 from rich.prompt import Confirm
-from typer import Option, Argument
+from typer import Option
 
-from patterns.cli.commands._common import app_argument_help
+from patterns.cli.commands._common import app_argument
 from patterns.cli.services.delete import delete_graph
 from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.output import sprint, abort_on_error
@@ -13,7 +13,7 @@ _organization_help = "The name of the Patterns organization to delete from"
 def delete(
     force: bool = Option(False, "-f", "--force", help=_force_help),
     organization: str = Option("", "-o", "--organization", help=_organization_help),
-    app: str = Argument(None, help=app_argument_help),
+    app: str = app_argument,
 ):
     """Delete an app from the Patterns studio.
 

@@ -5,7 +5,7 @@ from zipfile import ZipFile
 import typer
 from typer import Option, Argument
 
-from patterns.cli.commands._common import app_argument_help
+from patterns.cli.commands._common import app_argument
 from patterns.cli.services.diffs import get_diffs_between_zip_and_dir, print_diffs
 from patterns.cli.services.download import (
     download_graph_zip,
@@ -23,7 +23,7 @@ def download(
     organization: str = Option("", "-o", "--organization", help=_organization_help),
     force: bool = Option(False, "-f", "--force", help=_force_help),
     diff: bool = Option(False, "-d", "--diff", help=_diff_help),
-    app: str = Argument(None, help=app_argument_help),
+    app: str = app_argument,
     directory: Path = Argument(None, help=_directory_help, file_okay=False),
 ):
     """Download the code for a Patterns app
@@ -39,9 +39,7 @@ def download(
 
     This command will never delete files, no matter if they're part of the app or not.
     """
-    ids = IdLookup(
-        organization_slug=organization, graph_slug_or_uid_or_path=app
-    )
+    ids = IdLookup(organization_slug=organization, graph_slug_or_uid_or_path=app)
 
     with abort_on_error("Error downloading app"):
         content = io.BytesIO(download_graph_zip(ids.graph_version_uid))

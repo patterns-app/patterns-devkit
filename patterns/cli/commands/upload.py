@@ -88,12 +88,9 @@ def upload(
             resp_org = resp["organization"]["slug"]
             resp_version = resp["version_name"]
             resp_component = resp["component"]["slug"]
-            resp_id = resp["uid"]
             sprint(
                 f"[success]Published app component "
-                f"[b]{resp_org}/{resp_component}[/b] "
-                f"with version [b]{resp_version}[/b] "
-                f"at id [b]{resp_id}"
+                f"[b]{resp_org}/{resp_component}@{resp_version}[/b]"
             )
 
     sprint(f"\n[info]Visit [code]{ui_url}[/code] to view your app")

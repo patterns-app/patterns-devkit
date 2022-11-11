@@ -7,7 +7,7 @@ from typing import Dict
 
 import pytest
 
-from patterns.configuration.edit import GraphDirectoryEditor, FileOverwriteError
+from patterns.cli.configuration.edit import GraphDirectoryEditor, FileOverwriteError
 from tests.configuration.utils import setup_graph_files
 
 

@@ -2,7 +2,7 @@ import re
 import textwrap
 from pathlib import Path
 
-from patterns.configuration.edit import GraphConfigEditor
+from patterns.cli.configuration.edit import GraphConfigEditor
 
 
 def test_round_trip(tmp_path: Path):
