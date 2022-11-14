@@ -87,6 +87,7 @@ class OutputStream(_OutputMeta, OutputStreamMethods):
     pass
 
 
+
 class Table(InputTableMethods, OutputTableMethods):
     def __init__(
         self,
@@ -96,6 +97,19 @@ class Table(InputTableMethods, OutputTableMethods):
         schema: str = None,
         required: bool = True,
     ):
+        """Table is a thin abstraction over a database table that
+        provides a stable reference across versions of the table.
+        
+        Args:
+            name: The Patterns name for the table. The actual database table
+                on disk will include this name and a hash.
+            mode: Whether to use the table in "read" mode ("r") or "write" mode ("w")
+            description: An optional short description of this table
+            schema: An optional explicit Schema for this table. If not provided the
+                schema will be inferred, or can be set with the table's `init` method.
+            required: Whether this table is a required table for the operation of the
+                node, or is optional.
+        """
         pass
 
 
@@ -112,6 +126,10 @@ class Stream(InputStreamMethods, OutputStreamMethods):
 
 
 class State(_StateMeta, StateMethods):
+    """
+    State is a wrapper around a Table that supports quickly storing
+    and retrieving single values from the database.
+    """
     pass
 
 
@@ -123,8 +141,26 @@ class _Parameter(str):
         self,
         description: str = None,
         type: Type[T] = str,
-        default: Any = None,
+        default: Any = "MISSING",
     ) -> T:
+        """Parameters let a python script take values from the end user / UI.
+        
+        Allowed parameter types:
+        * str
+        * int
+        * float
+        * bool
+        * datetime
+        * date
+        * list
+        * Connection
+        
+        Args:
+            description: Description / help text
+            type: should be the actual python type, e.g. `type=str` or `type=datetiem`
+            default: default value. If not set explicitly, the parameter is assumed to be required.
+                May be set to None
+        """
         pass
 
 

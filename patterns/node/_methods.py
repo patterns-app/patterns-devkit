@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Iterator, Any, List, TYPE_CHECKING
 
-
 if TYPE_CHECKING:
     try:
         from commonmodel import Schema
@@ -103,7 +102,7 @@ class Stream:
     @classmethod
     def seek(self, value: Any):
         """Seeks to the given value (of the order_by field).
-        
+
         Stream will consume values strictly *greater* than the given value, not including
         any record equal to the given value."""
         ...
@@ -150,7 +149,7 @@ class InputTableMethods:
         chunksize: int | None = None,
     ) -> List[dict] | DataFrame | Iterator[List[dict]] | Iterator[DataFrame]:
         """Reads records resulting from the given sql expression, in same manner as ``read``.
-        
+
         To reference tables in the sql, you can get their current (fully qualified and quoted)
         sql name by referencing `.sql_name` or, equivalently, taking their str() representation::
 
@@ -169,13 +168,16 @@ class InputTableMethods:
     def as_stream(cls, order_by: str = None, starting_value: Any = None) -> Stream:
         """Returns a Stream over the given table that will consume each record in the
         table exactly once, in order.
-        
+
         Progress along the stream is stored in the node's state. A table may have
         multiple simultaneous streams with different orderings. The stream is ordered
         by the `order_by` parameter if provided otherwise defaults to the schema's
         `strictly_monotonic_ordering` if defined or its `created_ordering` if defined.
         If none of those orderings exist, an exception is thrown.
-
+ 
+        To add a convenient ordering to records when writing (if you plan on streaming
+        the table downstream), you can use `table.init(add_monotonic_id="id")` or
+        `table.init(add_created="created_at")`.
 
         Args:
             order_by: Optional, the field to order the stream by. If not provided
@@ -190,7 +192,7 @@ class InputTableMethods:
     @classmethod
     def reset(cls):
         """Resets the table.
-        
+
         No data is deleted on disk, but the active version of the table is reset to None.
         """
         ...
@@ -206,7 +208,7 @@ class InputTableMethods:
     @property
     def is_connected(cls) -> bool:
         """Returns true if this table port is connected to a store in the graph.
-        
+
         Operations on unconnected tables are no-ops and return dummy objects.
         """
         ...
@@ -241,9 +243,8 @@ class OutputTableMethods:
         schema: Schema | str | dict | None = None,
         schema_hints: dict[str, str] | None = None,
         unique_on: str | list[str] | None = None,
-        # add_created: str | None = None,
-        # add_updated: str | None = None,
-        # add_monotonic_id: str | None = None,
+        add_created: str | None = None,
+        add_monotonic_id: str | None = None,
         # indexes: list[str] | None = None,
         auto_indexes: bool = True,
     ):
@@ -254,6 +255,15 @@ class OutputTableMethods:
             schema_hints: A dictionary of field names to CommonModel field types that are used to override any inferred types. e.g. {"field1": "Text", "field2": "Integer"}
             unique_on: A field name or list of field names to that records should be unique on. Used by components
                 to operate efficiently and correctly on the table.
+            add_created: If specified, is the field name that an "auto_now" timestamp will be added to each
+                record when `append` or `upsert` is called. This field
+                will be the default streaming order for the table (by automatically filling the
+                `created_ordering` role on the associated Schema), but only if add_monotonic_id is NOT specified
+                and the associated schema defines no monotonic ordering.
+            add_monotonic_id: If specified, is the field name that a unique, strictly monotonically increasing
+                base32 string will be added to each record when `append` or `upsert` is called. This field 
+                will be the default streaming order for the table (by automatically filling the
+                `strictly_monotonic_ordering` role on the associated Schema).
             auto_indexes: If true (the default), an index is automatically created on new table
                 versions for the `unique_on` property
         """
@@ -261,9 +271,15 @@ class OutputTableMethods:
     @classmethod
     def append(cls, records: DataFrame | List[dict] | dict):
         """Appends the records to the end of this table.
-        
+
         If this is the first write to this table then any schema provided is used to
         create the table, otherwise the schema is inferred from the passed in records.
+        
+        Records are buffered and written to disk in batches. To force an immediate write,
+        call `table.flush()`.
+        
+        To replace a table with a new (empty) version and append from there, call
+        `table.reset()`.
 
         Args:
             records: May be a list of records (list of dicts with str keys),
@@ -275,21 +291,35 @@ class OutputTableMethods:
     def upsert(cls, records: DataFrame | List[dict] | dict):
         """Upserts the records into this table, inserting new rows or
         updating if unique key conflicts.
-        
+
         Unique fields must be provided by the Schema or passed to ``init``. If this is
         the first write to this table then any schema provided is used to create the table,
         otherwise the schema is inferred from the passed in records.
+        
+        Records are buffered and written to disk in batches. To force an immediate write,
+        call `table.flush()`.
 
         Args:
             records: May be a list of records (list of dicts with str keys),
                 a single record (dict), or a pandas dataframe.
         """
         ...
+    
+    @classmethod
+    def replace(cls, records: DataFrame | List[dict]):
+        """Replaces the current table version (if any) with a new one containing just `records`.
+        
+        Equivalent to `table.reset(); table.append(records)`.
+        
+        Args:
+            records: May be a list of records (list of dicts with str keys)
+                or a pandas dataframe.
+        """
 
     @classmethod
     def truncate(cls):
         """Truncates this table, preserving the table and schema on disk, but deleting all rows.
-        
+
         Unlike ``reset`, which sets the active TableVersion to a new version, this action is
         destructive and cannot be undone.
         """
@@ -298,7 +328,7 @@ class OutputTableMethods:
     @classmethod
     def execute_sql(cls, sql: str):
         """Executes the given sql against the database this table is stored on.
-        
+
         The sql is inspected to determine if it creates new tables or only modifies them,
         and appropriate events are recorded. The sql should ONLY create or update THIS table.
         Creating or updating other tables will result in incorrect event propagation.
@@ -341,9 +371,18 @@ class OutputTableMethods:
     @classmethod
     def reset(cls):
         """Resets this table to point to a new (null) TableVersion with no Schema or data.
-        
+
         Schema and data of previous version still exist on disk until garbage collected according to the
         table's retention policy."""
+        ...
+
+    @classmethod
+    def flush(cls):
+        """Flushes any buffered records to disk.
+
+        Calls to table.append and table.upsert are buffered and flushed periodically
+        and at the end of an execution. Use this method to force an immediate write.
+        """
         ...
 
 
@@ -429,7 +468,7 @@ class StateMethods:
     ) -> bool:
         """Returns False if execution is near its hard time limit (10 minutes typically),
         otherwise returns True.
-        
+
         Used to exit gracefully from long-running jobs, typically in conjunction with
         ``request_new_run``. Defaults to 80% of limit or 120 seconds before the
         hard limit, which ever is greater.
@@ -446,7 +485,7 @@ class StateMethods:
     ):
         """Requests a new run from the server for this node, to be started
         once the current execution finishes.
-        
+
         Often used in conjunction with ``should_continue`` to run long jobs
         over multiple executions safely.
 
