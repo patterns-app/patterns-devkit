@@ -174,7 +174,10 @@ class InputTableMethods:
         by the `order_by` parameter if provided otherwise defaults to the schema's
         `strictly_monotonic_ordering` if defined or its `created_ordering` if defined.
         If none of those orderings exist, an exception is thrown.
-
+ 
+        To add a convenient ordering to records when writing (if you plan on streaming
+        the table downstream), you can use `table.init(add_monotonic_id="id")` or
+        `table.init(add_created="created_at")`.
 
         Args:
             order_by: Optional, the field to order the stream by. If not provided
@@ -301,6 +304,17 @@ class OutputTableMethods:
                 a single record (dict), or a pandas dataframe.
         """
         ...
+    
+    @classmethod
+    def replace(cls, records: DataFrame | List[dict]):
+        """Replaces the current table version (if any) with a new one containing just `records`.
+        
+        Equivalent to `table.reset(); table.append(records)`.
+        
+        Args:
+            records: May be a list of records (list of dicts with str keys)
+                or a pandas dataframe.
+        """
 
     @classmethod
     def truncate(cls):
