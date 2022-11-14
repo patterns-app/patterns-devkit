@@ -71,6 +71,23 @@ class _StateMeta(type):
         pass
 
 
+class InputTable(_InputMeta, InputTableMethods):
+    pass
+
+
+class OutputTable(_OutputMeta, OutputTableMethods):
+    pass
+
+
+class InputStream(_InputMeta, InputStreamMethods):
+    pass
+
+
+class OutputStream(_OutputMeta, OutputStreamMethods):
+    pass
+
+
+
 class Table(InputTableMethods, OutputTableMethods):
     def __init__(
         self,
@@ -152,3 +169,13 @@ Parameter = _Parameter()
 class Connection(dict):
     def __init__(self, connection_type: str):
         super().__init__()
+
+
+@dataclass(frozen=True)
+class NodeFunction:
+    function: Callable
+
+
+def node(function: Callable):
+    """A decorator that registers a function to execute when a node runs"""
+    return NodeFunction(function)
