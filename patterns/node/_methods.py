@@ -241,9 +241,8 @@ class OutputTableMethods:
         schema: Schema | str | dict | None = None,
         schema_hints: dict[str, str] | None = None,
         unique_on: str | list[str] | None = None,
-        # add_created: str | None = None,
-        # add_updated: str | None = None,
-        # add_monotonic_id: str | None = None,
+        add_created: str | None = None,
+        add_monotonic_id: str | None = None,
         # indexes: list[str] | None = None,
         auto_indexes: bool = True,
     ):
@@ -254,6 +253,15 @@ class OutputTableMethods:
             schema_hints: A dictionary of field names to CommonModel field types that are used to override any inferred types. e.g. {"field1": "Text", "field2": "Integer"}
             unique_on: A field name or list of field names to that records should be unique on. Used by components
                 to operate efficiently and correctly on the table.
+            add_created: If specified, is the field name that an "auto_now" timestamp will be added to each
+                record when `append` or `upsert` is called. This field
+                will be the default streaming order for the table (by automatically filling the
+                `created_ordering` role on the associated Schema), but only if add_monotonic_id is NOT specified
+                and the associated schema defines no monotonic ordering.
+            add_monotonic_id: If specified, is the field name that a unique, strictly monotonically increasing
+                base32 string will be added to each record when `append` or `upsert` is called. This field 
+                will be the default streaming order for the table (by automatically filling the
+                `strictly_monotonic_ordering` role on the associated Schema).
             auto_indexes: If true (the default), an index is automatically created on new table
                 versions for the `unique_on` property
         """
@@ -264,6 +272,12 @@ class OutputTableMethods:
         
         If this is the first write to this table then any schema provided is used to
         create the table, otherwise the schema is inferred from the passed in records.
+        
+        Records are buffered and written to disk in batches. To force an immediate write,
+        call `table.flush()`.
+        
+        To replace a table with a new (empty) version and append from there, call
+        `table.reset()`.
 
         Args:
             records: May be a list of records (list of dicts with str keys),
@@ -279,6 +293,9 @@ class OutputTableMethods:
         Unique fields must be provided by the Schema or passed to ``init``. If this is
         the first write to this table then any schema provided is used to create the table,
         otherwise the schema is inferred from the passed in records.
+        
+        Records are buffered and written to disk in batches. To force an immediate write,
+        call `table.flush()`.
 
         Args:
             records: May be a list of records (list of dicts with str keys),
@@ -344,6 +361,15 @@ class OutputTableMethods:
         
         Schema and data of previous version still exist on disk until garbage collected according to the
         table's retention policy."""
+        ...
+
+    @classmethod
+    def flush(cls):
+        """Flushes any buffered records to disk.
+
+        Calls to table.append and table.upsert are buffered and flushed periodically
+        and at the end of an execution.
+        """
         ...
 
 
