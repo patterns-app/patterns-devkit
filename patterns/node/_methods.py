@@ -367,7 +367,7 @@ class OutputTableMethods:
         """Flushes any buffered records to disk.
 
         Calls to table.append and table.upsert are buffered and flushed periodically
-        and at the end of an execution.
+        and at the end of an execution. Use this method to force an immediate write.
         """
         ...
 

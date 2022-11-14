@@ -143,7 +143,7 @@ class _Parameter(str):
         type: Type[T] = str,
         default: Any = "MISSING",
     ) -> T:
-        """Parameters let a python script take values from the end user and/or UI easily.
+        """Parameters let a python script take values from the end user / UI.
         
         Allowed parameter types:
         * str
@@ -157,8 +157,9 @@ class _Parameter(str):
         
         Args:
             description: Description / help text
-            type: should be the actual python type, e.g. `type=str`
-            default: default value. If not set explicitly, the parameter is assumed optional. May be set to None
+            type: should be the actual python type, e.g. `type=str` or `type=datetiem`
+            default: default value. If not set explicitly, the parameter is assumed to be required.
+                May be set to None
         """
         pass
 
