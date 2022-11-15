@@ -15,6 +15,7 @@ from .commands.list import list_command
 from .commands.login import login
 from .commands.logout import logout
 from .commands.trigger import trigger
+from .commands.update import update_command
 from .commands.upload import upload
 from ..cli.services import output
 
@@ -34,6 +35,7 @@ for command in (
     create,
     delete,
     list_command,
+    update_command,
     login,
     logout,
     trigger,

@@ -3,8 +3,8 @@ from pathlib import Path
 
 from requests import Session
 
+from patterns.cli.configuration.edit import GraphDirectoryEditor
 from patterns.cli.services.api import Endpoints, post_for_json
-from patterns.configuration.edit import GraphDirectoryEditor
 
 
 def upload_graph_version(

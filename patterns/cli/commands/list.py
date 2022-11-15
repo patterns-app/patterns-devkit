@@ -3,9 +3,9 @@ from typing import Iterable
 
 import typer
 from rich.table import Table
-from typer import Option, Argument
+from typer import Option
 
-from patterns.cli.commands._common import app_argument_help
+from patterns.cli.commands._common import app_argument
 from patterns.cli.services.graph_list import paginated_graphs
 from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.organizations import paginated_organizations
@@ -46,7 +46,7 @@ def organizations(
 
 @list_command.command()
 def secrets(
-    organization: str = Option("", help=_organization_help),
+    organization: str = _organization_option,
     print_json: bool = Option(False, "--json", help=_json_help),
 ):
     """List all secrets in your organization"""
@@ -63,7 +63,7 @@ def secrets(
 @list_command.command()
 def webhooks(
     print_json: bool = Option(False, "--json", help=_json_help),
-    app: str = Argument(None, help=app_argument_help),
+    app: str = app_argument,
 ):
     """List all webhooks for an app"""
     ids = IdLookup(graph_slug_or_uid_or_path=app)
