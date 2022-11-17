@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from types import MethodType
 from typing import List, Optional
 
@@ -19,6 +20,7 @@ from .commands.trigger import trigger
 from .commands.update import update_command
 from .commands.upload import upload
 from .services.output import sprint
+from .services.versions import CURRENT_DEVKIT_VERSION, get_newer_devkit_version
 from ..cli.services import output
 
 app = Typer(
@@ -27,9 +29,22 @@ app = Typer(
 
 
 def version_cb(value: bool):
-    if value:
-        sprint("Patterns Devkit CLI version [bright_cyan]1.4.0")
-        raise typer.Exit()
+    if not value:
+        return
+    sprint(f"Patterns Devkit CLI version [code]{CURRENT_DEVKIT_VERSION}")
+
+    latest = get_newer_devkit_version()
+    if latest:
+        sprint(
+            f"\n[info]A newer version of the Patterns devkit "
+            f"([code]{latest}[/code]) is available."
+        )
+        sprint(
+            "[info]Run [code]pip install --upgrade patterns-devkit[/code] "
+            "to get the latest version."
+        )
+
+    raise typer.Exit()
 
 
 @app.callback()
