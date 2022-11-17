@@ -1,3 +1,4 @@
+from __future__ import annotations
 from types import MethodType
 from typing import List, Optional
 
@@ -17,6 +18,7 @@ from .commands.logout import logout
 from .commands.trigger import trigger
 from .commands.update import update_command
 from .commands.upload import upload
+from .services.output import sprint
 from ..cli.services import output
 
 app = Typer(
@@ -24,8 +26,23 @@ app = Typer(
 )
 
 
+def version_cb(value: bool):
+    if value:
+        sprint("Patterns Devkit CLI version [bright_cyan]1.4.0")
+        raise typer.Exit()
+
+
 @app.callback()
-def cb(stacktrace: bool = typer.Option(False, hidden=True)):
+def cb(
+    stacktrace: bool = typer.Option(False, hidden=True),
+    _: bool = typer.Option(
+        False,
+        "--version",
+        help="Print version information and exit.",
+        callback=version_cb,
+        is_eager=True,
+    ),
+):
     if stacktrace:
         output.DEBUG = True
 
