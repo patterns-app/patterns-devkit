@@ -37,17 +37,27 @@ def get_diffs_between_zip_and_dir(zf: ZipFile, root: Path) -> DiffResult:
         if not dst.is_file():
             result.removed.append(zipinfo.filename)
             continue
-        zip_content = zf.read(zipinfo).decode().splitlines(keepends=False)
-        fs_content = dst.read_text().splitlines(keepends=False)
-        if zip_content != fs_content:
-            diff = difflib.unified_diff(
-                zip_content,
-                fs_content,
-                fromfile=f"<remote> {zipinfo.filename}",
-                tofile=f"<local>  {zipinfo.filename}",
-                lineterm="",
-            )
-            result.changed[zipinfo.filename] = diff
+        zip_bytes = zf.read(zipinfo)
+        try:
+            zip_content = zip_bytes.decode().splitlines(keepends=False)
+            fs_content = dst.read_text().splitlines(keepends=False)
+        except UnicodeDecodeError:
+            if zip_bytes != dst.read_bytes():
+                result.changed[zipinfo.filename] = [
+                    f"--- <remote> {zipinfo.filename}",
+                    f"+++ <local>  {zipinfo.filename}",
+                    "Binary contents differ",
+                ]
+        else:
+            if zip_content != fs_content:
+                diff = difflib.unified_diff(
+                    zip_content,
+                    fs_content,
+                    fromfile=f"<remote> {zipinfo.filename}",
+                    tofile=f"<local>  {zipinfo.filename}",
+                    lineterm="",
+                )
+                result.changed[zipinfo.filename] = diff
     for base, _, names in os.walk(root):
         for name in names:
             fname = (Path(base) / name).relative_to(root).as_posix()
