@@ -1,14 +1,18 @@
 from .node.node import (
+    Connection,
     Parameter,
     State,
+    Stream,
     Table,
-    Connection,
+    TableVersion,
 )
 
 
 __all__ = [
+    "Connection",
     "Parameter",
     "State",
+    "Stream",
     "Table",
-    "Connection",
+    "TableVersion",
 ]
