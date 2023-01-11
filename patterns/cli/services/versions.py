@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import requests
 from requests import JSONDecodeError
-
-CURRENT_DEVKIT_VERSION = "1.4.0"
+import patterns
 
 
 def get_newer_devkit_version() -> str | None:
@@ -25,6 +24,6 @@ def get_newer_devkit_version() -> str | None:
         return None
 
     latest = max(releases)
-    if latest == CURRENT_DEVKIT_VERSION:
+    if latest == patterns.__version__:
         return None
     return latest
