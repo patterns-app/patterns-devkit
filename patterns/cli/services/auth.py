@@ -59,7 +59,7 @@ def execute_oauth_flow(
     if server.error_result:
         abort(server.error_result)
     elif server.success_result:
-        sprint(f"[info]{server.success_result}")
+        sprint(f"[success]{server.success_result}\n")
     else:
         abort("OAuth server finished without an error or success result")
 

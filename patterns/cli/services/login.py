@@ -6,6 +6,7 @@ import hashlib
 import os
 import urllib.parse
 from socketserver import BaseRequestHandler
+from typing import Tuple
 from urllib.parse import ParseResult
 
 import requests
@@ -20,9 +21,18 @@ from patterns.cli.services.auth import (
     BaseOAuthRequestHandler,
     execute_oauth_flow,
 )
+from patterns.cli.services.output import sprint
 
 
-def login():
+@dataclasses.dataclass
+class LoginConfig:
+    auth_server: AuthServer
+    state: str
+    code_verifier: str
+    redirect_url: str
+
+
+def make_login_config() -> Tuple[str, LoginConfig]:
     auth_server = get_auth_server()
 
     # The code_verifier and code_challenge are part of the OAuth PKCE spec.
@@ -75,19 +85,14 @@ def login():
         code_verifier=code_verifier,
         redirect_url=redirect_url,
     )
+    return url, login_config
 
+
+def login(url: str, login_config: LoginConfig):
     def on_request(handler: BaseRequestHandler):
         handler._login_config = login_config
 
     execute_oauth_flow(url, LoginRequestHandler, on_request)
-
-
-@dataclasses.dataclass
-class LoginConfig:
-    auth_server: AuthServer
-    state: str
-    code_verifier: str
-    redirect_url: str
 
 
 class LoginRequestHandler(BaseOAuthRequestHandler):
