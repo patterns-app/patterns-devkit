@@ -20,7 +20,8 @@ from .commands.trigger import trigger
 from .commands.update import update_command
 from .commands.upload import upload
 from .services.output import sprint
-from .services.versions import CURRENT_DEVKIT_VERSION, get_newer_devkit_version
+from .services.versions import get_newer_devkit_version
+from .. import __version__
 from ..cli.services import output
 
 app = Typer(
@@ -31,7 +32,7 @@ app = Typer(
 def version_cb(value: bool):
     if not value:
         return
-    sprint(f"Patterns Devkit CLI version [code]{CURRENT_DEVKIT_VERSION}")
+    sprint(f"Patterns Devkit CLI version [code]{__version__}")
 
     latest = get_newer_devkit_version()
     if latest:
