@@ -15,14 +15,16 @@ from patterns.cli.services.output import sprint, abort_on_error
 from patterns.cli.services.upload import upload_graph_version
 
 _app_help = "The location of the graph.yml file of the app to upload"
-_organization_help = "The name of the Patterns organization to upload to"
+_organization_help = "The Patterns organization to upload to"
 _component_help = "After uploading, publish the app version as a public component"
 _force_help = "Overwrite existing files without prompting"
 _diff_help = "Show a full diff of file conflicts"
 
 
 def upload(
-    organization: str = Option("", "-o", "--organization", help=_organization_help),
+    organization: str = Option(
+        "", "-o", "--organization", metavar="SLUG", help=_organization_help
+    ),
     force: bool = Option(False, "-f", "--force", help=_force_help),
     diff: bool = Option(False, "-d", "--diff", help=_diff_help),
     publish_component: bool = Option(False, help=_component_help),

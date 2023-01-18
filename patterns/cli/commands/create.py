@@ -132,7 +132,7 @@ def webhook(
     )
 
 
-_organization_help = "The name of the Patterns organization to add a secret to"
+_organization_help = "The Patterns organization to add a secret to"
 _secret_name_help = (
     "The name of the secret. Can only contain letters, numbers, and underscores."
 )
@@ -143,7 +143,9 @@ _sensitive_help = "Mark the secret value as sensitive. This value won't be visib
 
 @create.command()
 def secret(
-    organization: str = Option("", "-o", "--organization", help=_organization_help),
+    organization: str = Option(
+        "", "-o", "--organization", metavar="SLUG", help=_organization_help
+    ),
     sensitive: bool = Option(False, "--sensitive", "-s", help=_sensitive_help),
     description: str = Option(None, "-d", "--description", help=_secret_desc_help),
     name: str = Argument(..., help=_webhook_name_help),
