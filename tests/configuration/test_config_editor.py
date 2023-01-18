@@ -66,10 +66,10 @@ def test_add_webhook_with_all_fields(tmp_path: Path):
       - webhook: hook
         title: n
         id: ab234567
-        description: desc
+        description_file: desc.md
     """
     get_editor(tmp_path, before).add_webhook(
-        "hook", "n", "ab234567", "desc"
+        "hook", "n", "ab234567", "desc.md"
     ).assert_dump(after)
 
 
@@ -80,14 +80,13 @@ def test_add_store_with_all_fields(tmp_path: Path):
     after = """
     title: graph
     stores:
-      - stream: st
-        title: n
+      - table: st
         id: ab234567
         schema: sc
     """
-    get_editor(tmp_path, before).add_store(
-        "st", False, "n", "ab234567", "sc"
-    ).assert_dump(after)
+    get_editor(tmp_path, before).add_store("st", "ab234567", "sc").assert_dump(
+        after
+    )
 
 
 def test_add_node_with_all_fields(tmp_path: Path):
@@ -101,7 +100,7 @@ def test_add_node_with_all_fields(tmp_path: Path):
     functions:
       - webhook: hook
       - node_file: node.py
-        schedule: daily
+        trigger: 1 * * * *
         inputs:
           node_in: hook
         outputs:
@@ -110,17 +109,15 @@ def test_add_node_with_all_fields(tmp_path: Path):
           limit: 2
         title: my node
         id: ab234567
-        description: desc
     """
     get_editor(tmp_path, before).add_node(
         "node.py",
-        schedule="daily",
+        trigger="1 * * * *",
         inputs={"node_in": "hook"},
         outputs={"node_out": "my_table"},
         parameters={"limit": 2},
         title="my node",
         id="ab234567",
-        description="desc",
     ).assert_dump(after)
 
 
@@ -135,7 +132,7 @@ def test_add_component_with_all_fields(tmp_path: Path):
       functions:
         - webhook: hook
         - uses: org/component@v1
-          schedule: daily
+          trigger: 1 * * * *
           inputs:
             node_in: hook
           outputs:
@@ -144,17 +141,15 @@ def test_add_component_with_all_fields(tmp_path: Path):
             limit: 2
           title: my node
           id: ab234567
-          description: desc
       """
     get_editor(tmp_path, before).add_component_uses(
         "org/component@v1",
-        schedule="daily",
+        trigger="1 * * * *",
         inputs={"node_in": "hook"},
         outputs={"node_out": "my_table"},
         parameters={"limit": 2},
         title="my node",
         id="ab234567",
-        description="desc",
     ).assert_dump(after)
 
 
