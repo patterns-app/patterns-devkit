@@ -1,12 +1,12 @@
 from __future__ import annotations
 
+import threading
 import urllib.parse
 import webbrowser
 from abc import ABCMeta, abstractmethod
 from datetime import timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import BaseRequestHandler
-from threading import Barrier, Thread, BrokenBarrierError
 from typing import Tuple, Callable, Optional, List, Dict, Type
 from urllib.parse import ParseResult
 
@@ -31,30 +31,12 @@ def execute_oauth_flow(
                                browser (for an oauth callback)
         on_request: Optional callback which is invoked before the actual handler is run
     """
-
-    # noinspection PyTypeChecker
-    server = OAuthHttpServer(
-        ("localhost", LOCAL_OAUTH_PORT), request_handler_class, on_request
-    )
     webbrowser.open(url, new=1, autoraise=True)
 
-    server_thread = ServerThread(server)
-    server_thread.start()
-
-    try:
-        server.wait_for_request_started()
-    except BrokenBarrierError:
-        server.shutdown()
-        abort("Timed out waiting for the web browser to hit callback url")
-
-    try:
-        server.wait_for_request_finished()
-    except BrokenBarrierError:
-        server.shutdown()
-        abort("Timed out waiting for the request to finish")
-
-    server.shutdown()
-    server_thread.join(timeout=5)
+    with OAuthHttpServer(
+        ("localhost", LOCAL_OAUTH_PORT), request_handler_class, on_request
+    ) as server:
+        server.serve_forever()
 
     if server.error_result:
         abort(server.error_result)
@@ -62,15 +44,6 @@ def execute_oauth_flow(
         sprint(f"[success]{server.success_result}\n")
     else:
         abort("OAuth server finished without an error or success result")
-
-
-class ServerThread(Thread):
-    def __init__(self, server: OAuthHttpServer):
-        super().__init__()
-        self._server = server
-
-    def run(self):
-        self._server.serve_forever()
 
 
 class OAuthHttpServer(HTTPServer):
@@ -86,16 +59,6 @@ class OAuthHttpServer(HTTPServer):
         self._on_request_cb = on_request_cb
         self.error_result = None
         self.success_result = None
-
-        timeout_seconds = REQUEST_TIMEOUT.total_seconds()
-        self._request_started_barrier = Barrier(2, timeout=timeout_seconds)
-        self._request_finished_barrier = Barrier(2, timeout=timeout_seconds)
-
-    def wait_for_request_started(self):
-        self._request_started_barrier.wait()
-
-    def wait_for_request_finished(self):
-        self._request_finished_barrier.wait()
 
     def on_request(self, handler: BaseRequestHandler):
         if self._on_request_cb:
@@ -129,11 +92,7 @@ class BaseOAuthRequestHandler(BaseHTTPRequestHandler, metaclass=ABCMeta):
 
         if parsed_url.path == self.handled_path:
             self.oauth_http_server.on_request(self)
-            self.oauth_http_server._request_started_barrier.wait()
-            try:
-                self.handle_callback(parsed_url)
-            finally:
-                self.oauth_http_server._request_finished_barrier.wait()
+            self.handle_callback(parsed_url)
         else:
             # We don't finish_with_error here, because the browser might request
             # all kinds of things (CORS OPTIONS or favicon.ico, etc.) in addition
@@ -167,10 +126,16 @@ class BaseOAuthRequestHandler(BaseHTTPRequestHandler, metaclass=ABCMeta):
             status_code, "An error occurred.  See the console logs for details."
         )
         self.oauth_http_server.finish_with_error(error_result)
+        self._shutdown_self()
 
     def finish_with_success(self, success_result: str, success_browser_html: str):
-        self.send_html_response(200, success_browser_html)
+        self.send_html_response(201, success_browser_html)
         self.oauth_http_server.finish_with_success(success_result)
+        self._shutdown_self()
+
+    def _shutdown_self(self):
+        # Need to shut down in a separate thread since `shutdown` blocks
+        threading.Thread(target=self.oauth_http_server.shutdown, daemon=True).start()
 
     def log_request(self, code: int | str = ..., size: int | str = ...) -> None:
         # Override with a noop to prevent printing request urls that come in
