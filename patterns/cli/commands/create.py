@@ -24,7 +24,7 @@ def app(
     name: str = Option("", "--name", "-n", help=_name_help),
     location: Path = Argument(None, metavar="APP"),
 ):
-    """Add a new node to an app"""
+    """Create a new empty app"""
     if not location:
         prompt = "Enter a name for the new app directory [prompt.default](e.g. my-app)"
         location = prompt_path(prompt, exists=False)
