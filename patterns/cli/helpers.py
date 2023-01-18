@@ -8,7 +8,7 @@ import subprocess
 import zipfile
 from io import BytesIO
 from pathlib import Path
-from typing import Generator
+from typing import Iterable
 
 # standard gitignore entries from https://github.com/github/gitignore
 _IGNORE_DIRS = {
@@ -90,7 +90,7 @@ def _is_git_directory(path: Path) -> bool:
     return (path / ".git").is_dir()
 
 
-def _all_files_not_gitignored(path: Path) -> Generator[Path]:
+def _all_files_not_gitignored(path: Path) -> Iterable[Path]:
     files = subprocess.check_output(
         ["git", "-C", str(path), "ls-files", "-co", "--exclude-standard"]
     ).splitlines()
@@ -98,7 +98,7 @@ def _all_files_not_gitignored(path: Path) -> Generator[Path]:
         yield path / Path(f.decode())
 
 
-def _all_files_not_ignored(path: Path) -> Generator[str]:
+def _all_files_not_ignored(path: Path) -> Iterable[Path]:
     for dirname, dirnames, files in os.walk(path, followlinks=True):
         dirnames[:] = [d for d in dirnames if d not in _IGNORE_DIRS]
         for f in files:
@@ -107,16 +107,18 @@ def _all_files_not_ignored(path: Path) -> Generator[str]:
             yield Path(dirname) / f
 
 
-def compress_directory(path: Path) -> BytesIO:
+def directory_contents_to_upload(directory: Path) -> Iterable[Path]:
+    if _is_git_directory(directory):
+        return _all_files_not_gitignored(directory)
+    else:
+        return _all_files_not_ignored(directory)
+
+
+def compress_directory(directory: Path) -> BytesIO:
     io = BytesIO()
     zipf = zipfile.ZipFile(io, "w", zipfile.ZIP_DEFLATED)
-    if _is_git_directory(path):
-        # Respect .gitignore
-        contents = _all_files_not_gitignored(path)
-    else:
-        contents = _all_files_not_ignored(path)
-    for f in contents:
-        zipf.write(f, f.relative_to(path))
+    for f in directory_contents_to_upload(directory):
+        zipf.write(f, f.relative_to(directory))
     zipf.close()
     io.seek(0)
     io.name = "graph_manifest.zip"
