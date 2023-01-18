@@ -12,14 +12,16 @@ from patterns.cli.services.output import sprint, abort_on_error
 _organization_help = "The name of the Patterns organization to use"
 _public_help = "Set the app to public or private. Public apps may be viewed by anyone."
 _deprecated_help = "Set the app's component as deprecated or not. Deprecated components cannot be added to new apps, but continue to function if existing apps use them"
-_organization_option = Option("", "--organization", "-o", help=_organization_help)
+_organization_option = Option(
+    "", "--organization", "-o", metavar="SLUG", help=_organization_help
+)
 
 update_command = typer.Typer(name="update", help="Update an object of a given type")
 
 
 @update_command.command()
 def app(
-    organization: str = Option("", help=_organization_help),
+    organization: str = _organization_option,
     public: Optional[bool] = Option(
         None, "--public/--private", show_default=False, help=_public_help
     ),
