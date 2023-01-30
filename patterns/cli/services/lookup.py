@@ -175,7 +175,10 @@ class IdLookup:
     def graph_slug(self) -> str:
         def from_yaml():
             graph = self._load_yaml(self.root_graph_file)
-            return graph.get("slug", self.root_graph_file.parent.name)
+            return graph.get(
+                "slug",
+                self.root_graph_file.parent.name.replace("_", "-").replace(" ", "-"),
+            )
 
         if self._given_graph_path or self._node_file_path:
             return from_yaml()

@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import typer
@@ -28,7 +29,9 @@ def app(
     with abort_on_error("Error creating app"):
         path = resolve_graph_path(location, exists=False)
     name = name or location.stem
-    GraphConfigEditor(path, read=False).set_name(name).write()
+    slug = re.sub("[_ ]+", "-", name)
+    slug = re.sub("[^a-zA-Z0-9-]+", "", slug).lower()
+    GraphConfigEditor(path, read=False).set_name(name).set_slug(slug).write()
 
     sprint(f"\n[success]Created app [b]{name}")
     sprint(
