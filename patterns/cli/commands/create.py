@@ -24,7 +24,7 @@ def app(
 ):
     """Add a new node to an app"""
     if not location:
-        prompt = "Enter a name for the new app directory [prompt.default](e.g. my_app)"
+        prompt = "Enter a name for the new app directory [prompt.default](e.g. my-app)"
         location = prompt_path(prompt, exists=False)
     with abort_on_error("Error creating app"):
         path = resolve_graph_path(location, exists=False)
