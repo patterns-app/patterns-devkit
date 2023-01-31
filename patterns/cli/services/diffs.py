@@ -1,5 +1,4 @@
 import difflib
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator, List, Dict
@@ -7,6 +6,7 @@ from zipfile import ZipFile
 
 from rich.markdown import Markdown
 
+from patterns.cli.helpers import directory_contents_to_upload
 from patterns.cli.services.output import sprint
 
 
@@ -58,11 +58,10 @@ def get_diffs_between_zip_and_dir(zf: ZipFile, root: Path) -> DiffResult:
                     lineterm="",
                 )
                 result.changed[zipinfo.filename] = diff
-    for base, _, names in os.walk(root):
-        for name in names:
-            fname = (Path(base) / name).relative_to(root).as_posix()
-            if fname not in all_in_zip:
-                result.added.append(fname)
+    for path in directory_contents_to_upload(root):
+        file_name = path.relative_to(root).as_posix()
+        if file_name not in all_in_zip:
+            result.added.append(file_name)
 
     return result
 

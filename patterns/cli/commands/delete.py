@@ -7,12 +7,14 @@ from patterns.cli.services.lookup import IdLookup
 from patterns.cli.services.output import sprint, abort_on_error
 
 _force_help = "Don't prompt before deleting an app"
-_organization_help = "The name of the Patterns organization to delete from"
+_organization_help = "The Patterns organization to delete from"
 
 
 def delete(
     force: bool = Option(False, "-f", "--force", help=_force_help),
-    organization: str = Option("", "-o", "--organization", help=_organization_help),
+    organization: str = Option(
+        "", "-o", "--organization", metavar="SLUG", help=_organization_help
+    ),
     app: str = app_argument,
 ):
     """Delete an app from the Patterns studio.

@@ -16,7 +16,9 @@ _node_help = "The path to the node to trigger"
 
 
 def trigger(
-    organization: str = Option("", "-o", "--organization", help=_organization_help),
+    organization: str = Option(
+        "", "-o", "--organization", metavar="SLUG", help=_organization_help
+    ),
     app: str = Option(None, exists=True, help=app_argument_help),
     type: str = Option("pubsub", hidden=True),
     node_id: str = Option(None, help=_node_id_help),

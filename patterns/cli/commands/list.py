@@ -15,9 +15,11 @@ from patterns.cli.services.webhooks import paginated_webhooks
 
 _type_help = "The type of object to list"
 _json_help = "Output the object as JSON Lines"
-_organization_help = "The name of the Patterns organization to use"
+_organization_help = "The Patterns organization to use"
 
-_organization_option = Option("", "--organization", "-o", help=_organization_help)
+_organization_option = Option(
+    "", "--organization", "-o", metavar="SLUG", help=_organization_help
+)
 
 list_command = typer.Typer(name="list", help="List objects of a given type")
 
@@ -31,7 +33,10 @@ def apps(
     ids = IdLookup(organization_slug=organization)
     with abort_on_error("Error listing apps"):
         gs = list(paginated_graphs(ids.organization_uid))
-    _print_objects("apps", gs, print_json)
+        for g in gs:
+            g.pop("organization_uid", None)  # all graphs are for the current org
+            g.pop("updated_at", None)  # not very useful; leave space for the ui_url
+    _print_objects("apps", gs, print_json, ("title", "slug", "uid"))
 
 
 @list_command.command()

@@ -48,7 +48,12 @@ def version_cb(value: bool):
     raise typer.Exit()
 
 
-@app.callback()
+@app.callback(
+    help=f"""[cyan]Patterns Devkit {__version__} 
+    
+    [not dim][green]Read the docs:[/] https://www.patterns.app/docs/devkit
+    """
+)
 def cb(
     stacktrace: bool = typer.Option(False, hidden=True),
     _: bool = typer.Option(

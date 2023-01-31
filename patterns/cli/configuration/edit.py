@@ -101,13 +101,12 @@ class GraphConfigEditor:
     def add_node(
         self,
         node_file: str,
-        schedule: str = None,
+        trigger: str = None,
         inputs: Dict[str, str] = None,
         outputs: Dict[str, str] = None,
         parameters: Dict[str, Any] = None,
         title: str = None,
         id: Optional[str] = MISSING,
-        description: str = None,
         description_file: str = None,
     ) -> GraphConfigEditor:
         if id is MISSING:
@@ -115,13 +114,12 @@ class GraphConfigEditor:
         self.add_function_node_dict(
             {
                 "node_file": node_file,
-                "schedule": schedule,
+                "trigger": trigger,
                 "inputs": inputs,
                 "outputs": outputs,
                 "parameters": parameters,
                 "title": title,
                 "id": str(id) if id else id,
-                "description": description,
                 "description_file": description_file,
             }
         )
@@ -130,16 +128,13 @@ class GraphConfigEditor:
     def add_store(
         self,
         name: str,
-        table: bool,
-        title: str = None,
         id: Optional[str] = MISSING,
         schema: str = None,
     ):
         if id is MISSING:
             id = random_node_id()
         d = {
-            "table" if table else "stream": name,
-            "title": title,
+            "table": name,
             "id": str(id) if id else id,
             "schema": schema,
         }
@@ -163,7 +158,6 @@ class GraphConfigEditor:
         webhook: str,
         title: str = None,
         id: Optional[str] = MISSING,
-        description: str = None,
         description_file: str = None,
     ) -> GraphConfigEditor:
         if id is MISSING:
@@ -173,7 +167,6 @@ class GraphConfigEditor:
                 "webhook": webhook,
                 "title": title,
                 "id": str(id) if id else id,
-                "description": description,
                 "description_file": description_file,
             }
         )
@@ -182,13 +175,12 @@ class GraphConfigEditor:
     def add_component_uses(
         self,
         component_key: str,
-        schedule: str = None,
+        trigger: str = None,
         inputs: Dict[str, str] = None,
         outputs: Dict[str, str] = None,
         parameters: Dict[str, Any] = None,
         title: str = None,
         id: Optional[str] = MISSING,
-        description: str = None,
         description_file: str = None,
     ) -> GraphConfigEditor:
         if id is MISSING:
@@ -196,13 +188,12 @@ class GraphConfigEditor:
         self.add_function_node_dict(
             {
                 "uses": component_key,
-                "schedule": schedule,
+                "trigger": trigger,
                 "inputs": inputs,
                 "outputs": outputs,
                 "parameters": parameters,
                 "title": title,
                 "id": str(id) if id else id,
-                "description": description,
                 "description_file": description_file,
             }
         )
