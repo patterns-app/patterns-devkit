@@ -73,6 +73,10 @@ class GraphConfigEditor:
     def get_title(self) -> Optional[str]:
         return self._cfg.get("title")
 
+    def set_slug(self, slug: str) -> GraphConfigEditor:
+        self._cfg["slug"] = slug
+        return self
+
     def get_slug(self) -> Optional[str]:
         """Return the slug value listed in the yaml, or None if it's not present"""
         return self._cfg.get("slug")

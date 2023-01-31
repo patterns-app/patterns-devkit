@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import typer
@@ -23,12 +24,14 @@ def app(
 ):
     """Add a new node to an app"""
     if not location:
-        prompt = "Enter a name for the new app directory [prompt.default](e.g. my_app)"
+        prompt = "Enter a name for the new app directory [prompt.default](e.g. my-app)"
         location = prompt_path(prompt, exists=False)
     with abort_on_error("Error creating app"):
         path = resolve_graph_path(location, exists=False)
     name = name or location.stem
-    GraphConfigEditor(path, read=False).set_name(name).write()
+    slug = re.sub("[_ ]+", "-", name)
+    slug = re.sub("[^a-zA-Z0-9-]+", "", slug).lower()
+    GraphConfigEditor(path, read=False).set_name(name).set_slug(slug).write()
 
     sprint(f"\n[success]Created app [b]{name}")
     sprint(
