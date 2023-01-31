@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, date
-from typing import Iterator, Any, List, TYPE_CHECKING
+from typing import Iterator, Any, List, TYPE_CHECKING, Union
 from typing import TypeVar, Type
 
 if TYPE_CHECKING:
@@ -515,7 +515,7 @@ T = TypeVar("T", str, int, float, bool, datetime, date, list, Connection)
 
 def Parameter(
     description: str = None,
-    type: Type[T] = str,
+    type: Union[Type[T], Connection] = str,
     default: T = "MISSING",
 ) -> T:
     """Parameters let a python script take values from the end user / UI.
