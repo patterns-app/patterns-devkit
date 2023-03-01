@@ -125,7 +125,7 @@ class GraphConfigEditor:
         )
         return self
 
-    def add_store(
+    def add_table(
         self,
         name: str,
         id: Optional[str] = MISSING,
@@ -165,7 +165,7 @@ class GraphConfigEditor:
         self.add_function_node_dict(
             {
                 "webhook": webhook,
-                "title": title,
+                "title": title or None,
                 "id": str(id) if id else id,
                 "description_file": description_file,
             }

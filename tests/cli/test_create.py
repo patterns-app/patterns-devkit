@@ -89,3 +89,11 @@ def test_create_component_deprecated(tmp_path: Path):
     run_cli("create app", f"{dr}\n")
     run_cli(f"create node --component=foo/bar@v1", f"{dr}\n")
     assert f"uses: foo/bar@v1" in (dr / "graph.yml").read_text()
+
+
+def test_create_table(tmp_path: Path):
+    dr = set_tmp_dir(tmp_path).parent / "graph"
+    run_cli("create app", f"{dr}\n")
+    run_cli(f"create node --app={dr} --type=table tbl")
+    text = (dr / "graph.yml").read_text()
+    assert "table: tbl" in text
