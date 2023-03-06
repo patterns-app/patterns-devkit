@@ -514,6 +514,7 @@ T = TypeVar("T", str, int, float, bool, datetime, date, list, Connection)
 
 
 def Parameter(
+    name: str,
     description: str = None,
     type: Union[Type[T], Connection] = str,
     default: T = "MISSING",
@@ -532,6 +533,7 @@ def Parameter(
     * Connection
 
     Args:
+        name: The parameter name. Must be a valid python identifier.
         description: Description / help text
         type: should be the actual python type, e.g. `type=str` or `type=datetime`
         default: default value. If not set explicitly, the parameter is assumed to be required.
