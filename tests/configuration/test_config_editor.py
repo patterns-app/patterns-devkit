@@ -84,7 +84,7 @@ def test_add_store_with_all_fields(tmp_path: Path):
         id: ab234567
         schema: sc
     """
-    get_editor(tmp_path, before).add_store("st", "ab234567", "sc").assert_dump(
+    get_editor(tmp_path, before).add_table("st", "ab234567", "sc").assert_dump(
         after
     )
 

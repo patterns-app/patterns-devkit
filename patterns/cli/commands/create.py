@@ -53,19 +53,23 @@ class _NodeType(str, Enum):
     function = "function"
     component = "component"
     webhook = "webhook"
+    table = "table"
 
 
 @create.command()
 def node(
     explicit_app: Path = Option(None, "--app", "-a", exists=True, help=_app_help),
-    title: str = Option("", "--title", "-n", help=_name_help),
+    title: str = Option("", "-n", "--title", help=_name_help),
     component: str = Option("", "-c", "--component", help=_component_help, hidden=True),
-    type: _NodeType = Option(_NodeType.function, help=_type_help),
+    type: _NodeType = Option(_NodeType.function, "-t", "--type", help=_type_help),
     location: str = Argument("", help=_location_help),
 ):
     """Add a new node to an app
 
-    patterns create node --name='My Node' mynode.py
+    patterns create node --title='My Node' mynode.py
+    patterns create node --type=table my_table
+    patterns create node --type=webhook my_webhook
+    patterns create node --type=component patterns/component@v1
     """
     # --component option is deprecated
     if component and location:
@@ -81,6 +85,10 @@ def node(
         _add_component_node(explicit_app, location, title)
     elif type == _NodeType.webhook:
         _add_webhook_node(explicit_app, location, title)
+    elif type == _NodeType.table:
+        if title:
+            abort("Tables cannot have titles")
+        _add_table_node(explicit_app, location)
     else:
         raise NotImplementedError(f"Unexpected node type {type}")
 
@@ -94,6 +102,12 @@ def _add_component_node(explicit_app: Optional[Path], component: str, title: str
         component_key=component, title=title
     ).write()
     sprint(f"[success]Added component {component} to app")
+
+
+def _add_table_node(explicit_app: Optional[Path], title: str):
+    ids = IdLookup(find_nearest_graph=True, graph_path=explicit_app)
+    GraphConfigEditor(ids.graph_file_path).add_table(name=title).write()
+    sprint(f"[success]Added table {title} to app")
 
 
 def _add_function_node(
@@ -165,7 +179,7 @@ def _add_webhook_node(explicit_app: Optional[Path], name: str, title: Optional[s
 
         # Add the output table if it doesn't exist already
         if not any(n.get("table") == name for n in editor.store_nodes()):
-            editor.add_store(name, id=random_node_id())
+            editor.add_table(name, id=random_node_id())
 
         editor.write()
 
