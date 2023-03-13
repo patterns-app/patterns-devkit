@@ -17,12 +17,15 @@ from patterns.cli.services.secrets import create_secret
 create = typer.Typer(name="create", help="Create a new app or node")
 
 _name_help = "The name of the app. The location will be used as a name by default"
+_location_help = "The directory to create for the app"
 
 
 @create.command()
 def app(
     name: str = Option("", "--name", "-n", help=_name_help),
-    location: Path = Argument(None, metavar="APP"),
+    location: Path = Argument(
+        None, metavar="APP", help=_location_help, show_default=False
+    ),
 ):
     """Create a new empty app"""
     if not location:
@@ -42,11 +45,12 @@ def app(
     )
 
 
-_app_help = "The app to add this node to (defaults to the app in the current directory)"
+_app_help = "The slug or directory of the app to add this node to"
 _title_help = "The title of the node. The location will be used as a title by default"
 _component_help = "The name of component to use to create this node"
 _type_help = "The type of node to create"
 _location_help = "The file to create for the node (for function nodes), or the name of the component or webhook"
+_app_default_help = "the app in the current directory"
 
 
 class _NodeType(str, Enum):
@@ -58,10 +62,13 @@ class _NodeType(str, Enum):
 
 @create.command()
 def node(
-    explicit_app: Path = Option(None, "--app", "-a", exists=True, help=_app_help),
+    explicit_app: Path = Option(
+        # the type annotation is wrong: typer accepts a str
+        None, "--app", "-a", exists=True, help=_app_help, show_default=_app_default_help
+    ),
     title: str = Option("", "-n", "--title", help=_name_help),
     component: str = Option("", "-c", "--component", help=_component_help, hidden=True),
-    type: _NodeType = Option(_NodeType.function, "-t", "--type", help=_type_help),
+    type: _NodeType = Option(_NodeType.function.value, "-t", "--type", help=_type_help),
     location: str = Argument("", help=_location_help),
 ):
     """Add a new node to an app
@@ -205,7 +212,9 @@ def secret(
         "", "-o", "--organization", metavar="SLUG", help=_organization_help
     ),
     sensitive: bool = Option(False, "--sensitive", "-s", help=_sensitive_help),
-    description: str = Option(None, "-d", "--description", help=_secret_desc_help),
+    description: str = Option(
+        None, "-d", "--description", help=_secret_desc_help, show_default=False
+    ),
     name: str = Argument(..., help=_secret_name_help),
     value: str = Argument(..., help=_secret_value_help),
 ):
