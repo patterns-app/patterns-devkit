@@ -19,10 +19,10 @@ def trigger(
     organization: str = Option(
         "", "-o", "--organization", metavar="SLUG", help=_organization_help
     ),
-    app: str = Option(None, exists=True, help=app_argument_help),
+    app: str = Option(None, exists=True, help=app_argument_help, show_default=False),
     type: str = Option("pubsub", hidden=True),
-    node_id: str = Option(None, help=_node_id_help),
-    node: Path = Argument(None, exists=True, help=_node_help),
+    node_id: str = Option(None, help=_node_id_help, show_default=False),
+    node: Path = Argument(None, exists=True, help=_node_help, show_default=False),
 ):
     """Trigger a node on an uploaded app to run immediately
 
