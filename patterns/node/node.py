@@ -540,3 +540,14 @@ def Parameter(
             May be set to None
     """
     pass
+
+def respond_to_request(request_key: str, payload: dict):
+    """Respond with a payload to a request identified by a request_key
+
+    Args:
+        request_key: The key of the request to respond to. This is the value of the
+            "patterns_request_key" field added to the table for requests that wait for a
+            response.
+        payload: Data that will be json encoded and used as the body of the response.
+    """
+    pass
