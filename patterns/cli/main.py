@@ -19,14 +19,13 @@ from .commands.logout import logout
 from .commands.trigger import trigger
 from .commands.update import update_command
 from .commands.upload import upload
+from .services import versions
 from .services.output import sprint
-from .services.versions import get_newer_devkit_version
+from .services.versions import (
+    print_message_if_devkit_needs_update,
+)
 from .. import __version__
 from ..cli.services import output
-
-app = Typer(
-    name="patterns", no_args_is_help=True, add_completion=False, rich_markup_mode="rich"
-)
 
 
 def version_cb(value: bool):
@@ -34,26 +33,11 @@ def version_cb(value: bool):
         return
     sprint(f"Patterns Devkit CLI version [code]{__version__}")
 
-    latest = get_newer_devkit_version()
-    if latest:
-        sprint(
-            f"\n[info]A newer version of the Patterns devkit "
-            f"([code]{latest}[/code]) is available."
-        )
-        sprint(
-            "[info]Run [code]pip install --upgrade patterns-devkit[/code] "
-            "to get the latest version."
-        )
+    print_message_if_devkit_needs_update()
 
     raise typer.Exit()
 
 
-@app.callback(
-    help=f"""[cyan]Patterns Devkit {__version__} 
-    
-    [not dim][green]Read the docs:[/] https://www.patterns.app/docs/devkit
-    """
-)
 def cb(
     stacktrace: bool = typer.Option(False, hidden=True),
     _: bool = typer.Option(
@@ -63,10 +47,34 @@ def cb(
         callback=version_cb,
         is_eager=True,
     ),
+    disable_version_check: bool = typer.Option(
+        False,
+        "--disable-version-check",
+        help="Don't periodically check if a new devkit version is available for download",
+    ),
 ):
     if stacktrace:
         output.DEBUG = True
+    if disable_version_check:
+        versions.DISABLE_VERSION_CHECK = True
 
+
+def result_cb(*_, **__):
+    print_message_if_devkit_needs_update()
+
+
+app = Typer(
+    name="patterns",
+    no_args_is_help=True,
+    add_completion=False,
+    rich_markup_mode="rich",
+    callback=cb,
+    result_callback=result_cb,
+    help=f"""[cyan]Patterns Devkit {__version__}
+
+[not dim][green]Read the docs:[/] https://www.patterns.app/docs/devkit
+""",
+)
 
 for command in (
     config,
