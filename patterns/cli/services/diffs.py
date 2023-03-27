@@ -25,7 +25,9 @@ class DiffResult:
         return not self.is_not_empty
 
 
-def get_diffs_between_zip_and_dir(zf: ZipFile, root: Path) -> DiffResult:
+def get_diffs_between_zip_and_dir(
+    zf: ZipFile, root: Path, from_remote: bool
+) -> DiffResult:
     """Return a map of {filename: diff} where the contents differ between zf and root"""
     result = DiffResult([], [], {})
     all_in_zip = set()
@@ -35,7 +37,7 @@ def get_diffs_between_zip_and_dir(zf: ZipFile, root: Path) -> DiffResult:
             continue
         all_in_zip.add(zipinfo.filename)
         if not dst.is_file():
-            result.removed.append(zipinfo.filename)
+            (result.added if from_remote else result.removed).append(zipinfo.filename)
             continue
         zip_bytes = zf.read(zipinfo)
         try:
@@ -50,6 +52,8 @@ def get_diffs_between_zip_and_dir(zf: ZipFile, root: Path) -> DiffResult:
                 ]
         else:
             if zip_content != fs_content:
+                if from_remote:
+                    zip_content, fs_content = fs_content, zip_content
                 diff = difflib.unified_diff(
                     zip_content,
                     fs_content,
@@ -61,7 +65,7 @@ def get_diffs_between_zip_and_dir(zf: ZipFile, root: Path) -> DiffResult:
     for path in directory_contents_to_upload(root):
         file_name = path.relative_to(root).as_posix()
         if file_name not in all_in_zip:
-            result.added.append(file_name)
+            (result.removed if from_remote else result.added).append(file_name)
 
     return result
 

@@ -59,7 +59,7 @@ def download(
             if force:
                 zf.extractall(root)
             else:
-                conflicts = get_diffs_between_zip_and_dir(zf, root)
+                conflicts = get_diffs_between_zip_and_dir(zf, root, True)
                 if not conflicts.changed:
                     zf.extractall(root)
                     sprint(f"[success]Downloaded app {ids.graph_slug}")

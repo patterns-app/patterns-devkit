@@ -48,7 +48,9 @@ def upload(
             pass
         else:
             with ZipFile(content, "r") as zf:
-                conflicts = get_diffs_between_zip_and_dir(zf, ids.graph_directory)
+                conflicts = get_diffs_between_zip_and_dir(
+                    zf, ids.graph_directory, False
+                )
                 if conflicts.is_not_empty:
                     sprint("[info]Upload would change the following files:\n")
                     print_diffs(conflicts, diff, True)
